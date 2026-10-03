@@ -1,0 +1,22 @@
+/* تنظیم‌های مخصوص برنامه که در سیستم طراحی نیست. */
+#root { zoom: var(--zoom, 1); }
+.main { min-height: calc(100vh - 16px); }
+.side { position: sticky; top: 0; height: 100vh; }
+@media (max-width: 900px) {
+  .side { position: static; height: auto; }
+}
+.listgrid {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 2.6fr) 70px 54px minmax(0, 1.4fr);
+  gap: 14px;
+  align-items: center;
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 10, 0.42);
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}

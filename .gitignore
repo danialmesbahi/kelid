@@ -1,0 +1,25 @@
+node_modules/
+dist/
+dist-electron/
+release/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+coverage/
+*.tsbuildinfo
+
+# graphify: commit graph.json, graph.html, GRAPH_REPORT.md; keep machine-specific files local
+graphify-out/cache/
+graphify-out/.graphify_*
+graphify-out/cost.json
+graphify-out/manifest.json
+
+# local DB files and agent-local settings
+*.db
+*.db-wal
+*.db-shm
+*.key
+.claude/settings.local.json
+!graphify-out/.graphify_labels.json

@@ -1,0 +1,107 @@
+import { useEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { Icon, Kbd, type IconName } from '@kelid/ui';
+import { toFaDigits } from '@kelid/core';
+import { useQuery, useStorageInfo } from '../data';
+import { CommandPalette } from './CommandPalette';
+
+const NAV: Array<{ to: string; icon: IconName; label: string }> = [
+  { to: '/', icon: 'today', label: 'امروز' },
+  { to: '/files', icon: 'files', label: 'فایل‌ها' },
+  { to: '/clients', icon: 'users', label: 'مشتری‌ها' },
+  { to: '/calendar', icon: 'cal', label: 'تقویم' },
+  { to: '/deals', icon: 'deal', label: 'قراردادها' },
+];
+
+const ROW = 46; // ارتفاع هر گزینه + فاصله، برای نشانگر لغزان
+
+function activeIndex(pathname: string): number {
+  if (pathname === '/') return 0;
+  return NAV.findIndex((n, i) => i > 0 && pathname.startsWith(n.to));
+}
+
+const storageLabel = { desktop: 'ذخیرهٔ رمزگذاری‌شده روی این سیستم', browser: 'ذخیره روی همین مرورگر', memory: 'این مرورگر حافظهٔ ماندگار ندارد', locked: 'کلید در تب دیگری باز است' } as const;
+
+export function Shell() {
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const storage = useStorageInfo();
+  const counts = useQuery('nav-counts', async (s) => ({ files: (await s.listListings()).length, clients: (await s.listClients()).length }));
+  const idx = activeIndex(pathname);
+
+  // میانبرهای سراسری: Ctrl+K جستجو، Ctrl+N فایل جدید.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'k' || k === 'ل') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      } else if (k === 'n' || k === 'د') {
+        e.preventDefault();
+        navigate('/add', { viewTransition: true });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navigate]);
+
+  return (
+    <div className="shell">
+      <aside className="side">
+        <div className="brand">
+          <span className="plq" style={{ height: 34, padding: '0 12px', fontSize: 16 }}>کلید</span>
+          <span className="xs mute" style={{ lineHeight: 1.45 }}>املاک<br />[نام دفتر]</span>
+        </div>
+        <nav aria-label="منوی اصلی" className="col navwrap" style={{ gap: 2 }}>
+          <span className="nav-indicator" aria-hidden="true" style={{ transform: `translateY(${Math.max(idx, 0) * ROW}px)`, opacity: idx < 0 ? 0 : 1 }} />
+          {NAV.map((n) => (
+            <NavLink key={n.to} to={n.to} end={n.to === '/'} viewTransition className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
+              <Icon name={n.icon} />
+              {n.label}
+              {n.to === '/files' && counts && <span className="cnt num">{toFaDigits(counts.files)}</span>}
+              {n.to === '/clients' && counts && <span className="cnt num">{toFaDigits(counts.clients)}</span>}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="sp" />
+        <Link to="/settings" viewTransition className="soft" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: 14 }}>
+          <span className="rw sm" style={{ justifyContent: 'space-between' }}>
+            <span className="b">پلن حرفه‌ای</span>
+            <span className="xs mute num">نسخهٔ آزمایشی</span>
+          </span>
+          <span className="bar"><span style={{ width: '76%' }} /></span>
+          <span className="rw xs mute" style={{ gap: 6 }}>
+            <span className="dot" style={{ background: storage.persistent ? 'var(--ok)' : 'var(--warn)' }} />
+            {storageLabel[storage.where]}
+          </span>
+        </Link>
+        <NavLink to="/settings" viewTransition className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
+          <Icon name="set" />
+          تنظیمات
+        </NavLink>
+      </aside>
+
+      <main className="main">
+        <div className="top">
+          <button type="button" className="gs" onClick={() => setPaletteOpen(true)}>
+            <Icon name="search" />
+            <span className="sp" style={{ textAlign: 'right' }}>جستجو در فایل‌ها، مشتری‌ها و کارها…</span>
+            <Kbd>Ctrl K</Kbd>
+          </button>
+          <span className="sp" />
+          <Link className="btn btn-p" to="/add" viewTransition>
+            <Icon name="plus" size="s" thick />
+            فایل جدید
+          </Link>
+        </div>
+        <div className="page col" style={{ flex: 1 }}>
+          <Outlet />
+        </div>
+      </main>
+
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+    </div>
+  );
+}

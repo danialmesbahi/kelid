@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fa" dir="rtl" class="app">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0E4D3F" />
+    <title>کلید — سامانهٔ فایل املاک</title>
+    <script>
+      // پوسته را قبل از اولین نقاشی اعمال کن تا صفحه هیچ‌وقت سفید چشمک نزند.
+      try {
+        var t = JSON.parse(localStorage.getItem('kelid.theme') || '"light"');
+        if (t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+        var z = JSON.parse(localStorage.getItem('kelid.textSize') || '0');
+        document.documentElement.style.setProperty('--zoom', String([1, 1.12, 1.25][z] || 1));
+      } catch (e) {}
+    </script>
+    <style>html{background:#EFEEEA}html.dark{background:#0B0C0B}</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

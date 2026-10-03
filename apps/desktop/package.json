@@ -1,0 +1,57 @@
+{
+  "name": "@kelid/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "کلید — نسخهٔ ویندوز",
+  "author": "Kelid",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "build:main": "esbuild src/main.ts src/preload.ts --bundle --platform=node --format=cjs --outdir=dist-electron --out-extension:.js=.cjs --external:electron --external:better-sqlite3-multiple-ciphers",
+    "dev": "npm run build:main && concurrently -k \"npm run dev -w @kelid/web\" \"wait-on tcp:5173 && cross-env KELID_DEV_URL=http://localhost:5173 electron .\"",
+    "build": "npm run build:main",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "cross-env": "^10.0.0",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.25.0",
+    "wait-on": "^8.0.0"
+  },
+  "build": {
+    "appId": "ir.kelid.desktop",
+    "productName": "کلید",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "کلید",
+      "language": "1065"
+    },
+    "electronVersion": "38.8.6",
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3-multiple-ciphers/**"
+    ],
+    "npmRebuild": false,
+    "nodeGypRebuild": false
+  },
+  "dependencies": {
+    "better-sqlite3-multiple-ciphers": "^13.0.3"
+  }
+}
