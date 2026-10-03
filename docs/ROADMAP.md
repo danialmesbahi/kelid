@@ -25,6 +25,7 @@
 | [#5](https://github.com/danialmesbahi/kelid/issues/5) | نسخهٔ گوشی و نصب PWA | |
 | [#6](https://github.com/danialmesbahi/kelid/issues/6) | آیکون برنامه و فایل نصب | |
 | [#7](https://github.com/danialmesbahi/kelid/issues/7) | ESLint، Prettier و تست سرتاسری | |
+| [#21](https://github.com/danialmesbahi/kelid/issues/21) | به‌روزرسانی Electron به نسخهٔ امن | بالا |
 | [#8](https://github.com/danialmesbahi/kelid/issues/8) | تصمیم‌های صاحب کار (اینماد، سرور، درگاه، قیمت) | فقط صاحب کار |
 
 ## تقسیم کار پیشنهادی برای دو نفر هم‌زمان
@@ -36,7 +37,7 @@
 | #2 ویرایش فایل ← #3 مشتری ← #4 بازدید و کار | #1 عکس‌ها ← #5 گوشی و PWA ← #6 آیکون |
 | بیشتر در `pages/Add.tsx`، `Clients.tsx`، `Today.tsx` | بیشتر در `FileDetail.tsx`، `Show.tsx`، `vite.config.ts`، `apps/desktop` |
 
-#7 را هر کس زودتر آزاد شد برمی‌دارد.
+#21 (به‌روزرسانی Electron) قبل از ساخت فایل نصب بعدی لازم است و به نفر ب نزدیک‌تر است. #7 را هر کس زودتر آزاد شد برمی‌دارد.
 
 **نقاط برخورد احتمالی** (قبل از شروع در issue هماهنگ کنید):
 - `packages/core/src/sql/schema.ts`: هر دو نفر migration اضافه می‌کنند. کسی که دیرتر merge می‌کند، migration خودش را بعد از migration‌های main قرار می‌دهد (`/kelid-sync`).
