@@ -75,6 +75,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 ## Known gotchas
 - Web DB (OPFS) can be open in **one browser tab at a time**; other tabs fall back to an in-memory DB (`where: 'locked'`).
 - Electron holds a single-instance lock: close `npm run dev:desktop` before launching a packaged build, or it exits silently.
+- `npm install` warns that `better-sqlite3-multiple-ciphers`' `node-gyp rebuild` script was blocked — expected; never approve it (prebuilt N-API binaries are used).
 - `electron-builder` must keep `npmRebuild: false` (prebuilt SQLCipher binaries; rebuild needs Visual Studio).
 - Vite and Vitest must stay on the same Vite major (currently 8) or tests fail with `Missing field moduleType`.
 - `Intl` date parts order differs between engines: build Persian dates with `formatToParts`, never by string-splitting.

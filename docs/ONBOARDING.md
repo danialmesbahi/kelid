@@ -99,7 +99,8 @@ graphify affected "KelidStore"
 
 | نشانه | راه‌حل |
 |---|---|
-| `npm install` می‌گوید install script مسدود شد (npm ۱۲) | `npm install-scripts approve <نام بسته>` و بستهٔ تأییدشده در `allowScripts` فایل `package.json` ریشه ثبت می‌شود |
+| هشدار `install scripts blocked … better-sqlite3-multiple-ciphers (node-gyp rebuild)` | **عادی است؛ تأییدش نکنید.** این ماژول نسخهٔ آماده دارد و اسکریپتش فقط سعی می‌کند با Visual Studio دوباره بسازد |
+| بستهٔ دیگری install script مسدودشده دارد (npm ۱۲) | `npm install-scripts approve <نام بسته>` و بستهٔ تأییدشده در `allowScripts` فایل `package.json` ریشه ثبت می‌شود |
 | برنامهٔ ویندوزِ نصب‌شده باز نمی‌شود | نسخهٔ dev (`npm run dev:desktop`) هنوز باز است؛ اول آن را ببندید |
 | در مرورگر پیام «تب دیگری باز است» | کلید را فقط در یک تب باز نگه دارید |
 | تست‌ها با `Missing field moduleType` خطا می‌دهند | نسخهٔ اصلی Vite در `apps/web` و Vitest باید یکی باشد |
