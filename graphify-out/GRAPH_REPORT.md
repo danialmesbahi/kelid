@@ -1,7 +1,7 @@
 # Graph Report - RealState  (2026-10-04)
 
 ## Corpus Check
-- 63 files · ~22,975 words
+- 63 files · ~23,007 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1fae52d5`
+- Built from commit: `8488778b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -202,7 +202,7 @@ Cohesion: 0.40
 Nodes (5): storeFor(), StoreProvider(), StoreProvider (opens driver, SqlStore.open, Splash), seed, Sample Data (first-run seed, removable in Settings)
 
 ## Knowledge Gaps
-- **215 isolated node(s):** `$schema`, `Bash(npm run *)`, `Bash(npm test)`, `Bash(npm ci)`, `Bash(npm install)` (+210 more)
+- **215 isolated node(s):** `فازها`, `فاز ۱ — کارهای باز`, `تقسیم کار پیشنهادی برای دو نفر هم‌زمان`, `روند هر کار`, `طراحی` (+210 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -215,7 +215,7 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.034) - this node is a cross-community bridge._
 - **Why does `Kelid README` connect `AGENTS.md Agent Rules` to `StoreProvider`, `Tech Stack Doc`, `Desktop Driver (window.kelid.db IPC -> better-sqlite3-multiple-ciphers)`, `Custom Sync Protocol (UUIDv7, outbox, cursor pull, soft delete)`, `Known Gotchas (OPFS single tab, single-instance lock, npmRebuild false, Vite/Vitest major, Intl formatToParts)`, `Recipe: Add a Page`?**
   _High betweenness centrality (0.032) - this node is a cross-community bridge._
-- **What connects `$schema`, `Bash(npm run *)`, `Bash(npm test)` to the rest of the system?**
+- **What connects `فازها`, `فاز ۱ — کارهای باز`, `تقسیم کار پیشنهادی برای دو نفر هم‌زمان` to the rest of the system?**
   _215 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `App.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.06786941580756013 - nodes in this community are weakly interconnected._

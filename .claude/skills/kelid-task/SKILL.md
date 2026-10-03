@@ -7,7 +7,7 @@ description: Start work on a Kelid GitHub issue — pick or claim the issue, bra
 
 Repo: `danialmesbahi/kelid`. Issues + milestones are the single source of truth for who does what.
 
-1. **Clean start.** `git status` must be clean (otherwise ask). Then `git switch main` and `git pull --ff-only`. If `package-lock.json` changed, run `npm install`.
+1. **Clean start.** `git status` must be clean (otherwise ask). Exception: changes only under `graphify-out/` come from the post-commit hook — commit them as `chore: refresh graph` and continue. Then `git switch main` and `git pull --ff-only`. If `package-lock.json` changed, run `npm install`.
 2. **Pick the issue.**
    - Number given → `gh issue view N`.
    - Otherwise list unclaimed work in the earliest open phase:
