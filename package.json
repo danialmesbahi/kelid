@@ -8,6 +8,7 @@
     "apps/*"
   ],
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev": "npm run dev -w @kelid/web",
     "dev:desktop": "npm run dev -w @kelid/desktop",
     "build": "npm run build -w @kelid/web && npm run build -w @kelid/desktop",

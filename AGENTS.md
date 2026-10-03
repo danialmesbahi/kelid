@@ -12,7 +12,7 @@ Users are often older and non-technical → the UI must stay calm, obvious, fast
 ## Read before exploring (saves tokens)
 1. `graphify-out/GRAPH_REPORT.md` — architecture map: hub nodes, communities, cross-module links. Read it instead of grepping the tree.
 2. `docs/ARCHITECTURE.md` — data flow, module map, routes, step-by-step recipes (add a page / field / store method / migration).
-3. `docs/TECH_STACK.md` — why each technology was chosen, the phase roadmap (Persian).
+3. `docs/ROADMAP.md` — phases, open issues, who-does-what split. `docs/TECH_STACK.md` — why each technology was chosen (Persian).
 4. Only then open source files — and only the ones the graph points to.
 
 If `graphify` is installed (`uv tool install graphifyy`), prefer it over broad file reads:
@@ -80,11 +80,16 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 - Vite and Vitest must stay on the same Vite major (currently 8) or tests fail with `Missing field moduleType`.
 - `Intl` date parts order differs between engines: build Persian dates with `formatToParts`, never by string-splitting.
 
-## Git
-- Branch from `main`: `feat/…`, `fix/…`, `docs/…`. Open a PR; CI (typecheck + tests) must be green before merge.
-- Commit messages: short imperative English summary (`feat: add listing editing`), details in the body.
-- Never commit `node_modules`, `dist*`, `release/`, `.env`, or local DB/key files.
+## Team workflow (two people + their agents work in parallel)
+- **First time on a machine:** `npm run setup` (installs deps, git hooks, graphify, runs checks).
+- **Tasks live in GitHub Issues** (`danialmesbahi/kelid`), grouped by phase milestones; overview + suggested split in `docs/ROADMAP.md`.
+- Project skills for Claude Code: `/kelid-task` (claim issue → branch → context), `/kelid-sync` (merge main + conflict rules), `/kelid-ship` (verify → PR). Other agents: follow the same steps from `.claude/skills/*/SKILL.md`.
+- One issue = one branch `<feat|fix|chore>/<issue#>-<slug>` = one small PR with `Closes #N`. Assign the issue to yourself before starting; never take an issue assigned to someone else.
+- **Never push to `main`** (a local pre-push hook blocks it; the free plan has no branch protection). Merge = squash, after CI is green and the other person approved.
+- Commit messages: short imperative English (`feat: add listing editing`). Never commit `node_modules`, `dist*`, `release/`, `.env`, DB or key files.
+- Conflicts: migrations keep main's order and append yours after; `package-lock.json` take main's then `npm install`; `graphify-out/` take main's then `graphify update .`.
+- The design canvas (all screens incl. phone, signup, plans, admin) is linked in `docs/ROADMAP.md`; build new screens from it, not from imagination.
 
 ## Status (update when a phase item lands)
-- Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer done. **Next:** listing photos, edit listing, add/edit client.
+- Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer done. **Open:** #1 photos, #2 edit listing, #3 clients, #4 visits/to-dos, #5 phone + PWA, #6 icon, #7 lint/e2e.
 - Phase 2 server + sync · Phase 3 subscription/payments/admin · Phase 4 calendar, deals, map, auto-update · Phase 5 beta.

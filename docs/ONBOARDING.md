@@ -25,8 +25,14 @@ cd kelid
 ```
 
 ```bash
-npm install
+npm run setup
 ```
+
+این دستور یک‌جا همه کارها را انجام می‌دهد:
+- وابستگی‌ها را نصب می‌کند؛
+- hook گیت را می‌گذارد تا جلوی push مستقیم به `main` را بگیرد؛
+- graphify و دستور `/graphify` را برای Claude Code نصب می‌کند (اگر uv نصب باشد)؛
+- typecheck و تست‌ها را اجرا می‌کند.
 
 ```bash
 npm run dev
@@ -90,10 +96,15 @@ graphify affected "KelidStore"
 
 ## ۴. روند کار تیمی
 
-1. از `main` شاخه بسازید: `feat/edit-listing` یا `fix/search-digits`.
-2. کار کنید، `typecheck` و `test` را پاس کنید، برنامه را واقعاً باز کنید و ببینید.
-3. Pull Request بزنید. GitHub Actions خودش typecheck و تست را اجرا می‌کند و تا سبز نشود merge نکنید.
-4. اگر روی دادهٔ دیتابیس تغییر دادید، فقط migration تازه اضافه کنید؛ migration قبلی را هرگز ویرایش نکنید.
+کارها در [GitHub Issues](https://github.com/danialmesbahi/kelid/issues) هستند. نمای کلی و تقسیم کار در [ROADMAP.md](ROADMAP.md) آمده است.
+
+1. در Claude Code بنویسید `/kelid-task`. یک issue آزاد پیشنهاد می‌دهد، آن را به اسم شما می‌کند و شاخهٔ `feat/<شماره>-<نام>` می‌سازد.
+2. کار کنید. `/kelid-ship` بررسی‌ها را اجرا می‌کند، push می‌کند و Pull Request با `Closes #N` می‌سازد.
+3. هم‌تیمی PR را بازبینی می‌کند. وقتی CI سبز شد، با squash merge ادغام می‌شود.
+4. هر وقت هم‌تیمی چیزی merge کرد، `/kelid-sync` تغییرات main را به شاخهٔ شما می‌آورد و تداخل‌ها را طبق قانون حل می‌کند.
+5. اگر روی دادهٔ دیتابیس تغییر دادید، فقط migration تازه اضافه کنید؛ migration قبلی را هرگز ویرایش نکنید.
+
+ایجنت‌های دیگر مثل Codex و Cursor همین مراحل را از فایل‌های `.claude/skills/*/SKILL.md` می‌خوانند (AGENTS.md به آن‌ها اشاره می‌کند).
 
 ## ۵. مشکلات رایج
 

@@ -9,6 +9,15 @@
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | جریان داده، نقشهٔ ماژول‌ها، مسیرها، دستورالعمل افزودن صفحه و فیلد |
 | [docs/TECH_STACK.md](docs/TECH_STACK.md) | دلیل انتخاب هر فناوری و نقشهٔ فازها |
 | [graphify-out/GRAPH_REPORT.md](graphify-out/GRAPH_REPORT.md) | گراف دانش پروژه (نودها، گروه‌ها، ارتباط‌ها) |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | فازها، کارهای باز و تقسیم کار بین هم‌تیمی‌ها |
+
+## شروع سریع با Claude Code
+
+پیش‌نیاز: Node 22+، Git و GitHub CLI که با `gh auth login` وارد حساب دارای دسترسی به این مخزن شده باشد. این متن را به Claude Code بدهید:
+
+> Clone https://github.com/danialmesbahi/kelid into this folder, open it, run `npm run setup`, then read AGENTS.md and docs/ROADMAP.md and show me the open Phase 1 issues so I can pick one with /kelid-task.
+
+بعد از آن روند هر کار: `/kelid-task` ← کد ← `/kelid-ship`. اگر هم‌تیمی چیزی merge کرد: `/kelid-sync`.
 
 ## ساختار
 
