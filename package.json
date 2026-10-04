@@ -15,11 +15,11 @@
     "dist:win": "npm run build && npm run dist -w @kelid/desktop",
     "typecheck": "tsc -p packages/core && tsc -p apps/web && tsc -p apps/desktop",
     "test": "vitest run",
-    "icons": "electron scripts/icons.cjs",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "icons": "electron scripts/icons.cjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

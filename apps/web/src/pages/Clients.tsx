@@ -5,9 +5,9 @@ import { bestMatches, dealLabel, describeMatch, formatToman, listingTitle, toFaD
 import { useQuery, useStore } from '../data';
 import { clientsQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
-import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { useToast } from '../layout/Toasts';
 import { VisitDialog } from '../visits/VisitDialog';
+import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
 import { useProgressive } from '../layout/useProgressive';
 

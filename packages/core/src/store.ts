@@ -1,4 +1,4 @@
-import type { Client, DealType, Listing, Photo, Todo, Visit } from './model';
+import type { Client, DealType, Listing, Todo, Visit, Photo } from './model';
 import { normalizeForSearch, toEnDigits } from './persian';
 import { listingTitle } from './format';
 
@@ -77,24 +77,6 @@ export function searchText(l: Listing): string {
   return normalizeForSearch(`${plaque} ${listingTitle(l)} ${l.neighborhood} ${l.street}`);
 }
 
-/**
- * فقط فیلدهایی که واقعاً عوض شده‌اند؛ همین در outbox می‌رود تا همگام‌سازی بعدی
- * بتواند فیلدبه‌فیلد ادغام کند. قیمت و مالک هر کدام یک فیلد حساب می‌شوند.
- */
-export function changedFields(cur: Listing, next: Listing): Partial<NewListing> {
-  const out: Record<string, unknown> = {};
-  for (const k of Object.keys(next) as Array<keyof Listing>) {
-    if (k === 'id' || k === 'plaque' || k === 'createdAt' || k === 'updatedAt') continue;
-    if (JSON.stringify(cur[k]) !== JSON.stringify(next[k])) out[k] = next[k];
-  }
-  return out as Partial<NewListing>;
-}
-
-/** وصلهٔ ویرایش را روی فایل فعلی اعمال می‌کند؛ پلاک و تاریخ ساخت هرگز عوض نمی‌شوند. */
-export function applyListingPatch(cur: Listing, patch: Partial<NewListing>): Listing {
-  return { ...cur, ...patch, price: { ...cur.price, ...patch.price }, owner: { ...cur.owner, ...patch.owner }, id: cur.id, plaque: cur.plaque, createdAt: cur.createdAt };
-}
-
 /** شماره تلفن برای مقایسه: ارقام لاتین، بدون فاصله و خط، و ۹۸+ به جای ۰. */
 export function normalizePhone(phone: string): string {
   let d = toEnDigits(phone).replace(/[^\d]/g, '');
@@ -116,6 +98,24 @@ export function changedClientFields(cur: Client, next: Client): Partial<NewClien
 
 export function clientSearchText(c: Pick<Client, 'name' | 'phone' | 'need'>): string {
   return normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')} ${normalizePhone(c.phone)}`);
+}
+
+/**
+ * فقط فیلدهایی که واقعاً عوض شده‌اند؛ همین در outbox می‌رود تا همگام‌سازی بعدی
+ * بتواند فیلدبه‌فیلد ادغام کند. قیمت و مالک هر کدام یک فیلد حساب می‌شوند.
+ */
+export function changedFields(cur: Listing, next: Listing): Partial<NewListing> {
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(next) as Array<keyof Listing>) {
+    if (k === 'id' || k === 'plaque' || k === 'createdAt' || k === 'updatedAt') continue;
+    if (JSON.stringify(cur[k]) !== JSON.stringify(next[k])) out[k] = next[k];
+  }
+  return out as Partial<NewListing>;
+}
+
+/** وصلهٔ ویرایش را روی فایل فعلی اعمال می‌کند؛ پلاک و تاریخ ساخت هرگز عوض نمی‌شوند. */
+export function applyListingPatch(cur: Listing, patch: Partial<NewListing>): Listing {
+  return { ...cur, ...patch, price: { ...cur.price, ...patch.price }, owner: { ...cur.owner, ...patch.owner }, id: cur.id, plaque: cur.plaque, createdAt: cur.createdAt };
 }
 
 export function filterListings(all: Listing[], filter: ListingFilter = {}): Listing[] {

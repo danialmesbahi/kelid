@@ -5,9 +5,9 @@ import { dealLabel, floorLabel, headlinePrice, listingTitle, matchListing, secon
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
-import { PhotoGallery } from '../photos/Gallery';
-import { statusOptions } from './ListingForm';
 import { VisitDialog } from '../visits/VisitDialog';
+import { statusOptions } from './ListingForm';
+import { PhotoGallery } from '../photos/Gallery';
 import { useFirstVisit } from '../layout/useFirstVisit';
 
 export function FileDetailPage() {

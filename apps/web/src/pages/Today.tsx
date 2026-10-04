@@ -7,8 +7,8 @@ import { todayQuery } from '../queries';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
-import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { VisitDialog } from '../visits/VisitDialog';
+import { coverUrl, useCoverThumbs } from '../photos/photos';
 
 const ACTION_ICON: Record<'sms' | 'call' | 'camera', { icon: IconName; label: string }> = {
   sms: { icon: 'msg', label: 'پیامک' },
