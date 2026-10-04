@@ -2,7 +2,7 @@
 <!-- One or two sentences. Link the issue if there is one. -->
 
 ## Checklist
-- [ ] `npm run typecheck` and `npm test` pass
+- [ ] `npm run lint`, `npm run typecheck` and `npm test` pass (and `npm run e2e` for UI flows)
 - [ ] Looked at it running (light + dark; 375px if the page is used on phones)
 - [ ] New DB columns came as a **new** migration; store changes write to `outbox`
 - [ ] User-facing text is Persian; numbers via `toFaDigits`; no external CDN assets
