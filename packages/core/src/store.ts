@@ -90,6 +90,24 @@ export function clientSearchText(c: Pick<Client, 'name' | 'phone' | 'need'>): st
   return normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')} ${normalizePhone(c.phone)}`);
 }
 
+/**
+ * فقط فیلدهایی که واقعاً عوض شده‌اند؛ همین در outbox می‌رود تا همگام‌سازی بعدی
+ * بتواند فیلدبه‌فیلد ادغام کند. قیمت و مالک هر کدام یک فیلد حساب می‌شوند.
+ */
+export function changedFields(cur: Listing, next: Listing): Partial<NewListing> {
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(next) as Array<keyof Listing>) {
+    if (k === 'id' || k === 'plaque' || k === 'createdAt' || k === 'updatedAt') continue;
+    if (JSON.stringify(cur[k]) !== JSON.stringify(next[k])) out[k] = next[k];
+  }
+  return out as Partial<NewListing>;
+}
+
+/** وصلهٔ ویرایش را روی فایل فعلی اعمال می‌کند؛ پلاک و تاریخ ساخت هرگز عوض نمی‌شوند. */
+export function applyListingPatch(cur: Listing, patch: Partial<NewListing>): Listing {
+  return { ...cur, ...patch, price: { ...cur.price, ...patch.price }, owner: { ...cur.owner, ...patch.owner }, id: cur.id, plaque: cur.plaque, createdAt: cur.createdAt };
+}
+
 export function filterListings(all: Listing[], filter: ListingFilter = {}): Listing[] {
   const q = filter.query ? normalizeForSearch(filter.query) : '';
   return all.filter((l) => (!filter.deal || l.deal === filter.deal) && (!q || searchText(l).includes(q)));
@@ -140,7 +158,9 @@ export class MemoryStore implements KelidStore {
     const i = this.listings.findIndex((l) => l.id === id);
     const cur = this.listings[i];
     if (!cur) throw new Error('فایل پیدا نشد');
-    const next = { ...cur, ...patch, price: { ...cur.price, ...patch.price }, owner: { ...cur.owner, ...patch.owner }, updatedAt: new Date().toISOString() };
+    const merged = applyListingPatch(cur, patch);
+    if (Object.keys(changedFields(cur, merged)).length === 0) return cur;
+    const next = { ...merged, updatedAt: new Date().toISOString() };
     this.listings[i] = next;
     this.emit();
     return next;
