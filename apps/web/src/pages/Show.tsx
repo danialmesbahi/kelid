@@ -52,7 +52,7 @@ export function ShowPage() {
   const isLiked = !!liked[p.id];
 
   return (
-    <div className="col" style={{ position: 'relative', minHeight: '100vh', background: '#0B0C0B', color: '#fff', overflow: 'hidden', fontSize: 16 }}>
+    <div className="col showpage" style={{ position: 'relative', minHeight: '100vh', background: '#0B0C0B', color: '#fff', overflow: 'hidden', fontSize: 16 }}>
       <span key={p.id} className="fade" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
         <Cover variant={p.cover} src={coverUrl(thumbs, p.id)} className="kenburns" style={{ position: 'absolute', inset: 0 }}>
           <FullPhotoLayer photoId={thumbs[p.id]?.photoId} />
@@ -82,7 +82,7 @@ export function ShowPage() {
             {p.neighborhood} · {dealLabel[p.deal]}
           </span>
           <h1 style={{ margin: 0, fontSize: 52, fontWeight: 700, lineHeight: 1.3 }}>{listingTitle(p)}</h1>
-          <span className="num" style={{ fontSize: 40, fontWeight: 300, lineHeight: 1.4 }}>{headlinePrice(p)}{p.deal === 'sale' ? ' تومان' : ''}</span>
+          <span className="num showprice" style={{ fontSize: 40, fontWeight: 300, lineHeight: 1.4 }}>{headlinePrice(p)}{p.deal === 'sale' ? ' تومان' : ''}</span>
           <span className="rw" style={{ flexWrap: 'wrap', gap: '8px 20px', fontSize: 18, color: 'rgba(255,255,255,.85)' }}>
             <span>{toFaDigits(p.bedrooms)} خواب</span><span style={{ opacity: 0.35 }}>|</span>
             <span>طبقهٔ {floorLabel(p)}</span><span style={{ opacity: 0.35 }}>|</span>
