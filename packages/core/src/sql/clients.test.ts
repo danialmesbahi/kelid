@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3-multiple-ciphers';
 import { nodeSqliteDriver, openEncrypted } from './nodeDriver';
 import { SqlStore } from './sqlStore';
+import { migrations } from './schema';
 import { seed } from '../seed';
 import { matchListing } from '../match';
 import { MemoryStore, normalizePhone, type KelidStore, type NewClient } from '../store';
@@ -67,7 +68,7 @@ describe('clients on SqlStore', () => {
     let db = openEncrypted(Database as never, file, 'k');
     const store = await SqlStore.open(nodeSqliteDriver(db), seed);
     const c = await store.addClient(tenant);
-    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(2);
+    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(migrations.length);
     db.close();
     db = openEncrypted(Database as never, file, 'k');
     const reopened = await SqlStore.open(nodeSqliteDriver(db), seed);
