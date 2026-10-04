@@ -126,10 +126,6 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 /* پنجره‌های روی صفحه */
 .overlay { animation: kl-fadein 180ms ease both; backdrop-filter: blur(2px); }
 
-/* نقطهٔ «زنده»: حلقه‌ای آرام که از نقطه دور می‌شود و محو می‌شود */
-.pulse::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: kl-pulse 2.4s var(--ease-out) infinite; }
-@keyframes kl-pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(3.2); opacity: 0; } }
-
 /* ── کاهش حرکت برای کسانی که در ویندوز خاموشش کرده‌اند ── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
