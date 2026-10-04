@@ -12,12 +12,12 @@
     "dist": "electron-builder --win nsis --x64"
   },
   "devDependencies": {
-    "concurrently": "^9.2.0",
+    "concurrently": "^10.0.5",
     "cross-env": "^10.0.0",
-    "electron": "^38.0.0",
+    "electron": "^44.5.1",
     "electron-builder": "^26.0.0",
-    "esbuild": "^0.25.0",
-    "wait-on": "^8.0.0"
+    "esbuild": "^0.28.2",
+    "wait-on": "^9.5.1"
   },
   "build": {
     "appId": "ir.kelid.desktop",
@@ -44,7 +44,7 @@
       "shortcutName": "کلید",
       "language": "1065"
     },
-    "electronVersion": "38.8.6",
+    "electronVersion": "44.5.1",
     "asarUnpack": [
       "**/node_modules/better-sqlite3-multiple-ciphers/**"
     ],
