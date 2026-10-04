@@ -20,6 +20,14 @@
   justify-content: center;
   align-items: flex-start;
 }
+/* گالری عکس پرونده: عکس اول بزرگ، چهار عکس کوچک کنارش */
+.gallery { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 172px; gap: 10px; }
+.gallery .hero { grid-column: span 2; grid-row: span 2; border-radius: 18px; overflow: hidden; display: block; padding: 0; border: 0; }
+.gallery > button { background: none; }
+.pgrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+@media (max-width: 640px) {
+  .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 110px; }
+}
 .filelist { min-width: 600px; }
 
 /* ── گوشی (زیر ۷۶۸ پیکسل؛ همان مرز usePhone) ─────────────────── */

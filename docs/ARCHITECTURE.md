@@ -39,6 +39,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | Motion | `packages/ui/src/motion.css` | view-transition names `kl-side`/`kl-top`/`kl-page`, `.enter`, `.stagger`, `.skel`, toasts |
 | UI atoms | `packages/ui/src/components.tsx` | `Icon`, `Plaque`, `Cover`, `Segmented`, `Switch`, `Kbd`, `Skeleton`, `CheckBox` |
 | App chrome | `apps/web/src/layout/*` | `Shell` (sidebar + top bar + shortcuts), `CommandPalette`, `Toasts`, `Splash`, `PageSkeleton` |
+| Photos | `apps/web/src/photos/*` | resize in a Worker (`resize.worker.ts`: 1600px WebP + 400px thumb), `photoUrl` blob-URL cache keyed by photo id, `useCoverThumbs`, `PhotoGallery` + lightbox on `FileDetail`; bytes live in the `photos` table (migration 2) |
 | Prefs | `apps/web/src/prefs.ts` | theme light/dark/auto, text size → `--zoom`; applied pre-paint in `index.html` |
 | Branding | `scripts/icons.cjs` → `apps/desktop/build/` (icon.ico, NSIS BMPs), `apps/web/public/` (favicon, PWA PNGs) | generated with the project's Electron from the plaque design; run `npm run icons` after changing it and commit the output |
 | PWA | `apps/web/vite.config.ts` (`vite-plugin-pwa`), `main.tsx` | manifest (fa, rtl, emerald, 192/512/maskable), Workbox precache of shell + wasm + fonts; SW registered only in production web builds, never when `window.kelid` exists |

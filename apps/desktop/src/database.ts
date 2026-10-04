@@ -5,7 +5,25 @@ import path from 'node:path';
 import Database from 'better-sqlite3-multiple-ciphers';
 import { openEncrypted } from '@kelid/core/node';
 
-type Params = Array<string | number | null>;
+type Params = Array<string | number | null | Uint8Array>;
+
+// عکس‌ها پیش از ذخیره زیر ۱.۵ مگابایت می‌شوند؛ هر چیز بزرگ‌تر از رابط کاربری خطاست، نه داده.
+const MAX_BLOB_BYTES = 4 * 1024 * 1024;
+
+/** ورودی IPC از رندرر قابل‌اعتماد نیست؛ فقط انواعی که دیتابیس لازم دارد و با اندازهٔ محدود پذیرفته می‌شوند. */
+function checkParams(params: unknown): Params {
+  if (params === undefined) return [];
+  if (!Array.isArray(params)) throw new TypeError('db params must be an array');
+  for (const [i, v] of params.entries()) {
+    if (v === null || typeof v === 'string' || (typeof v === 'number' && Number.isFinite(v))) continue;
+    if (v instanceof Uint8Array) {
+      if (v.byteLength > MAX_BLOB_BYTES) throw new RangeError(`db param ${i} is ${v.byteLength} bytes; max is ${MAX_BLOB_BYTES}`);
+      continue;
+    }
+    throw new TypeError(`db param ${i} has unsupported type ${typeof v}`);
+  }
+  return params as Params;
+}
 
 /**
  * کلید رمزگذاری دیتابیس: تصادفی، یک بار ساخته می‌شود و خودش با DPAPI ویندوز
@@ -29,15 +47,18 @@ export function openDatabase(): string {
   const file = path.join(dir, 'kelid.db');
   db = openEncrypted(Database, file, loadKey(dir));
 
-  const run = (sql: string, params: Params = []) => {
+  const run = (sql: unknown, params: unknown) => {
+    if (typeof sql !== 'string') throw new TypeError('db sql must be a string');
+    const p = checkParams(params);
     const st = db!.prepare(sql);
-    if (st.reader) return st.all(...params);
-    st.run(...params);
+    if (st.reader) return st.all(...p);
+    st.run(...p);
     return [];
   };
 
-  ipcMain.handle('db:all', (_e, sql: string, params?: Params) => run(sql, params));
-  ipcMain.handle('db:tx', (_e, statements: Array<{ sql: string; params?: Params }>) => {
+  ipcMain.handle('db:all', (_e, sql: unknown, params: unknown) => run(sql, params));
+  ipcMain.handle('db:tx', (_e, statements: Array<{ sql: unknown; params?: unknown }>) => {
+    if (!Array.isArray(statements)) throw new TypeError('db statements must be an array');
     db!.transaction(() => {
       for (const s of statements) run(s.sql, s.params);
     })();

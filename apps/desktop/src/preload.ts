@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-type Params = Array<string | number | null>;
+type Params = Array<string | number | null | Uint8Array>;
 
 /**
  * پل امن بین رابط کاربری و ویندوز. رابط کاربری مستقیم به فایل‌ها دسترسی ندارد؛

@@ -1,4 +1,5 @@
-export type SqlValue = string | number | null;
+/** Uint8Array برای ستون‌های BLOB (عکس‌ها). */
+export type SqlValue = string | number | null | Uint8Array;
 export type SqlParams = SqlValue[];
 
 export interface SqlStatement {

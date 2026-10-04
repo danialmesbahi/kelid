@@ -5,6 +5,7 @@ import { bestMatches, dealLabel, describeMatch, formatToman, listingTitle, toFaD
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
 
 type Kind = 'all' | 'buy' | 'rent';
@@ -36,6 +37,7 @@ export function ClientsPage() {
   const toast = useToast();
   const phone = usePhone();
   const data = useQuery('clients', async (s) => ({ clients: await s.listClients(), listings: await s.listListings() }));
+  const thumbs = useCoverThumbs();
   if (!data) return <PageSkeleton />;
 
   const list = data.clients.filter((c) => kind === 'all' || (kind === 'buy' ? c.need.deal === 'sale' : c.need.deal !== 'sale'));
@@ -140,7 +142,7 @@ export function ClientsPage() {
                 return (
                   <div key={m.listing.id} className={`row ${on ? 'sel' : ''}`} style={{ border: '1px solid var(--line)' }}>
                     <CheckBox checked={on} size={26} label="افزودن به نمایش" onChange={(v) => setPicked((p) => ({ ...p, [m.listing.id]: v }))} />
-                    <Cover variant={m.listing.cover} style={{ flex: '0 0 76px', height: 58, borderRadius: 10 }} />
+                    <Cover variant={m.listing.cover} src={coverUrl(thumbs, m.listing.id)} style={{ flex: '0 0 76px', height: 58, borderRadius: 10 }} />
                     <Link viewTransition to={`/files/${m.listing.id}`} className="col sp" style={{ minWidth: 0, gap: 2, lineHeight: 1.5 }}>
                       <span className="rw" style={{ gap: 8 }}><Plaque value={m.listing.plaque} deal={m.listing.deal} size="s" /><span className="sb">{listingTitle(m.listing)} · {m.listing.neighborhood}</span></span>
                       <span className="xs mute">{describeMatch(m)}</span>
