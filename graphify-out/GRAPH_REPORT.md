@@ -1,23 +1,23 @@
 # Graph Report - kelid  (2026-10-04)
 
 ## Corpus Check
-- 65 files · ~25,969 words
+- 65 files · ~25,975 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 8 file(s) not represented in the graph (top: (none) 4, .css 3, .example 1)
 
 ## Summary
-- 634 nodes · 1334 edges · 31 communities (26 shown, 5 thin omitted)
+- 634 nodes · 1336 edges · 40 communities (35 shown, 5 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 67 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8bcedb2c`
+- Built from commit: `84dfe4fa`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - Today.tsx
-- sqlStore.ts
+- KelidStore
 - Kelid README
 - ClientForm.tsx
 - dependencies
@@ -34,19 +34,28 @@
 - core/package.json
 - core/tsconfig.json
 - Persian RTL UI (toFaDigits, toEnDigits, formatToman)
-- prefs.ts
+- SqlStore
 - Rule: No Full Page Reloads (Link viewTransition)
+- database.ts
 - clients.test.ts
+- model.ts
 - Tech Stack Doc
 - Server: Node.js 22 + Fastify
+- sqlStore.ts
 - Desktop Storage: SQLCipher DB in %APPDATA%\Kelid
 - SqlStore (SQL + outbox + emit)
 - Custom Sync Protocol (UUIDv7, outbox, cursor pull, soft delete)
 - نقشهٔ راه و تقسیم کار
 - Known Gotchas (OPFS single tab, single-instance lock, npmRebuild false, Vite/Vitest major, Intl formatToParts)
 - useSlow
+- SqlDriver
 - kelid-ship/SKILL.md
 - kelid-sync/SKILL.md
+- drivers.ts
+- store.ts
+- sqlStore.test.ts
+- setup.mjs
+- Desktop Driver (window.kelid.db IPC -> better-sqlite3-multiple-ciphers)
 
 ## God Nodes (most connected - your core abstractions)
 1. `MemoryStore` - 31 edges
@@ -61,6 +70,8 @@
 10. `useToast()` - 15 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `Start a Kelid task` --references--> `SqlStore`  [INFERRED]
+  .claude/skills/kelid-task/SKILL.md → packages/core/src/sql/sqlStore.ts
 - `Start a Kelid task` --references--> `useQuery()`  [INFERRED]
   .claude/skills/kelid-task/SKILL.md → apps/web/src/data.tsx
 - `Undo via Toast instead of Confirm Dialogs` --references--> `useToast()`  [EXTRACTED]
@@ -69,8 +80,6 @@
   AGENTS.md → packages/ui/src/components.tsx
 - `Local App Data Locations (kelid.db, kelid.key, browser storage)` --semantically_similar_to--> `Desktop Storage: SQLCipher DB in %APPDATA%\Kelid`  [INFERRED] [semantically similar]
   docs/ONBOARDING.md → README.md
-- `Start a Kelid task` --references--> `SqlStore`  [INFERRED]
-  .claude/skills/kelid-task/SKILL.md → packages/core/src/sql/sqlStore.ts
 
 ## Import Cycles
 - None detected.
@@ -80,15 +89,15 @@
 - **Merge quality gates (DoD, CI, PR checklist, team workflow)** — agents_definition_of_done, _github_workflows_ci_check_job, _github_pull_request_template_pr_checklist, docs_onboarding_team_workflow, agents_git_workflow [INFERRED 0.85]
 - **Offline-first write path feeding future sync** — agents_outbox_mutation_rule, docs_architecture_outbox, agents_soft_delete, docs_tech_stack_sync_protocol, docs_tech_stack_hlc_lww, docs_tech_stack_local_first [INFERRED 0.85]
 
-## Communities (31 total, 5 thin omitted)
+## Communities (40 total, 5 thin omitted)
 
 ### Community 0 - "Today.tsx"
-Cohesion: 0.06
-Nodes (69): App(), Prefs, PrefsContext, router, usePrefsContext(), useQuery(), useStorageInfo(), useStore() (+61 more)
+Cohesion: 0.07
+Nodes (68): Prefs, PrefsContext, router, usePrefsContext(), useQuery(), useStorageInfo(), useStore(), ACTIONS (+60 more)
 
-### Community 1 - "sqlStore.ts"
-Cohesion: 0.06
-Nodes (37): normalizeForSearch (Persian text normalization), OpenedDriver, Start a Kelid task, Schema Migrations (migrations[], PRAGMA user_version), Persian-normalized search column (LIKE now, FTS5 later), Client, Listing, Todo (+29 more)
+### Community 1 - "KelidStore"
+Cohesion: 0.14
+Nodes (5): Start a Kelid task, Client, Listing, clientScenario(), KelidStore
 
 ### Community 2 - "Kelid README"
 Cohesion: 0.23
@@ -104,15 +113,15 @@ Nodes (34): dependencies, @kelid/core, @kelid/ui, react, react-dom, react-router
 
 ### Community 5 - "package.json"
 Cohesion: 0.06
-Nodes (30): allowScripts, electron@38.8.6, electron-winstaller@5.4.0, esbuild@0.25.12, esbuild@0.28.2, description, devDependencies, better-sqlite3-multiple-ciphers (+22 more)
+Nodes (31): allowScripts, electron@38.8.6, electron-winstaller@5.4.0, esbuild@0.25.12, esbuild@0.28.2, description, devDependencies, better-sqlite3-multiple-ciphers (+23 more)
 
 ### Community 6 - "desktop/package.json"
 Cohesion: 0.04
 Nodes (45): author, build, appId, asarUnpack, directories, electronVersion, extraResources, files (+37 more)
 
 ### Community 7 - "seed.ts"
-Cohesion: 0.07
-Nodes (22): Domain Model (Listing, Client, ClientNeed, Visit, Todo, DealType), matchListing Scoring (budget 35, neighborhood 30, area 20, bedrooms 10, kind 5), Recipe: Add a Field to Listing, bestMatches(), budgetOf(), matchListing(), MatchResult, ClientNeed (+14 more)
+Cohesion: 0.13
+Nodes (9): at(), daysAgo(), L, listing(), seedClients, seedListings, seedTodos, seedVisits (+1 more)
 
 ### Community 9 - "compilerOptions"
 Cohesion: 0.12
@@ -135,8 +144,8 @@ Cohesion: 0.29
 Nodes (6): compilerOptions, lib, types, extends, include, ../../tsconfig.base.json
 
 ### Community 14 - "data.tsx"
-Cohesion: 0.09
-Nodes (22): Electron Sandbox + window.kelid Preload Bridge, cache, StorageInfo, StoreContext, storeFor(), StoreProvider(), stores, desktopDriver() (+14 more)
+Cohesion: 0.10
+Nodes (18): App(), cache, StorageInfo, StoreContext, storeFor(), StoreProvider(), stores, Splash() (+10 more)
 
 ### Community 15 - "core/package.json"
 Cohesion: 0.22
@@ -150,13 +159,21 @@ Nodes (5): compilerOptions, types, extends, include, ../../tsconfig.base.json
 Cohesion: 0.29
 Nodes (7): Persian RTL UI (toFaDigits, toEnDigits, formatToman), Plaque Color Code (green sale, mustard rent, blue full mortgage), Web index.html (rtl, fa, #root, main.tsx entry), Pre-Paint Theme/Zoom Script (kelid.theme, kelid.textSize), Design Tokens (kelid.css), Prefs (theme, text size -> --zoom), Jalali Calendar via Intl (calendar: persian)
 
-### Community 18 - "prefs.ts"
-Cohesion: 0.36
-Nodes (7): read(), systemDark(), TextSize, ThemePref, usePrefs(), write(), ZOOM
+### Community 18 - "SqlStore"
+Cohesion: 0.31
+Nodes (4): nowIso(), outbox(), SqlStore, NewListing
 
-### Community 20 - "clients.test.ts"
-Cohesion: 0.06
-Nodes (25): closeDatabase(), loadKey(), openDatabase(), Params, createWindow(), webEntry(), Params, DesktopBridge (+17 more)
+### Community 20 - "database.ts"
+Cohesion: 0.21
+Nodes (8): closeDatabase(), loadKey(), openDatabase(), Params, createWindow(), webEntry(), Params, electron
+
+### Community 21 - "clients.test.ts"
+Cohesion: 0.15
+Nodes (12): Domain Model (Listing, Client, ClientNeed, Visit, Todo, DealType), matchListing Scoring (budget 35, neighborhood 30, area 20, bedrooms 10, kind 5), Recipe: Add a Field to Listing, Schema Migrations (migrations[], PRAGMA user_version), bestMatches(), budgetOf(), matchListing(), MatchResult (+4 more)
+
+### Community 22 - "model.ts"
+Cohesion: 0.16
+Nodes (10): ClientNeed, ClientTemperature, ListingStatus, Price, PropertyKind, Todo, Visit, VisitKind (+2 more)
 
 ### Community 23 - "Tech Stack Doc"
 Cohesion: 0.21
@@ -165,6 +182,10 @@ Nodes (8): Kelid Real-Estate Office SaaS, Electron Desktop (electron-builder NSI
 ### Community 24 - "Server: Node.js 22 + Fastify"
 Cohesion: 0.22
 Nodes (8): Seller Admin Panel (apps/admin), Drizzle ORM (candidate for the server, phase 2), Ed25519 Signed Subscription License with Offline Grace, Server: Node.js 22 + Fastify, Iranian Cloud Hosting (Liara, ArvanCloud, ParsPack), PostgreSQL 16 with Row-Level Security per Office, Phone + SMS Code Login with JWT and Per-Device Refresh Token, Vazirmatn Font Bundled In-App
+
+### Community 25 - "sqlStore.ts"
+Cohesion: 0.24
+Nodes (11): b(), Cell, LISTING_PH, n(), opt(), Row, rowToClient(), rowToListing() (+3 more)
 
 ### Community 26 - "Desktop Storage: SQLCipher DB in %APPDATA%\Kelid"
 Cohesion: 0.67
@@ -186,25 +207,49 @@ Nodes (6): تقسیم کار پیشنهادی برای دو نفر هم‌زما
 Cohesion: 0.33
 Nodes (5): useSlow(), Recipe: Add a Page, Hash Router Routes (Today, Files, FileDetail, Clients, Settings, Add, Show), Show Page (full-screen customer presentation), Keyboard Shortcuts (Ctrl+K, Ctrl+N, Show mode arrows/Esc)
 
+### Community 32 - "SqlDriver"
+Cohesion: 0.18
+Nodes (7): DesktopBridge, OpenedDriver, better-sqlite3-multiple-ciphers, SqlDriver, SqlParams, SqlStatement, SqlValue
+
+### Community 35 - "drivers.ts"
+Cohesion: 0.25
+Nodes (6): desktopDriver(), execScript(), openDriver(), transaction(), Window, workerDriver()
+
+### Community 36 - "store.ts"
+Cohesion: 0.33
+Nodes (8): normalizeForSearch (Persian text normalization), Persian-normalized search column (LIKE now, FTS5 later), normalizeForSearch(), clientSearchText(), filterListings(), ListingFilter, normalizePhone(), searchText()
+
+### Community 37 - "sqlStore.test.ts"
+Cohesion: 0.20
+Nodes (6): Node Test Driver (nodeDriver.ts, SQLCipher in Node), Testing Strategy (Vitest, real SQLCipher, wrong-key rejection), nodeSqliteDriver(), openEncrypted(), dirs, sample
+
+### Community 38 - "setup.mjs"
+Cohesion: 0.20
+Nodes (3): hooks, major, root
+
+### Community 39 - "Desktop Driver (window.kelid.db IPC -> better-sqlite3-multiple-ciphers)"
+Cohesion: 0.40
+Nodes (6): Electron Sandbox + window.kelid Preload Bridge, Desktop Driver (window.kelid.db IPC -> better-sqlite3-multiple-ciphers), openDriver() singleton driver selection, Recipe: Add an IPC Capability (desktop only), Web Worker Driver (sqlite.worker.ts on OPFS SAH pool), Web/Phone Storage: SQLite WASM on OPFS in Worker
+
 ## Knowledge Gaps
-- **207 isolated node(s):** `Prefs`, `PrefsContext`, `router`, `Item`, `ACTIONS` (+202 more)
+- **207 isolated node(s):** `dirs`, `tenant`, `Prefs`, `Item`, `Notify` (+202 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 263 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `electron` connect `clients.test.ts` to `desktop/package.json`?**
+- **Why does `electron` connect `database.ts` to `desktop/package.json`?**
   _High betweenness centrality (0.124) - this node is a cross-community bridge._
 - **Why does `react-router` connect `Today.tsx` to `ClientForm.tsx`, `dependencies`?**
   _High betweenness centrality (0.096) - this node is a cross-community bridge._
-- **Why does `SqlStore` connect `sqlStore.ts` to `SqlStore (SQL + outbox + emit)`, `clients.test.ts`, `data.tsx`?**
-  _High betweenness centrality (0.089) - this node is a cross-community bridge._
-- **What connects `Prefs`, `PrefsContext`, `router` to the rest of the system?**
+- **Why does `SqlStore` connect `SqlStore` to `SqlDriver`, `KelidStore`, `store.ts`, `sqlStore.test.ts`, `data.tsx`, `clients.test.ts`, `model.ts`, `sqlStore.ts`, `SqlStore (SQL + outbox + emit)`?**
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._
+- **What connects `dirs`, `tenant`, `Prefs` to the rest of the system?**
   _207 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Today.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.06418918918918919 - nodes in this community are weakly interconnected._
-- **Should `sqlStore.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.05910364145658263 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06502866502866503 - nodes in this community are weakly interconnected._
+- **Should `KelidStore` be split into smaller, more focused modules?**
+  _Cohesion score 0.13852813852813853 - nodes in this community are weakly interconnected._
 - **Should `ClientForm.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.13852813852813853 - nodes in this community are weakly interconnected._
