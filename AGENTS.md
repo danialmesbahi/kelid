@@ -96,5 +96,5 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 - The design canvas (all screens incl. phone, signup, plans, admin) is linked in `docs/ROADMAP.md`; build new screens from it, not from imagination.
 
 ## Status (update when a phase item lands)
-- Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, app icon, lint + e2e in CI, listing editing done. **Open:** #1 photos, #3 clients, #4 visits/to-dos, #5 phone + PWA.
+- Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, app icon, lint + e2e in CI, phone layout + PWA, listing editing done. **Open:** #1 photos, #3 clients, #4 visits/to-dos.
 - Phase 2 server + sync · Phase 3 subscription/payments/admin · Phase 4 calendar, deals, map, auto-update · Phase 5 beta.
