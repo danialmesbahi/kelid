@@ -1,7 +1,7 @@
 import type { Client, Listing, Todo, Visit } from '../model';
 import { normalizeForSearch } from '../persian';
 import type { KelidStore, ListingFilter, NewClient, NewListing } from '../store';
-import { searchText } from '../store';
+import { applyListingPatch, changedFields, searchText } from '../store';
 import type { SqlDriver, SqlStatement, SqlValue } from './driver';
 import { migrate } from './schema';
 
@@ -163,10 +163,13 @@ export class SqlStore implements KelidStore {
   async updateListing(id: string, patch: Partial<NewListing>) {
     const cur = await this.getListing(id);
     if (!cur) throw new Error('فایل پیدا نشد');
-    const next: Listing = { ...cur, ...patch, price: { ...cur.price, ...patch.price }, owner: { ...cur.owner, ...patch.owner }, updatedAt: nowIso() };
+    const merged = applyListingPatch(cur, patch);
+    const changed = changedFields(cur, merged);
+    if (Object.keys(changed).length === 0) return cur;
+    const next: Listing = { ...merged, updatedAt: nowIso() };
     await this.db.transaction([
       { sql: `INSERT OR REPLACE INTO listings (${LISTING_COLS}) VALUES (${LISTING_PH})`, params: listingValues(next) },
-      outbox('listing', id, 'upsert', patch),
+      outbox('listing', id, 'upsert', changed),
     ]);
     this.emit();
     return next;
