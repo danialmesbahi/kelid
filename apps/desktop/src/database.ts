@@ -5,7 +5,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3-multiple-ciphers';
 import { openEncrypted } from '@kelid/core/node';
 
-type Params = Array<string | number | null>;
+type Params = Array<string | number | null | Uint8Array>;
 
 /**
  * کلید رمزگذاری دیتابیس: تصادفی، یک بار ساخته می‌شود و خودش با DPAPI ویندوز

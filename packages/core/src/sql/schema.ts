@@ -95,6 +95,22 @@ export const migrations: string[] = [
     created_at TEXT NOT NULL
   );
   `,
+  /* 2: عکس فایل‌ها؛ داخل همین دیتابیس تا روی ویندوز رمزگذاری شوند و با همگام‌سازی جابه‌جا شوند */ `
+  CREATE TABLE IF NOT EXISTS photos (
+    id TEXT PRIMARY KEY,
+    listing_id TEXT NOT NULL,
+    ord INTEGER NOT NULL DEFAULT 0,
+    mime TEXT NOT NULL,
+    w INTEGER NOT NULL,
+    h INTEGER NOT NULL,
+    bytes BLOB NOT NULL,
+    thumb BLOB NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS photos_listing ON photos(listing_id, ord) WHERE deleted = 0;
+  `,
 ];
 
 export async function migrate(db: SqlDriver): Promise<void> {
