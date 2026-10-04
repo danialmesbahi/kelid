@@ -83,7 +83,9 @@ function rowToVisit(r: Row): Visit {
 }
 
 function outbox(entity: string, id: string, op: 'upsert' | 'delete', payload: unknown): SqlStatement {
-  return { sql: 'INSERT INTO outbox (entity, entity_id, op, payload, created_at) VALUES (?, ?, ?, ?, ?)', params: [entity, id, op, JSON.stringify(payload), nowIso()] };
+  // undefined یعنی «پاک شد»؛ JSON.stringify آن را حذف می‌کند، پس null می‌نویسیم تا همگام‌سازی پاک شدن را ببیند.
+  const json = JSON.stringify(payload, (_k, v: unknown) => (v === undefined ? null : v));
+  return { sql: 'INSERT INTO outbox (entity, entity_id, op, payload, created_at) VALUES (?, ?, ?, ?, ?)', params: [entity, id, op, json, nowIso()] };
 }
 
 /** لایهٔ داده روی SQLite؛ همان رابط KelidStore، پس صفحه‌ها فرقی نمی‌بینند. */

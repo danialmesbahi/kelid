@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon, Kbd, Plaque, type IconName } from '@kelid/ui';
-import { headlinePrice, listingTitle, normalizeForSearch, normalizePhone, filterListings } from '@kelid/core';
+import { headlinePrice, listingTitle, normalizeForSearch, normalizePhone, filterListings, toEnDigits } from '@kelid/core';
 import { useQuery } from '../data';
 
 type Item = { key: string; group: string; to: string; render: () => ReactNode };
@@ -27,7 +27,10 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     if (!data) return [];
     const nq = normalizeForSearch(q);
     const files = filterListings(data.listings, { query: q }).slice(0, 5);
-    const clients = data.clients.filter((c) => !nq || normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')} ${normalizePhone(c.phone)}`).includes(nq)).slice(0, 3);
+    // «۰۹۱۲ ۳۴۵» با فاصله هم باید شماره را پیدا کند؛ اگر بیشتر جستجو رقم است، بی‌فاصله هم مقایسه می‌کنیم.
+    const digits = toEnDigits(q).replace(/\D/g, '');
+    const phoneQ = digits.length >= 3 && digits.length * 2 > q.replace(/\s/g, '').length ? digits : '';
+    const clients = data.clients.filter((c) => !nq || normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')} ${normalizePhone(c.phone)}`).includes(nq) || (!!phoneQ && normalizePhone(c.phone).includes(phoneQ))).slice(0, 3);
     const actions = ACTIONS.filter((a) => !nq || normalizeForSearch(a.label).includes(nq));
     return [
       ...files.map((l) => ({

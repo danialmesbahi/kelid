@@ -63,6 +63,17 @@ describe('clients on SqlStore', () => {
     db.close();
   });
 
+  it('records a cleared note as null in the outbox', async () => {
+    const db = openEncrypted(Database as never, tempFile(), 'k');
+    const store = await SqlStore.open(nodeSqliteDriver(db), seed);
+    const c = await store.addClient(tenant);
+    await store.updateClient(c.id, { notes: undefined });
+    expect((await store.getClient(c.id))?.notes).toBeUndefined();
+    const last = db.prepare("SELECT payload FROM outbox WHERE entity_id = ? ORDER BY seq DESC LIMIT 1").get(c.id) as { payload: string };
+    expect(last.payload).toBe('{"notes":null}');
+    db.close();
+  });
+
   it('keeps notes after reopening an existing database (migration adds the column)', async () => {
     const file = tempFile();
     let db = openEncrypted(Database as never, file, 'k');
@@ -89,6 +100,10 @@ describe('client helpers', () => {
     expect(normalizePhone('۰۹۱۲ ۳۴۵-۶۷۸۹')).toBe('09123456789');
     expect(normalizePhone('+98 912 345 6789')).toBe('09123456789');
     expect(normalizePhone('00989123456789')).toBe('09123456789');
+    expect(normalizePhone('912 345 6789')).toBe('09123456789');
+    expect(normalizePhone('+98 0912 345 6789')).toBe('09123456789');
+    expect(normalizePhone('0098 0912 345 6789')).toBe('09123456789');
+    expect(normalizePhone('021 4455 6677')).toBe('02144556677');
   });
 
   it('matches rent budgets on deposit and monthly rent', () => {

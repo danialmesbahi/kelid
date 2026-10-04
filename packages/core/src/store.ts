@@ -45,10 +45,12 @@ export function searchText(l: Listing): string {
 
 /** شماره تلفن برای مقایسه: ارقام لاتین، بدون فاصله و خط، و ۹۸+ به جای ۰. */
 export function normalizePhone(phone: string): string {
-  const d = toEnDigits(phone).replace(/[^\d]/g, '');
-  if (d.startsWith('0098')) return `0${d.slice(4)}`;
-  if (d.startsWith('98') && d.length === 12) return `0${d.slice(2)}`;
-  return d;
+  let d = toEnDigits(phone).replace(/[^\d]/g, '');
+  if (d.startsWith('0098')) d = d.slice(4);
+  else if (d.startsWith('98') && (d.length === 12 || d.length === 13)) d = d.slice(2);
+  else return d.length === 10 && d.startsWith('9') ? `0${d}` : d;
+  // بعضی‌ها بعد از ۹۸+ صفر را هم می‌نویسند: +98 0912…
+  return d.startsWith('0') ? d : `0${d}`;
 }
 
 /** فیلدهای عوض‌شدهٔ مشتری؛ نیاز (need) یک فیلد حساب می‌شود. */
