@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { CheckBox, Cover, Icon, Plaque, type IconName } from '@kelid/ui';
-import { dealLabel, formatLongDate, formatTime, headlinePrice, listingTitle, secondaryPrice, tehranToday, toFaDigits, type Listing, type Visit } from '@kelid/core';
+import { dealLabel, formatLongDate, formatTime, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
+import { todayQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
@@ -27,13 +28,8 @@ export function TodayPage() {
   const [dialog, setDialog] = useState<{ visit?: Visit } | null>(null);
   const [newTodo, setNewTodo] = useState('');
   const now = new Date();
-  const dayStart = new Date(`${tehranToday()}T00:00:00+03:30`).toISOString();
-  const dayEnd = new Date(new Date(dayStart).getTime() + 86_400_000).toISOString();
-
-  const data = useQuery(`today:${dayStart}`, async (s) => {
-    const [visits, todos, listings, clients] = await Promise.all([s.listVisits(dayStart, dayEnd), s.listTodos(), s.listListings(), s.listClients()]);
-    return { visits, todos, listings, clients };
-  });
+  const today = todayQuery();
+  const data = useQuery(today.key, today.fn);
   const thumbs = useCoverThumbs();
 
   if (!data) return <PageSkeleton aside />;

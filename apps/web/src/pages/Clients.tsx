@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { CheckBox, Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { bestMatches, dealLabel, describeMatch, formatToman, listingTitle, toFaDigits, type Client } from '@kelid/core';
 import { useQuery, useStore } from '../data';
+import { clientsQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { useToast } from '../layout/Toasts';
 import { VisitDialog } from '../visits/VisitDialog';
 import { usePhone } from '../layout/usePhone';
+import { useProgressive } from '../layout/useProgressive';
 
 type Kind = 'all' | 'buy' | 'rent';
 
@@ -38,11 +40,15 @@ export function ClientsPage() {
   const toast = useToast();
   const [visitFor, setVisitFor] = useState<string | null>(null);
   const phone = usePhone();
-  const data = useQuery('clients', async (s) => ({ clients: await s.listClients(), listings: await s.listListings() }));
+  const data = useQuery(clientsQuery.key, clientsQuery.fn);
   const thumbs = useCoverThumbs();
+  const setParamsRef = useRef(setParams);
+  setParamsRef.current = setParams;
+  const pick = useCallback((id: string) => setParamsRef.current({ c: id }), []);
+  const list = data ? data.clients.filter((c) => kind === 'all' || (kind === 'buy' ? c.need.deal === 'sale' : c.need.deal !== 'sale')) : [];
+  const shown = useProgressive(list.length);
   if (!data) return <PageSkeleton />;
 
-  const list = data.clients.filter((c) => kind === 'all' || (kind === 'buy' ? c.need.deal === 'sale' : c.need.deal !== 'sale'));
   const cur = list.find((c) => c.id === params.get('c')) ?? list[0];
   const matches = cur ? bestMatches(data.listings, cur.need).slice(0, 5) : [];
   const pickedIds = matches.filter((m) => picked[m.listing.id]).map((m) => m.listing.id);
@@ -73,20 +79,7 @@ export function ClientsPage() {
 
       <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap' }}>
         {showList && <section aria-label="فهرست مشتری‌ها" className="col" style={{ flex: '1 1 340px', minWidth: 0, borderLeft: '1px solid var(--line)', padding: '12px 10px 24px', gap: 2 }}>
-          {list.map((c) => {
-            const on = c.id === cur?.id;
-            return (
-              <button key={c.id} type="button" aria-pressed={on} className={`row hov ${on ? 'sel' : ''}`} onClick={() => setParams({ c: c.id })}
-                style={{ border: 0, background: 'transparent', textAlign: 'right', width: '100%' }}>
-                <span className={`av ${on ? 'on' : ''}`}>{initial(c.name)}</span>
-                <span className="col sp" style={{ minWidth: 0, lineHeight: 1.5 }}>
-                  <span className="sb">{c.name}</span>
-                  <span className="xs mute" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{needSummary(c)}</span>
-                </span>
-                {c.waitingForNews && <span className="dot" style={{ background: 'var(--brass)' }} aria-label="منتظر خبر" />}
-              </button>
-            );
-          })}
+          {list.slice(0, shown).map((c) => <ClientRow key={c.id} c={c} on={c.id === cur?.id} onPick={pick} />)}
         </section>}
 
         {cur && showProfile && (
@@ -171,3 +164,17 @@ export function ClientsPage() {
     </>
   );
 }
+
+const ClientRow = memo(function ClientRow({ c, on, onPick }: { c: Client; on: boolean; onPick: (id: string) => void }) {
+  return (
+    <button type="button" aria-pressed={on} className={`row hov ${on ? 'sel' : ''}`} onClick={() => onPick(c.id)}
+      style={{ border: 0, background: 'transparent', textAlign: 'right', width: '100%' }}>
+      <span className={`av ${on ? 'on' : ''}`}>{initial(c.name)}</span>
+      <span className="col sp" style={{ minWidth: 0, lineHeight: 1.5 }}>
+        <span className="sb">{c.name}</span>
+        <span className="xs mute" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{needSummary(c)}</span>
+      </span>
+      {c.waitingForNews && <span className="dot" style={{ background: 'var(--brass)' }} aria-label="منتظر خبر" />}
+    </button>
+  );
+});

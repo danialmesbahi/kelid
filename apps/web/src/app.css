@@ -11,6 +11,9 @@
   gap: 14px;
   align-items: center;
 }
+/* مرورگر ردیف‌ها و کارت‌های بیرون از دید را نمی‌چیند و نمی‌کشد؛ فهرست صدها فایل هم روان می‌ماند. */
+.filelist > .listgrid.hov { content-visibility: auto; contain-intrinsic-size: auto 66px; }
+.fgrid > .fcard { content-visibility: auto; contain-intrinsic-size: auto 330px; }
 .overlay {
   position: fixed;
   inset: 0;

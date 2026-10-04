@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
 import { useQuery } from '../data';
+import { filesQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { FullPhotoLayer } from '../photos/Gallery';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
+import { useProgressive } from '../layout/useProgressive';
 
 type DealFilter = 'all' | DealType;
 type View = 'list' | 'cards';
@@ -21,12 +23,18 @@ export function FilesPage() {
   const phone = usePhone();
   // روی گوشی پیش‌نمایش کناری جا ندارد؛ یک لمس مستقیم پرونده را باز می‌کند.
   const open = (id: string) => (phone ? navigate(`/files/${id}`, { viewTransition: true }) : setSelId(id));
+  // ردیف‌ها memo هستند؛ با دستگیرهٔ ثابت، انتخاب یک فایل فقط دو ردیف را دوباره می‌سازد نه همه را.
+  const openRef = useRef(open);
+  openRef.current = open;
+  const onOpen = useCallback((id: string) => openRef.current(id), []);
+  const onEnter = useCallback((id: string) => navigate(`/files/${id}`, { viewTransition: true }), [navigate]);
 
-  const data = useQuery('files', async (s) => ({ all: await s.listListings(), clients: await s.listClients() }));
+  const data = useQuery(filesQuery.key, filesQuery.fn);
   const thumbs = useCoverThumbs();
+  const list = data ? data.all.filter((l) => deal === 'all' || l.deal === deal) : [];
+  const shown = useProgressive(list.length);
   if (!data) return <PageSkeleton rows={8} aside />;
 
-  const list = data.all.filter((l) => deal === 'all' || l.deal === deal);
   const sel = list.find((l) => l.id === selId) ?? list[0];
   const count = (d: DealFilter) => toFaDigits(data.all.filter((l) => d === 'all' || l.deal === d).length);
   const matchCount = sel ? data.clients.filter((c) => bestMatches([sel], c.need).length > 0).length : 0;
@@ -86,25 +94,8 @@ export function FilesPage() {
                 <div className="listgrid xs faint sb" style={{ padding: '10px 12px' }}>
                   <span>پلاک</span><span>ملک</span><span>متراژ</span><span>خواب</span><span>قیمت</span>
                 </div>
-                {list.map((l) => (
-                  <button key={l.id} type="button" aria-pressed={l.id === sel?.id} className={`listgrid hov ${l.id === sel?.id ? 'sel' : ''}`}
-                    onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
-                    style={{ width: '100%', padding: '10px 12px', border: 0, borderTop: '1px solid var(--line)', borderRadius: 12, background: 'transparent', textAlign: 'right' }}>
-                    <span><Plaque value={l.plaque} deal={l.deal} /></span>
-                    <span className="rw" style={{ gap: 12, minWidth: 0 }}>
-                      <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ flex: '0 0 56px', height: 42, borderRadius: 8 }} />
-                      <span className="col" style={{ minWidth: 0, lineHeight: 1.5 }}>
-                        <span className="sb" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{listingTitle(l)}</span>
-                        <span className="xs mute">{l.neighborhood}، {l.street}{statusLabel[l.status] ? ` · ${statusLabel[l.status]}` : ''}</span>
-                      </span>
-                    </span>
-                    <span className="num">{toFaDigits(l.area)} م</span>
-                    <span className="num">{toFaDigits(l.bedrooms)}</span>
-                    <span className="col" style={{ lineHeight: 1.5 }}>
-                      <span className="num b">{headlinePrice(l)}</span>
-                      <span className="xs mute">{secondaryPrice(l)}</span>
-                    </span>
-                  </button>
+                {list.slice(0, shown).map((l) => (
+                  <FileRow key={l.id} l={l} selected={l.id === sel?.id} cover={coverUrl(thumbs, l.id)} onOpen={onOpen} onEnter={onEnter} />
                 ))}
               </div>
             </div>
@@ -112,29 +103,8 @@ export function FilesPage() {
 
           {view === 'cards' && (
             <div className="fgrid stagger">
-              {list.map((l) => (
-                <button key={l.id} type="button" className={`fcard lift${l.id === sel?.id ? ' on' : ''}`} aria-pressed={l.id === sel?.id}
-                  onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}>
-                  <Cover variant={l.cover} src={coverUrl(thumbs, l.id)}>
-                    <Plaque value={l.plaque} deal={l.deal} className="tagon" />
-                    {statusLabel[l.status] && <span className="fcard-st">{statusLabel[l.status]}</span>}
-                    {l.photoCount > 0 && <span className="cnt num"><Icon name="cam" size="s" />{toFaDigits(l.photoCount)}</span>}
-                  </Cover>
-                  <span className="fcard-bd">
-                    <span className="xs mute">{dealLabel[l.deal]}</span>
-                    <span className="fcard-t">{listingTitle(l)}</span>
-                    <span className="fcard-loc xs mute"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
-                    <span className="fcard-facts">
-                      <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
-                      <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
-                      {l.floor !== undefined && <span>طبقهٔ <b className="num">{floorLabel(l)}</b></span>}
-                    </span>
-                    <span className="fcard-pr">
-                      <b className="num">{headlinePrice(l)}</b>
-                      <span className="xs mute num">{secondaryPrice(l)}</span>
-                    </span>
-                  </span>
-                </button>
+              {list.slice(0, shown).map((l) => (
+                <FileCard key={l.id} l={l} selected={l.id === sel?.id} cover={coverUrl(thumbs, l.id)} onOpen={onOpen} onEnter={onEnter} />
               ))}
             </div>
           )}
@@ -182,3 +152,55 @@ export function FilesPage() {
     </>
   );
 }
+
+type RowProps = { l: Listing; selected: boolean; cover: string | undefined; onOpen: (id: string) => void; onEnter: (id: string) => void };
+
+const FileRow = memo(function FileRow({ l, selected, cover, onOpen, onEnter }: RowProps) {
+  return (
+    <button type="button" aria-pressed={selected} className={`listgrid hov ${selected ? 'sel' : ''}`}
+      onClick={() => onOpen(l.id)} onDoubleClick={() => onEnter(l.id)}
+      style={{ width: '100%', padding: '10px 12px', border: 0, borderTop: '1px solid var(--line)', borderRadius: 12, background: 'transparent', textAlign: 'right' }}>
+      <span><Plaque value={l.plaque} deal={l.deal} /></span>
+      <span className="rw" style={{ gap: 12, minWidth: 0 }}>
+        <Cover variant={l.cover} src={cover} style={{ flex: '0 0 56px', height: 42, borderRadius: 8 }} />
+        <span className="col" style={{ minWidth: 0, lineHeight: 1.5 }}>
+          <span className="sb" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{listingTitle(l)}</span>
+          <span className="xs mute">{l.neighborhood}، {l.street}{statusLabel[l.status] ? ` · ${statusLabel[l.status]}` : ''}</span>
+        </span>
+      </span>
+      <span className="num">{toFaDigits(l.area)} م</span>
+      <span className="num">{toFaDigits(l.bedrooms)}</span>
+      <span className="col" style={{ lineHeight: 1.5 }}>
+        <span className="num b">{headlinePrice(l)}</span>
+        <span className="xs mute">{secondaryPrice(l)}</span>
+      </span>
+    </button>
+  );
+});
+
+const FileCard = memo(function FileCard({ l, selected, cover, onOpen, onEnter }: RowProps) {
+  return (
+    <button type="button" className={`fcard lift${selected ? ' on' : ''}`} aria-pressed={selected}
+      onClick={() => onOpen(l.id)} onDoubleClick={() => onEnter(l.id)}>
+      <Cover variant={l.cover} src={cover}>
+        <Plaque value={l.plaque} deal={l.deal} className="tagon" />
+        {statusLabel[l.status] && <span className="fcard-st">{statusLabel[l.status]}</span>}
+        {l.photoCount > 0 && <span className="cnt num"><Icon name="cam" size="s" />{toFaDigits(l.photoCount)}</span>}
+      </Cover>
+      <span className="fcard-bd">
+        <span className="xs mute">{dealLabel[l.deal]}</span>
+        <span className="fcard-t">{listingTitle(l)}</span>
+        <span className="fcard-loc xs mute"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
+        <span className="fcard-facts">
+          <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
+          <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
+          {l.floor !== undefined && <span>طبقهٔ <b className="num">{floorLabel(l)}</b></span>}
+        </span>
+        <span className="fcard-pr">
+          <b className="num">{headlinePrice(l)}</b>
+          <span className="xs mute num">{secondaryPrice(l)}</span>
+        </span>
+      </span>
+    </button>
+  );
+});
