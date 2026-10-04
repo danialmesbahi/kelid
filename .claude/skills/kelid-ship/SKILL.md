@@ -8,8 +8,10 @@ description: Finish a Kelid task — sync with main, verify, update docs, push t
 1. **Not on main.** If the current branch is `main`, stop: create a branch first (`/kelid-task`). Never push to `main`.
 2. **Bring in main:** `git fetch origin` then `git merge origin/main` (conflict rules: `/kelid-sync`).
 3. **Verify — all must pass:**
+   - `npm run lint`
    - `npm run typecheck`
    - `npm test`
+   - `npm run e2e` when a main flow changed (add file, search, reload); CI runs it on every PR
    - UI changes: run the app (`npm run dev`, preview config `kelid-web`) and check the changed screens in light + dark, at 375px if used on phones, keyboard only, no console errors.
    - Check the issue's **Acceptance** list item by item; report any item not met instead of hiding it.
 4. **Docs.** If a rule, structure or recipe changed, update `AGENTS.md` / `docs/ARCHITECTURE.md`. If a roadmap item is finished, update the status line in `AGENTS.md`.

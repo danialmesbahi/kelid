@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-electron/
+release/
+graphify-out/
+package-lock.json
+apps/desktop/build/
+apps/web/public/
+test-results/
+playwright-report/
