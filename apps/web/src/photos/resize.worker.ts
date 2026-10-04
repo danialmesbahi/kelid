@@ -7,6 +7,8 @@
 const FULL = 1600;
 const THUMB = 400;
 const TARGET_BYTES = 320_000;
+// سقف سخت؛ زیر سقف ۴ مگابایتی IPC ویندوز می‌ماند و دیتابیس را با یک عکس عجیب سنگین نمی‌کند.
+const MAX_BYTES = 1_500_000;
 
 async function encode(bitmap: ImageBitmap, max: number, quality: number) {
   const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
@@ -30,6 +32,8 @@ self.onmessage = async (e: MessageEvent<{ id: number; file: Blob }>) => {
     const bitmap = await createImageBitmap(file);
     let full = await encode(bitmap, FULL, 0.82);
     if (full.blob.size > TARGET_BYTES) full = await encode(bitmap, FULL, 0.68);
+    if (full.blob.size > MAX_BYTES) full = await encode(bitmap, 1200, 0.6);
+    if (full.blob.size > MAX_BYTES) throw new Error('photo too large after resize');
     const thumb = await encode(bitmap, THUMB, 0.72);
     bitmap.close();
     const bytes = await full.blob.arrayBuffer();

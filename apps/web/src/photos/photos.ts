@@ -9,6 +9,14 @@ let worker: Worker | null = null;
 let seq = 0;
 const pending = new Map<number, (r: WorkerReply) => void>();
 
+/** اگر Worker از کار بیفتد، همهٔ درخواست‌های منتظر رد می‌شوند تا بارگذاری گیر نکند؛ دفعهٔ بعد Worker تازه ساخته می‌شود. */
+function failAll(error: string) {
+  for (const [id, done] of pending) done({ id, ok: false, error });
+  pending.clear();
+  worker?.terminate();
+  worker = null;
+}
+
 function resizeWorker(): Worker {
   if (!worker) {
     worker = new Worker(new URL('./resize.worker.ts', import.meta.url), { type: 'module' });
@@ -16,6 +24,11 @@ function resizeWorker(): Worker {
       pending.get(e.data.id)?.(e.data);
       pending.delete(e.data.id);
     };
+    worker.onerror = (e) => {
+      e.preventDefault();
+      failAll(e.message || 'resize worker failed');
+    };
+    worker.onmessageerror = () => failAll('resize worker message error');
   }
   return worker;
 }
@@ -59,6 +72,8 @@ export function resizePhoto(file: Blob): Promise<NewPhoto> {
 const thumbUrls = new Map<string, string>();
 const fullUrls = new Map<string, string>();
 const FULL_KEEP = 40;
+// تصویرهای کوچک سبک‌اند ولی با صدها فایل باز هم حافظه را پر می‌کنند.
+const THUMB_KEEP = 400;
 
 export function photoUrl(photoId: string, kind: 'thumb' | 'full', bytes: Uint8Array, mime: string): string {
   const cache = kind === 'thumb' ? thumbUrls : fullUrls;
@@ -70,12 +85,21 @@ export function photoUrl(photoId: string, kind: 'thumb' | 'full', bytes: Uint8Ar
     url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
   }
   cache.set(photoId, url);
-  if (kind === 'full' && cache.size > FULL_KEEP) {
+  if (cache.size > (kind === 'thumb' ? THUMB_KEEP : FULL_KEEP)) {
     const [oldId, oldUrl] = cache.entries().next().value as [string, string];
     cache.delete(oldId);
     URL.revokeObjectURL(oldUrl);
   }
   return url;
+}
+
+/** آدرس‌های موقت عکس حذف‌شده آزاد می‌شوند؛ اگر برگردانده شود، دوباره ساخته می‌شوند. */
+export function forgetPhotoUrls(photoId: string) {
+  for (const cache of [thumbUrls, fullUrls]) {
+    const url = cache.get(photoId);
+    if (url) URL.revokeObjectURL(url);
+    cache.delete(photoId);
+  }
 }
 
 /**
@@ -144,20 +168,26 @@ export function usePhotoUpload(listingId: string) {
       let batch: NewPhoto[] = [];
       let saved = 0;
       let failed = 0;
-      for (const [i, file] of files.entries()) {
-        try {
-          batch.push(await resizePhoto(file));
-        } catch {
-          failed++;
+      // هر خطایی (حتی در ذخیره) نباید نوار پیشرفت را برای همیشه روی صفحه نگه دارد.
+      try {
+        for (const [i, file] of files.entries()) {
+          try {
+            batch.push(await resizePhoto(file));
+          } catch {
+            failed++;
+          }
+          if (batch.length === 4 || i === files.length - 1) {
+            if (batch.length) await store.addPhotos(listingId, batch);
+            saved += batch.length;
+            batch = [];
+          }
+          setProgress({ done: i + 1, total: files.length });
         }
-        if (batch.length === 4 || i === files.length - 1) {
-          if (batch.length) await store.addPhotos(listingId, batch);
-          saved += batch.length;
-          batch = [];
-        }
-        setProgress({ done: i + 1, total: files.length });
+      } catch {
+        toast('ذخیرهٔ عکس‌ها انجام نشد؛ دوباره امتحان کنید');
+      } finally {
+        setProgress(null);
       }
-      setProgress(null);
       if (saved) toast(`${toFaDigits(saved)} عکس اضافه شد`);
       if (failed) toast(`${toFaDigits(failed)} عکس خوانده نشد؛ قالب JPG یا PNG را امتحان کنید`);
     },

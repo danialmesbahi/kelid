@@ -173,7 +173,7 @@ export class MemoryStore implements KelidStore {
   }
 
   private livePhotos(listingId: string) {
-    return this.photos.filter((p) => p.listingId === listingId && !p.deleted).sort((a, b) => a.ord - b.ord || a.createdAt.localeCompare(b.createdAt));
+    return this.photos.filter((p) => p.listingId === listingId && !p.deleted).sort((a, b) => a.ord - b.ord || a.createdAt.localeCompare(b.createdAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   private syncPhotoCount(listingId: string) {
@@ -225,7 +225,10 @@ export class MemoryStore implements KelidStore {
   private setPhotoDeleted(id: string, deleted: boolean) {
     const p = this.photos.find((x) => x.id === id);
     if (!p) return;
-    this.photos = this.photos.map((x) => (x.id === id ? { ...x, deleted } : x));
+    // مثل SqlStore: اگر جای عکس برگشتی گرفته شده، به انتها می‌رود.
+    const others = this.livePhotos(p.listingId).filter((x) => x.id !== id);
+    const ord = !deleted && others.some((x) => x.ord === p.ord) ? Math.max(...others.map((x) => x.ord)) + 1 : p.ord;
+    this.photos = this.photos.map((x) => (x.id === id ? { ...x, deleted, ord } : x));
     this.syncPhotoCount(p.listingId);
     this.emit();
   }

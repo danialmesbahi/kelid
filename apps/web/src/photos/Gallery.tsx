@@ -3,7 +3,7 @@ import { Cover, Icon } from '@kelid/ui';
 import { toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { useToast } from '../layout/Toasts';
-import { photoUrl, prefetchFullPhoto, useFullPhotoUrl, usePhotoUpload } from './photos';
+import { forgetPhotoUrls, photoUrl, prefetchFullPhoto, useFullPhotoUrl, usePhotoUpload } from './photos';
 
 const thumbSrc = (p: PhotoThumb) => photoUrl(p.id, 'thumb', p.thumb, p.mime);
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer.types).includes('Files');
@@ -193,6 +193,7 @@ function PhotoManager({ listing, photos }: { listing: Listing; photos: PhotoThum
               style={{ position: 'absolute', top: 6, left: 6, width: 32, height: 32, borderRadius: 9, border: 0, background: 'rgba(18,20,18,.62)', color: '#FFFFFF' }}
               onClick={async () => {
                 await store.deletePhoto(p.id);
+                forgetPhotoUrls(p.id);
                 toast('عکس حذف شد', { label: 'برگرداندن', run: () => void store.restorePhoto(p.id) });
               }}
             >

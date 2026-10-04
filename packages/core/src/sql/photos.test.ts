@@ -62,10 +62,34 @@ async function photoScenario(store: KelidStore) {
   return { listingId, added };
 }
 
+/** حذف کاور، جابه‌جایی بقیه و بعد برگرداندن: کاور نباید بین دو عکس با ord یکسان دوپهلو شود. */
+async function deleteReorderUndo(store: KelidStore) {
+  const listingId = seed.listings[2]!.id;
+  const [a, b, c] = await store.addPhotos(listingId, [photo(1), photo(2), photo(3)]);
+  await store.deletePhoto(a!.id);
+  await store.reorderPhotos(listingId, [c!.id, b!.id]);
+  await store.restorePhoto(a!.id);
+  const list = await store.listPhotos(listingId);
+  expect(list.map((p) => p.id)).toEqual([c!.id, b!.id, a!.id]);
+  expect(new Set(list.map((p) => p.ord)).size).toBe(3);
+  expect((await store.coverThumbs())[listingId]?.photoId).toBe(c!.id);
+
+  // برگرداندن بلافاصله بعد از حذف، عکس را سر جای خودش (حتی کاور) برمی‌گرداند
+  await store.deletePhoto(c!.id);
+  await store.restorePhoto(c!.id);
+  expect((await store.listPhotos(listingId))[0]?.id).toBe(c!.id);
+}
+
 describe('photos on SqlStore (encrypted SQLite)', () => {
   it('adds, orders, deletes and restores photos', async () => {
     const db = openEncrypted(Database as never, tempFile(), 'k');
     await photoScenario(await SqlStore.open(nodeSqliteDriver(db), seed));
+    db.close();
+  });
+
+  it('keeps the cover unambiguous after delete, reorder and undo', async () => {
+    const db = openEncrypted(Database as never, tempFile(), 'k');
+    await deleteReorderUndo(await SqlStore.open(nodeSqliteDriver(db), seed));
     db.close();
   });
 
@@ -102,5 +126,9 @@ describe('photos on SqlStore (encrypted SQLite)', () => {
 describe('photos on MemoryStore', () => {
   it('behaves like SqlStore', async () => {
     await photoScenario(new MemoryStore(seed));
+  });
+
+  it('keeps the cover unambiguous after delete, reorder and undo', async () => {
+    await deleteReorderUndo(new MemoryStore(seed));
   });
 });

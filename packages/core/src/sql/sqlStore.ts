@@ -254,7 +254,7 @@ export class SqlStore implements KelidStore {
   }
 
   async listPhotos(listingId: string) {
-    const rows = await this.db.all<Row>('SELECT id, listing_id, ord, mime, w, h, created_at, thumb FROM photos WHERE listing_id = ? AND deleted = 0 ORDER BY ord, created_at', [listingId]);
+    const rows = await this.db.all<Row>('SELECT id, listing_id, ord, mime, w, h, created_at, thumb FROM photos WHERE listing_id = ? AND deleted = 0 ORDER BY ord, created_at, id', [listingId]);
     return rows.map((r): PhotoThumb => ({ ...rowToPhoto(r), thumb: blob(r.thumb) }));
   }
 
@@ -265,9 +265,11 @@ export class SqlStore implements KelidStore {
 
   async coverThumbs() {
     const rows = await this.db.all<Row>(
+      // همان ترتیب listPhotos، تا با ord برابر هم کاور همیشه یک عکس مشخص باشد.
       `SELECT p.id, p.listing_id, p.mime, p.thumb FROM photos p
-       JOIN (SELECT listing_id, MIN(ord) AS o FROM photos WHERE deleted = 0 GROUP BY listing_id) f ON f.listing_id = p.listing_id AND f.o = p.ord
-       WHERE p.deleted = 0`,
+       WHERE p.deleted = 0 AND p.id = (
+         SELECT q.id FROM photos q WHERE q.listing_id = p.listing_id AND q.deleted = 0 ORDER BY q.ord, q.created_at, q.id LIMIT 1
+       )`,
     );
     const out: CoverThumbs = {};
     for (const r of rows) out[s(r.listing_id)] = { photoId: s(r.id), mime: s(r.mime), thumb: blob(r.thumb) };
@@ -305,20 +307,30 @@ export class SqlStore implements KelidStore {
   }
 
   async deletePhoto(id: string) {
-    await this.setPhotoDeleted(id, true);
+    const [r] = await this.db.all<Row>('SELECT listing_id FROM photos WHERE id = ?', [id]);
+    if (!r) return;
+    await this.db.transaction([
+      { sql: 'UPDATE photos SET deleted = 1, updated_at = ? WHERE id = ?', params: [nowIso(), id] },
+      outbox('photo', id, 'delete', {}),
+      photoCount(s(r.listing_id)),
+    ]);
+    this.emit();
   }
 
   async restorePhoto(id: string) {
-    await this.setPhotoDeleted(id, false);
-  }
-
-  private async setPhotoDeleted(id: string, deleted: boolean) {
-    const [r] = await this.db.all<Row>('SELECT listing_id FROM photos WHERE id = ?', [id]);
+    const [r] = await this.db.all<Row>('SELECT listing_id, ord FROM photos WHERE id = ?', [id]);
     if (!r) return;
     const listingId = s(r.listing_id);
+    // اگر بعد از حذف ترتیب عوض شده و جای عکس گرفته شده، به انتها می‌رود تا کاور دوپهلو نشود.
+    const [m] = await this.db.all<{ o: number | null; taken: number }>(
+      'SELECT MAX(ord) AS o, SUM(ord = ?) AS taken FROM photos WHERE listing_id = ? AND deleted = 0 AND id <> ?',
+      [Number(r.ord), listingId, id],
+    );
+    const ord = Number(m?.taken ?? 0) > 0 ? (m?.o ?? -1) + 1 : Number(r.ord);
+    const now = nowIso();
     await this.db.transaction([
-      { sql: 'UPDATE photos SET deleted = ?, updated_at = ? WHERE id = ?', params: [deleted ? 1 : 0, nowIso(), id] },
-      deleted ? outbox('photo', id, 'delete', {}) : outbox('photo', id, 'upsert', { deleted: false }),
+      { sql: 'UPDATE photos SET deleted = 0, ord = ?, updated_at = ? WHERE id = ?', params: [ord, now, id] },
+      outbox('photo', id, 'upsert', { deleted: false, ord }),
       photoCount(listingId),
     ]);
     this.emit();
