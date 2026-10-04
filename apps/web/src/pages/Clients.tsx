@@ -4,6 +4,7 @@ import { CheckBox, Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { bestMatches, dealLabel, describeMatch, formatToman, listingTitle, toFaDigits, type Client } from '@kelid/core';
 import { useQuery } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
+import { usePhone } from '../layout/usePhone';
 
 type Kind = 'all' | 'buy' | 'rent';
 
@@ -24,6 +25,7 @@ export function ClientsPage() {
   const [params, setParams] = useSearchParams();
   const [kind, setKind] = useState<Kind>('all');
   const [picked, setPicked] = useState<Record<string, boolean>>({});
+  const phone = usePhone();
   const data = useQuery('clients', async (s) => ({ clients: await s.listClients(), listings: await s.listListings() }));
   if (!data) return <PageSkeleton />;
 
@@ -31,6 +33,10 @@ export function ClientsPage() {
   const cur = list.find((c) => c.id === params.get('c')) ?? list[0];
   const matches = cur ? bestMatches(data.listings, cur.need).slice(0, 5) : [];
   const pickedIds = matches.filter((m) => picked[m.listing.id]).map((m) => m.listing.id);
+  // روی گوشی یا فهرست دیده می‌شود یا پروفایل یک مشتری، نه هر دو زیر هم.
+  const chosen = !!params.get('c');
+  const showList = !phone || !chosen;
+  const showProfile = !phone || chosen;
 
   return (
     <>
@@ -44,7 +50,7 @@ export function ClientsPage() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap' }}>
-        <section aria-label="فهرست مشتری‌ها" className="col" style={{ flex: '1 1 340px', minWidth: 0, borderLeft: '1px solid var(--line)', padding: '12px 10px 24px', gap: 2 }}>
+        {showList && <section aria-label="فهرست مشتری‌ها" className="col" style={{ flex: '1 1 340px', minWidth: 0, borderLeft: '1px solid var(--line)', padding: '12px 10px 24px', gap: 2 }}>
           {list.map((c) => {
             const on = c.id === cur?.id;
             return (
@@ -59,10 +65,15 @@ export function ClientsPage() {
               </button>
             );
           })}
-        </section>
+        </section>}
 
-        {cur && (
+        {cur && showProfile && (
           <section key={cur.id} aria-label="پروفایل مشتری" className="col enter" style={{ flex: '999 1 520px', minWidth: 0, padding: '24px 30px 36px', gap: 24 }}>
+            {phone && (
+              <button type="button" className="btn btn-g" onClick={() => setParams({})} style={{ alignSelf: 'flex-start', padding: '0 12px' }}>
+                <Icon name="back" size="s" />مشتری‌ها
+              </button>
+            )}
             <div className="rw" style={{ flexWrap: 'wrap', gap: 14 }}>
               <span className="av on" style={{ width: 56, height: 56, fontSize: 20 }}>{initial(cur.name)}</span>
               <div className="col" style={{ flex: '1 1 220px' }}>
