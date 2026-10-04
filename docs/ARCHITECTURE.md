@@ -43,6 +43,8 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | Visits | `apps/web/src/visits/*` | `VisitDialog` (add/edit; Today, FileDetail, client panel) and keyboard `JalaliPicker` |
 | Prefs | `apps/web/src/prefs.ts` | theme light/dark/auto, text size → `--zoom`; applied pre-paint in `index.html` |
 | Branding | `scripts/icons.cjs` → `apps/desktop/build/` (icon.ico, NSIS BMPs), `apps/web/public/` (favicon, PWA PNGs) | generated with the project's Electron from the plaque design; run `npm run icons` after changing it and commit the output |
+| PWA | `apps/web/vite.config.ts` (`vite-plugin-pwa`), `main.tsx` | manifest (fa, rtl, emerald, 192/512/maskable), Workbox precache of shell + wasm + fonts; SW registered only in production web builds, never when `window.kelid` exists |
+| Phone layout | `app.css` (`@media (max-width: 767px)`), `layout/usePhone.ts`, `Shell` `.mtab` | sidebar hidden, bottom tab bar with new-file FAB; `usePhone` for behavior (Files: tap opens the file; Clients: list *or* profile). Keep the CSS breakpoint and `usePhone` in sync |
 | Desktop shell | `apps/desktop/src/main.ts` | window, single-instance lock, external links → browser, opens DB before window |
 
 ## Routes (`apps/web/src/App.tsx`, hash router)
