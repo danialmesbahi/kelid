@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon, Kbd, Plaque, type IconName } from '@kelid/ui';
-import { headlinePrice, listingTitle, normalizeForSearch, filterListings } from '@kelid/core';
+import { headlinePrice, listingTitle, normalizeForSearch, normalizePhone, filterListings } from '@kelid/core';
 import { useQuery } from '../data';
 
 type Item = { key: string; group: string; to: string; render: () => ReactNode };
 
 const ACTIONS: Array<{ label: string; to: string; icon: IconName; kbd: string }> = [
   { label: 'ثبت فایل جدید', to: '/add', icon: 'plus', kbd: 'Ctrl N' },
+  { label: 'ثبت مشتری جدید', to: '/clients/new', icon: 'user', kbd: '' },
   { label: 'شروع نمایش به مشتری', to: '/show', icon: 'show', kbd: '' },
   { label: 'تنظیمات و اشتراک', to: '/settings', icon: 'set', kbd: '' },
 ];
@@ -26,7 +27,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     if (!data) return [];
     const nq = normalizeForSearch(q);
     const files = filterListings(data.listings, { query: q }).slice(0, 5);
-    const clients = data.clients.filter((c) => !nq || normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')}`).includes(nq)).slice(0, 3);
+    const clients = data.clients.filter((c) => !nq || normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')} ${normalizePhone(c.phone)}`).includes(nq)).slice(0, 3);
     const actions = ACTIONS.filter((a) => !nq || normalizeForSearch(a.label).includes(nq));
     return [
       ...files.map((l) => ({
