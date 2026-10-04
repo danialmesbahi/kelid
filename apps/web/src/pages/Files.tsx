@@ -111,17 +111,28 @@ export function FilesPage() {
           )}
 
           {view === 'cards' && (
-            <div className="stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18, padding: '20px 24px 28px' }}>
+            <div className="fgrid stagger">
               {list.map((l) => (
-                <button key={l.id} type="button" className="lift col" onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
-                  style={{ gap: 10, padding: '0 0 10px', border: 0, background: 'transparent', textAlign: 'right', borderRadius: 16 }}>
-                  <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ width: '100%', height: 150, borderRadius: 14, boxShadow: l.id === sel?.id ? '0 0 0 2px var(--paper), 0 0 0 4px var(--pri-text)' : 'none', transition: 'box-shadow .25s ease' }}>
+                <button key={l.id} type="button" className={`fcard lift${l.id === sel?.id ? ' on' : ''}`} aria-pressed={l.id === sel?.id}
+                  onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}>
+                  <Cover variant={l.cover} src={coverUrl(thumbs, l.id)}>
                     <Plaque value={l.plaque} deal={l.deal} className="tagon" />
+                    {statusLabel[l.status] && <span className="fcard-st">{statusLabel[l.status]}</span>}
+                    {l.photoCount > 0 && <span className="cnt num"><Icon name="cam" size="s" />{toFaDigits(l.photoCount)}</span>}
                   </Cover>
-                  <span className="col" style={{ padding: '0 2px', lineHeight: 1.55 }}>
-                    <span className="sb">{listingTitle(l)}</span>
-                    <span className="xs mute">{l.neighborhood} · {toFaDigits(l.bedrooms)} خواب</span>
-                    <span className="num b" style={{ marginTop: 4 }}>{headlinePrice(l)}</span>
+                  <span className="fcard-bd">
+                    <span className="xs mute">{dealLabel[l.deal]}</span>
+                    <span className="fcard-t">{listingTitle(l)}</span>
+                    <span className="fcard-loc xs mute"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
+                    <span className="fcard-facts">
+                      <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
+                      <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
+                      {l.floor !== undefined && <span>طبقهٔ <b className="num">{floorLabel(l)}</b></span>}
+                    </span>
+                    <span className="fcard-pr">
+                      <b className="num">{headlinePrice(l)}</b>
+                      <span className="xs mute num">{secondaryPrice(l)}</span>
+                    </span>
                   </span>
                 </button>
               ))}
