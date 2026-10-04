@@ -25,6 +25,8 @@ function createWindow() {
     minHeight: 680,
     title: 'کلید',
     backgroundColor: '#EFEEEA',
+    // در نسخهٔ نصب‌شده آیکون داخل خود exe است؛ این فقط برای اجرای توسعه است تا نوار وظیفه آیکون Electron نشان ندهد.
+    icon: app.isPackaged ? undefined : path.join(__dirname, '..', 'build', 'icon.ico'),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
