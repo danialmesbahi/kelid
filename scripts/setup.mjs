@@ -67,7 +67,8 @@ if (has('graphify')) {
   warn('The committed graph in graphify-out/ still works for reading without it.');
 }
 
-step('Checks (typecheck + tests)');
+step('Checks (lint + typecheck + tests)');
+run('npm run lint');
 run('npm run typecheck');
 run('npm test');
 
