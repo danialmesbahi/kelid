@@ -4,6 +4,8 @@ import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
 import { useQuery } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
+import { FullPhotoLayer } from '../photos/Gallery';
+import { coverUrl, useCoverThumbs } from '../photos/photos';
 
 type DealFilter = 'all' | DealType;
 type View = 'list' | 'cards';
@@ -17,6 +19,7 @@ export function FilesPage() {
   const navigate = useNavigate();
 
   const data = useQuery('files', async (s) => ({ all: await s.listListings(), clients: await s.listClients() }));
+  const thumbs = useCoverThumbs();
   if (!data) return <PageSkeleton rows={8} aside />;
 
   const list = data.all.filter((l) => deal === 'all' || l.deal === deal);
@@ -85,7 +88,7 @@ export function FilesPage() {
                     style={{ width: '100%', padding: '10px 12px', border: 0, borderTop: '1px solid var(--line)', borderRadius: 12, background: 'transparent', textAlign: 'right' }}>
                     <span><Plaque value={l.plaque} deal={l.deal} /></span>
                     <span className="rw" style={{ gap: 12, minWidth: 0 }}>
-                      <Cover variant={l.cover} style={{ flex: '0 0 56px', height: 42, borderRadius: 8 }} />
+                      <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ flex: '0 0 56px', height: 42, borderRadius: 8 }} />
                       <span className="col" style={{ minWidth: 0, lineHeight: 1.5 }}>
                         <span className="sb" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{listingTitle(l)}</span>
                         <span className="xs mute">{l.neighborhood}، {l.street}{statusLabel[l.status] ? ` · ${statusLabel[l.status]}` : ''}</span>
@@ -108,7 +111,7 @@ export function FilesPage() {
               {list.map((l) => (
                 <button key={l.id} type="button" className="lift col" onClick={() => setSelId(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
                   style={{ gap: 10, padding: '0 0 10px', border: 0, background: 'transparent', textAlign: 'right', borderRadius: 16 }}>
-                  <Cover variant={l.cover} style={{ width: '100%', height: 150, borderRadius: 14, boxShadow: l.id === sel?.id ? '0 0 0 2px var(--paper), 0 0 0 4px var(--pri-text)' : 'none', transition: 'box-shadow .25s ease' }}>
+                  <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ width: '100%', height: 150, borderRadius: 14, boxShadow: l.id === sel?.id ? '0 0 0 2px var(--paper), 0 0 0 4px var(--pri-text)' : 'none', transition: 'box-shadow .25s ease' }}>
                     <Plaque value={l.plaque} deal={l.deal} className="tagon" />
                   </Cover>
                   <span className="col" style={{ padding: '0 2px', lineHeight: 1.55 }}>
@@ -125,8 +128,10 @@ export function FilesPage() {
         {sel && (
           <aside key={sel.id} aria-label="پیش‌نمایش فایل" className="col enter" style={{ flex: '1 1 360px', minWidth: 0, maxWidth: '100%', borderRight: '1px solid var(--line)', padding: '20px 22px 26px', gap: 16, background: 'var(--paper2)', borderRadius: '0 0 0 20px' }}>
             <span style={{ display: 'block', borderRadius: 16, overflow: 'hidden', position: 'relative', viewTransitionName: `cover-${sel.id}` }}>
-              <Cover variant={sel.cover} style={{ height: 200 }} />
-              <span className="cnt">{sel.photoCount ? `${toFaDigits(sel.photoCount)} عکس` : 'بدون عکس'}</span>
+              <Cover variant={sel.cover} src={coverUrl(thumbs, sel.id)} style={{ height: 200 }}>
+                <FullPhotoLayer photoId={thumbs[sel.id]?.photoId} />
+                <span className="cnt">{sel.photoCount ? `${toFaDigits(sel.photoCount)} عکس` : 'بدون عکس'}</span>
+              </Cover>
             </span>
             <div className="rw" style={{ gap: 12, alignItems: 'flex-start' }}>
               <span className="col sp">

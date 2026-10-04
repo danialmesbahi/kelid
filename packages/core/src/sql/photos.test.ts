@@ -39,7 +39,9 @@ async function photoScenario(store: KelidStore) {
   await store.reorderPhotos(listingId, [added[2]!.id, added[0]!.id, added[1]!.id]);
   list = await store.listPhotos(listingId);
   expect(list.map((p) => p.id)).toEqual([added[2]!.id, added[0]!.id, added[1]!.id]);
-  expect(Array.from((await store.coverThumbs())[listingId]!.thumb)).toEqual([3]);
+  const cover = (await store.coverThumbs())[listingId]!;
+  expect(cover.photoId).toBe(added[2]!.id);
+  expect(Array.from(cover.thumb)).toEqual([3]);
 
   await store.deletePhoto(added[0]!.id);
   expect((await store.listPhotos(listingId)).length).toBe(2);

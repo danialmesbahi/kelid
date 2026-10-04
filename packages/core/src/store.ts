@@ -19,7 +19,7 @@ export interface NewPhoto {
   thumb: Uint8Array;
 }
 export type PhotoThumb = Photo & { thumb: Uint8Array };
-export type CoverThumbs = Record<string, { mime: string; thumb: Uint8Array }>;
+export type CoverThumbs = Record<string, { photoId: string; mime: string; thumb: Uint8Array }>;
 
 /**
  * لایهٔ دسترسی به داده. SqlStore (ویندوز و وب) و MemoryStore (تست) هر دو
@@ -194,7 +194,7 @@ export class MemoryStore implements KelidStore {
     const out: CoverThumbs = {};
     for (const l of this.live()) {
       const first = this.livePhotos(l.id)[0];
-      if (first) out[l.id] = { mime: first.mime, thumb: first.thumb };
+      if (first) out[l.id] = { photoId: first.id, mime: first.mime, thumb: first.thumb };
     }
     return out;
   }

@@ -265,12 +265,12 @@ export class SqlStore implements KelidStore {
 
   async coverThumbs() {
     const rows = await this.db.all<Row>(
-      `SELECT p.listing_id, p.mime, p.thumb FROM photos p
+      `SELECT p.id, p.listing_id, p.mime, p.thumb FROM photos p
        JOIN (SELECT listing_id, MIN(ord) AS o FROM photos WHERE deleted = 0 GROUP BY listing_id) f ON f.listing_id = p.listing_id AND f.o = p.ord
        WHERE p.deleted = 0`,
     );
     const out: CoverThumbs = {};
-    for (const r of rows) out[s(r.listing_id)] = { mime: s(r.mime), thumb: blob(r.thumb) };
+    for (const r of rows) out[s(r.listing_id)] = { photoId: s(r.id), mime: s(r.mime), thumb: blob(r.thumb) };
     return out;
   }
 
