@@ -50,11 +50,12 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | `/` | `Today` | greeting, agenda with “now” line, todos, recent files |
 | `/files` | `Files` | list/cards, deal filter, preview pane; double-click → detail |
 | `/files/:id` | `FileDetail` | hero cover/plaque shared-element transition, archive + undo |
-| `/clients` | `Clients` | `?c=id` selection, best matches, start a showing |
+| `/clients` | `Clients` | `?c=id` selection, best matches, start a showing, edit / archive with undo |
 | `/calendar`, `/deals` | `Soon` | placeholders (phase 4) |
 | `/settings` | `Settings` | theme, text size, storage info, clear sample data |
 | `/add` | `Add` | full-screen form outside the shell (`ListingForm`) |
 | `/files/:id/edit` | `EditListing` | same `ListingForm` prefilled; status, unsaved-changes prompt (`useBlocker`) |
+| `/clients/new`, `/clients/:id/edit` | `ClientForm` | full-screen client form; duplicate-phone warning (`normalizePhone`), neighborhood chips, rent cap (`need.rentMax`) |
 | `/show?f=id,id` | `Show` | full-screen presentation to a customer, ←/→/Esc |
 
 ## Recipes
