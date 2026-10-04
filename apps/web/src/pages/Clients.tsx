@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { CheckBox, Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { bestMatches, dealLabel, describeMatch, formatToman, listingTitle, toFaDigits, type Client } from '@kelid/core';
-import { useQuery } from '../data';
+import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
+import { useToast } from '../layout/Toasts';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
 
@@ -22,10 +23,18 @@ function needSummary(c: Client): string {
   return parts.join(' · ');
 }
 
+function budgetText(c: Client): string {
+  const n = c.need;
+  if (n.deal === 'rent' && n.rentMax) return `${n.budgetMax ? `ودیعه ${formatToman(n.budgetMax)}` : 'ودیعه —'} · اجاره ${formatToman(n.rentMax)}`;
+  return n.budgetMax ? formatToman(n.budgetMax) : '—';
+}
+
 export function ClientsPage() {
   const [params, setParams] = useSearchParams();
   const [kind, setKind] = useState<Kind>('all');
   const [picked, setPicked] = useState<Record<string, boolean>>({});
+  const store = useStore();
+  const toast = useToast();
   const phone = usePhone();
   const data = useQuery('clients', async (s) => ({ clients: await s.listClients(), listings: await s.listListings() }));
   const thumbs = useCoverThumbs();
@@ -49,7 +58,16 @@ export function ClientsPage() {
         </div>
         <span className="sp" />
         <Segmented<Kind> label="نوع درخواست" value={kind} onChange={setKind} options={[{ value: 'all', label: 'همه' }, { value: 'buy', label: 'خرید' }, { value: 'rent', label: 'اجاره' }]} />
+        <Link viewTransition className="btn btn-p" to="/clients/new"><Icon name="plus" size="s" thick />مشتری جدید</Link>
       </div>
+
+      {data.clients.length === 0 && (
+        <div className="col" style={{ padding: '64px 16px', textAlign: 'center', gap: 6, alignItems: 'center' }}>
+          <span className="t2">هنوز مشتری‌ای ثبت نشده</span>
+          <span className="mute sm">نیاز هر خریدار یا مستأجر را ثبت کنید تا فایل‌های مناسب خودشان پیدا شوند.</span>
+          <Link viewTransition className="btn btn-p" to="/clients/new" style={{ marginTop: 10 }}>ثبت اولین مشتری</Link>
+        </div>
+      )}
 
       <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap' }}>
         {showList && <section aria-label="فهرست مشتری‌ها" className="col" style={{ flex: '1 1 340px', minWidth: 0, borderLeft: '1px solid var(--line)', padding: '12px 10px 24px', gap: 2 }}>
@@ -84,6 +102,19 @@ export function ClientsPage() {
               </div>
               <a className="ib" href={`tel:${cur.phone}`} aria-label={`تماس با ${cur.name}`}><Icon name="phone" /></a>
               <a className="ib" href={`sms:${cur.phone}`} aria-label={`پیامک به ${cur.name}`}><Icon name="msg" /></a>
+              <Link viewTransition className="ib" to={`/clients/${cur.id}/edit`} aria-label={`ویرایش ${cur.name}`}><Icon name="edit" /></Link>
+              <button
+                type="button"
+                className="ib ghost"
+                aria-label={`بایگانی ${cur.name}`}
+                onClick={async () => {
+                  await store.archiveClient(cur.id);
+                  setParams({});
+                  toast(`${cur.name} بایگانی شد`, { label: 'برگرداندن', run: () => { void store.restoreClient(cur.id).then(() => setParams({ c: cur.id })); } });
+                }}
+              >
+                <Icon name="x" />
+              </button>
             </div>
 
             <section aria-labelledby="nd" className="col" style={{ gap: 10 }}>
@@ -92,9 +123,16 @@ export function ClientsPage() {
                 <div><small>معامله</small><b>{dealLabel[cur.need.deal]}</b></div>
                 <div><small>محله‌ها</small><b style={{ fontSize: 15 }}>{cur.need.neighborhoods.join('، ') || 'فرقی ندارد'}</b></div>
                 <div><small>متراژ</small><b>{cur.need.areaMin ? toFaDigits(cur.need.areaMin) : '—'} تا {cur.need.areaMax ? toFaDigits(cur.need.areaMax) : '—'}</b></div>
-                <div><small>بودجه</small><b>{cur.need.budgetMax ? formatToman(cur.need.budgetMax) : '—'}</b></div>
+                <div><small>بودجه</small><b style={{ fontSize: cur.need.rentMax ? 15 : undefined }}>{budgetText(cur)}</b></div>
               </div>
             </section>
+
+            {cur.notes && (
+              <section aria-labelledby="nt" className="soft col" style={{ padding: '14px 16px', gap: 4 }}>
+                <h3 id="nt" className="t3 rw" style={{ gap: 6 }}><Icon name="lock" size="s" />یادداشت دفتر</h3>
+                <p className="sm" style={{ margin: 0, lineHeight: 1.9, color: 'var(--ink2)', whiteSpace: 'pre-wrap' }}>{cur.notes}</p>
+              </section>
+            )}
 
             <section aria-labelledby="mf" className="col" style={{ gap: 10 }}>
               <div className="rw" style={{ gap: 10 }}><h3 id="mf" className="t3">فایل‌های مناسب</h3><span className="xs mute">تیک بزنید تا در نمایش بیاید</span></div>
