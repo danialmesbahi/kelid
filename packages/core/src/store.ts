@@ -1,5 +1,5 @@
-import type { Client, DealType, Listing, Photo, Todo, Visit } from './model';
-import { normalizeForSearch } from './persian';
+import type { Client, DealType, Listing, Todo, Visit, Photo } from './model';
+import { normalizeForSearch, toEnDigits } from './persian';
 import { listingTitle } from './format';
 
 export interface ListingFilter {
@@ -36,6 +36,10 @@ export interface KelidStore {
   listClients(): Promise<Client[]>;
   getClient(id: string): Promise<Client | undefined>;
   addClient(input: NewClient): Promise<Client>;
+  updateClient(id: string, patch: Partial<NewClient>): Promise<Client>;
+  /** حذف نرم؛ با restoreClient برمی‌گردد. */
+  archiveClient(id: string): Promise<void>;
+  restoreClient(id: string): Promise<void>;
   listVisits(fromIso: string, toIso: string): Promise<Visit[]>;
   listTodos(): Promise<Todo[]>;
   setTodoDone(id: string, done: boolean): Promise<void>;
@@ -61,6 +65,29 @@ export interface KelidStore {
 export function searchText(l: Listing): string {
   const plaque = l.plaque === null ? '' : String(l.plaque).padStart(3, '0');
   return normalizeForSearch(`${plaque} ${listingTitle(l)} ${l.neighborhood} ${l.street}`);
+}
+
+/** شماره تلفن برای مقایسه: ارقام لاتین، بدون فاصله و خط، و ۹۸+ به جای ۰. */
+export function normalizePhone(phone: string): string {
+  let d = toEnDigits(phone).replace(/[^\d]/g, '');
+  if (d.startsWith('0098')) d = d.slice(4);
+  else if (d.startsWith('98') && (d.length === 12 || d.length === 13)) d = d.slice(2);
+  else return d.length === 10 && d.startsWith('9') ? `0${d}` : d;
+  // بعضی‌ها بعد از ۹۸+ صفر را هم می‌نویسند: +98 0912…
+  return d.startsWith('0') ? d : `0${d}`;
+}
+
+/** فیلدهای عوض‌شدهٔ مشتری؛ نیاز (need) یک فیلد حساب می‌شود. */
+export function changedClientFields(cur: Client, next: Client): Partial<NewClient> {
+  const out: Record<string, unknown> = {};
+  for (const k of ['name', 'phone', 'need', 'temperature', 'waitingForNews', 'notes'] as const) {
+    if (JSON.stringify(cur[k]) !== JSON.stringify(next[k])) out[k] = next[k];
+  }
+  return out as Partial<NewClient>;
+}
+
+export function clientSearchText(c: Pick<Client, 'name' | 'phone' | 'need'>): string {
+  return normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')} ${normalizePhone(c.phone)}`);
 }
 
 /**
@@ -89,7 +116,7 @@ export function filterListings(all: Listing[], filter: ListingFilter = {}): List
 /** نسخهٔ در حافظه؛ برای تست‌ها و وقتی مرورگر حافظهٔ ماندگار ندارد. */
 export class MemoryStore implements KelidStore {
   private listings: Array<Listing & { deleted?: boolean; sample?: boolean }>;
-  private clients: Client[];
+  private clients: Array<Client & { deleted?: boolean }>;
   private visits: Visit[];
   private todos: Todo[];
   private photos: Array<PhotoThumb & { bytes: Uint8Array; deleted?: boolean }> = [];
@@ -150,11 +177,11 @@ export class MemoryStore implements KelidStore {
   }
 
   async listClients() {
-    return [...this.clients].sort((a, b) => Number(b.waitingForNews) - Number(a.waitingForNews) || b.lastContactAt.localeCompare(a.lastContactAt));
+    return this.clients.filter((c) => !c.deleted).sort((a, b) => Number(b.waitingForNews) - Number(a.waitingForNews) || b.lastContactAt.localeCompare(a.lastContactAt));
   }
 
   async getClient(id: string) {
-    return this.clients.find((c) => c.id === id);
+    return this.clients.find((c) => c.id === id && !c.deleted);
   }
 
   async addClient(input: NewClient) {
@@ -163,6 +190,27 @@ export class MemoryStore implements KelidStore {
     this.clients.push(c);
     this.emit();
     return c;
+  }
+
+  async updateClient(id: string, patch: Partial<NewClient>) {
+    const i = this.clients.findIndex((c) => c.id === id && !c.deleted);
+    const cur = this.clients[i];
+    if (!cur) throw new Error('مشتری پیدا نشد');
+    const next = { ...cur, ...patch, id: cur.id, createdAt: cur.createdAt };
+    if (Object.keys(changedClientFields(cur, next)).length === 0) return cur;
+    this.clients[i] = next;
+    this.emit();
+    return next;
+  }
+
+  async archiveClient(id: string) {
+    this.clients = this.clients.map((c) => (c.id === id ? { ...c, deleted: true } : c));
+    this.emit();
+  }
+
+  async restoreClient(id: string) {
+    this.clients = this.clients.map((c) => (c.id === id ? { ...c, deleted: false } : c));
+    this.emit();
   }
 
   async listVisits(fromIso: string, toIso: string) {

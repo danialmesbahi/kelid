@@ -111,6 +111,9 @@ export const migrations: string[] = [
   );
   CREATE INDEX IF NOT EXISTS photos_listing ON photos(listing_id, ord) WHERE deleted = 0;
   `,
+  /* 3: یادداشت داخلی برای مشتری */ `
+  ALTER TABLE clients ADD COLUMN notes TEXT;
+  `,
 ];
 
 export async function migrate(db: SqlDriver): Promise<void> {

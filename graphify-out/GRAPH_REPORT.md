@@ -1,21 +1,21 @@
 # Graph Report - RealState  (2026-10-04)
 
 ## Corpus Check
-- 77 files · ~40,503 words
+- 79 files · ~43,611 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 796 nodes · 1617 edges · 53 communities (42 shown, 11 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 79 edges (avg confidence: 0.85)
+- 834 nodes · 1782 edges · 64 communities (53 shown, 11 thin omitted)
+- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 88 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `21e09acb`
+- Built from commit: `402386b7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- ListingForm.tsx
+- Clients.tsx
 - allowScripts
 - Kelid README
 - sqlStore.ts
@@ -29,13 +29,13 @@
 - ui/package.json
 - web/tsconfig.json
 - desktop/tsconfig.json
-- data.tsx
+- drivers.ts
 - core/package.json
 - core/tsconfig.json
-- core.test.ts
+- ListingForm.tsx
 - SqlStore (SQL + outbox + emit)
 - Rule: No Full Page Reloads (Link viewTransition)
-- photos.test.ts
+- clients.test.ts
 - Tech Stack Doc
 - build
 - photos.ts
@@ -47,14 +47,14 @@
 - نقشهٔ راه و تقسیم کار
 - Known Gotchas (OPFS single tab, single-instance lock, npmRebuild false, Vite/Vitest major, Intl formatToParts)
 - KelidStore
-- Desktop Storage: SQLCipher DB in %APPDATA%\Kelid
+- Desktop Driver (window.kelid.db IPC -> better-sqlite3-multiple-ciphers)
 - kelid-ship/SKILL.md
 - kelid-sync/SKILL.md
-- Recipe: Add a Page
+- useSlow
 - .prettierrc.json
 - preload.ts
 - kelid-task/SKILL.md
-- eslint-plugin-react-hooks
+- ClientForm.tsx
 - nsis
 - @types/node
 - devDependencies
@@ -63,16 +63,27 @@
 - typescript
 - typescript-eslint
 - vitest
+- CommandPalette.tsx
+- App.tsx
+- toFaDigits
+- data.tsx
+- database.ts
+- icons.cjs
+- Today.tsx
+- setup.mjs
+- seed.ts
+- Persian RTL UI (toFaDigits, toEnDigits, formatToman)
+- better-sqlite3-multiple-ciphers
 
 ## God Nodes (most connected - your core abstractions)
-1. `MemoryStore` - 38 edges
-2. `SqlStore` - 33 edges
-3. `toFaDigits()` - 31 edges
-4. `KelidStore` - 31 edges
-5. `useQuery()` - 25 edges
-6. `allow` - 20 edges
-7. `useStore()` - 19 edges
-8. `useToast()` - 18 edges
+1. `MemoryStore` - 42 edges
+2. `SqlStore` - 37 edges
+3. `toFaDigits()` - 36 edges
+4. `KelidStore` - 35 edges
+5. `useQuery()` - 28 edges
+6. `useStore()` - 23 edges
+7. `useToast()` - 23 edges
+8. `allow` - 20 edges
 9. `Listing` - 18 edges
 10. `listingTitle()` - 16 edges
 
@@ -91,11 +102,11 @@
 ## Import Cycles
 - None detected.
 
-## Communities (53 total, 11 thin omitted)
+## Communities (64 total, 11 thin omitted)
 
-### Community 0 - "ListingForm.tsx"
-Cohesion: 0.05
-Nodes (96): Prefs, PrefsContext, router, usePrefsContext(), useQuery(), useSlow(), useStorageInfo(), ACTIONS (+88 more)
+### Community 0 - "Clients.tsx"
+Cohesion: 0.10
+Nodes (30): PageSkeleton(), subscribe(), usePhone(), initial(), Kind, DealFilter, statusLabel, View (+22 more)
 
 ### Community 1 - "allowScripts"
 Cohesion: 0.50
@@ -107,7 +118,7 @@ Nodes (15): Pull Request Checklist, CI check Job (windows-latest: npm ci, typech
 
 ### Community 3 - "sqlStore.ts"
 Cohesion: 0.07
-Nodes (37): Client, ClientTemperature, ListingStatus, Photo, Price, PropertyKind, Todo, Visit (+29 more)
+Nodes (53): normalizeForSearch (Persian text normalization), CommandPalette(), ClientForm(), parseNum(), toClient(), Persian-normalized search column (LIKE now, FTS5 later), budgetOf(), matchListing() (+45 more)
 
 ### Community 4 - "web/package.json"
 Cohesion: 0.06
@@ -145,9 +156,9 @@ Nodes (12): compilerOptions, types, exclude, extends, include, src, ../../tsconf
 Cohesion: 0.18
 Nodes (10): compilerOptions, lib, types, extends, include, ES2023, node, src (+2 more)
 
-### Community 14 - "data.tsx"
-Cohesion: 0.06
-Nodes (37): Electron Sandbox + window.kelid Preload Bridge, cache, StorageInfo, StoreContext, storeFor(), StoreProvider(), stores, DesktopBridge (+29 more)
+### Community 14 - "drivers.ts"
+Cohesion: 0.14
+Nodes (14): DesktopBridge, desktopDriver(), execScript(), OpenedDriver, transaction(), Window, packages_core_src_index_sqldriver, packages_core_src_index_sqlparams (+6 more)
 
 ### Community 15 - "core/package.json"
 Cohesion: 0.22
@@ -157,17 +168,17 @@ Nodes (8): exports, ./node, main, name, private, type, types, version
 Cohesion: 0.25
 Nodes (7): compilerOptions, types, extends, include, node, src, ../../tsconfig.base.json
 
-### Community 17 - "core.test.ts"
-Cohesion: 0.08
-Nodes (29): normalizeForSearch (Persian text normalization), Persian RTL UI (toFaDigits, toEnDigits, formatToman), Plaque Color Code (green sale, mustard rent, blue full mortgage), Web index.html (rtl, fa, #root, main.tsx entry), Pre-Paint Theme/Zoom Script (kelid.theme, kelid.textSize), AmountField(), parseAmount(), parseNum() (+21 more)
+### Community 17 - "ListingForm.tsx"
+Cohesion: 0.10
+Nodes (28): AddPage(), AmountField(), amountText(), editedFields(), FEATURES, FormState, grid(), KINDS (+20 more)
 
 ### Community 18 - "SqlStore (SQL + outbox + emit)"
-Cohesion: 0.20
-Nodes (14): Rule: New Store Method in Both SqlStore and MemoryStore, Rule: UI Never Runs SQL (useQuery/useStore only), Data Flow: Page -> KelidStore -> SqlDriver -> DB, Domain Model (Listing, Client, ClientNeed, Visit, Todo, DealType), KelidStore (store contract), matchListing Scoring (budget 35, neighborhood 30, area 20, bedrooms 10, kind 5), MemoryStore (tests and fallback), Node Test Driver (nodeDriver.ts, SQLCipher in Node) (+6 more)
+Cohesion: 0.21
+Nodes (14): Rule: New Store Method in Both SqlStore and MemoryStore, Rule: UI Never Runs SQL (useQuery/useStore only), Data Flow: Page -> KelidStore -> SqlDriver -> DB, Domain Model (Listing, Client, ClientNeed, Visit, Todo, DealType), KelidStore (store contract), matchListing Scoring (budget 35, neighborhood 30, area 20, bedrooms 10, kind 5), MemoryStore (tests and fallback), Recipe: Add a Field to Listing (+6 more)
 
-### Community 20 - "photos.test.ts"
-Cohesion: 0.05
-Nodes (42): checkParams(), closeDatabase(), loadKey(), openDatabase(), Params, createWindow(), webEntry(), at() (+34 more)
+### Community 20 - "clients.test.ts"
+Cohesion: 0.14
+Nodes (13): Node Test Driver (nodeDriver.ts, SQLCipher in Node), Testing Strategy (Vitest, real SQLCipher, wrong-key rejection), better-sqlite3-multiple-ciphers, dirs, tenant, dirs, nodeSqliteDriver(), openEncrypted() (+5 more)
 
 ### Community 21 - "Tech Stack Doc"
 Cohesion: 0.21
@@ -178,8 +189,8 @@ Cohesion: 0.15
 Nodes (13): build, appId, asarUnpack, directories, electronVersion, extraResources, files, nodeGypRebuild (+5 more)
 
 ### Community 23 - "photos.ts"
-Cohesion: 0.09
-Nodes (39): useStore(), Notify, Toast, ToastContext, ToastProvider(), useToast(), AddPage(), EditListingPage() (+31 more)
+Cohesion: 0.13
+Nodes (27): useStore(), FullPhotoLayer(), hasFiles(), Lightbox(), PhotoGallery(), PhotoGrid(), PhotoManager(), thumbSrc() (+19 more)
 
 ### Community 24 - "Server: Node.js 22 + Fastify"
 Cohesion: 0.22
@@ -187,7 +198,7 @@ Nodes (10): Rule: No External CDNs or Google Fonts, Seller Admin Panel (apps/adm
 
 ### Community 25 - "devDependencies"
 Cohesion: 0.12
-Nodes (17): eslint, eslint-config-prettier, @eslint/js, globals, devDependencies, better-sqlite3-multiple-ciphers, eslint, eslint-config-prettier (+9 more)
+Nodes (17): eslint, eslint-config-prettier, @eslint/js, eslint-plugin-react-hooks, globals, devDependencies, eslint, eslint-config-prettier (+9 more)
 
 ### Community 26 - "Custom Sync Protocol (UUIDv7, outbox, cursor pull, soft delete)"
 Cohesion: 0.38
@@ -206,24 +217,28 @@ Cohesion: 0.33
 Nodes (6): تقسیم کار پیشنهادی برای دو نفر هم‌زمان, روند هر کار, طراحی, فاز ۱ — کارهای باز, فازها, نقشهٔ راه و تقسیم کار
 
 ### Community 30 - "Known Gotchas (OPFS single tab, single-instance lock, npmRebuild false, Vite/Vitest major, Intl formatToParts)"
-Cohesion: 1.00
-Nodes (3): Known Gotchas (OPFS single tab, single-instance lock, npmRebuild false, Vite/Vitest major, Intl formatToParts), Prebuilt Native Modules / npm allowScripts, Common Problems and Fixes
+Cohesion: 0.40
+Nodes (6): Known Gotchas (OPFS single tab, single-instance lock, npmRebuild false, Vite/Vitest major, Intl formatToParts), Prebuilt Native Modules / npm allowScripts, workerDriver(), Web Worker Driver (sqlite.worker.ts on OPFS SAH pool), Common Problems and Fixes, Web/Phone Storage: SQLite WASM on OPFS in Worker
 
 ### Community 31 - "KelidStore"
-Cohesion: 0.15
-Nodes (6): Listing, editScenario(), deleteReorderUndo(), photo(), photoScenario(), KelidStore
+Cohesion: 0.10
+Nodes (7): clientScenario(), editScenario(), deleteReorderUndo(), dirs, photo(), photoScenario(), KelidStore
 
-### Community 32 - "Desktop Storage: SQLCipher DB in %APPDATA%\Kelid"
-Cohesion: 0.67
-Nodes (4): Desktop DB Key Protected by Windows DPAPI (safeStorage), Local App Data Locations (kelid.db, kelid.key, browser storage), Argon2id password lock on the DB key (planned, phase 3), Desktop Storage: SQLCipher DB in %APPDATA%\Kelid
+### Community 32 - "Desktop Driver (window.kelid.db IPC -> better-sqlite3-multiple-ciphers)"
+Cohesion: 0.32
+Nodes (8): Desktop DB Key Protected by Windows DPAPI (safeStorage), Electron Sandbox + window.kelid Preload Bridge, Desktop Driver (window.kelid.db IPC -> better-sqlite3-multiple-ciphers), openDriver() singleton driver selection, Recipe: Add an IPC Capability (desktop only), Local App Data Locations (kelid.db, kelid.key, browser storage), Argon2id password lock on the DB key (planned, phase 3), Desktop Storage: SQLCipher DB in %APPDATA%\Kelid
 
-### Community 35 - "Recipe: Add a Page"
-Cohesion: 0.40
-Nodes (5): Rule: No Spinners (useSlow + Skeleton after 120ms), Recipe: Add a Page, Hash Router Routes (Today, Files, FileDetail, Clients, Settings, Add, Show), Show Page (full-screen customer presentation), Keyboard Shortcuts (Ctrl+K, Ctrl+N, Show mode arrows/Esc)
+### Community 35 - "useSlow"
+Cohesion: 0.33
+Nodes (6): Rule: No Spinners (useSlow + Skeleton after 120ms), useSlow(), Recipe: Add a Page, Hash Router Routes (Today, Files, FileDetail, Clients, Settings, Add, Show), Show Page (full-screen customer presentation), Keyboard Shortcuts (Ctrl+K, Ctrl+N, Show mode arrows/Esc)
 
 ### Community 36 - ".prettierrc.json"
 Cohesion: 0.29
 Nodes (6): endOfLine, printWidth, singleQuote, tabWidth, trailingComma, useTabs
+
+### Community 40 - "ClientForm.tsx"
+Cohesion: 0.14
+Nodes (15): AmountField(), amountText(), FormState, grid(), KINDS, numText(), parseAmount(), TEMPS (+7 more)
 
 ### Community 41 - "nsis"
 Cohesion: 0.18
@@ -241,25 +256,65 @@ Nodes (5): scripts, build, build:main, dev, dist
 Cohesion: 0.67
 Nodes (3): win, icon, target
 
+### Community 50 - "CommandPalette.tsx"
+Cohesion: 0.13
+Nodes (15): useStorageInfo(), ACTIONS, Item, activeIndex(), NAV, Shell(), storageLabel, TABS (+7 more)
+
+### Community 53 - "App.tsx"
+Cohesion: 0.13
+Nodes (21): Prefs, PrefsContext, router, usePrefsContext(), Notify, Toast, ToastContext, ToastProvider() (+13 more)
+
+### Community 54 - "toFaDigits"
+Cohesion: 0.31
+Nodes (19): useQuery(), budgetText(), ClientsPage(), needSummary(), FileDetailPage(), FilesPage(), ShowPage(), TodayPage() (+11 more)
+
+### Community 55 - "data.tsx"
+Cohesion: 0.16
+Nodes (14): cache, StorageInfo, StoreContext, storeFor(), StoreProvider(), stores, openDriver(), Splash() (+6 more)
+
+### Community 56 - "database.ts"
+Cohesion: 0.26
+Nodes (10): checkParams(), closeDatabase(), loadKey(), openDatabase(), Params, createWindow(), webEntry(), ref_better_sqlite3_multiple_ciphers (+2 more)
+
+### Community 57 - "icons.cjs"
+Cohesion: 0.21
+Nodes (10): { app, BrowserWindow }, bmp24(), font, fs, header(), path, plaque(), root (+2 more)
+
+### Community 58 - "Today.tsx"
+Cohesion: 0.20
+Nodes (9): ACTION_ICON, AgendaRow(), greeting(), formatTime(), packages_core_src_index_formatlongdate, packages_core_src_index_formattime, packages_core_src_index_tehrantoday, packages_core_src_index_visit (+1 more)
+
+### Community 59 - "setup.mjs"
+Cohesion: 0.20
+Nodes (4): ref_node_child_process, hooks, major, root
+
+### Community 60 - "seed.ts"
+Cohesion: 0.28
+Nodes (8): at(), daysAgo(), L, listing(), seedClients, seedTodos, seedVisits, tehranToday()
+
+### Community 61 - "Persian RTL UI (toFaDigits, toEnDigits, formatToman)"
+Cohesion: 0.29
+Nodes (7): Persian RTL UI (toFaDigits, toEnDigits, formatToman), Plaque Color Code (green sale, mustard rent, blue full mortgage), Web index.html (rtl, fa, #root, main.tsx entry), Pre-Paint Theme/Zoom Script (kelid.theme, kelid.textSize), Design Tokens (kelid.css), Prefs (theme, text size -> --zoom), Jalali Calendar via Intl (calendar: persian)
+
 ## Knowledge Gaps
-- **257 isolated node(s):** `$schema`, `Bash(npm run *)`, `Bash(npm test)`, `Bash(npm ci)`, `Bash(npm install)` (+252 more)
+- **261 isolated node(s):** `$schema`, `Bash(npm run *)`, `Bash(npm test)`, `Bash(npm ci)`, `Bash(npm install)` (+256 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SqlStore` connect `sqlStore.ts` to `SqlStore (SQL + outbox + emit)`, `photos.test.ts`, `data.tsx`, `KelidStore`?**
-  _High betweenness centrality (0.054) - this node is a cross-community bridge._
-- **Why does `MemoryStore` connect `MemoryStore` to `sqlStore.ts`, `data.tsx`, `SqlStore (SQL + outbox + emit)`, `photos.test.ts`, `KelidStore`?**
-  _High betweenness centrality (0.047) - this node is a cross-community bridge._
-- **Why does `KelidStore` connect `KelidStore` to `sqlStore.ts`, `MemoryStore`, `data.tsx`, `SqlStore (SQL + outbox + emit)`, `photos.test.ts`, `photos.ts`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
+- **Why does `SqlStore` connect `sqlStore.ts` to `drivers.ts`, `SqlStore (SQL + outbox + emit)`, `clients.test.ts`, `data.tsx`, `KelidStore`?**
+  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+- **Why does `MemoryStore` connect `MemoryStore` to `sqlStore.ts`, `SqlStore (SQL + outbox + emit)`, `clients.test.ts`, `data.tsx`, `KelidStore`?**
+  _High betweenness centrality (0.050) - this node is a cross-community bridge._
+- **Why does `KelidStore` connect `KelidStore` to `sqlStore.ts`, `MemoryStore`, `SqlStore (SQL + outbox + emit)`, `clients.test.ts`, `data.tsx`, `photos.ts`?**
+  _High betweenness centrality (0.045) - this node is a cross-community bridge._
 - **What connects `$schema`, `Bash(npm run *)`, `Bash(npm test)` to the rest of the system?**
-  _257 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `ListingForm.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.054324206866579745 - nodes in this community are weakly interconnected._
+  _261 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Clients.tsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.09815078236130868 - nodes in this community are weakly interconnected._
 - **Should `sqlStore.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.07120500782472614 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06556948798328109 - nodes in this community are weakly interconnected._
 - **Should `web/package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.05714285714285714 - nodes in this community are weakly interconnected._
