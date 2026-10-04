@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 
-type Params = Array<string | number | null>;
+type Params = Array<string | number | null | Uint8Array>;
 type Req =
   | { id: number; op: 'all'; sql: string; params?: Params }
   | { id: number; op: 'tx'; statements: Array<{ sql: string; params?: Params }> }
