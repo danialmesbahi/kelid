@@ -58,6 +58,23 @@ describe('editing a listing on SqlStore', () => {
     db.close();
   });
 
+  it('writes cleared fields as null and leaves the photo count alone', async () => {
+    const db = openEncrypted(Database as never, tempFile(), 'k');
+    const store = await SqlStore.open(nodeSqliteDriver(db), seed);
+    const l = (await store.listListings({ query: '۰۲۷' }))[0]!;
+    await store.updateListing(l.id, { description: 'یادداشت' });
+    // کار عکس هم‌زمان شمار عکس را عوض کرده؛ ویرایش نباید آن را به مقدار کهنه برگرداند
+    db.prepare('UPDATE listings SET photo_count = 7 WHERE id = ?').run(l.id);
+    await store.updateListing(l.id, { description: undefined });
+
+    const last = db.prepare("SELECT payload FROM outbox WHERE entity_id = ? ORDER BY seq DESC LIMIT 1").get(l.id) as { payload: string };
+    expect(JSON.parse(last.payload)).toEqual({ description: null });
+    const after = (await store.getListing(l.id))!;
+    expect(after.description).toBeUndefined();
+    expect(after.photoCount).toBe(7);
+    db.close();
+  });
+
   it('persists edits after reopening', async () => {
     const file = tempFile();
     let db = openEncrypted(Database as never, file, 'k');

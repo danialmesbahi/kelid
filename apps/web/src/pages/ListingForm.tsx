@@ -76,6 +76,16 @@ function toFields(f: FormState): ListingFields | string {
   };
 }
 
+/** فقط چیزهایی که کاربر در همین فرم عوض کرده؛ تا تغییر هم‌زمان (مثلاً وضعیت از صفحهٔ فایل) با دادهٔ کهنهٔ فرم برنگردد. */
+function editedFields(start: ListingFields | string, next: ListingFields): Partial<ListingFields> {
+  if (typeof start === 'string') return next;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(next) as Array<keyof ListingFields>) {
+    if (JSON.stringify(start[k]) !== JSON.stringify(next[k])) out[k] = next[k];
+  }
+  return out as Partial<ListingFields>;
+}
+
 function AmountField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const n = parseAmount(value);
   return (
@@ -103,9 +113,11 @@ const grid = (min: number) => ({ display: 'grid', gridTemplateColumns: `repeat(a
  */
 export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus, photoNote, onSubmit }: {
   listing?: Listing; title: string; submitLabel: string; cancelTo: string; showStatus?: boolean; photoNote?: boolean;
-  onSubmit: (fields: ListingFields) => Promise<void>;
+  /** `edited` فقط فیلدهای عوض‌شده نسبت به فایلی است که فرم با آن باز شد؛ ویرایش باید همین را بفرستد. */
+  onSubmit: (fields: ListingFields, edited: Partial<ListingFields>) => Promise<void>;
 }) {
   const [f, setF] = useState(() => toState(listing));
+  const [start] = useState(() => toFields(toState(listing)));
   const [initial] = useState(() => JSON.stringify(toState(listing)));
   const [error, setError] = useState('');
   const [custom, setCustom] = useState('');
@@ -142,6 +154,8 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    // دوبار کلیک یا نگه داشتن Ctrl+S نباید دو فایل بسازد
+    if (saving.current) return;
     const fields = toFields(f);
     if (typeof fields === 'string') {
       setError(fields);
@@ -150,7 +164,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
     setError('');
     saving.current = true;
     try {
-      await onSubmit(fields);
+      await onSubmit(fields, editedFields(start, fields));
     } catch (err) {
       saving.current = false;
       setError(err instanceof Error ? err.message : 'ذخیره نشد؛ دوباره امتحان کنید.');

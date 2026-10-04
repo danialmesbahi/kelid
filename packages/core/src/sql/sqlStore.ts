@@ -54,6 +54,13 @@ function listingValues(l: Listing): SqlValue[] {
 const LISTING_COLS =
   'id, plaque, deal, status, kind, neighborhood, street, address, area, bedrooms, floor, floors_total, year_built, features, price_total, price_deposit, price_rent, negotiable, description, owner_name, owner_phone, owner_best_time, cover, photo_count, search, created_at, updated_at';
 const LISTING_PH = LISTING_COLS.split(',').map(() => '?').join(', ');
+// ویرایش به شمار عکس‌ها دست نمی‌زند؛ آن را فقط کارهای عکس عوض می‌کنند و ممکن است هم‌زمان اجرا شوند.
+const LISTING_KEEP = new Set(['id', 'plaque', 'photo_count', 'created_at']);
+const LISTING_SET = LISTING_COLS.split(', ').filter((c) => !LISTING_KEEP.has(c)).map((c) => `${c} = ?`).join(', ');
+function listingUpdateValues(l: Listing): SqlValue[] {
+  const cols = LISTING_COLS.split(', ');
+  return listingValues(l).filter((_v, i) => !LISTING_KEEP.has(cols[i]!));
+}
 
 function rowToClient(r: Row): Client {
   return {
@@ -82,7 +89,9 @@ function rowToVisit(r: Row): Visit {
 }
 
 function outbox(entity: string, id: string, op: 'upsert' | 'delete', payload: unknown): SqlStatement {
-  return { sql: 'INSERT INTO outbox (entity, entity_id, op, payload, created_at) VALUES (?, ?, ?, ?, ?)', params: [entity, id, op, JSON.stringify(payload), nowIso()] };
+  // undefined یعنی «پاک شد»؛ JSON.stringify آن را حذف می‌کند، پس null می‌نویسیم تا همگام‌سازی پاک شدن را ببیند.
+  const json = JSON.stringify(payload, (_k, v: unknown) => (v === undefined ? null : v));
+  return { sql: 'INSERT INTO outbox (entity, entity_id, op, payload, created_at) VALUES (?, ?, ?, ?, ?)', params: [entity, id, op, json, nowIso()] };
 }
 
 /** لایهٔ داده روی SQLite؛ همان رابط KelidStore، پس صفحه‌ها فرقی نمی‌بینند. */
@@ -168,7 +177,7 @@ export class SqlStore implements KelidStore {
     if (Object.keys(changed).length === 0) return cur;
     const next: Listing = { ...merged, updatedAt: nowIso() };
     await this.db.transaction([
-      { sql: `INSERT OR REPLACE INTO listings (${LISTING_COLS}) VALUES (${LISTING_PH})`, params: listingValues(next) },
+      { sql: `UPDATE listings SET ${LISTING_SET} WHERE id = ?`, params: [...listingUpdateValues(next), id] },
       outbox('listing', id, 'upsert', changed),
     ]);
     this.emit();

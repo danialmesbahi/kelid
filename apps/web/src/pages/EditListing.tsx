@@ -32,8 +32,8 @@ export function EditListingPage() {
       title={`ویرایش فایل ${formatPlaque(l.plaque)}`}
       submitLabel="ذخیرهٔ تغییرات"
       cancelTo={`/files/${l.id}`}
-      onSubmit={async (fields) => {
-        await store.updateListing(l.id, fields);
+      onSubmit={async (_fields, edited) => {
+        await store.updateListing(l.id, edited);
         navigate(`/files/${l.id}`, { replace: true, viewTransition: true });
         toast(`تغییرات فایل ${formatPlaque(l.plaque)} ذخیره شد`);
       }}
