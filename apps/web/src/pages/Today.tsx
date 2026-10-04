@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useViewTransitionState } from 'react-router';
-import { CheckBox, Cover, Icon, Plaque, type IconName } from '@kelid/ui';
-import { dealLabel, formatLongDate, formatTime, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type Visit } from '@kelid/core';
+import { CheckBox, Icon, Plaque, type IconName } from '@kelid/ui';
+import { formatLongDate, formatTime, toFaDigits, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { todayQuery } from '../queries';
 import { useFirstVisit } from '../layout/useFirstVisit';
+import { ListingCardContent } from '../layout/ListingCard';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { VisitDialog } from '../visits/VisitDialog';
@@ -191,29 +192,11 @@ function AgendaRow({ v, listing, isNext, showNow, onEdit }: { v: Visit; listing?
  */
 function RecentCard({ l, cover }: { l: Listing; cover: string | undefined }) {
   const to = `/files/${l.id}`;
+  // فقط عکسِ کارتی که باز می‌شود نام انتقال می‌گیرد؛ بقیهٔ کارت‌ها جزو صفحه می‌مانند و نمی‌پرند.
   const flying = useViewTransitionState(to);
   return (
-    <Link viewTransition className="hcard lift vt-cover" to={to} style={{ viewTransitionName: flying ? `cover-${l.id}` : undefined }}>
-      <Cover variant={l.cover} src={cover} />
-      <span className="hcard-top">
-        <Plaque value={l.plaque} deal={l.deal} />
-        <span className="hcard-deal">{dealLabel[l.deal]}</span>
-      </span>
-      <span className="hcard-ov">
-        <span className="hcard-t">{listingTitle(l)}</span>
-        <span className="hcard-loc"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
-        <span className="hcard-facts">
-          <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
-          <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
-        </span>
-        <span className="hcard-pr">
-          <span className="col">
-            <b className="num">{headlinePrice(l)}</b>
-            <small className="num">{secondaryPrice(l)}</small>
-          </span>
-          <span className="hcard-go" aria-hidden="true"><Icon name="chl" size="s" /></span>
-        </span>
-      </span>
+    <Link viewTransition className="pcard" to={to}>
+      <ListingCardContent l={l} cover={cover} flyName={flying ? `cover-${l.id}` : undefined} />
     </Link>
   );
 }

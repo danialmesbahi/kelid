@@ -8,7 +8,6 @@ import { useToast } from '../layout/Toasts';
 import { VisitDialog } from '../visits/VisitDialog';
 import { statusOptions } from './ListingForm';
 import { PhotoGallery } from '../photos/Gallery';
-import { useFirstVisit } from '../layout/useFirstVisit';
 import { cachedListing } from '../queries';
 
 export function FileDetailPage() {
@@ -18,7 +17,6 @@ export function FileDetailPage() {
   const store = useStore();
   const toast = useToast();
   const navigate = useNavigate();
-  const first = useFirstVisit(`file:${id}`);
   const data = useQuery(`file:${id}`, async (s) => ({ l: await s.getListing(id), clients: await s.listClients() }), () => cachedListing(id));
 
   if (!data) return <PageSkeleton aside />;
@@ -86,7 +84,8 @@ export function FileDetailPage() {
 
       <PhotoGallery listing={l} />
 
-      <div className={first ? 'enter' : undefined} style={{ display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start' }}>
+      {/* هر بار که پرونده باز می‌شود، جزئیات پشت عکسِ در حال پرواز آرام بالا می‌آیند */}
+      <div className="arrive" style={{ display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start' }}>
         <div className="col" style={{ flex: '3 1 480px', minWidth: 0, gap: 28 }}>
           <section aria-labelledby="fx" className="col" style={{ gap: 12 }}>
             <h2 id="fx" className="t2">مشخصات</h2>

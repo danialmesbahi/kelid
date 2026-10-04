@@ -10,6 +10,7 @@ import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
 import { useProgressive } from '../layout/useProgressive';
 import { useFirstVisit } from '../layout/useFirstVisit';
+import { ListingCardContent } from '../layout/ListingCard';
 
 type DealFilter = 'all' | DealType;
 type View = 'list' | 'cards';
@@ -182,27 +183,9 @@ const FileRow = memo(function FileRow({ l, selected, cover, onOpen, onEnter }: R
 
 const FileCard = memo(function FileCard({ l, selected, cover, onOpen, onEnter }: RowProps) {
   return (
-    <button type="button" className={`fcard lift${selected ? ' on' : ''}`} aria-pressed={selected}
+    <button type="button" className={`pcard${selected ? ' on' : ''}`} aria-pressed={selected}
       onClick={() => onOpen(l.id)} onDoubleClick={() => onEnter(l.id)}>
-      <Cover variant={l.cover} src={cover}>
-        <Plaque value={l.plaque} deal={l.deal} className="tagon" />
-        {statusLabel[l.status] && <span className="fcard-st">{statusLabel[l.status]}</span>}
-        {l.photoCount > 0 && <span className="cnt num"><Icon name="cam" size="s" />{toFaDigits(l.photoCount)}</span>}
-      </Cover>
-      <span className="fcard-bd">
-        <span className="xs mute">{dealLabel[l.deal]}</span>
-        <span className="fcard-t">{listingTitle(l)}</span>
-        <span className="fcard-loc xs mute"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
-        <span className="fcard-facts">
-          <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
-          <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
-          {l.floor !== undefined && <span>طبقهٔ <b className="num">{floorLabel(l)}</b></span>}
-        </span>
-        <span className="fcard-pr">
-          <b className="num">{headlinePrice(l)}</b>
-          <span className="xs mute num">{secondaryPrice(l)}</span>
-        </span>
-      </span>
+      <ListingCardContent l={l} cover={cover} badge={statusLabel[l.status]} />
     </button>
   );
 });
