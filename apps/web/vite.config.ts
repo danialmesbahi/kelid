@@ -8,7 +8,8 @@ export default defineConfig({
     // نصب روی گوشی و کار بدون اینترنت. Service Worker را خود برنامه فقط در وب ثبت می‌کند (main.tsx)، نه در ویندوز.
     VitePWA({
       injectRegister: false,
-      registerType: 'autoUpdate',
+      // نسخهٔ تازه با تأیید کاربر فعال می‌شود (pwa.tsx)، نه با تازه شدن ناگهانی صفحه
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'icons/apple-touch-icon.png'],
       manifest: {
         id: './',
@@ -20,7 +21,6 @@ export default defineConfig({
         start_url: './',
         scope: './',
         display: 'standalone',
-        orientation: 'portrait',
         theme_color: '#0E4D3F',
         background_color: '#EFEEEA',
         icons: [
