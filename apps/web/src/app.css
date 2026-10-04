@@ -20,3 +20,19 @@
   justify-content: center;
   align-items: flex-start;
 }
+
+/* کارت فایل در نمای «کارت»: عکس، جزئیات کلیدی و قیمت جدا با خط نازک؛ رنگ فقط از پلاک می‌آید. */
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; padding: 20px 24px 28px; }
+.fcard { display: flex; flex-direction: column; padding: 0; text-align: right; background: var(--paper); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: var(--sh); }
+.fcard.on { border-color: var(--pri-text); box-shadow: 0 0 0 1px var(--pri-text), var(--sh); }
+.fcard .ph { width: 100%; aspect-ratio: 16 / 10; }
+.fcard .ph::after { content: ""; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(to top, rgba(12, 13, 12, .35), transparent); pointer-events: none; }
+.fcard .ph .cnt { z-index: 1; display: inline-flex; align-items: center; gap: 4px; }
+.fcard-st { position: absolute; top: 10px; left: 10px; z-index: 1; padding: 2px 10px; border-radius: 99px; background: var(--warn-tint); color: var(--warn); font-size: 12px; font-weight: 700; }
+.fcard-bd { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 16px; flex: 1; }
+.fcard-t { font-size: 16px; font-weight: 700; line-height: 1.5; }
+.fcard-loc { display: flex; align-items: center; gap: 4px; }
+.fcard-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.fcard-facts > span { padding: 2px 9px; border-radius: 8px; background: var(--sunk); color: var(--ink2); font-size: 12.5px; }
+.fcard-pr { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+.fcard-pr b { font-size: 18px; }
