@@ -84,10 +84,12 @@ export function TodayPage() {
                   <span className="sb" style={{ textDecoration: t.done ? 'line-through' : 'none' }}>{t.title}</span>
                   <span className="xs mute">{t.detail}</span>
                 </span>
-                <button type="button" className="btn btn-s" style={{ height: 36, padding: '0 12px', fontSize: 14 }}>
-                  <Icon name={ACTION_ICON[t.action].icon} size="s" />
-                  {ACTION_ICON[t.action].label}
-                </button>
+                {t.action && (
+                  <button type="button" className="btn btn-s" style={{ height: 36, padding: '0 12px', fontSize: 14 }}>
+                    <Icon name={ACTION_ICON[t.action].icon} size="s" />
+                    {ACTION_ICON[t.action].label}
+                  </button>
+                )}
               </div>
             ))}
           </section>

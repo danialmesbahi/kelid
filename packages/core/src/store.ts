@@ -9,6 +9,8 @@ export interface ListingFilter {
 
 export type NewListing = Omit<Listing, 'id' | 'plaque' | 'createdAt' | 'updatedAt'>;
 export type NewClient = Omit<Client, 'id' | 'createdAt' | 'lastContactAt'>;
+export type NewVisit = Omit<Visit, 'id'>;
+export type NewTodo = Pick<Todo, 'title'> & Partial<Pick<Todo, 'detail' | 'action'>>;
 
 /**
  * لایهٔ دسترسی به داده. SqlStore (ویندوز و وب) و MemoryStore (تست) هر دو
@@ -26,8 +28,16 @@ export interface KelidStore {
   getClient(id: string): Promise<Client | undefined>;
   addClient(input: NewClient): Promise<Client>;
   listVisits(fromIso: string, toIso: string): Promise<Visit[]>;
+  getVisit(id: string): Promise<Visit | undefined>;
+  addVisit(input: NewVisit): Promise<Visit>;
+  updateVisit(id: string, patch: Partial<NewVisit>): Promise<Visit>;
   listTodos(): Promise<Todo[]>;
+  /** کار تازه به انتهای فهرست می‌رود. */
+  addTodo(input: NewTodo): Promise<Todo>;
   setTodoDone(id: string, done: boolean): Promise<void>;
+  /** حذف نرم؛ با restoreTodo برمی‌گردد. */
+  deleteTodo(id: string): Promise<void>;
+  restoreTodo(id: string): Promise<void>;
   hasSampleData(): Promise<boolean>;
   clearSampleData(): Promise<void>;
   /** هر بار داده عوض شود صدا زده می‌شود. */
@@ -49,7 +59,7 @@ export class MemoryStore implements KelidStore {
   private listings: Array<Listing & { deleted?: boolean; sample?: boolean }>;
   private clients: Client[];
   private visits: Visit[];
-  private todos: Todo[];
+  private todos: Array<Todo & { deleted?: boolean }>;
   private listeners = new Set<() => void>();
 
   constructor(seed: { listings: Listing[]; clients: Client[]; visits: Visit[]; todos: Todo[] }) {
@@ -124,8 +134,46 @@ export class MemoryStore implements KelidStore {
     return this.visits.filter((v) => v.startsAt >= fromIso && v.startsAt < toIso).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   }
 
+  async getVisit(id: string) {
+    return this.visits.find((v) => v.id === id);
+  }
+
+  async addVisit(input: NewVisit) {
+    const v: Visit = { ...input, id: crypto.randomUUID() };
+    this.visits.push(v);
+    this.emit();
+    return v;
+  }
+
+  async updateVisit(id: string, patch: Partial<NewVisit>) {
+    const i = this.visits.findIndex((v) => v.id === id);
+    const cur = this.visits[i];
+    if (!cur) throw new Error('قرار پیدا نشد');
+    const next = { ...cur, ...patch, id: cur.id };
+    this.visits[i] = next;
+    this.emit();
+    return next;
+  }
+
   async listTodos() {
-    return [...this.todos];
+    return this.todos.filter((t) => !t.deleted).map(({ deleted: _deleted, ...t }) => t);
+  }
+
+  async addTodo(input: NewTodo) {
+    const t: Todo = { id: crypto.randomUUID(), title: input.title, detail: input.detail ?? '', action: input.action, done: false };
+    this.todos.push(t);
+    this.emit();
+    return t;
+  }
+
+  async deleteTodo(id: string) {
+    this.todos = this.todos.map((t) => (t.id === id ? { ...t, deleted: true } : t));
+    this.emit();
+  }
+
+  async restoreTodo(id: string) {
+    this.todos = this.todos.map((t) => (t.id === id ? { ...t, deleted: false } : t));
+    this.emit();
   }
 
   async setTodoDone(id: string, done: boolean) {

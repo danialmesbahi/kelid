@@ -1,6 +1,6 @@
 import type { Client, Listing, Todo, Visit } from '../model';
 import { normalizeForSearch } from '../persian';
-import type { KelidStore, ListingFilter, NewClient, NewListing } from '../store';
+import type { KelidStore, ListingFilter, NewClient, NewListing, NewTodo, NewVisit } from '../store';
 import { searchText } from '../store';
 import type { SqlDriver, SqlStatement, SqlValue } from './driver';
 import { migrate } from './schema';
@@ -122,7 +122,7 @@ export class SqlStore implements KelidStore {
       st.push({ sql: 'INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, sample, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)', params: [v.id, v.kind, v.title, v.startsAt, v.endsAt, v.listingId ?? null, v.clientId ?? null, v.done ? 1 : 0, nowIso()] });
     }
     sample.todos.forEach((t, i) => {
-      st.push({ sql: 'INSERT INTO todos (id, title, detail, action, done, position, sample, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)', params: [t.id, t.title, t.detail, t.action, t.done ? 1 : 0, i, nowIso()] });
+      st.push({ sql: 'INSERT INTO todos (id, title, detail, action, done, position, sample, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)', params: [t.id, t.title, t.detail, t.action ?? '', t.done ? 1 : 0, i, nowIso()] });
     });
     st.push({ sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('seeded', '1')" });
     await this.db.transaction(st);
@@ -217,9 +217,66 @@ export class SqlStore implements KelidStore {
     return rows.map(rowToVisit);
   }
 
+  async getVisit(id: string) {
+    const [r] = await this.db.all<Row>('SELECT * FROM visits WHERE id = ? AND deleted = 0', [id]);
+    return r ? rowToVisit(r) : undefined;
+  }
+
+  async addVisit(input: NewVisit) {
+    const v: Visit = { ...input, id: crypto.randomUUID() };
+    await this.db.transaction([
+      { sql: 'INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', params: [v.id, v.kind, v.title, v.startsAt, v.endsAt, v.listingId ?? null, v.clientId ?? null, v.done ? 1 : 0, nowIso()] },
+      outbox('visit', v.id, 'upsert', v),
+    ]);
+    this.emit();
+    return v;
+  }
+
+  async updateVisit(id: string, patch: Partial<NewVisit>) {
+    const cur = await this.getVisit(id);
+    if (!cur) throw new Error('قرار پیدا نشد');
+    const next: Visit = { ...cur, ...patch, id: cur.id };
+    const changed = Object.fromEntries(Object.entries(next).filter(([k, v]) => k !== 'id' && v !== cur[k as keyof Visit]));
+    if (Object.keys(changed).length === 0) return cur;
+    await this.db.transaction([
+      { sql: 'UPDATE visits SET kind = ?, title = ?, starts_at = ?, ends_at = ?, listing_id = ?, client_id = ?, done = ?, updated_at = ? WHERE id = ?', params: [next.kind, next.title, next.startsAt, next.endsAt, next.listingId ?? null, next.clientId ?? null, next.done ? 1 : 0, nowIso(), id] },
+      outbox('visit', id, 'upsert', changed),
+    ]);
+    this.emit();
+    return next;
+  }
+
   async listTodos() {
     const rows = await this.db.all<Row>('SELECT * FROM todos WHERE deleted = 0 ORDER BY position');
-    return rows.map((r): Todo => ({ id: s(r.id), title: s(r.title), detail: s(r.detail), action: s(r.action) as Todo['action'], done: b(r.done) }));
+    return rows.map((r): Todo => ({ id: s(r.id), title: s(r.title), detail: s(r.detail), action: (opt(r.action) || undefined) as Todo['action'], done: b(r.done) }));
+  }
+
+  async addTodo(input: NewTodo) {
+    const [m] = await this.db.all<{ p: number | null }>('SELECT MAX(position) AS p FROM todos');
+    const t: Todo = { id: crypto.randomUUID(), title: input.title, detail: input.detail ?? '', action: input.action, done: false };
+    await this.db.transaction([
+      // ستون action در جدول اجباری است؛ «بدون میانبر» رشتهٔ خالی ذخیره می‌شود.
+      { sql: 'INSERT INTO todos (id, title, detail, action, done, position, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)', params: [t.id, t.title, t.detail, t.action ?? '', (m?.p ?? -1) + 1, nowIso()] },
+      outbox('todo', t.id, 'upsert', t),
+    ]);
+    this.emit();
+    return t;
+  }
+
+  async deleteTodo(id: string) {
+    await this.db.transaction([
+      { sql: 'UPDATE todos SET deleted = 1, updated_at = ? WHERE id = ?', params: [nowIso(), id] },
+      outbox('todo', id, 'delete', {}),
+    ]);
+    this.emit();
+  }
+
+  async restoreTodo(id: string) {
+    await this.db.transaction([
+      { sql: 'UPDATE todos SET deleted = 0, updated_at = ? WHERE id = ?', params: [nowIso(), id] },
+      outbox('todo', id, 'upsert', { deleted: false }),
+    ]);
+    this.emit();
   }
 
   async setTodoDone(id: string, done: boolean) {
