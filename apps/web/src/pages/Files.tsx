@@ -9,6 +9,7 @@ import { FullPhotoLayer } from '../photos/Gallery';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
 import { useProgressive } from '../layout/useProgressive';
+import { useFirstVisit } from '../layout/useFirstVisit';
 
 type DealFilter = 'all' | DealType;
 type View = 'list' | 'cards';
@@ -33,6 +34,7 @@ export function FilesPage() {
   const thumbs = useCoverThumbs();
   const list = data ? data.all.filter((l) => deal === 'all' || l.deal === deal) : [];
   const shown = useProgressive(list.length);
+  const first = useFirstVisit('files');
   if (!data) return <PageSkeleton rows={8} aside />;
 
   const sel = list.find((l) => l.id === selId) ?? list[0];
@@ -90,7 +92,7 @@ export function FilesPage() {
 
           {view === 'list' && list.length > 0 && (
             <div style={{ padding: '8px 16px 24px', overflowX: 'auto' }}>
-              <div className="stagger filelist">
+              <div className={first ? 'stagger filelist' : 'filelist'}>
                 <div className="listgrid xs faint sb" style={{ padding: '10px 12px' }}>
                   <span>پلاک</span><span>ملک</span><span>متراژ</span><span>خواب</span><span>قیمت</span>
                 </div>
@@ -102,7 +104,7 @@ export function FilesPage() {
           )}
 
           {view === 'cards' && (
-            <div className="fgrid stagger">
+            <div className={first ? 'fgrid stagger' : 'fgrid'}>
               {list.slice(0, shown).map((l) => (
                 <FileCard key={l.id} l={l} selected={l.id === sel?.id} cover={coverUrl(thumbs, l.id)} onOpen={onOpen} onEnter={onEnter} />
               ))}

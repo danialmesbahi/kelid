@@ -4,6 +4,7 @@ import { CheckBox, Cover, Icon, Plaque, type IconName } from '@kelid/ui';
 import { dealLabel, formatLongDate, formatTime, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { todayQuery } from '../queries';
+import { useFirstVisit } from '../layout/useFirstVisit';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
@@ -30,6 +31,7 @@ export function TodayPage() {
   const now = new Date();
   const today = todayQuery();
   const data = useQuery(today.key, today.fn);
+  const first = useFirstVisit('today');
   const thumbs = useCoverThumbs();
 
   if (!data) return <PageSkeleton aside />;
@@ -50,7 +52,7 @@ export function TodayPage() {
 
   return (
     <>
-      <div className="hd enter">
+      <div className={first ? 'hd enter' : 'hd'}>
         <div className="col" style={{ gap: 4 }}>
           <span className="eb">{formatLongDate(now)}</span>
           <h1 className="t1">{greeting(now)}</h1>
@@ -65,7 +67,7 @@ export function TodayPage() {
         </div>
       </div>
 
-      <div className="bd enter">
+      <div className={first ? 'bd enter' : 'bd'}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
           <section aria-labelledby="ag" className="card" style={{ flex: '3 1 480px', minWidth: 0, padding: '20px 22px' }}>
             <div className="rw" style={{ gap: 10, marginBottom: 8 }}>
@@ -131,7 +133,7 @@ export function TodayPage() {
             <span className="sp" style={{ height: 1, background: 'var(--line)' }} />
             <Link viewTransition className="lnk sm" to="/files" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>همهٔ فایل‌ها</Link>
           </div>
-          <div className="hgrid stagger">
+          <div className={first ? 'hgrid stagger' : 'hgrid'}>
             {recent.map((l) => (
               <Link key={l.id} viewTransition className="hcard lift" to={`/files/${l.id}`}>
                 <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ viewTransitionName: `cover-${l.id}` }} />

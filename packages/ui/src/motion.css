@@ -66,12 +66,12 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 ::view-transition-old(kl-side), ::view-transition-old(kl-top) { display: none; }
 /* محتوای صفحه همان root است و فقط محو می‌شود. نام جدا (مثلاً روی .page) نمی‌گیرد: عکس گرفتن از صفحه‌ای
    با صدها ردیف، کل ارتفاعش را می‌کشید و باز شدن پرونده را کند می‌کرد؛ root فقط به اندازهٔ پنجره است. */
-::view-transition-old(root) { animation: kl-page-out 90ms ease both; }
-::view-transition-new(root) { animation: kl-page-in 200ms var(--ease-out) both; }
+::view-transition-old(root) { animation: kl-page-out 80ms ease both; }
+::view-transition-new(root) { animation: kl-page-in 150ms var(--ease-out) both; }
 @keyframes kl-page-out { to { opacity: 0; } }
 @keyframes kl-page-in { from { opacity: 0; } }
 /* عکس و پلاکی که از فهرست به پرونده «پرواز» می‌کند */
-::view-transition-group(*) { animation-duration: 280ms; animation-timing-function: var(--ease-out); }
+::view-transition-group(*) { animation-duration: 180ms; animation-timing-function: var(--ease-out); }
 ::view-transition-image-pair(*) { isolation: isolate; }
 
 /* ── اسکلت لودینگ ───────────────────────────────────── */

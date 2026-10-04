@@ -8,6 +8,7 @@ import { useToast } from '../layout/Toasts';
 import { PhotoGallery } from '../photos/Gallery';
 import { statusOptions } from './ListingForm';
 import { VisitDialog } from '../visits/VisitDialog';
+import { useFirstVisit } from '../layout/useFirstVisit';
 
 export function FileDetailPage() {
   const { id = '' } = useParams();
@@ -16,6 +17,7 @@ export function FileDetailPage() {
   const store = useStore();
   const toast = useToast();
   const navigate = useNavigate();
+  const first = useFirstVisit(`file:${id}`);
   const data = useQuery(`file:${id}`, async (s) => ({ l: await s.getListing(id), clients: await s.listClients() }));
 
   if (!data) return <PageSkeleton aside />;
@@ -83,7 +85,7 @@ export function FileDetailPage() {
 
       <PhotoGallery listing={l} />
 
-      <div className="enter" style={{ display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start' }}>
+      <div className={first ? 'enter' : undefined} style={{ display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start' }}>
         <div className="col" style={{ flex: '3 1 480px', minWidth: 0, gap: 28 }}>
           <section aria-labelledby="fx" className="col" style={{ gap: 12 }}>
             <h2 id="fx" className="t2">مشخصات</h2>
