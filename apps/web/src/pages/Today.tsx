@@ -1,9 +1,11 @@
+import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { CheckBox, Cover, Icon, Plaque, type IconName } from '@kelid/ui';
 import { formatLongDate, formatTime, headlinePrice, listingTitle, tehranToday, toFaDigits, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { VisitDialog } from '../visits/VisitDialog';
 
 const ACTION_ICON: Record<'sms' | 'call' | 'camera', { icon: IconName; label: string }> = {
   sms: { icon: 'msg', label: 'پیامک' },
@@ -21,6 +23,8 @@ function greeting(d: Date): string {
 export function TodayPage() {
   const store = useStore();
   const toast = useToast();
+  const [dialog, setDialog] = useState<{ visit?: Visit } | null>(null);
+  const [newTodo, setNewTodo] = useState('');
   const now = new Date();
   const dayStart = new Date(`${tehranToday()}T00:00:00+03:30`).toISOString();
   const dayEnd = new Date(new Date(dayStart).getTime() + 86_400_000).toISOString();
@@ -37,6 +41,14 @@ export function TodayPage() {
   const left = todos.filter((t) => !t.done).length;
   const visitCount = visits.filter((v) => v.kind === 'visit').length;
   const recent = listings.slice(0, 4);
+
+  const addTodo = async (e: FormEvent) => {
+    e.preventDefault();
+    const title = newTodo.trim();
+    if (!title) return;
+    await store.addTodo({ title });
+    setNewTodo('');
+  };
 
   return (
     <>
@@ -61,11 +73,15 @@ export function TodayPage() {
             <div className="rw" style={{ gap: 10, marginBottom: 8 }}>
               <h2 id="ag" className="t2">برنامهٔ امروز</h2>
               <span className="sp" />
+              <button type="button" className="btn btn-s" onClick={() => setDialog({})} style={{ height: 38, padding: '0 12px' }}>
+                <Icon name="plus" size="s" />
+                بازدید جدید
+              </button>
               <Link viewTransition className="lnk sm" to="/calendar" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>تقویم کامل</Link>
             </div>
             {visits.length === 0 && <p className="mute">برای امروز قراری ثبت نشده.</p>}
             {visits.map((v) => (
-              <AgendaRow key={v.id} v={v} listing={v.listingId ? byId.get(v.listingId) : undefined} isNext={v.id === nextVisit?.id} showNow={v.id === nextVisit?.id} />
+              <AgendaRow key={v.id} v={v} listing={v.listingId ? byId.get(v.listingId) : undefined} isNext={v.id === nextVisit?.id} showNow={v.id === nextVisit?.id} onEdit={() => setDialog({ visit: v })} />
             ))}
           </section>
 
@@ -90,8 +106,24 @@ export function TodayPage() {
                     {ACTION_ICON[t.action].label}
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="ib ghost"
+                  aria-label={`حذف کار: ${t.title}`}
+                  style={{ width: 36, height: 36 }}
+                  onClick={async () => {
+                    await store.deleteTodo(t.id);
+                    toast('کار حذف شد', { label: 'برگرداندن', run: () => void store.restoreTodo(t.id) });
+                  }}
+                >
+                  <Icon name="x" size="s" />
+                </button>
               </div>
             ))}
+            <form onSubmit={addTodo} className="rw" style={{ gap: 8, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+              <input className="fld" value={newTodo} onChange={(e) => setNewTodo(e.target.value)} placeholder="کار تازه… (Enter)" aria-label="کار تازه" style={{ height: 44, flex: 1 }} />
+              <button type="submit" className="ib" aria-label="افزودن کار" disabled={!newTodo.trim()}><Icon name="plus" size="s" /></button>
+            </form>
           </section>
         </div>
 
@@ -118,6 +150,7 @@ export function TodayPage() {
           </div>
         </section>
       </div>
+      {dialog && <VisitDialog visit={dialog.visit} onClose={() => setDialog(null)} />}
     </>
   );
 }
@@ -131,7 +164,7 @@ function Stat({ label, value, border }: { label: string; value: string; border?:
   );
 }
 
-function AgendaRow({ v, listing, isNext, showNow }: { v: Visit; listing?: Listing; isNext: boolean; showNow: boolean }) {
+function AgendaRow({ v, listing, isNext, showNow, onEdit }: { v: Visit; listing?: Listing; isNext: boolean; showNow: boolean; onEdit: () => void }) {
   return (
     <div>
       {showNow && (
@@ -143,13 +176,13 @@ function AgendaRow({ v, listing, isNext, showNow }: { v: Visit; listing?: Listin
       )}
       <div className={`row ${isNext ? 'sel' : ''}`} style={{ padding: '12px 8px', opacity: v.done ? 0.5 : 1 }}>
         <span className="num sb" style={{ width: 52 }}>{formatTime(v.startsAt)}</span>
-        <span className="col" style={{ flex: 1, minWidth: 0 }}>
+        <button type="button" onClick={onEdit} aria-label={`ویرایش قرار: ${v.title}`} className="col" style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', padding: 0, textAlign: 'right' }}>
           <span className="sb">{v.title}</span>
           <span className="xs mute rw" style={{ gap: 8, flexWrap: 'wrap' }}>
             {listing && <Plaque value={listing.plaque} deal={listing.deal} size="s" />}
             {listing ? `${listing.neighborhood}، ${listing.street}` : v.done ? 'انجام شد' : ''}
           </span>
-        </span>
+        </button>
         {isNext && (
           <Link viewTransition className="btn btn-p" to={listing ? `/show?f=${listing.id}` : '/show'} style={{ height: 40, padding: '0 14px' }}>
             <Icon name="show" size="s" />

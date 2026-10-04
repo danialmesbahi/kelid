@@ -1,0 +1,196 @@
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { CheckBox, Icon, Segmented } from '@kelid/ui';
+import {
+  addDays, formatJalaliDay, formatPlaque, listingTitle, tehranDayKey, tehranIso, tehranTimeOf, toEnDigits, toFaDigits,
+  type Client, type Listing, type Visit, type VisitKind,
+} from '@kelid/core';
+import { useQuery, useStore } from '../data';
+import { useToast } from '../layout/Toasts';
+import { JalaliPicker } from './JalaliPicker';
+
+const KINDS: Array<{ value: VisitKind; label: string }> = [
+  { value: 'visit', label: 'بازدید' },
+  { value: 'call', label: 'تماس' },
+  { value: 'signing', label: 'قرارداد' },
+  { value: 'task', label: 'کار' },
+];
+
+const DURATIONS = [30, 60, 90, 120];
+const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'));
+const MINUTES = ['00', '15', '30', '45'];
+
+/** عنوان پیش‌فرض از نوع قرار و نام مشتری یا پلاک فایل؛ کاربر می‌تواند خودش بنویسد. */
+function autoTitle(kind: VisitKind, client?: Client, listing?: Listing): string {
+  const who = client?.name;
+  const file = listing ? `فایل ${formatPlaque(listing.plaque)}` : '';
+  if (kind === 'visit') return who ? `بازدید با ${who}` : file ? `بازدید ${file}` : '';
+  if (kind === 'call') return who ? `تماس با ${who}` : file ? `تماس با مالک ${file}` : '';
+  if (kind === 'signing') return who ? `امضای قرارداد با ${who}` : file ? `امضای قرارداد ${file}` : '';
+  return '';
+}
+
+/** ساعت گرد بعدی به وقت تهران، برای قرار تازه. */
+function nextHour(): string {
+  const [h] = tehranTimeOf(new Date().toISOString()).split(':').map(Number);
+  return `${String(Math.min(21, (h ?? 9) + 1)).padStart(2, '0')}:00`;
+}
+
+export type VisitPreset = { listingId?: string; clientId?: string };
+
+/**
+ * پنجرهٔ ثبت یا ویرایش قرار. کاملاً با صفحه‌کلید کار می‌کند: Tab بین فیلدها، Enter ثبت، Esc بستن.
+ */
+export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?: VisitPreset; onClose: () => void }) {
+  const store = useStore();
+  const toast = useToast();
+  const data = useQuery('visit-dialog', async (s) => ({ listings: await s.listListings(), clients: await s.listClients() }));
+  const [kind, setKind] = useState<VisitKind>(visit?.kind ?? 'visit');
+  const [title, setTitle] = useState(visit?.title ?? '');
+  const [day, setDay] = useState(visit ? tehranDayKey(new Date(visit.startsAt)) : tehranDayKey());
+  const [time, setTime] = useState(visit ? tehranTimeOf(visit.startsAt) : nextHour());
+  const [duration, setDuration] = useState(visit ? Math.max(15, Math.round((Date.parse(visit.endsAt) - Date.parse(visit.startsAt)) / 60_000)) : 60);
+  const [listingId, setListingId] = useState(visit?.listingId ?? preset?.listingId ?? '');
+  const [clientId, setClientId] = useState(visit?.clientId ?? preset?.clientId ?? '');
+  const [done, setDone] = useState(visit?.done ?? false);
+  const [error, setError] = useState('');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const firstRef = useRef<HTMLInputElement>(null);
+
+  const listing = data?.listings.find((l) => l.id === listingId);
+  const client = data?.clients.find((c) => c.id === clientId);
+  const suggested = autoTitle(kind, client, listing);
+  const today = tehranDayKey();
+
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    firstRef.current?.focus();
+    return () => prev?.focus();
+  }, []);
+
+  // Tab داخل پنجره می‌چرخد و Esc می‌بندد.
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+    if (e.key !== 'Tab' || !dialogRef.current) return;
+    const items = [...dialogRef.current.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex="0"]')].filter((el) => !el.hasAttribute('disabled') && el.tabIndex >= 0);
+    const firstEl = items[0];
+    const lastEl = items.at(-1);
+    if (e.shiftKey && document.activeElement === firstEl) {
+      e.preventDefault();
+      lastEl?.focus();
+    } else if (!e.shiftKey && document.activeElement === lastEl) {
+      e.preventDefault();
+      firstEl?.focus();
+    }
+  };
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const hhmm = toEnDigits(time);
+    const finalTitle = title.trim() || suggested;
+    if (!finalTitle) {
+      setError('یک عنوان کوتاه بنویسید.');
+      return;
+    }
+    if (!/^\d{2}:\d{2}$/.test(hhmm)) {
+      setError('ساعت را درست وارد کنید.');
+      return;
+    }
+    const startsAt = tehranIso(day, hhmm);
+    const input = {
+      kind, title: finalTitle, startsAt, endsAt: new Date(Date.parse(startsAt) + duration * 60_000).toISOString(),
+      listingId: listingId || undefined, clientId: clientId || undefined, done,
+    };
+    if (visit) await store.updateVisit(visit.id, input);
+    else await store.addVisit(input);
+    const when = day === today ? 'امروز' : day === addDays(today, 1) ? 'فردا' : formatJalaliDay(day);
+    toast(`${finalTitle} · ${when} ساعت ${toFaDigits(hhmm)} ${visit ? 'ذخیره شد' : 'ثبت شد'}`);
+    onClose();
+  };
+
+  return (
+    <div className="overlay" onMouseDown={onClose} style={{ alignItems: 'flex-start', overflowY: 'auto', padding: '40px 16px' }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="vd-title" className="pop" onMouseDown={(e) => e.stopPropagation()} onKeyDown={onKeyDown}
+        style={{ width: 'min(560px, 100%)', background: 'var(--paper)', borderRadius: 22, boxShadow: 'var(--sh-lg), 0 0 0 1px var(--line)' }}>
+        <form onSubmit={submit} className="col" style={{ gap: 16, padding: '20px 22px 22px' }}>
+          <div className="rw" style={{ gap: 10 }}>
+            <h2 id="vd-title" className="t2 sp">{visit ? 'ویرایش قرار' : 'قرار تازه'}</h2>
+            <button type="button" className="ib ghost" aria-label="بستن" onClick={onClose}><Icon name="x" /></button>
+          </div>
+
+          <Segmented<VisitKind> label="نوع قرار" value={kind} onChange={setKind} options={KINDS} />
+
+          <label className="lbl">
+            عنوان
+            <input ref={firstRef} className="fld" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={suggested || 'مثلاً پیگیری سند'} />
+          </label>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+            <label className="lbl">
+              فایل
+              <select className="fld" value={listingId} onChange={(e) => setListingId(e.target.value)}>
+                <option value="">بدون فایل</option>
+                {data?.listings.map((l) => <option key={l.id} value={l.id}>{formatPlaque(l.plaque)} · {listingTitle(l)} · {l.neighborhood}</option>)}
+              </select>
+            </label>
+            <label className="lbl">
+              مشتری
+              <select className="fld" value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                <option value="">بدون مشتری</option>
+                {data?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="col" style={{ gap: 8 }}>
+            <div className="rw" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <span className="sb sm" style={{ color: 'var(--ink2)' }}>روز</span>
+              <span className="sm mute sp">{formatJalaliDay(day)}</span>
+              {[{ k: today, l: 'امروز' }, { k: addDays(today, 1), l: 'فردا' }, { k: addDays(today, 2), l: 'پس‌فردا' }].map((q) => (
+                <button key={q.k} type="button" className="tag" aria-pressed={day === q.k} onClick={() => setDay(q.k)} style={{ border: 0, background: day === q.k ? 'var(--pri-tint)' : undefined, color: day === q.k ? 'var(--pri-text)' : undefined }}>{q.l}</button>
+              ))}
+            </div>
+            <JalaliPicker value={day} onChange={setDay} label="انتخاب روز" />
+          </div>
+
+          <div className="rw" style={{ gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="col" style={{ flex: '1 1 180px', gap: 7 }}>
+              <span id="vd-time" className="sb sm" style={{ color: 'var(--ink2)' }}>ساعت</span>
+              {/* input type=time بسته به زبان ویندوز «PM» و ارقام لاتین نشان می‌دهد؛ دو انتخاب‌گر فارسی ساده‌ترند. */}
+              <div className="rw" role="group" aria-labelledby="vd-time" style={{ gap: 6, direction: 'ltr' }}>
+                <select className="fld num" aria-label="ساعت" value={time.slice(0, 2)} onChange={(e) => setTime(`${e.target.value}:${time.slice(3, 5)}`)} style={{ flex: 1 }}>
+                  {HOURS.map((h) => <option key={h} value={h}>{toFaDigits(h)}</option>)}
+                </select>
+                <span className="b">:</span>
+                <select className="fld num" aria-label="دقیقه" value={time.slice(3, 5)} onChange={(e) => setTime(`${time.slice(0, 2)}:${e.target.value}`)} style={{ flex: 1 }}>
+                  {[...new Set([...MINUTES, time.slice(3, 5)])].sort().map((m) => <option key={m} value={m}>{toFaDigits(m)}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="col" style={{ gap: 7 }}>
+              <span className="sb sm" style={{ color: 'var(--ink2)' }}>مدت</span>
+              <Segmented<number> label="مدت قرار" value={duration} onChange={setDuration} options={DURATIONS.map((d) => ({ value: d, label: d < 60 ? `${toFaDigits(d)} دقیقه` : `${toFaDigits(d / 60).replace('.', '٫')} ساعت` }))} />
+            </div>
+          </div>
+
+          {visit && (
+            <label className="rw sm" style={{ gap: 10 }}>
+              <CheckBox checked={done} onChange={setDone} label="انجام شد" />
+              انجام شد
+            </label>
+          )}
+
+          <div className="rw" style={{ gap: 10 }}>
+            {error && <span role="alert" className="tag bad">{error}</span>}
+            <span className="sp" />
+            <button type="button" className="btn btn-g" onClick={onClose}>انصراف</button>
+            <button type="submit" className="btn btn-p">{visit ? 'ذخیره' : 'ثبت قرار'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
