@@ -8,6 +8,7 @@ import { FilesPage } from './pages/Files';
 import { FileDetailPage } from './pages/FileDetail';
 import { ClientsPage } from './pages/Clients';
 import { AddPage } from './pages/Add';
+import { EditListingPage } from './pages/EditListing';
 import { ShowPage } from './pages/Show';
 import { SettingsPage } from './pages/Settings';
 import { SoonPage } from './pages/Soon';
@@ -37,6 +38,7 @@ const router = createHashRouter([
     ],
   },
   { path: '/add', element: <AddPage /> },
+  { path: '/files/:id/edit', element: <EditListingPage /> },
   { path: '/show', element: <ShowPage /> },
 ]);
 
