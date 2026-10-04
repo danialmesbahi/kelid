@@ -63,6 +63,8 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | `/clients/new`, `/clients/:id/edit` | `ClientForm` | full-screen client form; duplicate-phone warning (`normalizePhone`), neighborhood chips, rent cap (`need.rentMax`) |
 | `/show?f=id,id` | `Show` | full-screen presentation to a customer, ←/→/Esc |
 
+All routes sit under a pathless `layout/ScrollMemory` route: moving to another page starts it at the top, going back (browser/phone back, or detail → its list) restores the list's scroll, a search-only change (`?c=`) leaves scroll alone, and re-tapping the open tab scrolls to the top. Register new pages inside it.
+
 ## Recipes
 
 ### Add a field to `Listing`
