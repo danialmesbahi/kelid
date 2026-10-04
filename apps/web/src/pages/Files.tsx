@@ -114,7 +114,7 @@ export function FilesPage() {
 
         {sel && !phone && (
           <aside key={sel.id} aria-label="پیش‌نمایش فایل" className="col enter" style={{ flex: '1 1 360px', minWidth: 0, maxWidth: '100%', borderRight: '1px solid var(--line)', padding: '20px 22px 26px', gap: 16, background: 'var(--paper2)', borderRadius: '0 0 0 20px' }}>
-            <span style={{ display: 'block', borderRadius: 16, overflow: 'hidden', position: 'relative', viewTransitionName: `cover-${sel.id}` }}>
+            <span className="vt-cover" style={{ display: 'block', borderRadius: 16, overflow: 'hidden', position: 'relative', viewTransitionName: `cover-${sel.id}` }}>
               <Cover variant={sel.cover} src={coverUrl(thumbs, sel.id)} style={{ height: 200 }}>
                 <FullPhotoLayer photoId={thumbs[sel.id]?.photoId} />
                 <span className="cnt">{sel.photoCount ? `${toFaDigits(sel.photoCount)} عکس` : 'بدون عکس'}</span>

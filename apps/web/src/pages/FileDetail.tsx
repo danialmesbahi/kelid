@@ -9,6 +9,7 @@ import { VisitDialog } from '../visits/VisitDialog';
 import { statusOptions } from './ListingForm';
 import { PhotoGallery } from '../photos/Gallery';
 import { useFirstVisit } from '../layout/useFirstVisit';
+import { cachedListing } from '../queries';
 
 export function FileDetailPage() {
   const { id = '' } = useParams();
@@ -18,7 +19,7 @@ export function FileDetailPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const first = useFirstVisit(`file:${id}`);
-  const data = useQuery(`file:${id}`, async (s) => ({ l: await s.getListing(id), clients: await s.listClients() }));
+  const data = useQuery(`file:${id}`, async (s) => ({ l: await s.getListing(id), clients: await s.listClients() }), () => cachedListing(id));
 
   if (!data) return <PageSkeleton aside />;
   const l = data.l;

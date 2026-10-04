@@ -71,8 +71,17 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 @keyframes kl-page-out { to { opacity: 0; } }
 @keyframes kl-page-in { from { opacity: 0; } }
 /* عکس و پلاکی که از فهرست به پرونده «پرواز» می‌کند */
-::view-transition-group(*) { animation-duration: 180ms; animation-timing-function: var(--ease-out); }
+::view-transition-group(*) { animation-duration: 220ms; animation-timing-function: var(--ease-out); }
 ::view-transition-image-pair(*) { isolation: isolate; }
+/* کارت یا عکسی که به عکس پرونده تبدیل می‌شود: در تمام مسیر گوشه‌گرد و بریده می‌ماند و تصویر کش نمی‌آید،
+   حتی وقتی کارت ایستاده به عکس خوابیده تبدیل می‌شود. */
+.vt-cover { view-transition-class: cover; }
+::view-transition-group(*.cover) { border-radius: 20px; overflow: clip; }
+::view-transition-image-pair(*.cover) { overflow: clip; border-radius: inherit; }
+::view-transition-old(*.cover), ::view-transition-new(*.cover) { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: normal; }
+/* تصویر تازه از اول کامل است و تصویر قبلی رویش محو می‌شود؛ پس وسط راه هیچ‌وقت نیمه‌شفاف نیست. */
+::view-transition-new(*.cover) { animation: none; }
+::view-transition-old(*.cover) { z-index: 1; animation: kl-page-out 120ms ease both; }
 
 /* ── اسکلت لودینگ ───────────────────────────────────── */
 .skel {

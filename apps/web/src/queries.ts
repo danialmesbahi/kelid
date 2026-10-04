@@ -1,4 +1,5 @@
-import { tehranToday, type KelidStore } from '@kelid/core';
+import { tehranToday, type Client, type KelidStore, type Listing } from '@kelid/core';
+import { peekQuery } from './data';
 
 /**
  * کوئری صفحه‌های اصلی در یک جا، تا Shell بتواند آن‌ها را از قبل گرم کند (prefetchQuery)
@@ -37,4 +38,14 @@ export function todayQuery() {
     const [visits, todos, listings, clients] = await Promise.all([s.listVisits(dayStart, dayEnd), s.listTodos(), s.listListings(), s.listClients()]);
     return { visits, todos, listings, clients };
   });
+}
+
+/** یک فایل و فهرست مشتری‌ها از دادهٔ صفحه‌های اصلی که در حافظه است، بی‌آنکه منتظر دیتابیس بمانیم. */
+export function cachedListing(id: string): { l: Listing; clients: Client[] } | undefined {
+  for (const key of [filesQuery.key, todayQuery().key]) {
+    const d = peekQuery<{ listings?: Listing[]; all?: Listing[]; clients: Client[] }>(key);
+    const l = (d?.all ?? d?.listings)?.find((x) => x.id === id);
+    if (d && l) return { l, clients: d.clients };
+  }
+  return undefined;
 }

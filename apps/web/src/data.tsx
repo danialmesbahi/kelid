@@ -123,10 +123,21 @@ export function prefetchQuery(store: KelidStore, q: { key: string; fn: Entry['fn
   if (!e.has && e.seq === 0) refresh(store, q.key, e);
 }
 
-export function useQuery<T>(key: string, fn: (s: KelidStore) => Promise<T>): T | undefined {
+/** نتیجهٔ ذخیره‌شدهٔ یک کوئری، بدون خواندن دیتابیس؛ برای ساختن جانشین فوری (placeholder). */
+export function peekQuery<T>(key: string): T | undefined {
+  return entries.get(key)?.data as T | undefined;
+}
+
+/**
+ * `placeholder` اگر باشد و هنوز نتیجه‌ای نیامده، همان لحظه از دادهٔ موجود ساخته می‌شود؛ مثلاً پرونده از
+ * فهرست فایل‌ها. اولین رندر صفحه کامل است و انتقال عکس (view transition) مقصدش را پیدا می‌کند.
+ */
+export function useQuery<T>(key: string, fn: (s: KelidStore) => Promise<T>, placeholder?: () => T | undefined): T | undefined {
   const store = useStore();
   const e = entryFor(key, fn);
   e.fn = fn;
+  // has دست نمی‌خورد تا جواب واقعی دیتابیس حتماً جایگزینش شود
+  if (e.data === undefined && placeholder) e.data = placeholder();
   const subscribe = useCallback(
     (cb: () => void) => {
       watch(store);

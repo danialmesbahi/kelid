@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useViewTransitionState } from 'react-router';
 import { CheckBox, Cover, Icon, Plaque, type IconName } from '@kelid/ui';
 import { dealLabel, formatLongDate, formatTime, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
@@ -134,30 +134,7 @@ export function TodayPage() {
             <Link viewTransition className="lnk sm" to="/files" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>همهٔ فایل‌ها</Link>
           </div>
           <div className={first ? 'hgrid stagger' : 'hgrid'}>
-            {recent.map((l) => (
-              <Link key={l.id} viewTransition className="hcard lift" to={`/files/${l.id}`}>
-                <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ viewTransitionName: `cover-${l.id}` }} />
-                <span className="hcard-top">
-                  <Plaque value={l.plaque} deal={l.deal} />
-                  <span className="hcard-deal">{dealLabel[l.deal]}</span>
-                </span>
-                <span className="hcard-ov">
-                  <span className="hcard-t">{listingTitle(l)}</span>
-                  <span className="hcard-loc"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
-                  <span className="hcard-facts">
-                    <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
-                    <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
-                  </span>
-                  <span className="hcard-pr">
-                    <span className="col">
-                      <b className="num">{headlinePrice(l)}</b>
-                      <small className="num">{secondaryPrice(l)}</small>
-                    </span>
-                    <span className="hcard-go" aria-hidden="true"><Icon name="chl" size="s" /></span>
-                  </span>
-                </span>
-              </Link>
-            ))}
+            {recent.map((l) => <RecentCard key={l.id} l={l} cover={coverUrl(thumbs, l.id)} />)}
           </div>
         </section>
       </div>
@@ -205,5 +182,38 @@ function AgendaRow({ v, listing, isNext, showNow, onEdit }: { v: Visit; listing?
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * کارت فایل در «تازه‌ترین فایل‌ها». فقط کارتی که باز یا بسته می‌شود نام انتقال می‌گیرد و کل کارت
+ * (با گوشه‌های گرد و متنش) به عکس پرونده تبدیل می‌شود؛ بقیهٔ کارت‌ها همراه صفحه می‌مانند و از هم نمی‌پاشند.
+ */
+function RecentCard({ l, cover }: { l: Listing; cover: string | undefined }) {
+  const to = `/files/${l.id}`;
+  const flying = useViewTransitionState(to);
+  return (
+    <Link viewTransition className="hcard lift vt-cover" to={to} style={{ viewTransitionName: flying ? `cover-${l.id}` : undefined }}>
+      <Cover variant={l.cover} src={cover} />
+      <span className="hcard-top">
+        <Plaque value={l.plaque} deal={l.deal} />
+        <span className="hcard-deal">{dealLabel[l.deal]}</span>
+      </span>
+      <span className="hcard-ov">
+        <span className="hcard-t">{listingTitle(l)}</span>
+        <span className="hcard-loc"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
+        <span className="hcard-facts">
+          <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
+          <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
+        </span>
+        <span className="hcard-pr">
+          <span className="col">
+            <b className="num">{headlinePrice(l)}</b>
+            <small className="num">{secondaryPrice(l)}</small>
+          </span>
+          <span className="hcard-go" aria-hidden="true"><Icon name="chl" size="s" /></span>
+        </span>
+      </span>
+    </Link>
   );
 }
