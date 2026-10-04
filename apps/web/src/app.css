@@ -63,3 +63,56 @@
   .hgrid { gap: 12px; }
   .app .hcard { aspect-ratio: 4 / 3.4; }
 }
+.filelist { min-width: 600px; }
+
+/* ── گوشی (زیر ۷۶۸ پیکسل؛ همان مرز usePhone) ─────────────────── */
+.mtab, .mbrand { display: none; }
+@media (max-width: 767px) {
+  .side { display: none; }
+  .shell { display: block; }
+  .main { margin: 0; border: 0; border-radius: 0; box-shadow: none; min-height: 100vh; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .top { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); gap: 8px; flex-wrap: nowrap; }
+  .top .gs { flex: 1 1 auto; min-width: 0; }
+  .top .gs .kbd, .top-new { display: none !important; }
+  .mbrand { display: inline-flex; }
+  .hd { padding: 18px 16px 12px; }
+  .bd { padding: 6px 16px 32px; gap: 22px; }
+  .t1 { font-size: 24px; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .facts > div:nth-child(2n) { border-left: 0; }
+  .facts > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+
+  /* فهرست فایل‌ها: پلاک، ملک و قیمت؛ متراژ و خواب در خط دوم هر ردیف هست */
+  .filelist { min-width: 0; }
+  .listgrid { grid-template-columns: 56px minmax(0, 1fr) auto; gap: 10px; }
+  .listgrid > :nth-child(3), .listgrid > :nth-child(4) { display: none; }
+  .listgrid .ph, section[aria-labelledby="mf"] .row > .ph { display: none; }
+  .gs > .sp { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  section[aria-labelledby="data"] .soft > .sp { flex-basis: 100%; }
+  /* راهنمای کلیدها روی گوشی معنا ندارد */
+  [role="dialog"][aria-label="جستجوی سراسری"] > .rw:last-child, [role="dialog"][aria-label="جستجوی سراسری"] label .kbd { display: none; }
+  /* دکمهٔ «آماده‌سازی نمایش» در برنامهٔ امروز به خط خودش می‌رود تا عنوان قرار له نشود */
+  section[aria-labelledby="ag"] .row { flex-wrap: wrap; }
+  section[aria-labelledby="ag"] .row > .btn-p { order: 9; flex: 1 1 100%; }
+
+  .mtab {
+    display: flex; align-items: flex-start; position: fixed; inset-inline: 0; bottom: 0; z-index: 30;
+    height: calc(68px + env(safe-area-inset-bottom)); padding: 0 6px env(safe-area-inset-bottom);
+    background: var(--paper); border-top: 1px solid var(--line);
+  }
+  .mtab .tab { min-height: 60px; justify-content: center; padding-top: 4px; }
+  .mtab .fab { margin-top: -16px; }
+
+  .toasts { left: 12px; right: 12px; bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .toast { min-width: 0; max-width: none; }
+
+}
+
+/* حالت نمایش روی گوشی، ایستاده یا خوابیده: حاشیه و نوشته‌ها کوچک‌تر */
+@media (max-width: 767px), (max-height: 500px) {
+  .showpage header { padding: 14px 16px !important; gap: 8px !important; }
+  .showpage header .sm:not(button) { display: none; }
+  .showpage > .rw:last-child { padding: 0 16px 20px !important; gap: 14px 18px !important; }
+  .showpage h1 { font-size: 30px !important; }
+  .showpage .showprice { font-size: 26px !important; }
+}

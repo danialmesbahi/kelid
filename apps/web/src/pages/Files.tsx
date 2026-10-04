@@ -4,6 +4,7 @@ import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
 import { useQuery } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
+import { usePhone } from '../layout/usePhone';
 
 type DealFilter = 'all' | DealType;
 type View = 'list' | 'cards';
@@ -15,6 +16,9 @@ export function FilesPage() {
   const [view, setView] = useState<View>('list');
   const [selId, setSelId] = useState<string>();
   const navigate = useNavigate();
+  const phone = usePhone();
+  // روی گوشی پیش‌نمایش کناری جا ندارد؛ یک لمس مستقیم پرونده را باز می‌کند.
+  const open = (id: string) => (phone ? navigate(`/files/${id}`, { viewTransition: true }) : setSelId(id));
 
   const data = useQuery('files', async (s) => ({ all: await s.listListings(), clients: await s.listClients() }));
   if (!data) return <PageSkeleton rows={8} aside />;
@@ -75,13 +79,13 @@ export function FilesPage() {
 
           {view === 'list' && list.length > 0 && (
             <div style={{ padding: '8px 16px 24px', overflowX: 'auto' }}>
-              <div className="stagger" style={{ minWidth: 600 }}>
+              <div className="stagger filelist">
                 <div className="listgrid xs faint sb" style={{ padding: '10px 12px' }}>
                   <span>پلاک</span><span>ملک</span><span>متراژ</span><span>خواب</span><span>قیمت</span>
                 </div>
                 {list.map((l) => (
                   <button key={l.id} type="button" aria-pressed={l.id === sel?.id} className={`listgrid hov ${l.id === sel?.id ? 'sel' : ''}`}
-                    onClick={() => setSelId(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
+                    onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
                     style={{ width: '100%', padding: '10px 12px', border: 0, borderTop: '1px solid var(--line)', borderRadius: 12, background: 'transparent', textAlign: 'right' }}>
                     <span><Plaque value={l.plaque} deal={l.deal} /></span>
                     <span className="rw" style={{ gap: 12, minWidth: 0 }}>
@@ -107,7 +111,7 @@ export function FilesPage() {
             <div className="fgrid stagger">
               {list.map((l) => (
                 <button key={l.id} type="button" className={`fcard lift${l.id === sel?.id ? ' on' : ''}`} aria-pressed={l.id === sel?.id}
-                  onClick={() => setSelId(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}>
+                  onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}>
                   <Cover variant={l.cover}>
                     <Plaque value={l.plaque} deal={l.deal} className="tagon" />
                     {statusLabel[l.status] && <span className="fcard-st">{statusLabel[l.status]}</span>}
@@ -133,7 +137,7 @@ export function FilesPage() {
           )}
         </section>
 
-        {sel && (
+        {sel && !phone && (
           <aside key={sel.id} aria-label="پیش‌نمایش فایل" className="col enter" style={{ flex: '1 1 360px', minWidth: 0, maxWidth: '100%', borderRight: '1px solid var(--line)', padding: '20px 22px 26px', gap: 16, background: 'var(--paper2)', borderRadius: '0 0 0 20px' }}>
             <span style={{ display: 'block', borderRadius: 16, overflow: 'hidden', position: 'relative', viewTransitionName: `cover-${sel.id}` }}>
               <Cover variant={sel.cover} style={{ height: 200 }} />
