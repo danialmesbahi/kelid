@@ -22,10 +22,14 @@ export function matchListing(l: Listing, need: ClientNeed): MatchResult {
   const misses: string[] = [];
   let score = 0;
 
-  if (need.budgetMax === undefined || budgetOf(l) <= need.budgetMax) {
+  // اجاره هم اگر سقف داشته باشد، جزو قیمت حساب می‌شود.
+  const rent = l.price.monthlyRent ?? 0;
+  const rentOk = l.deal !== 'rent' || need.rentMax === undefined || rent <= need.rentMax;
+  const rentNear = l.deal !== 'rent' || need.rentMax === undefined || rent <= need.rentMax * 1.1;
+  if ((need.budgetMax === undefined || budgetOf(l) <= need.budgetMax) && rentOk) {
     score += 35;
     reasons.push('قیمت');
-  } else if (budgetOf(l) <= need.budgetMax * 1.1) {
+  } else if ((need.budgetMax === undefined || budgetOf(l) <= need.budgetMax * 1.1) && rentNear) {
     score += 15;
     misses.push('قیمت کمی بالاتر');
   } else {

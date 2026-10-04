@@ -1,7 +1,7 @@
 import type { Client, Listing, Todo, Visit } from '../model';
 import { normalizeForSearch } from '../persian';
 import type { KelidStore, ListingFilter, NewClient, NewListing } from '../store';
-import { searchText } from '../store';
+import { changedClientFields, clientSearchText, searchText } from '../store';
 import type { SqlDriver, SqlStatement, SqlValue } from './driver';
 import { migrate } from './schema';
 
@@ -64,6 +64,7 @@ function rowToClient(r: Row): Client {
     temperature: s(r.temperature) as Client['temperature'],
     waitingForNews: b(r.waiting),
     lastContactAt: s(r.last_contact_at),
+    notes: opt(r.notes),
     createdAt: s(r.created_at),
   };
 }
@@ -115,7 +116,7 @@ export class SqlStore implements KelidStore {
     for (const c of sample.clients) {
       st.push({
         sql: 'INSERT INTO clients (id, name, phone, need, temperature, waiting, last_contact_at, search, sample, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)',
-        params: [c.id, c.name, c.phone, JSON.stringify(c.need), c.temperature, c.waitingForNews ? 1 : 0, c.lastContactAt, normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')}`), c.createdAt, c.createdAt],
+        params: [c.id, c.name, c.phone, JSON.stringify(c.need), c.temperature, c.waitingForNews ? 1 : 0, c.lastContactAt, clientSearchText(c), c.createdAt, c.createdAt],
       });
     }
     for (const v of sample.visits) {
@@ -203,13 +204,46 @@ export class SqlStore implements KelidStore {
     const c: Client = { ...input, id: crypto.randomUUID(), lastContactAt: now, createdAt: now };
     await this.db.transaction([
       {
-        sql: 'INSERT INTO clients (id, name, phone, need, temperature, waiting, last_contact_at, search, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        params: [c.id, c.name, c.phone, JSON.stringify(c.need), c.temperature, c.waitingForNews ? 1 : 0, now, normalizeForSearch(`${c.name} ${c.need.neighborhoods.join(' ')}`), now, now],
+        sql: 'INSERT INTO clients (id, name, phone, need, temperature, waiting, last_contact_at, notes, search, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        params: [c.id, c.name, c.phone, JSON.stringify(c.need), c.temperature, c.waitingForNews ? 1 : 0, now, c.notes ?? null, clientSearchText(c), now, now],
       },
       outbox('client', c.id, 'upsert', c),
     ]);
     this.emit();
     return c;
+  }
+
+  async updateClient(id: string, patch: Partial<NewClient>) {
+    const cur = await this.getClient(id);
+    if (!cur) throw new Error('مشتری پیدا نشد');
+    const next: Client = { ...cur, ...patch, id: cur.id, createdAt: cur.createdAt };
+    const changed = changedClientFields(cur, next);
+    if (Object.keys(changed).length === 0) return cur;
+    await this.db.transaction([
+      {
+        sql: 'UPDATE clients SET name = ?, phone = ?, need = ?, temperature = ?, waiting = ?, notes = ?, search = ?, updated_at = ? WHERE id = ?',
+        params: [next.name, next.phone, JSON.stringify(next.need), next.temperature, next.waitingForNews ? 1 : 0, next.notes ?? null, clientSearchText(next), nowIso(), id],
+      },
+      outbox('client', id, 'upsert', changed),
+    ]);
+    this.emit();
+    return next;
+  }
+
+  async archiveClient(id: string) {
+    await this.db.transaction([
+      { sql: 'UPDATE clients SET deleted = 1, updated_at = ? WHERE id = ?', params: [nowIso(), id] },
+      outbox('client', id, 'delete', {}),
+    ]);
+    this.emit();
+  }
+
+  async restoreClient(id: string) {
+    await this.db.transaction([
+      { sql: 'UPDATE clients SET deleted = 0, updated_at = ? WHERE id = ?', params: [nowIso(), id] },
+      outbox('client', id, 'upsert', { deleted: false }),
+    ]);
+    this.emit();
   }
 
   async listVisits(fromIso: string, toIso: string) {

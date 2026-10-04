@@ -95,6 +95,9 @@ export const migrations: string[] = [
     created_at TEXT NOT NULL
   );
   `,
+  /* 2: یادداشت داخلی برای مشتری */ `
+  ALTER TABLE clients ADD COLUMN notes TEXT;
+  `,
 ];
 
 export async function migrate(db: SqlDriver): Promise<void> {

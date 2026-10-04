@@ -53,7 +53,10 @@ export interface ClientNeed {
   areaMin?: number;
   areaMax?: number;
   bedroomsMin?: number;
+  /** فروش: حداکثر قیمت کل. رهن و اجاره: حداکثر ودیعه. رهن کامل: حداکثر مبلغ رهن. */
   budgetMax?: number;
+  /** فقط رهن و اجاره: حداکثر اجارهٔ ماهانه. */
+  rentMax?: number;
 }
 
 export interface Client {
@@ -64,6 +67,8 @@ export interface Client {
   temperature: ClientTemperature;
   waitingForNews: boolean;
   lastContactAt: string;
+  /** یادداشت داخلی دفتر دربارهٔ مشتری. */
+  notes?: string;
   createdAt: string;
 }
 
