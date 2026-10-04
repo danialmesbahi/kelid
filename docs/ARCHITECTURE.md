@@ -40,6 +40,8 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | UI atoms | `packages/ui/src/components.tsx` | `Icon`, `Plaque`, `Cover`, `Segmented`, `Switch`, `Kbd`, `Skeleton`, `CheckBox` |
 | App chrome | `apps/web/src/layout/*` | `Shell` (sidebar + top bar + shortcuts), `CommandPalette`, `Toasts`, `Splash`, `PageSkeleton` |
 | Photos | `apps/web/src/photos/*` | resize in a Worker (`resize.worker.ts`: 1600px WebP + 400px thumb), `photoUrl` blob-URL cache keyed by photo id, `useCoverThumbs`, `PhotoGallery` + lightbox on `FileDetail`; bytes live in the `photos` table (migration 2) |
+| Jalali calendar | `packages/core/src/jalali.ts` | day keys (`yyyy-mm-dd`, Tehran), `jalaliOf`, `jalaliMonthDays`, `tehranIso` / `tehranTimeOf` — `Intl` + `formatToParts` only, no library |
+| Visits | `apps/web/src/visits/*` | `VisitDialog` (add/edit; Today, FileDetail, client panel) and keyboard `JalaliPicker` |
 | Prefs | `apps/web/src/prefs.ts` | theme light/dark/auto, text size → `--zoom`; applied pre-paint in `index.html` |
 | Desktop shell | `apps/desktop/src/main.ts` | window, single-instance lock, external links → browser, opens DB before window |
 

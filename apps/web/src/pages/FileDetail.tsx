@@ -7,10 +7,12 @@ import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { PhotoGallery } from '../photos/Gallery';
 import { statusOptions } from './ListingForm';
+import { VisitDialog } from '../visits/VisitDialog';
 
 export function FileDetailPage() {
   const { id = '' } = useParams();
   const [showPhone, setShowPhone] = useState(false);
+  const [visitOpen, setVisitOpen] = useState(false);
   const store = useStore();
   const toast = useToast();
   const navigate = useNavigate();
@@ -52,6 +54,7 @@ export function FileDetailPage() {
         <button type="button" className="ib ghost" aria-label="چاپ برگهٔ فایل" onClick={() => window.print()}><Icon name="print" /></button>
         <Link viewTransition className="btn btn-s" to={`/files/${l.id}/edit`}><Icon name="edit" size="s" />ویرایش</Link>
         <button type="button" className="btn btn-s"><Icon name="send" size="s" />ارسال برای مشتری</button>
+        <button type="button" className="btn btn-s" onClick={() => setVisitOpen(true)}><Icon name="cal" size="s" />ثبت بازدید</button>
         <Link viewTransition className="btn btn-p" to={`/show?f=${l.id}`}><Icon name="show" size="s" />نمایش به مشتری</Link>
       </div>
 
@@ -142,6 +145,7 @@ export function FileDetailPage() {
           )}
         </div>
       </div>
+      {visitOpen && <VisitDialog preset={{ listingId: l.id }} onClose={() => setVisitOpen(false)} />}
     </div>
   );
 }
