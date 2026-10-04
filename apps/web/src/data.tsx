@@ -130,14 +130,14 @@ export function useQuery<T>(key: string, fn: (s: KelidStore) => Promise<T>): T |
   const subscribe = useCallback(
     (cb: () => void) => {
       watch(store);
-      const cur = entryFor(key, fn);
+      // ورودی در همین رندر ساخته شده است
+      const cur = entries.get(key)!;
       cur.listeners.add(cb);
       if (cur.stale) refresh(store, key, cur);
       return () => {
         cur.listeners.delete(cb);
       };
     },
-    // fn در هر رندر تازه است؛ کلید معرف کوئری است
     [store, key],
   );
   const get = () => entries.get(key)?.data as T | undefined;
