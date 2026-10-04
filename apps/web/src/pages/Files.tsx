@@ -8,7 +8,7 @@ import { PageSkeleton } from '../layout/PageSkeleton';
 type DealFilter = 'all' | DealType;
 type View = 'list' | 'cards';
 
-const statusLabel: Partial<Record<Listing['status'], string>> = { reserved: 'رزرو', negotiating: 'در مذاکره' };
+const statusLabel: Partial<Record<Listing['status'], string>> = { reserved: 'رزرو', negotiating: 'در مذاکره', closed: 'معامله شد' };
 
 export function FilesPage() {
   const [deal, setDeal] = useState<DealFilter>('all');

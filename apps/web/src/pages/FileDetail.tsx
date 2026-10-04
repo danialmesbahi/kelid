@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Cover, Icon, Plaque } from '@kelid/ui';
+import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { statusOptions } from './ListingForm';
 
 export function FileDetailPage() {
   const { id = '' } = useParams();
@@ -48,6 +49,7 @@ export function FileDetailPage() {
           <Icon name="x" />
         </button>
         <button type="button" className="ib ghost" aria-label="چاپ برگهٔ فایل" onClick={() => window.print()}><Icon name="print" /></button>
+        <Link viewTransition className="btn btn-s" to={`/files/${l.id}/edit`}><Icon name="edit" size="s" />ویرایش</Link>
         <button type="button" className="btn btn-s"><Icon name="send" size="s" />ارسال برای مشتری</button>
         <Link viewTransition className="btn btn-p" to={`/show?f=${l.id}`}><Icon name="show" size="s" />نمایش به مشتری</Link>
       </div>
@@ -61,6 +63,18 @@ export function FileDetailPage() {
             <span>{dealLabel[l.deal]}</span>
           </span>
         </div>
+        <Segmented
+          label="وضعیت فایل"
+          value={l.status}
+          options={statusOptions(l.deal, l.status)}
+          onChange={async (status) => {
+            const prev = l.status;
+            if (status === prev) return;
+            await store.updateListing(l.id, { status });
+            const label = statusOptions(l.deal, status).find((o) => o.value === status)?.label ?? '';
+            toast(`وضعیت فایل: ${label}`, { label: 'برگرداندن', run: () => void store.updateListing(l.id, { status: prev }) });
+          }}
+        />
       </div>
 
       <section aria-label="عکس‌ها" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gridAutoRows: 172, gap: 10 }}>
