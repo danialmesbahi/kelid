@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Cover, Icon, Plaque } from '@kelid/ui';
+import { Icon, Plaque } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { VisitDialog } from '../visits/VisitDialog';
+import { PhotoGallery } from '../photos/Gallery';
 
 export function FileDetailPage() {
   const { id = '' } = useParams();
@@ -66,19 +67,7 @@ export function FileDetailPage() {
         </div>
       </div>
 
-      <section aria-label="عکس‌ها" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gridAutoRows: 172, gap: 10 }}>
-        <span style={{ gridColumn: 'span 2', gridRow: 'span 2', borderRadius: 18, overflow: 'hidden', display: 'block', viewTransitionName: `cover-${l.id}` }}>
-          <Cover variant={l.cover} style={{ height: '100%' }} />
-        </span>
-        <Cover variant="i" style={{ borderRadius: 14 }} />
-        <Cover variant="j" style={{ borderRadius: 14 }} />
-        <Cover variant="g" style={{ borderRadius: 14 }} />
-        <Cover variant="i" style={{ borderRadius: 14 }}>
-          <span className="col" style={{ position: 'absolute', inset: 0, background: 'rgba(12,13,12,.55)', color: '#fff', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
-            {l.photoCount ? `همهٔ ${toFaDigits(l.photoCount)} عکس` : 'هنوز عکسی نیست'}
-          </span>
-        </Cover>
-      </section>
+      <PhotoGallery listing={l} />
 
       <div className="enter" style={{ display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start' }}>
         <div className="col" style={{ flex: '3 1 480px', minWidth: 0, gap: 28 }}>

@@ -6,6 +6,7 @@ import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { VisitDialog } from '../visits/VisitDialog';
+import { coverUrl, useCoverThumbs } from '../photos/photos';
 
 const ACTION_ICON: Record<'sms' | 'call' | 'camera', { icon: IconName; label: string }> = {
   sms: { icon: 'msg', label: 'پیامک' },
@@ -33,6 +34,7 @@ export function TodayPage() {
     const [visits, todos, listings, clients] = await Promise.all([s.listVisits(dayStart, dayEnd), s.listTodos(), s.listListings(), s.listClients()]);
     return { visits, todos, listings, clients };
   });
+  const thumbs = useCoverThumbs();
 
   if (!data) return <PageSkeleton aside />;
   const { visits, todos, listings, clients } = data;
@@ -137,7 +139,7 @@ export function TodayPage() {
             {recent.map((l) => (
               <Link key={l.id} viewTransition className="lift col" to={`/files/${l.id}`} style={{ gap: 10, borderRadius: 16 }}>
                 <span style={{ borderRadius: 16, overflow: 'hidden', position: 'relative', display: 'block', viewTransitionName: `cover-${l.id}` }}>
-                <Cover variant={l.cover} style={{ height: 150 }} />
+                <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ height: 150 }} />
                   <Plaque value={l.plaque} deal={l.deal} className="tagon" />
                 </span>
                 <span className="col" style={{ padding: '0 2px', lineHeight: 1.55 }}>
