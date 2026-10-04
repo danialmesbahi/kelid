@@ -30,9 +30,11 @@ function autoTitle(kind: VisitKind, client?: Client, listing?: Listing): string 
 }
 
 /** ساعت گرد بعدی به وقت تهران، برای قرار تازه. */
-function nextHour(): string {
-  const [h] = tehranTimeOf(new Date().toISOString()).split(':').map(Number);
-  return `${String(Math.min(21, (h ?? 9) + 1)).padStart(2, '0')}:00`;
+function defaultStart(): { day: string; time: string } {
+  const [h = 9] = tehranTimeOf(new Date().toISOString()).split(':').map(Number);
+  // از ۹ شب به بعد «ساعت بعد» دیروقت یا گذشته است؛ فردا ساعت ۹ صبح پیشنهاد می‌شود.
+  if (h >= 21) return { day: addDays(tehranDayKey(), 1), time: '09:00' };
+  return { day: tehranDayKey(), time: `${String(h + 1).padStart(2, '0')}:00` };
 }
 
 export type VisitPreset = { listingId?: string; clientId?: string };
@@ -46,8 +48,9 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
   const data = useQuery('visit-dialog', async (s) => ({ listings: await s.listListings(), clients: await s.listClients() }));
   const [kind, setKind] = useState<VisitKind>(visit?.kind ?? 'visit');
   const [title, setTitle] = useState(visit?.title ?? '');
-  const [day, setDay] = useState(visit ? tehranDayKey(new Date(visit.startsAt)) : tehranDayKey());
-  const [time, setTime] = useState(visit ? tehranTimeOf(visit.startsAt) : nextHour());
+  const [fresh] = useState(defaultStart);
+  const [day, setDay] = useState(visit ? tehranDayKey(new Date(visit.startsAt)) : fresh.day);
+  const [time, setTime] = useState(visit ? tehranTimeOf(visit.startsAt) : fresh.time);
   const [duration, setDuration] = useState(visit ? Math.max(15, Math.round((Date.parse(visit.endsAt) - Date.parse(visit.startsAt)) / 60_000)) : 60);
   const [listingId, setListingId] = useState(visit?.listingId ?? preset?.listingId ?? '');
   const [clientId, setClientId] = useState(visit?.clientId ?? preset?.clientId ?? '');
@@ -55,6 +58,8 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
   const [error, setError] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstRef = useRef<HTMLInputElement>(null);
+  // Enter دوباره یا دو کلیک سریع نباید دو قرار ثبت کند.
+  const saving = useRef(false);
 
   const listing = data?.listings.find((l) => l.id === listingId);
   const client = data?.clients.find((c) => c.id === clientId);
@@ -99,13 +104,21 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
       setError('ساعت را درست وارد کنید.');
       return;
     }
+    if (saving.current) return;
     const startsAt = tehranIso(day, hhmm);
     const input = {
       kind, title: finalTitle, startsAt, endsAt: new Date(Date.parse(startsAt) + duration * 60_000).toISOString(),
       listingId: listingId || undefined, clientId: clientId || undefined, done,
     };
-    if (visit) await store.updateVisit(visit.id, input);
-    else await store.addVisit(input);
+    saving.current = true;
+    try {
+      if (visit) await store.updateVisit(visit.id, input);
+      else await store.addVisit(input);
+    } catch (err) {
+      saving.current = false;
+      setError(err instanceof Error ? err.message : 'ذخیره نشد؛ دوباره تلاش کنید.');
+      return;
+    }
     const when = day === today ? 'امروز' : day === addDays(today, 1) ? 'فردا' : formatJalaliDay(day);
     toast(`${finalTitle} · ${when} ساعت ${toFaDigits(hhmm)} ${visit ? 'ذخیره شد' : 'ثبت شد'}`);
     onClose();

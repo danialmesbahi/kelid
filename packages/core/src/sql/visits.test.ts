@@ -55,6 +55,18 @@ describe('visits and todos on SqlStore', () => {
     db.close();
   });
 
+  it('records a cleared listing as null in the outbox', async () => {
+    const db = openEncrypted(Database as never, tempFile(), 'k');
+    const store = await SqlStore.open(nodeSqliteDriver(db), seed);
+    const day = '2026-10-05';
+    const v = await store.addVisit({ kind: 'visit', title: 'بازدید', startsAt: tehranIso(day, '10:00'), endsAt: tehranIso(day, '11:00'), listingId: 'l-027', done: false });
+    await store.updateVisit(v.id, { listingId: undefined });
+    expect((await store.getVisit(v.id))?.listingId).toBeUndefined();
+    const last = db.prepare('SELECT payload FROM outbox WHERE entity_id = ? ORDER BY seq DESC LIMIT 1').get(v.id) as { payload: string };
+    expect(last.payload).toBe('{"listingId":null}');
+    db.close();
+  });
+
   it('keeps visits and todos after reopening', async () => {
     const file = tempFile();
     let db = openEncrypted(Database as never, file, 'k');
