@@ -6,6 +6,7 @@ import { useQuery } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { FullPhotoLayer } from '../photos/Gallery';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
+import { usePhone } from '../layout/usePhone';
 
 type DealFilter = 'all' | DealType;
 type View = 'list' | 'cards';
@@ -17,6 +18,9 @@ export function FilesPage() {
   const [view, setView] = useState<View>('list');
   const [selId, setSelId] = useState<string>();
   const navigate = useNavigate();
+  const phone = usePhone();
+  // روی گوشی پیش‌نمایش کناری جا ندارد؛ یک لمس مستقیم پرونده را باز می‌کند.
+  const open = (id: string) => (phone ? navigate(`/files/${id}`, { viewTransition: true }) : setSelId(id));
 
   const data = useQuery('files', async (s) => ({ all: await s.listListings(), clients: await s.listClients() }));
   const thumbs = useCoverThumbs();
@@ -78,13 +82,13 @@ export function FilesPage() {
 
           {view === 'list' && list.length > 0 && (
             <div style={{ padding: '8px 16px 24px', overflowX: 'auto' }}>
-              <div className="stagger" style={{ minWidth: 600 }}>
+              <div className="stagger filelist">
                 <div className="listgrid xs faint sb" style={{ padding: '10px 12px' }}>
                   <span>پلاک</span><span>ملک</span><span>متراژ</span><span>خواب</span><span>قیمت</span>
                 </div>
                 {list.map((l) => (
                   <button key={l.id} type="button" aria-pressed={l.id === sel?.id} className={`listgrid hov ${l.id === sel?.id ? 'sel' : ''}`}
-                    onClick={() => setSelId(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
+                    onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
                     style={{ width: '100%', padding: '10px 12px', border: 0, borderTop: '1px solid var(--line)', borderRadius: 12, background: 'transparent', textAlign: 'right' }}>
                     <span><Plaque value={l.plaque} deal={l.deal} /></span>
                     <span className="rw" style={{ gap: 12, minWidth: 0 }}>
@@ -109,7 +113,7 @@ export function FilesPage() {
           {view === 'cards' && (
             <div className="stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18, padding: '20px 24px 28px' }}>
               {list.map((l) => (
-                <button key={l.id} type="button" className="lift col" onClick={() => setSelId(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
+                <button key={l.id} type="button" className="lift col" onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}
                   style={{ gap: 10, padding: '0 0 10px', border: 0, background: 'transparent', textAlign: 'right', borderRadius: 16 }}>
                   <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ width: '100%', height: 150, borderRadius: 14, boxShadow: l.id === sel?.id ? '0 0 0 2px var(--paper), 0 0 0 4px var(--pri-text)' : 'none', transition: 'box-shadow .25s ease' }}>
                     <Plaque value={l.plaque} deal={l.deal} className="tagon" />
@@ -125,7 +129,7 @@ export function FilesPage() {
           )}
         </section>
 
-        {sel && (
+        {sel && !phone && (
           <aside key={sel.id} aria-label="پیش‌نمایش فایل" className="col enter" style={{ flex: '1 1 360px', minWidth: 0, maxWidth: '100%', borderRight: '1px solid var(--line)', padding: '20px 22px 26px', gap: 16, background: 'var(--paper2)', borderRadius: '0 0 0 20px' }}>
             <span style={{ display: 'block', borderRadius: 16, overflow: 'hidden', position: 'relative', viewTransitionName: `cover-${sel.id}` }}>
               <Cover variant={sel.cover} src={coverUrl(thumbs, sel.id)} style={{ height: 200 }}>
