@@ -42,6 +42,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | Jalali calendar | `packages/core/src/jalali.ts` | day keys (`yyyy-mm-dd`, Tehran), `jalaliOf`, `jalaliMonthDays`, `tehranIso` / `tehranTimeOf` — `Intl` + `formatToParts` only, no library |
 | Visits | `apps/web/src/visits/*` | `VisitDialog` (add/edit; Today, FileDetail, client panel) and keyboard `JalaliPicker` |
 | Prefs | `apps/web/src/prefs.ts` | theme light/dark/auto, text size → `--zoom`; applied pre-paint in `index.html` |
+| Branding | `scripts/icons.cjs` → `apps/desktop/build/` (icon.ico, NSIS BMPs), `apps/web/public/` (favicon, PWA PNGs) | generated with the project's Electron from the plaque design; run `npm run icons` after changing it and commit the output |
 | Desktop shell | `apps/desktop/src/main.ts` | window, single-instance lock, external links → browser, opens DB before window |
 
 ## Routes (`apps/web/src/App.tsx`, hash router)
