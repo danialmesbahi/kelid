@@ -100,6 +100,7 @@ export interface Todo {
   id: string;
   title: string;
   detail: string;
-  action: 'sms' | 'call' | 'camera';
+  /** دکمهٔ میانبر کنار کار؛ کارهایی که خود مشاور می‌نویسد معمولاً ندارند. */
+  action?: 'sms' | 'call' | 'camera';
   done: boolean;
 }

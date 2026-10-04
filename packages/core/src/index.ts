@@ -4,6 +4,7 @@ export * from './format';
 export * from './match';
 export * from './store';
 export * from './seed';
+export * from './jalali';
 export * from './sql/driver';
 export * from './sql/schema';
 export * from './sql/sqlStore';

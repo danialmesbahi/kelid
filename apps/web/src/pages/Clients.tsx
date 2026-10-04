@@ -5,6 +5,7 @@ import { bestMatches, dealLabel, describeMatch, formatToman, listingTitle, toFaD
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { VisitDialog } from '../visits/VisitDialog';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
 
@@ -35,6 +36,7 @@ export function ClientsPage() {
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const store = useStore();
   const toast = useToast();
+  const [visitFor, setVisitFor] = useState<string | null>(null);
   const phone = usePhone();
   const data = useQuery('clients', async (s) => ({ clients: await s.listClients(), listings: await s.listListings() }));
   const thumbs = useCoverThumbs();
@@ -135,7 +137,10 @@ export function ClientsPage() {
             )}
 
             <section aria-labelledby="mf" className="col" style={{ gap: 10 }}>
-              <div className="rw" style={{ gap: 10 }}><h3 id="mf" className="t3">فایل‌های مناسب</h3><span className="xs mute">تیک بزنید تا در نمایش بیاید</span></div>
+              <div className="rw" style={{ gap: 10, flexWrap: 'wrap' }}>
+                <h3 id="mf" className="t3">فایل‌های مناسب</h3><span className="xs mute sp">تیک بزنید تا در نمایش بیاید</span>
+                <button type="button" className="btn btn-s" onClick={() => setVisitFor(cur.id)} style={{ height: 38, padding: '0 12px' }}><Icon name="cal" size="s" />ثبت بازدید</button>
+              </div>
               {matches.length === 0 && <p className="mute">فعلاً فایلی با این نیاز جور نیست. با ثبت فایل تازه خبرتان می‌کنیم.</p>}
               {matches.map((m) => {
                 const on = !!picked[m.listing.id];
@@ -162,6 +167,7 @@ export function ClientsPage() {
           </section>
         )}
       </div>
+      {visitFor && <VisitDialog preset={{ clientId: visitFor, listingId: pickedIds[0] }} onClose={() => setVisitFor(null)} />}
     </>
   );
 }
