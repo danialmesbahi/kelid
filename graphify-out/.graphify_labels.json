@@ -63,5 +63,6 @@
   "61": "Persian RTL UI (toFaDigits, toEnDigits, formatToman)",
   "62": "Desktop Storage: SQLCipher DB in %APPDATA%\\Kelid",
   "63": "vite.config.ts",
-  "64": "eslint-plugin-react-hooks"
+  "64": "eslint-plugin-react-hooks",
+  "65": "CommandPalette.tsx"
 }

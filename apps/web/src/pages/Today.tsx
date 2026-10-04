@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { CheckBox, Cover, Icon, Plaque, type IconName } from '@kelid/ui';
-import { formatLongDate, formatTime, headlinePrice, listingTitle, tehranToday, toFaDigits, type Listing, type Visit } from '@kelid/core';
+import { dealLabel, formatLongDate, formatTime, headlinePrice, listingTitle, secondaryPrice, tehranToday, toFaDigits, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
@@ -135,17 +135,28 @@ export function TodayPage() {
             <span className="sp" style={{ height: 1, background: 'var(--line)' }} />
             <Link viewTransition className="lnk sm" to="/files" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>همهٔ فایل‌ها</Link>
           </div>
-          <div className="stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 18 }}>
+          <div className="hgrid stagger">
             {recent.map((l) => (
-              <Link key={l.id} viewTransition className="lift col" to={`/files/${l.id}`} style={{ gap: 10, borderRadius: 16 }}>
-                <span style={{ borderRadius: 16, overflow: 'hidden', position: 'relative', display: 'block', viewTransitionName: `cover-${l.id}` }}>
-                <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ height: 150 }} />
-                  <Plaque value={l.plaque} deal={l.deal} className="tagon" />
+              <Link key={l.id} viewTransition className="hcard lift" to={`/files/${l.id}`}>
+                <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ viewTransitionName: `cover-${l.id}` }} />
+                <span className="hcard-top">
+                  <Plaque value={l.plaque} deal={l.deal} />
+                  <span className="hcard-deal">{dealLabel[l.deal]}</span>
                 </span>
-                <span className="col" style={{ padding: '0 2px', lineHeight: 1.55 }}>
-                  <span className="sb">{listingTitle(l)}</span>
-                  <span className="xs mute">{l.neighborhood}</span>
-                  <span className="num b" style={{ marginTop: 4 }}>{headlinePrice(l)}</span>
+                <span className="hcard-ov">
+                  <span className="hcard-t">{listingTitle(l)}</span>
+                  <span className="hcard-loc"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
+                  <span className="hcard-facts">
+                    <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
+                    <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
+                  </span>
+                  <span className="hcard-pr">
+                    <span className="col">
+                      <b className="num">{headlinePrice(l)}</b>
+                      <small className="num">{secondaryPrice(l)}</small>
+                    </span>
+                    <span className="hcard-go" aria-hidden="true"><Icon name="chl" size="s" /></span>
+                  </span>
                 </span>
               </Link>
             ))}

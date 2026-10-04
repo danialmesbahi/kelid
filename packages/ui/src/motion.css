@@ -65,6 +65,8 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 ::view-transition-group(kl-side), ::view-transition-group(kl-top) { animation: none; }
 ::view-transition-old(kl-side), ::view-transition-new(kl-side), ::view-transition-old(kl-top), ::view-transition-new(kl-top) { animation: none; }
+/* عکس قدیمی منو پنهان می‌شود؛ وگرنه زیر عکس تازه دیده می‌شد و گزینهٔ قبلی هم فعال به نظر می‌آمد. نشانگر در عکس زنده می‌لغزد. */
+::view-transition-old(kl-side), ::view-transition-old(kl-top) { display: none; }
 /* محتوای صفحه فقط محو و جابه‌جا می‌شود؛ اندازه‌اش انیمیشن نمی‌گیرد تا چیزی کش نیاید. */
 ::view-transition-group(kl-page) { animation: none; }
 ::view-transition-old(kl-page) { animation: kl-page-out 160ms ease both; }

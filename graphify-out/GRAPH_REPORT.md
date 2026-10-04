@@ -1,16 +1,16 @@
 # Graph Report - RealState  (2026-10-04)
 
 ## Corpus Check
-- 83 files · ~47,147 words
+- 83 files · ~47,128 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 898 nodes · 2016 edges · 65 communities (54 shown, 11 thin omitted)
+- 898 nodes · 2021 edges · 66 communities (55 shown, 11 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 102 edges (avg confidence: 0.84)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4c934c85`
+- Built from commit: `4a786096`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -75,6 +75,7 @@
 - Persian RTL UI (toFaDigits, toEnDigits, formatToman)
 - Desktop Storage: SQLCipher DB in %APPDATA%\Kelid
 - eslint-plugin-react-hooks
+- CommandPalette.tsx
 
 ## God Nodes (most connected - your core abstractions)
 1. `MemoryStore` - 49 edges
@@ -103,7 +104,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (65 total, 11 thin omitted)
+## Communities (66 total, 11 thin omitted)
 
 ### Community 0 - "Clients.tsx"
 Cohesion: 0.33
@@ -118,8 +119,8 @@ Cohesion: 0.23
 Nodes (15): Pull Request Checklist, CI check Job (windows-latest: npm ci, typecheck, test, web build), AGENTS.md Agent Rules, Rule: Append-Only Schema Migrations, Definition of Done (typecheck, test, visual check light/dark/375px), Git Workflow (feat/fix/docs branches, green CI before merge), Graphify-First Exploration Workflow, npm Workspaces Monorepo (apps/web, apps/desktop, packages/core, packages/ui) (+7 more)
 
 ### Community 3 - "sqlStore.ts"
-Cohesion: 0.09
-Nodes (33): DealType, b(), blob(), Cell, LISTING_KEEP, LISTING_PH, LISTING_SET, listingUpdateValues() (+25 more)
+Cohesion: 0.08
+Nodes (36): OpenedDriver, DealType, SqlDriver, migrate(), b(), blob(), Cell, LISTING_KEEP (+28 more)
 
 ### Community 4 - "web/package.json"
 Cohesion: 0.06
@@ -158,8 +159,8 @@ Cohesion: 0.18
 Nodes (10): compilerOptions, lib, types, extends, include, ES2023, node, src (+2 more)
 
 ### Community 14 - "SqlDriver"
-Cohesion: 0.17
-Nodes (9): DesktopBridge, OpenedDriver, better-sqlite3-multiple-ciphers, SqlDriver, SqlParams, SqlStatement, SqlValue, migrate() (+1 more)
+Cohesion: 0.28
+Nodes (6): DesktopBridge, better-sqlite3-multiple-ciphers, SqlParams, SqlStatement, SqlValue, ref_better_sqlite3
 
 ### Community 15 - "core/package.json"
 Cohesion: 0.22
@@ -178,8 +179,8 @@ Cohesion: 0.21
 Nodes (14): Rule: New Store Method in Both SqlStore and MemoryStore, Rule: UI Never Runs SQL (useQuery/useStore only), Data Flow: Page -> KelidStore -> SqlDriver -> DB, Domain Model (Listing, Client, ClientNeed, Visit, Todo, DealType), KelidStore (store contract), matchListing Scoring (budget 35, neighborhood 30, area 20, bedrooms 10, kind 5), MemoryStore (tests and fallback), Recipe: Add a Field to Listing (+6 more)
 
 ### Community 20 - "clients.test.ts"
-Cohesion: 0.13
-Nodes (15): Node Test Driver (nodeDriver.ts, SQLCipher in Node), Testing Strategy (Vitest, real SQLCipher, wrong-key rejection), seed, dirs, tenant, dirs, nodeSqliteDriver(), openEncrypted() (+7 more)
+Cohesion: 0.14
+Nodes (13): Node Test Driver (nodeDriver.ts, SQLCipher in Node), Testing Strategy (Vitest, real SQLCipher, wrong-key rejection), dirs, tenant, dirs, nodeSqliteDriver(), openEncrypted(), dirs (+5 more)
 
 ### Community 21 - "Tech Stack Doc"
 Cohesion: 0.21
@@ -226,8 +227,8 @@ Cohesion: 0.07
 Nodes (18): Client, ClientNeed, ClientTemperature, Listing, ListingStatus, Photo, Price, PropertyKind (+10 more)
 
 ### Community 32 - "drivers.ts"
-Cohesion: 0.14
-Nodes (18): Electron Sandbox + window.kelid Preload Bridge, storeFor(), StoreProvider(), desktopDriver(), execScript(), openDriver(), transaction(), Window (+10 more)
+Cohesion: 0.13
+Nodes (20): Electron Sandbox + window.kelid Preload Bridge, storeFor(), StoreProvider(), desktopDriver(), execScript(), openDriver(), transaction(), Window (+12 more)
 
 ### Community 35 - "useSlow"
 Cohesion: 0.40
@@ -258,20 +259,20 @@ Cohesion: 0.67
 Nodes (3): win, icon, target
 
 ### Community 50 - "Today.tsx"
-Cohesion: 0.09
-Nodes (29): ACTIONS, Item, activeIndex(), NAV, Shell(), storageLabel, TABS, ACTION_ICON (+21 more)
+Cohesion: 0.13
+Nodes (18): useSlow(), PageSkeleton(), ACTION_ICON, AgendaRow(), greeting(), formatTime(), packages_core_src_index_dealtype, packages_core_src_index_formatlongdate (+10 more)
 
 ### Community 53 - "App.tsx"
 Cohesion: 0.12
-Nodes (26): Prefs, PrefsContext, router, usePrefsContext(), useStorageInfo(), useStore(), Notify, Toast (+18 more)
+Nodes (26): Prefs, PrefsContext, router, usePrefsContext(), useStore(), Notify, Toast, ToastContext (+18 more)
 
 ### Community 54 - "Files.tsx"
 Cohesion: 0.19
 Nodes (29): Persian RTL UI (toFaDigits, toEnDigits, formatToman), useQuery(), CommandPalette(), FileDetailPage(), DealFilter, FilesPage(), statusLabel, View (+21 more)
 
 ### Community 55 - "data.tsx"
-Cohesion: 0.15
-Nodes (13): cache, StorageInfo, StoreContext, stores, useSlow(), PageSkeleton(), Splash(), packages_core_src_index_kelidstore (+5 more)
+Cohesion: 0.20
+Nodes (9): cache, StorageInfo, StoreContext, stores, Splash(), packages_core_src_index_kelidstore, packages_core_src_index_memorystore, packages_core_src_index_seed (+1 more)
 
 ### Community 56 - "database.ts"
 Cohesion: 0.26
@@ -282,8 +283,8 @@ Cohesion: 0.21
 Nodes (10): { app, BrowserWindow }, bmp24(), font, fs, header(), path, plaque(), root (+2 more)
 
 ### Community 58 - "VisitDialog.tsx"
-Cohesion: 0.11
-Nodes (20): DURATIONS, HOURS, KINDS, MINUTES, VisitPreset, packages_core_src_index_adddays, packages_core_src_index_addjalalimonths, packages_core_src_index_client (+12 more)
+Cohesion: 0.10
+Nodes (21): DURATIONS, HOURS, KINDS, MINUTES, VisitPreset, packages_core_src_index_adddays, packages_core_src_index_addjalalimonths, packages_core_src_index_client (+13 more)
 
 ### Community 59 - "setup.mjs"
 Cohesion: 0.20
@@ -301,6 +302,10 @@ Nodes (5): Plaque Color Code (green sale, mustard rent, blue full mortgage), Web
 Cohesion: 0.67
 Nodes (4): Desktop DB Key Protected by Windows DPAPI (safeStorage), Local App Data Locations (kelid.db, kelid.key, browser storage), Argon2id password lock on the DB key (planned, phase 3), Desktop Storage: SQLCipher DB in %APPDATA%\Kelid
 
+### Community 65 - "CommandPalette.tsx"
+Cohesion: 0.15
+Nodes (14): useStorageInfo(), ACTIONS, Item, activeIndex(), NAV, Shell(), storageLabel, TABS (+6 more)
+
 ## Knowledge Gaps
 - **268 isolated node(s):** `$schema`, `Bash(npm run *)`, `Bash(npm test)`, `Bash(npm ci)`, `Bash(npm install)` (+263 more)
   These have ≤1 connection - possible missing edges or undocumented components.
@@ -309,7 +314,7 @@ Nodes (4): Desktop DB Key Protected by Windows DPAPI (safeStorage), Local App Da
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SqlStore` connect `sqlStore.ts` to `visits.test.ts`, `SqlDriver`, `SqlStore (SQL + outbox + emit)`, `clients.test.ts`, `data.tsx`, `KelidStore`?**
+- **Why does `SqlStore` connect `sqlStore.ts` to `visits.test.ts`, `SqlStore (SQL + outbox + emit)`, `clients.test.ts`, `data.tsx`, `KelidStore`?**
   _High betweenness centrality (0.061) - this node is a cross-community bridge._
 - **Why does `MemoryStore` connect `MemoryStore` to `sqlStore.ts`, `visits.test.ts`, `SqlStore (SQL + outbox + emit)`, `clients.test.ts`, `data.tsx`, `KelidStore`?**
   _High betweenness centrality (0.057) - this node is a cross-community bridge._
@@ -318,7 +323,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `$schema`, `Bash(npm run *)`, `Bash(npm test)` to the rest of the system?**
   _268 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `sqlStore.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.08611670020120725 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07592407592407592 - nodes in this community are weakly interconnected._
 - **Should `web/package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.05714285714285714 - nodes in this community are weakly interconnected._
 - **Should `MemoryStore` be split into smaller, more focused modules?**
