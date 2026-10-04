@@ -1,6 +1,6 @@
-import type { Client, Listing, Todo, Visit } from '../model';
+import type { Client, Listing, Photo, Todo, Visit } from '../model';
 import { normalizeForSearch } from '../persian';
-import type { KelidStore, ListingFilter, NewClient, NewListing } from '../store';
+import type { CoverThumbs, KelidStore, ListingFilter, NewClient, NewListing, NewPhoto, PhotoThumb } from '../store';
 import { searchText } from '../store';
 import type { SqlDriver, SqlStatement, SqlValue } from './driver';
 import { migrate } from './schema';
@@ -12,6 +12,7 @@ const s = (v: Cell): string => (v === null || v === undefined ? '' : String(v));
 const n = (v: Cell): number | undefined => (v === null || v === undefined ? undefined : Number(v));
 const b = (v: Cell): boolean => Number(v) === 1;
 const opt = (v: Cell): string | undefined => (v === null || v === undefined ? undefined : String(v));
+const blob = (v: Cell): Uint8Array => (v instanceof Uint8Array ? v : new Uint8Array());
 const nowIso = () => new Date().toISOString();
 
 function rowToListing(r: Row): Listing {
@@ -79,6 +80,15 @@ function rowToVisit(r: Row): Visit {
     clientId: opt(r.client_id),
     done: b(r.done),
   };
+}
+
+function rowToPhoto(r: Row): Photo {
+  return { id: s(r.id), listingId: s(r.listing_id), ord: Number(r.ord), mime: s(r.mime), width: Number(r.w), height: Number(r.h), createdAt: s(r.created_at) };
+}
+
+/** تعداد عکس فایل از خود جدول عکس‌ها حساب می‌شود تا هیچ‌وقت ناهماهنگ نشود. */
+function photoCount(listingId: string): SqlStatement {
+  return { sql: 'UPDATE listings SET photo_count = (SELECT COUNT(*) FROM photos WHERE listing_id = ? AND deleted = 0) WHERE id = ?', params: [listingId, listingId] };
 }
 
 function outbox(entity: string, id: string, op: 'upsert' | 'delete', payload: unknown): SqlStatement {
@@ -236,7 +246,93 @@ export class SqlStore implements KelidStore {
   }
 
   async clearSampleData() {
-    await this.db.transaction(['listings', 'clients', 'visits', 'todos'].map((t) => ({ sql: `DELETE FROM ${t} WHERE sample = 1` })));
+    await this.db.transaction([
+      { sql: 'DELETE FROM photos WHERE listing_id IN (SELECT id FROM listings WHERE sample = 1)' },
+      ...['listings', 'clients', 'visits', 'todos'].map((t) => ({ sql: `DELETE FROM ${t} WHERE sample = 1` })),
+    ]);
+    this.emit();
+  }
+
+  async listPhotos(listingId: string) {
+    const rows = await this.db.all<Row>('SELECT id, listing_id, ord, mime, w, h, created_at, thumb FROM photos WHERE listing_id = ? AND deleted = 0 ORDER BY ord, created_at, id', [listingId]);
+    return rows.map((r): PhotoThumb => ({ ...rowToPhoto(r), thumb: blob(r.thumb) }));
+  }
+
+  async getPhoto(id: string) {
+    const [r] = await this.db.all<Row>('SELECT mime, bytes FROM photos WHERE id = ? AND deleted = 0', [id]);
+    return r ? { mime: s(r.mime), bytes: blob(r.bytes) } : undefined;
+  }
+
+  async coverThumbs() {
+    const rows = await this.db.all<Row>(
+      // همان ترتیب listPhotos، تا با ord برابر هم کاور همیشه یک عکس مشخص باشد.
+      `SELECT p.id, p.listing_id, p.mime, p.thumb FROM photos p
+       WHERE p.deleted = 0 AND p.id = (
+         SELECT q.id FROM photos q WHERE q.listing_id = p.listing_id AND q.deleted = 0 ORDER BY q.ord, q.created_at, q.id LIMIT 1
+       )`,
+    );
+    const out: CoverThumbs = {};
+    for (const r of rows) out[s(r.listing_id)] = { photoId: s(r.id), mime: s(r.mime), thumb: blob(r.thumb) };
+    return out;
+  }
+
+  async addPhotos(listingId: string, photos: NewPhoto[]) {
+    const now = nowIso();
+    // عکس‌های حذف‌شده هم حساب می‌شوند تا اگر برگردانده شدند، ترتیبشان با عکس تازه یکی نشود.
+    const [m] = await this.db.all<{ o: number | null }>('SELECT MAX(ord) AS o FROM photos WHERE listing_id = ?', [listingId]);
+    let ord = (m?.o ?? -1) + 1;
+    const added: Photo[] = photos.map((p) => ({ id: crypto.randomUUID(), listingId, ord: ord++, mime: p.mime, width: p.width, height: p.height, createdAt: now }));
+    const st: SqlStatement[] = [];
+    added.forEach((a, i) => {
+      const p = photos[i]!;
+      st.push({ sql: 'INSERT INTO photos (id, listing_id, ord, mime, w, h, bytes, thumb, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', params: [a.id, listingId, a.ord, a.mime, a.width, a.height, p.bytes, p.thumb, now, now] });
+      // در outbox فقط مشخصات عکس می‌آید؛ بایت‌ها موقع همگام‌سازی از جدول photos خوانده می‌شوند.
+      st.push(outbox('photo', a.id, 'upsert', a));
+    });
+    st.push(photoCount(listingId));
+    await this.db.transaction(st);
+    this.emit();
+    return added;
+  }
+
+  async reorderPhotos(listingId: string, ids: string[]) {
+    const now = nowIso();
+    await this.db.transaction(
+      ids.flatMap((id, ord) => [
+        { sql: 'UPDATE photos SET ord = ?, updated_at = ? WHERE id = ? AND listing_id = ?', params: [ord, now, id, listingId] },
+        outbox('photo', id, 'upsert', { ord }),
+      ]),
+    );
+    this.emit();
+  }
+
+  async deletePhoto(id: string) {
+    const [r] = await this.db.all<Row>('SELECT listing_id FROM photos WHERE id = ?', [id]);
+    if (!r) return;
+    await this.db.transaction([
+      { sql: 'UPDATE photos SET deleted = 1, updated_at = ? WHERE id = ?', params: [nowIso(), id] },
+      outbox('photo', id, 'delete', {}),
+      photoCount(s(r.listing_id)),
+    ]);
+    this.emit();
+  }
+
+  async restorePhoto(id: string) {
+    const [r] = await this.db.all<Row>('SELECT listing_id, ord FROM photos WHERE id = ?', [id]);
+    if (!r) return;
+    const listingId = s(r.listing_id);
+    // اگر بعد از حذف ترتیب عوض شده و جای عکس گرفته شده، به انتها می‌رود تا کاور دوپهلو نشود.
+    const [m] = await this.db.all<{ o: number | null; taken: number }>(
+      'SELECT MAX(ord) AS o, SUM(ord = ?) AS taken FROM photos WHERE listing_id = ? AND deleted = 0 AND id <> ?',
+      [Number(r.ord), listingId, id],
+    );
+    const ord = Number(m?.taken ?? 0) > 0 ? (m?.o ?? -1) + 1 : Number(r.ord);
+    const now = nowIso();
+    await this.db.transaction([
+      { sql: 'UPDATE photos SET deleted = 0, ord = ?, updated_at = ? WHERE id = ?', params: [ord, now, id] },
+      outbox('photo', id, 'upsert', { deleted: false, ord }),
+      photoCount(listingId),
+    ]);
     this.emit();
   }
 }

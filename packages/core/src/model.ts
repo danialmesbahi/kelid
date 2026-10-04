@@ -44,6 +44,17 @@ export interface Listing {
   updatedAt: string;
 }
 
+/** عکس یک فایل؛ عکس اول (کمترین ord) کاور فایل است. خود بایت‌ها جدا خوانده می‌شوند. */
+export interface Photo {
+  id: string;
+  listingId: string;
+  ord: number;
+  mime: string;
+  width: number;
+  height: number;
+  createdAt: string;
+}
+
 export type ClientTemperature = 'hot' | 'warm' | 'cold';
 
 export interface ClientNeed {

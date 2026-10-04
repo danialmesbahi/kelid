@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { Cover, Icon } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits } from '@kelid/core';
 import { useQuery } from '../data';
+import { FullPhotoLayer } from '../photos/Gallery';
+import { coverUrl, useCoverThumbs } from '../photos/photos';
 
 /**
  * حالت نمایش به مشتری: تمام‌صفحه، بدون اطلاعات مالک.
@@ -13,6 +15,7 @@ export function ShowPage() {
   const navigate = useNavigate();
   const ids = (params.get('f') ?? '').split(',').filter(Boolean);
   const all = useQuery('files-all', (s) => s.listListings());
+  const thumbs = useCoverThumbs();
   const [i, setI] = useState(0);
   const [liked, setLiked] = useState<Record<string, boolean>>({});
 
@@ -51,7 +54,9 @@ export function ShowPage() {
   return (
     <div className="col" style={{ position: 'relative', minHeight: '100vh', background: '#0B0C0B', color: '#fff', overflow: 'hidden', fontSize: 16 }}>
       <span key={p.id} className="fade" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-        <Cover variant={p.cover} className="kenburns" style={{ position: 'absolute', inset: 0 }} />
+        <Cover variant={p.cover} src={coverUrl(thumbs, p.id)} className="kenburns" style={{ position: 'absolute', inset: 0 }}>
+          <FullPhotoLayer photoId={thumbs[p.id]?.photoId} />
+        </Cover>
       </span>
       <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(11,12,11,.94) 0%, rgba(11,12,11,.68) 32%, rgba(11,12,11,0) 62%), linear-gradient(to bottom, rgba(11,12,11,.55) 0%, rgba(11,12,11,0) 18%)' }} />
 
@@ -89,7 +94,7 @@ export function ShowPage() {
             {list.map((x, k) => (
               <button key={x.id} type="button" onClick={() => setI(k)} aria-label={`ملک ${toFaDigits(k + 1)}`} aria-current={k === i}
                 style={{ position: 'relative', width: 84, height: 58, padding: 0, borderRadius: 10, border: 0, overflow: 'hidden', opacity: k === i ? 1 : 0.6, boxShadow: k === i ? '0 0 0 2px #fff' : 'none' }}>
-                <Cover variant={x.cover} style={{ position: 'absolute', inset: 0 }} />
+                <Cover variant={x.cover} src={coverUrl(thumbs, x.id)} style={{ position: 'absolute', inset: 0 }} />
               </button>
             ))}
           </div>
