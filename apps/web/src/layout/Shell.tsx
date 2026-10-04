@@ -15,6 +15,14 @@ const NAV: Array<{ to: string; icon: IconName; label: string }> = [
 
 const ROW = 46; // ارتفاع هر گزینه + فاصله، برای نشانگر لغزان
 
+/** نوار پایین گوشی؛ تقویم و قراردادها هنوز آماده نیستند، پس جایشان تنظیمات است. */
+const TABS: Array<{ to: string; icon: IconName; label: string }> = [
+  { to: '/', icon: 'today', label: 'امروز' },
+  { to: '/files', icon: 'files', label: 'فایل‌ها' },
+  { to: '/clients', icon: 'users', label: 'مشتری‌ها' },
+  { to: '/settings', icon: 'set', label: 'تنظیمات' },
+];
+
 function activeIndex(pathname: string): number {
   if (pathname === '/') return 0;
   return NAV.findIndex((n, i) => i > 0 && pathname.startsWith(n.to));
@@ -85,13 +93,14 @@ export function Shell() {
 
       <main className="main">
         <div className="top">
+          <span className="plq mbrand" style={{ height: 32, padding: '0 10px', fontSize: 15 }}>کلید</span>
           <button type="button" className="gs" onClick={() => setPaletteOpen(true)}>
             <Icon name="search" />
             <span className="sp" style={{ textAlign: 'right' }}>جستجو در فایل‌ها، مشتری‌ها و کارها…</span>
             <Kbd>Ctrl K</Kbd>
           </button>
           <span className="sp" />
-          <Link className="btn btn-p" to="/add" viewTransition>
+          <Link className="btn btn-p top-new" to="/add" viewTransition>
             <Icon name="plus" size="s" thick />
             فایل جدید
           </Link>
@@ -101,7 +110,22 @@ export function Shell() {
         </div>
       </main>
 
+      <nav aria-label="منوی اصلی" className="mtab">
+        {TABS.slice(0, 2).map((t) => <TabLink key={t.to} {...t} />)}
+        <Link className="fab" to="/add" viewTransition aria-label="ثبت فایل جدید"><Icon name="plus" size="l" thick /></Link>
+        {TABS.slice(2).map((t) => <TabLink key={t.to} {...t} />)}
+      </nav>
+
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
+  );
+}
+
+function TabLink({ to, icon, label }: { to: string; icon: IconName; label: string }) {
+  return (
+    <NavLink to={to} end={to === '/'} viewTransition className={({ isActive }) => (isActive ? 'tab on' : 'tab')}>
+      <Icon name={icon} />
+      {label}
+    </NavLink>
   );
 }
