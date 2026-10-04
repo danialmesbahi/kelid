@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
+import { Icon, Plaque, Segmented } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
