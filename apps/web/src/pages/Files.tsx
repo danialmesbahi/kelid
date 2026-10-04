@@ -4,6 +4,8 @@ import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
 import { useQuery } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
+import { FullPhotoLayer } from '../photos/Gallery';
+import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
 
 type DealFilter = 'all' | DealType;
@@ -21,6 +23,7 @@ export function FilesPage() {
   const open = (id: string) => (phone ? navigate(`/files/${id}`, { viewTransition: true }) : setSelId(id));
 
   const data = useQuery('files', async (s) => ({ all: await s.listListings(), clients: await s.listClients() }));
+  const thumbs = useCoverThumbs();
   if (!data) return <PageSkeleton rows={8} aside />;
 
   const list = data.all.filter((l) => deal === 'all' || l.deal === deal);
@@ -89,7 +92,7 @@ export function FilesPage() {
                     style={{ width: '100%', padding: '10px 12px', border: 0, borderTop: '1px solid var(--line)', borderRadius: 12, background: 'transparent', textAlign: 'right' }}>
                     <span><Plaque value={l.plaque} deal={l.deal} /></span>
                     <span className="rw" style={{ gap: 12, minWidth: 0 }}>
-                      <Cover variant={l.cover} style={{ flex: '0 0 56px', height: 42, borderRadius: 8 }} />
+                      <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ flex: '0 0 56px', height: 42, borderRadius: 8 }} />
                       <span className="col" style={{ minWidth: 0, lineHeight: 1.5 }}>
                         <span className="sb" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{listingTitle(l)}</span>
                         <span className="xs mute">{l.neighborhood}، {l.street}{statusLabel[l.status] ? ` · ${statusLabel[l.status]}` : ''}</span>
@@ -112,7 +115,7 @@ export function FilesPage() {
               {list.map((l) => (
                 <button key={l.id} type="button" className={`fcard lift${l.id === sel?.id ? ' on' : ''}`} aria-pressed={l.id === sel?.id}
                   onClick={() => open(l.id)} onDoubleClick={() => navigate(`/files/${l.id}`, { viewTransition: true })}>
-                  <Cover variant={l.cover}>
+                  <Cover variant={l.cover} src={coverUrl(thumbs, l.id)}>
                     <Plaque value={l.plaque} deal={l.deal} className="tagon" />
                     {statusLabel[l.status] && <span className="fcard-st">{statusLabel[l.status]}</span>}
                     {l.photoCount > 0 && <span className="cnt num"><Icon name="cam" size="s" />{toFaDigits(l.photoCount)}</span>}
@@ -140,8 +143,10 @@ export function FilesPage() {
         {sel && !phone && (
           <aside key={sel.id} aria-label="پیش‌نمایش فایل" className="col enter" style={{ flex: '1 1 360px', minWidth: 0, maxWidth: '100%', borderRight: '1px solid var(--line)', padding: '20px 22px 26px', gap: 16, background: 'var(--paper2)', borderRadius: '0 0 0 20px' }}>
             <span style={{ display: 'block', borderRadius: 16, overflow: 'hidden', position: 'relative', viewTransitionName: `cover-${sel.id}` }}>
-              <Cover variant={sel.cover} style={{ height: 200 }} />
-              <span className="cnt">{sel.photoCount ? `${toFaDigits(sel.photoCount)} عکس` : 'بدون عکس'}</span>
+              <Cover variant={sel.cover} src={coverUrl(thumbs, sel.id)} style={{ height: 200 }}>
+                <FullPhotoLayer photoId={thumbs[sel.id]?.photoId} />
+                <span className="cnt">{sel.photoCount ? `${toFaDigits(sel.photoCount)} عکس` : 'بدون عکس'}</span>
+              </Cover>
             </span>
             <div className="rw" style={{ gap: 12, alignItems: 'flex-start' }}>
               <span className="col sp">

@@ -4,6 +4,7 @@ import { dealLabel, formatLongDate, formatTime, headlinePrice, listingTitle, sec
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { coverUrl, useCoverThumbs } from '../photos/photos';
 
 const ACTION_ICON: Record<'sms' | 'call' | 'camera', { icon: IconName; label: string }> = {
   sms: { icon: 'msg', label: 'پیامک' },
@@ -29,6 +30,7 @@ export function TodayPage() {
     const [visits, todos, listings, clients] = await Promise.all([s.listVisits(dayStart, dayEnd), s.listTodos(), s.listListings(), s.listClients()]);
     return { visits, todos, listings, clients };
   });
+  const thumbs = useCoverThumbs();
 
   if (!data) return <PageSkeleton aside />;
   const { visits, todos, listings, clients } = data;
@@ -102,7 +104,7 @@ export function TodayPage() {
           <div className="hgrid stagger">
             {recent.map((l) => (
               <Link key={l.id} viewTransition className="hcard lift" to={`/files/${l.id}`}>
-                <Cover variant={l.cover} style={{ viewTransitionName: `cover-${l.id}` }} />
+                <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ viewTransitionName: `cover-${l.id}` }} />
                 <span className="hcard-top">
                   <Plaque value={l.plaque} deal={l.deal} />
                   <span className="hcard-deal">{dealLabel[l.deal]}</span>
