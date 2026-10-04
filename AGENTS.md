@@ -23,7 +23,7 @@ If `graphify` is installed (`uv tool install graphifyy`), prefer it over broad f
 ## Layout
 ```
 apps/web        React 19 + Vite 8 UI (shared by web, PWA and desktop). Pages in src/pages, chrome in src/layout, DB drivers in src/db
-apps/desktop    Electron 38 shell: main.ts (window, single-instance), database.ts (encrypted SQLite + IPC), preload.ts (window.kelid)
+apps/desktop    Electron 44 shell: main.ts (window, single-instance), database.ts (encrypted SQLite + IPC), preload.ts (window.kelid)
 packages/core   Pure TS domain: model, Persian text/number utils, formatting, client↔listing matching, KelidStore + SqlStore + schema
 packages/ui     Design system: kelid.css (tokens/components), motion.css (animation), icons.ts, components.tsx (Icon, Plaque, Cover…)
 docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
@@ -91,5 +91,5 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 - The design canvas (all screens incl. phone, signup, plans, admin) is linked in `docs/ROADMAP.md`; build new screens from it, not from imagination.
 
 ## Status (update when a phase item lands)
-- Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, listing photos done. **Open:** #2 edit listing, #3 clients, #4 visits/to-dos, #5 phone + PWA, #6 icon, #7 lint/e2e, #21 Electron security upgrade.
+- Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, listing photos done. **Open:** #2 edit listing, #3 clients, #4 visits/to-dos, #5 phone + PWA, #6 icon, #7 lint/e2e.
 - Phase 2 server + sync · Phase 3 subscription/payments/admin · Phase 4 calendar, deals, map, auto-update · Phase 5 beta.
