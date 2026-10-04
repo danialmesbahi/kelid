@@ -17,17 +17,23 @@ export function Plaque({ value, deal, size = 'm', className = '' }: { value: num
   return <span className={['plq', dealClass[deal], sz, className].filter(Boolean).join(' ')}>{formatPlaque(value)}</span>;
 }
 
-/** تصویرسازی معماری جای عکس، تا وقتی عکس واقعی ملک بارگذاری نشده. */
-export function Cover({ variant, className = '', style, children }: { variant: 'f' | 'g' | 'i' | 'j'; className?: string; style?: CSSProperties; children?: ReactNode }) {
+/** عکس ملک؛ تا وقتی عکس واقعی (`src`) نیامده، تصویرسازی معماری جای آن نمایش داده می‌شود. */
+export function Cover({ variant, src, alt = '', className = '', style, children }: { variant: 'f' | 'g' | 'i' | 'j'; src?: string; alt?: string; className?: string; style?: CSSProperties; children?: ReactNode }) {
   return (
     <span className={`ph ph-${variant} ${className}`} style={style}>
-      <i className="y t2" />
-      <i className="y t1" />
-      <i className="y gd" />
-      <i className="x fl" />
-      <i className="x w" />
-      <i className="x lt" />
-      <i className="x so" />
+      {src ? (
+        <img className="photo" src={src} alt={alt} draggable={false} decoding="async" />
+      ) : (
+        <>
+          <i className="y t2" />
+          <i className="y t1" />
+          <i className="y gd" />
+          <i className="x fl" />
+          <i className="x w" />
+          <i className="x lt" />
+          <i className="x so" />
+        </>
+      )}
       {children}
     </span>
   );

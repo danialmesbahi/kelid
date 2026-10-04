@@ -1,4 +1,4 @@
-import type { Client, DealType, Listing, Todo, Visit } from './model';
+import type { Client, DealType, Listing, Photo, Todo, Visit } from './model';
 import { normalizeForSearch } from './persian';
 import { listingTitle } from './format';
 
@@ -9,6 +9,17 @@ export interface ListingFilter {
 
 export type NewListing = Omit<Listing, 'id' | 'plaque' | 'createdAt' | 'updatedAt'>;
 export type NewClient = Omit<Client, 'id' | 'createdAt' | 'lastContactAt'>;
+
+/** عکسی که در مرورگر کوچک شده و آمادهٔ ذخیره است. */
+export interface NewPhoto {
+  mime: string;
+  width: number;
+  height: number;
+  bytes: Uint8Array;
+  thumb: Uint8Array;
+}
+export type PhotoThumb = Photo & { thumb: Uint8Array };
+export type CoverThumbs = Record<string, { photoId: string; mime: string; thumb: Uint8Array }>;
 
 /**
  * لایهٔ دسترسی به داده. SqlStore (ویندوز و وب) و MemoryStore (تست) هر دو
@@ -30,6 +41,19 @@ export interface KelidStore {
   setTodoDone(id: string, done: boolean): Promise<void>;
   hasSampleData(): Promise<boolean>;
   clearSampleData(): Promise<void>;
+  /** عکس‌های یک فایل به ترتیب، با تصویر کوچک؛ عکس اول کاور است. */
+  listPhotos(listingId: string): Promise<PhotoThumb[]>;
+  /** عکس با کیفیت کامل، برای گالری و حالت نمایش. */
+  getPhoto(id: string): Promise<{ mime: string; bytes: Uint8Array } | undefined>;
+  /** تصویر کوچک کاورِ هر فایلی که عکس دارد؛ کلید = شناسهٔ فایل. */
+  coverThumbs(): Promise<CoverThumbs>;
+  /** عکس‌ها به انتهای فهرست اضافه می‌شوند. */
+  addPhotos(listingId: string, photos: NewPhoto[]): Promise<Photo[]>;
+  /** ترتیب تازهٔ عکس‌ها؛ اولین شناسه کاور می‌شود. */
+  reorderPhotos(listingId: string, ids: string[]): Promise<void>;
+  /** حذف نرم؛ با restorePhoto برمی‌گردد. */
+  deletePhoto(id: string): Promise<void>;
+  restorePhoto(id: string): Promise<void>;
   /** هر بار داده عوض شود صدا زده می‌شود. */
   subscribe(listener: () => void): () => void;
 }
@@ -50,6 +74,7 @@ export class MemoryStore implements KelidStore {
   private clients: Client[];
   private visits: Visit[];
   private todos: Todo[];
+  private photos: Array<PhotoThumb & { bytes: Uint8Array; deleted?: boolean }> = [];
   private listeners = new Set<() => void>();
 
   constructor(seed: { listings: Listing[]; clients: Client[]; visits: Visit[]; todos: Todo[] }) {
@@ -138,10 +163,73 @@ export class MemoryStore implements KelidStore {
   }
 
   async clearSampleData() {
+    const sampleIds = new Set(this.listings.filter((l) => l.sample).map((l) => l.id));
+    this.photos = this.photos.filter((p) => !sampleIds.has(p.listingId));
     this.listings = this.listings.filter((l) => !l.sample);
     this.clients = [];
     this.visits = [];
     this.todos = [];
+    this.emit();
+  }
+
+  private livePhotos(listingId: string) {
+    return this.photos.filter((p) => p.listingId === listingId && !p.deleted).sort((a, b) => a.ord - b.ord || a.createdAt.localeCompare(b.createdAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  private syncPhotoCount(listingId: string) {
+    const count = this.livePhotos(listingId).length;
+    this.listings = this.listings.map((l) => (l.id === listingId ? { ...l, photoCount: count } : l));
+  }
+
+  async listPhotos(listingId: string) {
+    return this.livePhotos(listingId).map(({ bytes: _bytes, deleted: _deleted, ...p }) => p);
+  }
+
+  async getPhoto(id: string) {
+    const p = this.photos.find((x) => x.id === id && !x.deleted);
+    return p ? { mime: p.mime, bytes: p.bytes } : undefined;
+  }
+
+  async coverThumbs() {
+    const out: CoverThumbs = {};
+    for (const l of this.live()) {
+      const first = this.livePhotos(l.id)[0];
+      if (first) out[l.id] = { photoId: first.id, mime: first.mime, thumb: first.thumb };
+    }
+    return out;
+  }
+
+  async addPhotos(listingId: string, photos: NewPhoto[]) {
+    const now = new Date().toISOString();
+    let ord = Math.max(-1, ...this.photos.filter((p) => p.listingId === listingId).map((p) => p.ord)) + 1;
+    const added = photos.map((p) => ({ id: crypto.randomUUID(), listingId, ord: ord++, mime: p.mime, width: p.width, height: p.height, createdAt: now, bytes: p.bytes, thumb: p.thumb }));
+    this.photos.push(...added);
+    this.syncPhotoCount(listingId);
+    this.emit();
+    return added.map(({ bytes: _bytes, thumb: _thumb, ...meta }): Photo => meta);
+  }
+
+  async reorderPhotos(listingId: string, ids: string[]) {
+    this.photos = this.photos.map((p) => (p.listingId === listingId && ids.includes(p.id) ? { ...p, ord: ids.indexOf(p.id) } : p));
+    this.emit();
+  }
+
+  async deletePhoto(id: string) {
+    this.setPhotoDeleted(id, true);
+  }
+
+  async restorePhoto(id: string) {
+    this.setPhotoDeleted(id, false);
+  }
+
+  private setPhotoDeleted(id: string, deleted: boolean) {
+    const p = this.photos.find((x) => x.id === id);
+    if (!p) return;
+    // مثل SqlStore: اگر جای عکس برگشتی گرفته شده، به انتها می‌رود.
+    const others = this.livePhotos(p.listingId).filter((x) => x.id !== id);
+    const ord = !deleted && others.some((x) => x.ord === p.ord) ? Math.max(...others.map((x) => x.ord)) + 1 : p.ord;
+    this.photos = this.photos.map((x) => (x.id === id ? { ...x, deleted, ord } : x));
+    this.syncPhotoCount(p.listingId);
     this.emit();
   }
 
