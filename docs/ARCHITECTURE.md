@@ -56,7 +56,8 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | `/clients` | `Clients` | `?c=id` selection, best matches, start a showing |
 | `/calendar`, `/deals` | `Soon` | placeholders (phase 4) |
 | `/settings` | `Settings` | theme, text size, storage info, clear sample data |
-| `/add` | `Add` | full-screen form outside the shell |
+| `/add` | `Add` | full-screen form outside the shell (`ListingForm`) |
+| `/files/:id/edit` | `EditListing` | same `ListingForm` prefilled; status, unsaved-changes prompt (`useBlocker`) |
 | `/show?f=id,id` | `Show` | full-screen presentation to a customer, ←/→/Esc |
 
 ## Recipes
@@ -66,7 +67,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 2. `schema.ts`: **append** a migration, e.g. `ALTER TABLE listings ADD COLUMN parking INTEGER;`.
 3. `sqlStore.ts`: add to `LISTING_COLS`, `listingValues()`, `rowToListing()`.
 4. `MemoryStore` needs nothing for plain fields; update `seed.ts` if samples should show it.
-5. UI: form in `Add.tsx`, display in `FileDetail.tsx`. 6. Test in `sqlStore.test.ts` (write → reopen → read).
+5. UI: form in `ListingForm.tsx` (`toState` / `toFields`, shared by add and edit), display in `FileDetail.tsx`. 6. Test in `sqlStore.test.ts` (write → reopen → read).
 
 ### Add a store method
 1. Declare it on `KelidStore` (`store.ts`) with a Persian doc comment.
