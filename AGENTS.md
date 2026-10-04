@@ -37,9 +37,12 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 | desktop dev (Electron + Vite) | `npm run dev:desktop` |
 | tests (Vitest, real SQLCipher) | `npm test` |
 | type check (all projects) | `npm run typecheck` |
+| lint (ESLint + typescript-eslint + react-hooks) | `npm run lint` |
+| end-to-end smoke test (Playwright on the web build) | `npm run e2e` (first time: `npx playwright install chromium`) |
+| format with Prettier | `npm run format` (not enforced on existing files — see Code style) |
 | Windows installer → `apps/desktop/release/` | `npm run dist:win` |
 
-**Definition of done:** `npm run typecheck` and `npm test` pass; UI changes were looked at in the running app (light + dark, and at 375px for pages used on phones); no console errors.
+**Definition of done:** `npm run lint`, `npm run typecheck` and `npm test` pass (CI also runs `npm run e2e`); UI changes were looked at in the running app (light + dark, and at 375px for pages used on phones); no console errors.
 
 ## Hard rules
 **Data**
@@ -69,6 +72,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 **Code style**
 - TypeScript strict with `noUncheckedIndexedAccess`; no `any` without a reason in a comment.
+- ESLint must pass with zero warnings in CI. Prettier (`.prettierrc.json`) formats **new** files; don't reformat existing files inside a feature PR (merge conflicts for the other person) — a repo-wide `npm run format` gets its own PR when no branches are open.
 - Identifiers in English; comments in Persian, short, explaining *why* (match surrounding code).
 - Match existing patterns before adding libraries. Ask the owner before adding a dependency.
 
@@ -91,5 +95,5 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 - The design canvas (all screens incl. phone, signup, plans, admin) is linked in `docs/ROADMAP.md`; build new screens from it, not from imagination.
 
 ## Status (update when a phase item lands)
-- Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, listing editing done. **Open:** #1 photos, #3 clients, #4 visits/to-dos, #5 phone + PWA, #6 icon, #7 lint/e2e.
+- Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, lint + e2e in CI, listing editing done. **Open:** #1 photos, #3 clients, #4 visits/to-dos, #5 phone + PWA, #6 icon.
 - Phase 2 server + sync · Phase 3 subscription/payments/admin · Phase 4 calendar, deals, map, auto-update · Phase 5 beta.
