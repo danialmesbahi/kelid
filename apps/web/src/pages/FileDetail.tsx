@@ -80,6 +80,10 @@ export function FileDetailPage() {
             toast(`وضعیت فایل: ${label}`, { label: 'برگرداندن', run: () => void store.updateListing(l.id, { status: prev }) });
           }}
         />
+        <Link viewTransition className="btn btn-s" to={`/deals?new=${l.id}`}>
+          <Icon name="deal" size="s" />
+          شروع معامله
+        </Link>
       </div>
 
       <PhotoGallery listing={l} />

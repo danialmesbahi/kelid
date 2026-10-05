@@ -59,3 +59,9 @@ export function calendarQuery(fromKey: string, days: number) {
     return { visits, listings, clients };
   });
 }
+
+/** خط معامله: معامله‌ها با فایل‌ها (همهٔ وضعیت‌ها) و مشتری‌ها. */
+export const dealsQuery = q('deals', async (s) => {
+  const [deals, listings, clients] = await Promise.all([s.listDeals(), s.listListings(), s.listClients()]);
+  return { deals, listings, clients };
+});

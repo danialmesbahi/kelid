@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { Icon, Kbd, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
@@ -16,7 +17,7 @@ const NAV: Array<{ to: string; icon: IconName; label: string }> = [
 
 const ROW = 46; // ارتفاع هر گزینه + فاصله، برای نشانگر لغزان
 
-/** نوار پایین گوشی؛ تنظیمات به دکمهٔ چرخ‌دندهٔ نوار بالا رفته تا تقویم جا شود. */
+/** نوار پایین گوشی؛ قراردادها و تنظیمات در برگهٔ «بیشتر» نوار بالا هستند تا تقویم جا شود. */
 const TABS: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
   { to: '/files', icon: 'files', label: 'فایل‌ها' },
@@ -33,6 +34,7 @@ const storageLabel = { desktop: 'ذخیرهٔ رمزگذاری‌شده روی �
 
 export function Shell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [more, setMore] = useState(false);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const storage = useStorageInfo();
@@ -113,7 +115,7 @@ export function Shell() {
             <Kbd>Ctrl K</Kbd>
           </button>
           <span className="sp" />
-          <NavLink to="/settings" className="ib ghost mset" aria-label="تنظیمات"><Icon name="set" /></NavLink>
+          <button type="button" className="ib ghost mset" aria-label="بیشتر" aria-expanded={more} onClick={() => setMore(true)}><Icon name="more" /></button>
           <Link className="btn btn-p top-new" to="/add" viewTransition>
             <Icon name="plus" size="s" thick />
             فایل جدید
@@ -131,6 +133,7 @@ export function Shell() {
       </nav>
 
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      {more && <MoreSheet onClose={() => setMore(false)} />}
     </div>
   );
 }
@@ -141,5 +144,27 @@ function TabLink({ to, icon, label }: { to: string; icon: IconName; label: strin
       <Icon name={icon} />
       {label}
     </NavLink>
+  );
+}
+
+/** برگهٔ «بیشتر» روی گوشی: بخش‌هایی که در نوار پایین جا نشده‌اند. */
+function MoreSheet({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return createPortal(
+    <div className="overlay vd-ov" onMouseDown={onClose}>
+      <nav className="vd pop more-sheet" aria-label="بیشتر" onMouseDown={(e) => e.stopPropagation()}>
+        {[{ to: '/deals', icon: 'deal' as const, label: 'قراردادها' }, { to: '/settings', icon: 'set' as const, label: 'تنظیمات' }].map((n) => (
+          <NavLink key={n.to} to={n.to} className={({ isActive }) => (isActive ? 'nav on' : 'nav')} onClick={onClose}>
+            <Icon name={n.icon} />
+            {n.label}
+          </NavLink>
+        ))}
+      </nav>
+    </div>,
+    document.getElementById('root') ?? document.body,
   );
 }

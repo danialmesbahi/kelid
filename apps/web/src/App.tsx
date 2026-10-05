@@ -13,8 +13,8 @@ import { EditClientPage, NewClientPage } from './pages/ClientForm';
 import { EditListingPage } from './pages/EditListing';
 import { ShowPage } from './pages/Show';
 import { SettingsPage } from './pages/Settings';
-import { SoonPage } from './pages/Soon';
 import { CalendarPage } from './calendar/CalendarPage';
+import { DealsPage } from './deals/DealsPage';
 import { ToastProvider } from './layout/Toasts';
 import { UpdateNotice } from './pwa';
 
@@ -41,7 +41,7 @@ const router = createHashRouter([
           { path: 'files/:id', element: <FileDetailPage /> },
           { path: 'clients', element: <ClientsPage /> },
           { path: 'calendar', element: <CalendarPage /> },
-          { path: 'deals', element: <SoonPage title="قراردادها" /> },
+          { path: 'deals', element: <DealsPage /> },
           { path: 'settings', element: <SettingsPage /> },
         ],
       },

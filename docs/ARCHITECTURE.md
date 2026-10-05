@@ -31,7 +31,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 
 | Area | Files | Notes |
 |---|---|---|
-| Domain model | `packages/core/src/model.ts` | `Listing`, `Client` (+`ClientNeed`), `Visit`, `Todo`, `DealType = 'sale'\|'rent'\|'full'` |
+| Domain model | `packages/core/src/model.ts` | `Listing`, `Client` (+`ClientNeed`), `Visit`, `Todo`, `Deal`, `DealType = 'sale'\|'rent'\|'full'` |
 | Persian text | `persian.ts` | `toFaDigits`, `toEnDigits`, `normalizeForSearch`, `formatPlaque` |
 | Formatting | `format.ts` | `formatToman`, `headlinePrice`, `listingTitle`, `formatLongDate`, `formatTime` |
 | Matching | `match.ts` | `matchListing` 0–100 (deal must match; budget 35, neighborhood 30, area 20, bedrooms 10, kind 5), `bestMatches` |
@@ -44,6 +44,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | Photos | `apps/web/src/photos/*` | resize in a Worker (`resize.worker.ts`: 1600px WebP + 400px thumb), `photoUrl` blob-URL cache keyed by photo id, `useCoverThumbs`, `PhotoGallery` + lightbox on `FileDetail`; bytes live in the `photos` table (migration 2) |
 | Jalali calendar | `packages/core/src/jalali.ts` | day keys (`yyyy-mm-dd`, Tehran), `jalaliOf`, `jalaliMonthDays`, `tehranIso` / `tehranTimeOf` — `Intl` + `formatToParts` only, no library |
 | Calendar | `apps/web/src/calendar/*`, `packages/core/src/agenda.ts` | `TimeGrid` (day/week), `MonthGrid`, `calendar.css`; `layoutDay` puts overlapping visits side by side, `weekStart` = Saturday |
+| Deals | `apps/web/src/deals/*`, `packages/core/src/deals.ts` | `Deal` (migration 4, `deals` table), `DEAL_STAGES`, `checklistFor` (sale vs lease), `suggestedCommission` (editable suggestion), `applyDealPatch` sets `closedAt` |
 | Visits | `apps/web/src/visits/*` | `VisitDialog` (add/edit; Today, FileDetail, client panel) and keyboard `JalaliPicker` |
 | Prefs | `apps/web/src/prefs.ts` | theme light/dark/auto, text size → `--zoom`; applied pre-paint in `index.html` |
 | Branding | `scripts/icons.cjs` → `apps/desktop/build/` (icon.ico, NSIS BMPs), `apps/web/public/` (favicon, PWA PNGs) | generated with the project's Electron from the plaque design; run `npm run icons` after changing it and commit the output |
@@ -60,7 +61,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | `/files/:id` | `FileDetail` | hero cover/plaque shared-element transition, archive + undo |
 | `/clients` | `Clients` | `?c=id` selection, best matches, start a showing, edit / archive with undo |
 | `/calendar` | `CalendarPage` | `?v=day\|week\|month&d=yyyy-mm-dd`; week time grid (drag to move, drag bottom edge to resize, Alt+arrows), month grid (drag to another day), phone = day view + week strip; color = listing's plaque color |
-| `/deals` | `Soon` | placeholder (phase 4) |
+| `/deals` | `DealsPage` | 4-stage board (drag a card to another stage; phone = stage tabs), `?d=id` opens the deal panel, `?new=listingId` the new-deal dialog (FileDetail «شروع معامله»). Stage drives listing status: done → closed, lost → active, others → negotiating |
 | `/settings` | `Settings` | theme, text size, storage info, clear sample data |
 | `/add` | `Add` | full-screen form outside the shell (`ListingForm`) |
 | `/files/:id/edit` | `EditListing` | same `ListingForm` prefilled; status, unsaved-changes prompt (`useBlocker`) |

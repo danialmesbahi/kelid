@@ -1,7 +1,7 @@
 import type { KelidStore } from './store';
 
-type Table = 'listings' | 'clients' | 'visits' | 'todos' | 'photos';
-const ALL: readonly Table[] = ['listings', 'clients', 'visits', 'todos', 'photos'];
+type Table = 'listings' | 'clients' | 'visits' | 'todos' | 'photos' | 'deals';
+const ALL: readonly Table[] = ['listings', 'clients', 'visits', 'todos', 'photos', 'deals'];
 
 // هر خواندن به کدام جدول‌ها وابسته است. getPhoto عمداً نیست: بایت‌های کامل حجیم‌اند و photos.ts حافظهٔ جدا دارد.
 const READS = {
@@ -15,6 +15,7 @@ const READS = {
   listTodos: ['todos'],
   listPhotos: ['photos'],
   coverThumbs: ['photos'],
+  listDeals: ['deals'],
 } satisfies Partial<Record<keyof KelidStore, readonly Table[]>>;
 
 // هر نوشتن کدام جدول‌ها را عوض می‌کند. شمار عکس در جدول فایل‌هاست، پس کارهای عکس فایل‌ها را هم کهنه می‌کنند.
@@ -33,6 +34,10 @@ const WRITES = {
   setTodoDone: ['todos'],
   deleteTodo: ['todos'],
   restoreTodo: ['todos'],
+  addDeal: ['deals'],
+  updateDeal: ['deals'],
+  archiveDeal: ['deals'],
+  restoreDeal: ['deals'],
   clearSampleData: ALL,
   addPhotos: ['photos', 'listings'],
   reorderPhotos: ['photos'],
@@ -126,6 +131,11 @@ export class CachedStore implements KelidStore {
   setTodoDone: KelidStore['setTodoDone'] = (...a) => this.write('setTodoDone', a);
   deleteTodo: KelidStore['deleteTodo'] = (...a) => this.write('deleteTodo', a);
   restoreTodo: KelidStore['restoreTodo'] = (...a) => this.write('restoreTodo', a);
+  listDeals: KelidStore['listDeals'] = (...a) => this.read('listDeals', a);
+  addDeal: KelidStore['addDeal'] = (...a) => this.write('addDeal', a);
+  updateDeal: KelidStore['updateDeal'] = (...a) => this.write('updateDeal', a);
+  archiveDeal: KelidStore['archiveDeal'] = (...a) => this.write('archiveDeal', a);
+  restoreDeal: KelidStore['restoreDeal'] = (...a) => this.write('restoreDeal', a);
   clearSampleData: KelidStore['clearSampleData'] = (...a) => this.write('clearSampleData', a);
   addPhotos: KelidStore['addPhotos'] = (...a) => this.write('addPhotos', a);
   reorderPhotos: KelidStore['reorderPhotos'] = (...a) => this.write('reorderPhotos', a);

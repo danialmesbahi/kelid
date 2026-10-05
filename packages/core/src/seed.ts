@@ -1,4 +1,5 @@
-import type { Client, Listing, Todo, Visit } from './model';
+import type { Client, Deal, Listing, Todo, Visit } from './model';
+import { addDays } from './jalali';
 
 /** دادهٔ نمونه برای توسعه و نمایش؛ در نسخهٔ واقعی دیتابیس خالی شروع می‌شود. */
 
@@ -46,7 +47,7 @@ export const seedListings: Listing[] = [
   listing('l-042', { plaque: 42, deal: 'full', neighborhood: 'تهرانپارس', street: 'فلکهٔ دوم', area: 70, bedrooms: 1, floor: 3, floorsTotal: 4, yearBuilt: 1395, price: { deposit: 2.2 * B }, cover: 'g', features: ['انباری', 'بالکن'] }, 6),
   listing('l-036', { plaque: 36, deal: 'rent', neighborhood: 'ونک', street: 'شیخ بهایی', area: 110, bedrooms: 2, floor: 5, floorsTotal: 8, yearBuilt: 1401, price: { deposit: 1.5 * B, monthlyRent: 35 * M }, cover: 'f', features: ['پارکینگ', 'آسانسور', 'لابی'] }, 62),
   listing('l-051', { plaque: 51, deal: 'sale', neighborhood: 'یوسف‌آباد', street: 'خیابان ۳۳', area: 95, bedrooms: 2, floor: 1, floorsTotal: 5, yearBuilt: 1399, price: { total: 19 * B }, cover: 'i', features: ['حیاط مشاع', 'انباری'] }, 1),
-  listing('l-048', { plaque: 48, deal: 'full', neighborhood: 'جنت‌آباد', street: 'مرکزی', area: 65, bedrooms: 1, floor: 2, floorsTotal: 4, yearBuilt: 1397, price: { deposit: 1.6 * B }, cover: 'f', features: ['پارکینگ'] }, 12),
+  listing('l-048', { plaque: 48, deal: 'full', status: 'closed', neighborhood: 'جنت‌آباد', street: 'مرکزی', area: 65, bedrooms: 1, floor: 2, floorsTotal: 4, yearBuilt: 1397, price: { deposit: 1.6 * B }, cover: 'f', features: ['پارکینگ'] }, 12),
   listing('l-033', { plaque: 33, deal: 'rent', neighborhood: 'سعادت‌آباد', street: 'علامه', area: 130, bedrooms: 3, floor: 6, floorsTotal: 9, yearBuilt: 1402, price: { deposit: 2 * B, monthlyRent: 40 * M }, cover: 'g', features: ['پارکینگ', 'آسانسور', 'روف گاردن'] }, 15),
   listing('l-050', { plaque: 50, deal: 'rent', neighborhood: 'پونک', street: 'حصارک', area: 80, bedrooms: 2, floor: 3, floorsTotal: 5, yearBuilt: 1396, price: { deposit: 900 * M, monthlyRent: 20 * M }, cover: 'g', photoCount: 0, features: ['پارکینگ'] }, 2),
 ];
@@ -75,4 +76,13 @@ export const seedTodos: Todo[] = [
   { id: 't-4', title: 'اجاره‌نامهٔ ۰۱۹ رو به پایان است', detail: '۱۲ روز دیگر · فرصت فایل تازه', action: 'call', done: false },
 ];
 
-export const seed = { listings: seedListings, clients: seedClients, visits: seedVisits, todos: seedTodos };
+const dayIn = (n: number) => addDays(tehranToday(), n);
+
+export const seedDeals: Deal[] = [
+  { id: 'd-1', listingId: 'l-031', clientId: 'c-2', stage: 'deposit', price: 800 * M, rent: 22 * M, commissionBuyer: 11.5 * M, commissionSeller: 11.5 * M, checklist: ['ids', 'deed', 'payment'], dueDay: dayIn(1), notes: 'مستأجر تا آخر ماه تحویل می‌خواهد.', createdAt: daysAgo(6), updatedAt: daysAgo(1) },
+  { id: 'd-2', listingId: 'l-014', clientId: 'c-3', stage: 'talking', price: 40 * B, commissionBuyer: 200 * M, commissionSeller: 200 * M, checklist: [], notes: 'خریدار ۴۰ پیشنهاد داده؛ مالک روی ۴۱ است.', createdAt: daysAgo(3), updatedAt: daysAgo(0) },
+  { id: 'd-3', listingId: 'l-042', clientId: 'c-4', stage: 'signed', price: 2.2 * B, commissionBuyer: 16.5 * M, commissionSeller: 16.5 * M, checklist: ['ids', 'deed', 'contract', 'payment'], dueDay: dayIn(4), createdAt: daysAgo(12), updatedAt: daysAgo(2) },
+  { id: 'd-4', listingId: 'l-048', clientId: 'c-6', stage: 'done', price: 1.6 * B, commissionBuyer: 12 * M, commissionSeller: 12 * M, checklist: ['ids', 'deed', 'contract', 'payment', 'bills', 'handover'], closedAt: daysAgo(2), createdAt: daysAgo(20), updatedAt: daysAgo(2) },
+];
+
+export const seed = { listings: seedListings, clients: seedClients, visits: seedVisits, todos: seedTodos, deals: seedDeals };

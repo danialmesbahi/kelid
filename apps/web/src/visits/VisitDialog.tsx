@@ -40,7 +40,7 @@ function defaultStart(): { day: string; time: string } {
 }
 
 /** day و time از تقویم می‌آیند: کلیک روی یک خانهٔ خالی، قرار تازه را همان روز و ساعت باز می‌کند. */
-export type VisitPreset = { listingId?: string; clientId?: string; day?: string; time?: string };
+export type VisitPreset = { listingId?: string; clientId?: string; day?: string; time?: string; kind?: VisitKind };
 
 /**
  * پنجرهٔ ثبت یا ویرایش قرار. کاملاً با صفحه‌کلید کار می‌کند: Tab بین فیلدها، Enter ثبت، Esc بستن.
@@ -49,7 +49,7 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
   const store = useStore();
   const toast = useToast();
   const data = useQuery('visit-dialog', async (s) => ({ listings: await s.listListings(), clients: await s.listClients() }));
-  const [kind, setKind] = useState<VisitKind>(visit?.kind ?? 'visit');
+  const [kind, setKind] = useState<VisitKind>(visit?.kind ?? preset?.kind ?? 'visit');
   const [title, setTitle] = useState(visit?.title ?? '');
   const [fresh] = useState(() => {
     const d = defaultStart();
