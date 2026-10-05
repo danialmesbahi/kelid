@@ -1,3 +1,4 @@
+import { newId } from '../id';
 import type { Client, Listing, Photo, Todo, Visit } from '../model';
 import { normalizeForSearch } from '../persian';
 import type { CoverThumbs, KelidStore, ListingFilter, NewClient, NewListing, NewPhoto, NewTodo, NewVisit, PhotoThumb } from '../store';
@@ -171,7 +172,7 @@ export class SqlStore implements KelidStore {
   async addListing(input: NewListing) {
     const now = nowIso();
     const [m] = await this.db.all<{ p: number | null }>('SELECT MAX(plaque) AS p FROM listings');
-    const listing: Listing = { ...input, id: crypto.randomUUID(), plaque: (m?.p ?? 0) + 1, createdAt: now, updatedAt: now };
+    const listing: Listing = { ...input, id: newId(), plaque: (m?.p ?? 0) + 1, createdAt: now, updatedAt: now };
     await this.db.transaction([
       { sql: `INSERT INTO listings (${LISTING_COLS}) VALUES (${LISTING_PH})`, params: listingValues(listing) },
       outbox('listing', listing.id, 'upsert', listing),
@@ -223,7 +224,7 @@ export class SqlStore implements KelidStore {
 
   async addClient(input: NewClient) {
     const now = nowIso();
-    const c: Client = { ...input, id: crypto.randomUUID(), lastContactAt: now, createdAt: now };
+    const c: Client = { ...input, id: newId(), lastContactAt: now, createdAt: now };
     await this.db.transaction([
       {
         sql: 'INSERT INTO clients (id, name, phone, need, temperature, waiting, last_contact_at, notes, search, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -279,7 +280,7 @@ export class SqlStore implements KelidStore {
   }
 
   async addVisit(input: NewVisit) {
-    const v: Visit = { ...input, id: crypto.randomUUID() };
+    const v: Visit = { ...input, id: newId() };
     await this.db.transaction([
       { sql: 'INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', params: [v.id, v.kind, v.title, v.startsAt, v.endsAt, v.listingId ?? null, v.clientId ?? null, v.done ? 1 : 0, nowIso()] },
       outbox('visit', v.id, 'upsert', v),
@@ -309,7 +310,7 @@ export class SqlStore implements KelidStore {
 
   async addTodo(input: NewTodo) {
     const [m] = await this.db.all<{ p: number | null }>('SELECT MAX(position) AS p FROM todos');
-    const t: Todo = { id: crypto.randomUUID(), title: input.title, detail: input.detail ?? '', action: input.action, done: false };
+    const t: Todo = { id: newId(), title: input.title, detail: input.detail ?? '', action: input.action, done: false };
     await this.db.transaction([
       // ستون action در جدول اجباری است؛ «بدون میانبر» رشتهٔ خالی ذخیره می‌شود.
       { sql: 'INSERT INTO todos (id, title, detail, action, done, position, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)', params: [t.id, t.title, t.detail, t.action ?? '', (m?.p ?? -1) + 1, nowIso()] },
@@ -384,7 +385,7 @@ export class SqlStore implements KelidStore {
     // عکس‌های حذف‌شده هم حساب می‌شوند تا اگر برگردانده شدند، ترتیبشان با عکس تازه یکی نشود.
     const [m] = await this.db.all<{ o: number | null }>('SELECT MAX(ord) AS o FROM photos WHERE listing_id = ?', [listingId]);
     let ord = (m?.o ?? -1) + 1;
-    const added: Photo[] = photos.map((p) => ({ id: crypto.randomUUID(), listingId, ord: ord++, mime: p.mime, width: p.width, height: p.height, createdAt: now }));
+    const added: Photo[] = photos.map((p) => ({ id: newId(), listingId, ord: ord++, mime: p.mime, width: p.width, height: p.height, createdAt: now }));
     const st: SqlStatement[] = [];
     added.forEach((a, i) => {
       const p = photos[i]!;

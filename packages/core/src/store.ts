@@ -1,3 +1,4 @@
+import { newId } from './id';
 import type { Client, DealType, Listing, Todo, Visit, Photo } from './model';
 import { normalizeForSearch, toEnDigits } from './persian';
 import { listingTitle } from './format';
@@ -158,7 +159,7 @@ export class MemoryStore implements KelidStore {
   async addListing(input: NewListing) {
     const now = new Date().toISOString();
     const next = Math.max(0, ...this.listings.map((l) => l.plaque ?? 0)) + 1;
-    const listing: Listing = { ...input, id: crypto.randomUUID(), plaque: next, createdAt: now, updatedAt: now };
+    const listing: Listing = { ...input, id: newId(), plaque: next, createdAt: now, updatedAt: now };
     this.listings.push(listing);
     this.emit();
     return listing;
@@ -196,7 +197,7 @@ export class MemoryStore implements KelidStore {
 
   async addClient(input: NewClient) {
     const now = new Date().toISOString();
-    const c: Client = { ...input, id: crypto.randomUUID(), lastContactAt: now, createdAt: now };
+    const c: Client = { ...input, id: newId(), lastContactAt: now, createdAt: now };
     this.clients.push(c);
     this.emit();
     return c;
@@ -232,7 +233,7 @@ export class MemoryStore implements KelidStore {
   }
 
   async addVisit(input: NewVisit) {
-    const v: Visit = { ...input, id: crypto.randomUUID() };
+    const v: Visit = { ...input, id: newId() };
     this.visits.push(v);
     this.emit();
     return v;
@@ -253,7 +254,7 @@ export class MemoryStore implements KelidStore {
   }
 
   async addTodo(input: NewTodo) {
-    const t: Todo = { id: crypto.randomUUID(), title: input.title, detail: input.detail ?? '', action: input.action, done: false };
+    const t: Todo = { id: newId(), title: input.title, detail: input.detail ?? '', action: input.action, done: false };
     this.todos.push(t);
     this.emit();
     return t;
@@ -318,7 +319,7 @@ export class MemoryStore implements KelidStore {
   async addPhotos(listingId: string, photos: NewPhoto[]) {
     const now = new Date().toISOString();
     let ord = Math.max(-1, ...this.photos.filter((p) => p.listingId === listingId).map((p) => p.ord)) + 1;
-    const added = photos.map((p) => ({ id: crypto.randomUUID(), listingId, ord: ord++, mime: p.mime, width: p.width, height: p.height, createdAt: now, bytes: p.bytes, thumb: p.thumb }));
+    const added = photos.map((p) => ({ id: newId(), listingId, ord: ord++, mime: p.mime, width: p.width, height: p.height, createdAt: now, bytes: p.bytes, thumb: p.thumb }));
     this.photos.push(...added);
     this.syncPhotoCount(listingId);
     this.emit();
