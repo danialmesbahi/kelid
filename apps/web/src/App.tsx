@@ -3,6 +3,7 @@ import { createHashRouter, RouterProvider } from 'react-router';
 import { StoreProvider } from './data';
 import { usePrefs } from './prefs';
 import { Shell } from './layout/Shell';
+import { ScrollMemory } from './layout/ScrollMemory';
 import { TodayPage } from './pages/Today';
 import { FilesPage } from './pages/Files';
 import { FileDetailPage } from './pages/FileDetail';
@@ -27,23 +28,29 @@ export function usePrefsContext(): Prefs {
 // مسیریابی با # تا در Electron (file://) و هر میزبان وبی بدون تنظیم سرور کار کند.
 const router = createHashRouter([
   {
-    path: '/',
-    element: <Shell />,
+    // همهٔ صفحه‌ها زیر یک لایه تا جای اسکرول بین آن‌ها درست مدیریت شود
+    element: <ScrollMemory />,
     children: [
-      { index: true, element: <TodayPage /> },
-      { path: 'files', element: <FilesPage /> },
-      { path: 'files/:id', element: <FileDetailPage /> },
-      { path: 'clients', element: <ClientsPage /> },
-      { path: 'calendar', element: <SoonPage title="تقویم" /> },
-      { path: 'deals', element: <SoonPage title="قراردادها" /> },
-      { path: 'settings', element: <SettingsPage /> },
+      {
+        path: '/',
+        element: <Shell />,
+        children: [
+          { index: true, element: <TodayPage /> },
+          { path: 'files', element: <FilesPage /> },
+          { path: 'files/:id', element: <FileDetailPage /> },
+          { path: 'clients', element: <ClientsPage /> },
+          { path: 'calendar', element: <SoonPage title="تقویم" /> },
+          { path: 'deals', element: <SoonPage title="قراردادها" /> },
+          { path: 'settings', element: <SettingsPage /> },
+        ],
+      },
+      { path: '/add', element: <AddPage /> },
+      { path: '/clients/new', element: <NewClientPage /> },
+      { path: '/clients/:id/edit', element: <EditClientPage /> },
+      { path: '/files/:id/edit', element: <EditListingPage /> },
+      { path: '/show', element: <ShowPage /> },
     ],
   },
-  { path: '/add', element: <AddPage /> },
-  { path: '/clients/new', element: <NewClientPage /> },
-  { path: '/clients/:id/edit', element: <EditClientPage /> },
-  { path: '/files/:id/edit', element: <EditListingPage /> },
-  { path: '/show', element: <ShowPage /> },
 ]);
 
 export function App() {

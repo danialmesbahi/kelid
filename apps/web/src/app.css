@@ -158,3 +158,13 @@
   .showpage h1 { font-size: 30px !important; }
   .showpage .showprice { font-size: 26px !important; }
 }
+
+/* نوار پایین گوشی در انتقال بین صفحه‌ها لایهٔ خودش را دارد تا روی محتوای صفحه بماند.
+   بی‌نام، جزو root بود و لایهٔ صفحه (و عکس‌های در حال پرواز) تا پایان انتقال رویش کشیده می‌شد. */
+@media (max-width: 767px) {
+  .mtab { view-transition-name: kl-mtab; }
+  ::view-transition-group(kl-mtab), ::view-transition-new(kl-mtab):not(:only-child) { animation: none; }
+  /* مثل منوی کنار: فقط عکس تازه، تا دو زبانه هم‌زمان فعال دیده نشوند.
+     رفتن به صفحه‌ای بی‌نوار (مثل فایل جدید) و برگشتن از آن همان محو شدن پیش‌فرض را دارد. */
+  ::view-transition-old(kl-mtab):not(:only-child) { display: none; }
+}
