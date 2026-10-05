@@ -114,15 +114,19 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 @keyframes kl-slide { from { transform: translateX(160%); } to { transform: translateX(-260%); } }
 
 /* ── اعلان‌ها ───────────────────────────────────────── */
-.toasts { position: fixed; bottom: 24px; left: 24px; z-index: 80; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+/* همهٔ اعلان‌ها روی هم در یک خانه؛ تازه روی قبلی که دارد محو می‌شود می‌نشیند و چیزی بالا و پایین نمی‌پرد. */
+.toasts { position: fixed; bottom: 24px; left: 24px; z-index: 80; display: grid; pointer-events: none; }
+.toasts > .toast { grid-area: 1 / 1; }
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: 12px; min-width: 300px; max-width: 420px;
-  padding: 12px 14px 12px 12px; border-radius: 14px; background: var(--deep); color: var(--deep-ink); box-shadow: var(--sh-lg);
+  padding: 8px 14px 8px 8px; border-radius: 14px; background: var(--deep); color: var(--deep-ink); box-shadow: var(--sh-lg);
   animation: kl-toast-in 360ms var(--ease-spring) both;
 }
 .toast.out { animation: kl-toast-out 220ms ease both; }
 .toast button { border: 0; background: transparent; color: var(--brass); font-weight: 700; min-height: 36px; padding: 0 8px; border-radius: 8px; }
 .toast button:hover { background: rgba(255,255,255,.08); }
+.toast .toast-x { display: grid; place-items: center; width: 36px; min-height: 36px; padding: 0; margin-inline-end: -4px; color: var(--deep-ink); opacity: .65; }
+.toast .toast-x:hover { opacity: 1; }
 @keyframes kl-toast-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
 @keyframes kl-toast-out { to { opacity: 0; transform: translateY(8px) scale(.98); } }
 
