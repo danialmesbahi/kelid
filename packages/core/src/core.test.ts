@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { formatPlaque, formatToman, matchListing, normalizeForSearch, filterListings, seedListings, seedClients } from './index';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { formatPlaque, formatToman, matchListing, normalizeForSearch, filterListings, seedListings, seedClients, newId } from './index';
 
 describe('persian', () => {
   it('normalizes spacing, letters and digits for search', () => {
@@ -36,5 +36,19 @@ describe('match', () => {
     const l031 = seedListings.find((l) => l.plaque === 31)!;
     expect(matchListing(l027, karimi).score).toBeGreaterThanOrEqual(95);
     expect(matchListing(l031, karimi).score).toBe(0);
+  });
+});
+
+describe('id', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('makes v4 UUIDs even where crypto.randomUUID is missing (phone over plain http)', () => {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    expect(newId()).toMatch(uuid);
+    const real = globalThis.crypto;
+    vi.stubGlobal('crypto', { getRandomValues: (a: Uint8Array<ArrayBuffer>) => real.getRandomValues(a) });
+    const ids = new Set(Array.from({ length: 200 }, () => newId()));
+    expect(ids.size).toBe(200);
+    for (const id of ids) expect(id).toMatch(uuid);
   });
 });
