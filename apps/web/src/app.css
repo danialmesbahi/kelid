@@ -101,6 +101,22 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
 }
 .filelist { min-width: 600px; }
 
+/* پنجرهٔ قرار: سر و ته ثابت، میانه اسکرول می‌خورد تا دکمهٔ ذخیره همیشه پیدا باشد. */
+.vd-ov { padding: 40px 16px; }
+.vd { width: min(560px, 100%); max-height: calc(100dvh - 80px); display: flex; flex-direction: column; background: var(--paper); border-radius: 22px; box-shadow: var(--sh-lg), 0 0 0 1px var(--line); }
+.vd:focus { outline: none; }
+.vd-form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.vd-hd { padding: 14px 22px; border-bottom: 1px solid var(--line); }
+.vd-bd { gap: 16px; padding: 18px 22px 20px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+.vd-ft { gap: 10px; padding: 14px 22px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.vd-fill > .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; }
+.vd-fill > .seg button, .vd-dur .seg button { justify-content: center; }
+.vd-days { display: flex; flex-wrap: wrap; gap: 6px; }
+.vd-chip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line2); background: var(--paper); color: var(--ink2); font-size: 14px; font-weight: 600; transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease; }
+.vd-chip:hover { background: var(--sunk); }
+.vd-chip[aria-pressed="true"] { background: var(--pri-tint); border-color: transparent; color: var(--pri-text); }
+.vd-when { gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+
 /* ── گوشی (زیر ۷۶۸ پیکسل؛ همان مرز usePhone) ─────────────────── */
 .mtab, .mbrand { display: none; }
 @media (max-width: 767px) {
@@ -139,6 +155,24 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
   .mtab .tab { min-height: 60px; justify-content: center; padding-top: 4px; }
   .mtab .fab { margin-top: -16px; }
 
+  /* پنجرهٔ قرار روی گوشی: برگه‌ای که از پایین بالا می‌آید و دکمه‌هایش زیر انگشت شست است */
+  .vd-ov { padding: 0; align-items: flex-end; }
+  .vd { width: 100%; max-height: calc(100dvh - max(24px, env(safe-area-inset-top))); border-radius: 22px 22px 0 0; animation: kl-sheet-up 340ms var(--ease-out) both; }
+  .vd-hd { padding: 12px 16px 10px; }
+  .vd-hd .t2 { font-size: 19px; }
+  .vd-bd { padding: 16px 16px 20px; gap: 18px; }
+  .vd-ft { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); gap: 8px; }
+  .vd-ft > .sp { display: none; }
+  .vd-ft > [role="alert"] { flex: 1 1 100%; justify-content: center; }
+  .vd-ft > .btn { height: 50px; font-size: 16px; }
+  .vd-ft > .btn-p { flex: 1; }
+  .vd-ft > .btn-g { flex: none; padding: 0 20px; background: var(--sunk); }
+  .vd-days { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .vd-chip { height: 42px; padding: 0 6px; border-radius: 12px; }
+  .vd-dur { flex: 1 1 100%; }
+  .vd-dur .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; }
+  .vd-dur .seg button, .vd-fill > .seg button { padding: 0 4px; }
+
   .toasts { left: 12px; right: 12px; bottom: calc(84px + env(safe-area-inset-bottom)); }
   .toast { min-width: 0; max-width: none; }
 
@@ -151,4 +185,14 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
   .showpage > .rw:last-child { padding: 0 16px 20px !important; gap: 14px 18px !important; }
   .showpage h1 { font-size: 30px !important; }
   .showpage .showprice { font-size: 26px !important; }
+}
+
+/* نوار پایین گوشی در انتقال بین صفحه‌ها لایهٔ خودش را دارد تا روی محتوای صفحه بماند.
+   بی‌نام، جزو root بود و لایهٔ صفحه (و عکس‌های در حال پرواز) تا پایان انتقال رویش کشیده می‌شد. */
+@media (max-width: 767px) {
+  .mtab { view-transition-name: kl-mtab; }
+  ::view-transition-group(kl-mtab), ::view-transition-new(kl-mtab):not(:only-child) { animation: none; }
+  /* مثل منوی کنار: فقط عکس تازه، تا دو زبانه هم‌زمان فعال دیده نشوند.
+     رفتن به صفحه‌ای بی‌نوار (مثل فایل جدید) و برگشتن از آن همان محو شدن پیش‌فرض را دارد. */
+  ::view-transition-old(kl-mtab):not(:only-child) { display: none; }
 }
