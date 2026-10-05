@@ -1,0 +1,134 @@
+/* آشنایی بار اول: سمت راست قدم‌ها با نوشتهٔ درشت، سمت چپ نمای سبز کلید با کارت‌های شناور. */
+.wl { position: fixed; inset: 0; z-index: 90; display: flex; background: var(--paper); color: var(--ink); animation: kl-fadein 260ms ease both; }
+.wl.out { animation: kl-wl-out 520ms var(--ease-expo) forwards; pointer-events: none; }
+@keyframes kl-wl-out { to { opacity: 0; transform: scale(1.03); filter: blur(6px); } }
+.wl-ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── نمای سبز ── */
+.wl-hero {
+  order: 2; position: relative; flex: 0 0 44%; overflow: hidden; display: flex; flex-direction: column; color: #FFFFFF; isolation: isolate;
+  background:
+    radial-gradient(90% 70% at 72% 18%, color-mix(in srgb, var(--pri) 70%, #FFFFFF 18%) 0%, transparent 60%),
+    linear-gradient(160deg, var(--pri) 0%, color-mix(in srgb, var(--pri) 60%, #000000) 100%);
+}
+.app.dark .wl-hero { background: radial-gradient(90% 70% at 72% 18%, color-mix(in srgb, var(--pri) 45%, transparent) 0%, transparent 60%), linear-gradient(160deg, color-mix(in srgb, var(--pri) 55%, var(--deep)) 0%, var(--deep) 100%); }
+/* خطوط ریز نقشه‌مانند پشت صحنه */
+.wl-hero::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; opacity: .13;
+  background-image: linear-gradient(rgba(255, 255, 255, .9) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .9) 1px, transparent 1px);
+  background-size: 46px 46px; mask-image: radial-gradient(70% 60% at 50% 45%, #000 0%, transparent 75%);
+}
+.wl-glow { position: absolute; z-index: -1; width: 380px; height: 380px; top: 18%; left: 12%; border-radius: 50%; background: var(--brass); opacity: .28; filter: blur(80px); animation: kl-wl-glow 14s ease-in-out infinite alternate; }
+@keyframes kl-wl-glow { to { transform: translate(90px, 120px) scale(1.25); } }
+.wl-stage { position: relative; flex: 1; display: grid; place-items: center; min-height: 0; }
+.wl-key {
+  position: relative; overflow: hidden; height: 112px; min-width: 230px; padding: 0 34px; border-radius: 22px; font-size: 54px;
+  box-shadow: inset 0 0 0 6px var(--pc), inset 0 0 0 11px rgba(255, 255, 255, .92), 0 40px 80px -30px rgba(0, 0, 0, .65);
+  animation: kl-wl-key 900ms var(--ease-spring) both, kl-breathe 5s ease-in-out 1s infinite;
+}
+.wl-key::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .35) 50%, transparent 65%); transform: translateX(120%); animation: kl-wl-shine 4.5s ease-in-out 1.2s infinite; }
+@keyframes kl-wl-key { from { opacity: 0; transform: translateY(24px) scale(.85) rotate(-4deg); } }
+@keyframes kl-wl-shine { 0%, 55% { transform: translateX(120%); } 85%, 100% { transform: translateX(-120%); } }
+/* کارت‌های شناور در هر دو پوسته روشن می‌مانند، روی زمینهٔ سبز؛ برای همین رنگ‌های پوستهٔ روشن ثابت نوشته شده‌اند. */
+.wl-float {
+  position: absolute; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+  padding: 10px 14px; border-radius: 16px; background: rgba(255, 255, 255, .96); color: #121412; box-shadow: 0 24px 40px -22px rgba(0, 0, 0, .6);
+  animation: kl-wl-in 700ms var(--ease-expo) both, kl-wl-bob 7s ease-in-out infinite;
+}
+.wl-float > :first-child { grid-row: span 2; }
+.wl-float b { font-size: 14px; white-space: nowrap; }
+.wl-float small { font-size: 12px; color: #5C625E; white-space: nowrap; }
+.wl-float small.ok { color: #0E4D3F; font-weight: 700; }
+.wl-float .av { width: 34px; height: 34px; background: #E5EFEA; color: #0E4D3F; font-size: 14px; }
+.wl-float > .ic { width: 34px; height: 34px; padding: 7px; border-radius: 10px; background: #F7EEDC; color: #8F5E12; }
+.wl-float .plq { --pc: #0E4D3F; }
+.wl-float.f1 { top: 16%; right: 10%; transform: rotate(3deg); animation-delay: 200ms, 0s; }
+.wl-float.f2 { bottom: 28%; left: 8%; transform: rotate(-4deg); animation-delay: 380ms, 1.5s; }
+.wl-float.f3 { bottom: 12%; right: 16%; transform: rotate(2deg); animation-delay: 560ms, 3s; }
+@keyframes kl-wl-in { from { opacity: 0; translate: 0 26px; } }
+@keyframes kl-wl-bob { 50% { translate: 0 -9px; } }
+.wl-hero-ft { display: flex; flex-direction: column; gap: 2px; padding: 0 36px 32px; }
+.wl-hero-ft b { font-size: 20px; }
+.wl-hero-ft span { font-size: 14px; opacity: .78; }
+
+/* ── قدم‌ها ── */
+.wl-main { order: 1; flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26px clamp(24px, 5vw, 72px) 28px; overflow-y: auto; }
+.wl-top { display: flex; align-items: center; gap: 10px; }
+.wl-dots { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.wl-dots li { width: 9px; height: 9px; border-radius: 99px; background: var(--line2); transition: width var(--t-med) var(--ease-out), background-color var(--t-med) ease; }
+.wl-dots li.past { background: color-mix(in srgb, var(--pri) 45%, var(--line2)); }
+.wl-dots li.on { width: 30px; background: var(--pri); }
+.wl-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; max-width: 600px; padding: 24px 0; }
+.wl-body.fwd > * { animation: kl-wl-fwd 460ms var(--ease-expo) both; }
+.wl-body.back > * { animation: kl-wl-back 460ms var(--ease-expo) both; }
+.wl-body > :nth-child(2) { animation-delay: 40ms; }
+.wl-body > :nth-child(3) { animation-delay: 80ms; }
+.wl-body > :nth-child(n + 4) { animation-delay: 120ms; }
+@keyframes kl-wl-fwd { from { opacity: 0; transform: translateX(-28px); } }
+@keyframes kl-wl-back { from { opacity: 0; transform: translateX(28px); } }
+.wl-h { margin: 0; font-size: 40px; font-weight: 800; line-height: 1.35; letter-spacing: -.3px; }
+.wl-lead { margin: 0 0 6px; font-size: 18px; line-height: 1.9; color: var(--ink2); }
+
+.wl-points { display: flex; flex-direction: column; gap: 14px; margin: 6px 0 0; padding: 0; list-style: none; }
+.wl-points li { display: flex; align-items: flex-start; gap: 14px; font-size: 15.5px; line-height: 1.7; }
+.wl-points b { font-size: 17px; }
+.wl-pi { display: grid; place-items: center; flex: none; width: 50px; height: 50px; border-radius: 16px; background: var(--pri-tint); color: var(--pri-text); }
+
+.wl-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.wl-fld { height: 58px; font-size: 18px; }
+.wl-preview { display: inline-flex; align-items: center; gap: 12px; align-self: flex-start; max-width: 100%; padding: 12px 16px 12px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper2); box-shadow: var(--sh); }
+
+.wl-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.wl-choices.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wl-choice {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 12px 14px; text-align: center;
+  border: 1.5px solid var(--line2); border-radius: 20px; background: var(--paper); color: var(--ink);
+  transition: border-color var(--t-fast) ease, box-shadow var(--t-med) ease, transform var(--t-med) var(--ease-out), background-color var(--t-fast) ease;
+}
+.wl-choice:hover { background: var(--paper2); transform: translateY(-2px); }
+.wl-choice[aria-checked="true"] { border-color: var(--pri-text); background: color-mix(in srgb, var(--pri-tint) 45%, var(--paper)); box-shadow: 0 0 0 4px var(--pri-tint); }
+.wl-choice-art { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; place-items: center; min-height: 58px; color: var(--pri-text); }
+.wl-choices.two .wl-choice-art { width: 58px; height: 58px; border-radius: 18px; background: var(--pri-tint); }
+.wl-choice-l { font-size: 15.5px; font-weight: 700; line-height: 1.5; }
+.wl-aa { font-weight: 700; line-height: 1; color: var(--ink); }
+.wl-tick { position: absolute; top: 10px; left: 10px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--pri); color: var(--pri-ink); opacity: 0; transform: scale(.4); transition: opacity var(--t-fast) ease, transform var(--t-med) var(--ease-spring); }
+.wl-choice[aria-checked="true"] .wl-tick { opacity: 1; transform: none; }
+/* پیش‌نمایش کوچک پوسته‌ها؛ رنگ‌هایشان عمداً ثابت است چون خود پوسته را نشان می‌دهند */
+.wl-win { --w-bg: #FFFFFF; --w-side: #EFEEEA; --w-ln: #D3D1CA; display: grid; grid-template-columns: 26% 1fr; grid-template-rows: repeat(2, 1fr); gap: 5px; width: 100%; max-width: 120px; height: 58px; padding: 6px; border-radius: 10px; border: 1px solid var(--line2); background: var(--w-bg); }
+.wl-win.dark { --w-bg: #141614; --w-side: #0B0C0B; --w-ln: #383C38; }
+.wl-win.auto { background: linear-gradient(115deg, #FFFFFF 50%, #141614 50%); --w-side: #9DA39E; --w-ln: #9DA39E; }
+.wl-win i { display: block; border-radius: 4px; background: var(--w-ln); }
+.wl-win i:first-child { grid-row: span 2; background: var(--w-side); }
+.wl-win i:nth-child(3) { width: 60%; }
+
+.wl-keys { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 8px; font-size: 14.5px; color: var(--mute); }
+.wl-keys span { display: inline-flex; align-items: center; gap: 8px; }
+.wl-ft { display: flex; align-items: center; gap: 10px; max-width: 600px; padding-top: 12px; }
+.wl-primary { min-width: 200px; }
+
+@media (max-width: 767px) {
+  .wl { flex-direction: column; overflow-y: auto; }
+  .wl-hero { order: 0; flex: 0 0 auto; height: 220px; transition: height var(--t-med) var(--ease-out); }
+  /* بعد از قدم اول، تصویر بالا جمع می‌شود تا فرم روی گوشی جا شود */
+  .wl.later .wl-hero { height: 112px; }
+  .wl.later .wl-float { visibility: hidden; }
+  .wl.later .wl-key { scale: .62; }
+  .wl-hero-ft, .wl-float.f3 { display: none; }
+  .wl-key { height: 76px; min-width: 150px; padding: 0 22px; font-size: 36px; border-radius: 16px; box-shadow: inset 0 0 0 4px var(--pc), inset 0 0 0 8px rgba(255, 255, 255, .92), 0 30px 60px -26px rgba(0, 0, 0, .6); }
+  .wl-float { padding: 7px 10px; border-radius: 13px; scale: .82; }
+  .wl-float.f1 { top: 9%; right: 3%; }
+  .wl-float.f2 { bottom: 9%; left: 2%; }
+  .wl-main { flex: 1 0 auto; overflow: visible; padding: 14px 18px 0; }
+  .wl-body { justify-content: flex-start; gap: 12px; padding: 14px 0 18px; }
+  .wl-h { font-size: 27px; }
+  .wl-lead { font-size: 16px; line-height: 1.85; }
+  .wl-points b { font-size: 16px; }
+  .wl-pi { width: 44px; height: 44px; border-radius: 14px; }
+  .wl-choices { gap: 8px; }
+  .wl-choices.two { grid-template-columns: minmax(0, 1fr); }
+  .wl-choice { padding: 12px 6px 10px; border-radius: 16px; }
+  .wl-choice-l { font-size: 14px; }
+  .wl-ft { position: sticky; bottom: 0; margin: 0 -18px; padding: 12px 18px max(14px, env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line); }
+  .wl-ft .btn-lg { height: 54px; }
+  .wl-primary { flex: 1; min-width: 0; }
+}

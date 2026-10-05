@@ -44,7 +44,8 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | Photos | `apps/web/src/photos/*` | resize in a Worker (`resize.worker.ts`: 1600px WebP + 400px thumb), `photoUrl` blob-URL cache keyed by photo id, `useCoverThumbs`, `PhotoGallery` + lightbox on `FileDetail`; bytes live in the `photos` table (migration 2) |
 | Jalali calendar | `packages/core/src/jalali.ts` | day keys (`yyyy-mm-dd`, Tehran), `jalaliOf`, `jalaliMonthDays`, `tehranIso` / `tehranTimeOf` — `Intl` + `formatToParts` only, no library |
 | Visits | `apps/web/src/visits/*` | `VisitDialog` (add/edit; Today, FileDetail, client panel) and keyboard `JalaliPicker` |
-| Prefs | `apps/web/src/prefs.ts` | theme light/dark/auto, text size → `--zoom`; applied pre-paint in `index.html` |
+| Prefs | `apps/web/src/prefs.ts` | theme light/dark/auto, text size → `--zoom`; applied pre-paint in `index.html`; user/office name and `welcomed` flag (localStorage until phase 2 login) |
+| Welcome | `apps/web/src/welcome/` | first-run 4-step intro over the app (name, text size/theme live, keep or clear sample data); re-open from Settings. e2e skips it via `storageState` in `playwright.config.ts` |
 | Branding | `scripts/icons.cjs` → `apps/desktop/build/` (icon.ico, NSIS BMPs), `apps/web/public/` (favicon, PWA PNGs) | generated with the project's Electron from the plaque design; run `npm run icons` after changing it and commit the output |
 | PWA | `apps/web/vite.config.ts` (`vite-plugin-pwa`), `main.tsx` | manifest (fa, rtl, emerald, 192/512/maskable), Workbox precache of shell + wasm + fonts; SW registered only in production web builds, never when `window.kelid` exists |
 | Phone layout | `app.css` (`@media (max-width: 767px)`), `layout/usePhone.ts`, `Shell` `.mtab` | sidebar hidden, bottom tab bar with new-file FAB; `usePhone` for behavior (Files: tap opens the file; Clients: list *or* profile). Keep the CSS breakpoint and `usePhone` in sync |
