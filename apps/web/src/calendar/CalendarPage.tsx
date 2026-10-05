@@ -1,238 +1,210 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Icon, Segmented } from '@kelid/ui';
+import { Icon, Plaque } from '@kelid/ui';
 import {
-  JALALI_MONTHS, addDays, addJalaliMonths, formatJalaliDay, jalaliMonthDays, jalaliOf, minutesToHhmm, tehranAt, tehranDayKey,
-  toFaDigits, weekStart, weekdayIndex, type Listing, type Visit, type VisitKind,
+  JALALI_MONTHS, addDays, addJalaliMonths, formatJalaliDay, formatTime, jalaliMonthDays, jalaliOf, tehranDayKey,
+  toFaDigits, weekStart, weekdayIndex, type Client, type Listing, type Visit, type VisitKind,
 } from '@kelid/core';
-import { useQuery, useSlow, useStore } from '../data';
+import { useQuery, useSlow } from '../data';
 import { calendarQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
-import { useToast } from '../layout/Toasts';
-import { usePhone } from '../layout/usePhone';
 import { VisitDialog, type VisitPreset } from '../visits/VisitDialog';
-import { MonthGrid } from './MonthGrid';
-import { TimeGrid, place, type Placed } from './TimeGrid';
-import { KIND, dayName, faTime, useNow, validDay } from './time';
+import { KIND, dayName, useNow, validDay } from './time';
 import './calendar.css';
 
-type View = 'day' | 'week' | 'month';
 const WEEK_SHORT = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
 
-/** بازهٔ داده و خانه‌های جدول برای هر نما. نمای روز هم کل هفته را می‌خواند تا نوار هفته نقطه‌هایش را داشته باشد. */
-function rangeOf(view: View, anchor: string): { from: string; days: number } {
-  if (view !== 'month') return { from: weekStart(anchor), days: 7 };
-  const month = jalaliMonthDays(anchor);
-  const from = weekStart(month[0]!);
-  const to = addDays(weekStart(month.at(-1)!), 7);
-  return { from, days: Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) };
+/** خانه‌های جدول ماه: از شنبهٔ هفتهٔ اول تا جمعهٔ هفتهٔ آخر. */
+function monthCells(key: string): string[] {
+  const days = jalaliMonthDays(key);
+  const from = weekStart(days[0]!);
+  const to = addDays(weekStart(days.at(-1)!), 7);
+  const n = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
+  return Array.from({ length: n }, (_, i) => addDays(from, i));
 }
 
-function title(view: View, anchor: string, today: string): { eyebrow: string; head: string } {
-  const j = jalaliOf(anchor);
-  if (view === 'month') return { eyebrow: 'تقویم', head: `${JALALI_MONTHS[j.m - 1]} ${toFaDigits(j.y)}` };
-  if (view === 'day') return { eyebrow: dayName(anchor, today) === formatJalaliDay(anchor) ? `${JALALI_MONTHS[j.m - 1]} ${toFaDigits(j.y)}` : dayName(anchor, today), head: formatJalaliDay(anchor) };
-  const a = jalaliOf(weekStart(anchor));
-  const b = jalaliOf(addDays(weekStart(anchor), 6));
-  const head = a.m === b.m
-    ? `${toFaDigits(a.d)} تا ${toFaDigits(b.d)} ${JALALI_MONTHS[a.m - 1]}`
-    : `${toFaDigits(a.d)} ${JALALI_MONTHS[a.m - 1]} تا ${toFaDigits(b.d)} ${JALALI_MONTHS[b.m - 1]}`;
-  return { eyebrow: `تقویم · ${toFaDigits(b.y)}`, head };
-}
-
-/** «۵ بازدید، ۲ تماس و ۱ قرارداد» */
-function summary(list: Placed[]): string {
+/** «۳ بازدید و ۱ تماس» */
+function summary(list: Visit[]): string {
   const order: VisitKind[] = ['visit', 'call', 'signing', 'task'];
-  const parts = order.map((k) => [k, list.filter((p) => p.v.kind === k).length] as const).filter(([, c]) => c > 0).map(([k, c]) => `${toFaDigits(c)} ${KIND[k].label}`);
+  const parts = order.map((k) => [k, list.filter((v) => v.kind === k).length] as const).filter(([, c]) => c > 0).map(([k, c]) => `${toFaDigits(c)} ${KIND[k].label}`);
   if (parts.length === 0) return '';
   return parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join('، ')} و ${parts.at(-1)}`;
 }
 
+/**
+ * تقویم ساده: یک ماه در یک نگاه و برنامهٔ روزِ انتخاب‌شده کنارش، به ترتیب ساعت.
+ * جدول ساعت و کشیدن و رها کردن عمداً نیست؛ برای جابه‌جایی، روی قرار بزنید و روز یا ساعتش را عوض کنید.
+ */
 export function CalendarPage() {
-  const phone = usePhone();
-  const store = useStore();
-  const toast = useToast();
   const now = useNow();
   const today = tehranDayKey(new Date(now));
   const [params, setParams] = useSearchParams();
-  const raw = params.get('v');
-  // روی گوشی جدول هفت‌ستونه جا نمی‌شود؛ «هفته» همان روز با نوار هفته است.
-  const view: View = raw === 'month' ? 'month' : phone || raw === 'day' ? 'day' : 'week';
-  const anchor = validDay(params.get('d')) ?? today;
-  const [dir, setDir] = useState(0);
+  const day = validDay(params.get('d')) ?? today;
   const [dialog, setDialog] = useState<{ visit?: Visit; preset?: VisitPreset } | null>(null);
 
-  const range = rangeOf(view, anchor);
-  const q = calendarQuery(range.from, range.days);
+  const cells = monthCells(day);
+  const q = calendarQuery(cells[0]!, cells.length);
   const data = useQuery(q.key, q.fn);
-  // هنگام رفتن به هفتهٔ دیگر، تا دادهٔ تازه برسد همان قبلی می‌ماند؛ صفحه خالی نمی‌شود.
+  // هنگام رفتن به ماه دیگر، تا دادهٔ تازه برسد همان قبلی می‌ماند؛ صفحه خالی نمی‌شود.
   const [shown, setShown] = useState(data);
   if (data && data !== shown) setShown(data);
-  const view0 = data ?? shown;
-  const slow = useSlow(!view0);
+  const view = data ?? shown;
+  const slow = useSlow(!view);
 
-  const go = (key: string, v: View = view, d = 0) => {
-    setDir(d);
-    setParams((p) => {
-      const n = new URLSearchParams(p);
-      n.set('d', key);
-      n.set('v', v);
-      return n;
-    }, { replace: true });
-  };
-  const step = (n: number) => {
-    const next = view === 'month' ? addJalaliMonths(anchor, n) : addDays(anchor, view === 'week' ? 7 * n : n);
-    go(next, view, n);
-  };
+  const pick = (key: string) => setParams((p) => {
+    const n = new URLSearchParams(p);
+    n.set('d', key);
+    n.delete('v');
+    return n;
+  }, { replace: true });
 
-  // ←/→ دوره‌ی بعد و قبل (راست‌به‌چپ: چپ یعنی بعد)، T یا «ت» برگشت به امروز.
-  const stepRef = useRef(step);
-  const goRef = useRef(go);
+  // ←/→ روز بعد و قبل (راست‌به‌چپ: چپ یعنی بعد)
+  const dayRef = useRef(day);
   useEffect(() => {
-    stepRef.current = step;
-    goRef.current = go;
+    dayRef.current = day;
   });
   useEffect(() => {
     if (dialog) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
-      const t = e.target as HTMLElement;
-      if (t.closest('input, select, textarea, [role="dialog"]')) return;
-      if (e.key === 'ArrowLeft') stepRef.current(1);
-      else if (e.key === 'ArrowRight') stepRef.current(-1);
-      else if (e.key === 't' || e.key === 'T' || e.key === 'ف') goRef.current(tehranDayKey());
+      if ((e.target as HTMLElement).closest('input, select, textarea, [role="dialog"]')) return;
+      if (e.key === 'ArrowLeft') pick(addDays(dayRef.current, 1));
+      else if (e.key === 'ArrowRight') pick(addDays(dayRef.current, -1));
       else return;
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+    // pick فقط setParams را صدا می‌زند که ثابت است
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialog]);
 
-  if (!view0) return slow ? <PageSkeleton /> : null;
+  if (!view) return slow ? <PageSkeleton /> : null;
 
-  const listings = new Map<string, Listing>(view0.listings.map((l) => [l.id, l]));
-  const placed = view0.visits.map(place);
-  const { eyebrow, head } = title(view, anchor, today);
-  const visible = view === 'day' ? placed.filter((p) => p.day === anchor) : view === 'week' ? placed : placed.filter((p) => jalaliOf(p.day).m === jalaliOf(anchor).m);
-  const sum = summary(visible);
-  const periodWord = view === 'day' ? (anchor === today ? 'امروز' : 'این روز') : view === 'week' ? 'این هفته' : 'این ماه';
-
-  const onMove = async (v: Visit, day: string, start: number, end: number) => {
-    const startsAt = tehranAt(day, start);
-    const endsAt = end >= 24 * 60 ? new Date(Date.parse(tehranAt(day, 0)) + 86_400_000).toISOString() : tehranAt(day, end);
-    const before = { startsAt: v.startsAt, endsAt: v.endsAt };
-    try {
-      await store.updateVisit(v.id, { startsAt, endsAt });
-    } catch {
-      toast('جابه‌جا نشد؛ دوباره تلاش کنید.');
-      return;
-    }
-    toast(`${v.title} · ${dayName(day, today)} ساعت ${faTime(start)} تا ${faTime(end)}`, { label: 'برگرداندن', run: () => void store.updateVisit(v.id, before) });
-  };
-  const open = (visit: Visit) => setDialog({ visit });
-  const create = (day: string, minutes?: number) => setDialog({ preset: { day, time: minutes === undefined ? undefined : minutesToHhmm(minutes) } });
-
-  const views: Array<{ value: View; label: string }> = phone
-    ? [{ value: 'day', label: 'روز' }, { value: 'month', label: 'ماه' }]
-    : [{ value: 'day', label: 'روز' }, { value: 'week', label: 'هفته' }, { value: 'month', label: 'ماه' }];
-  const isNow = view === 'month' ? jalaliOf(anchor).m === jalaliOf(today).m && jalaliOf(anchor).y === jalaliOf(today).y : view === 'week' ? weekStart(anchor) === weekStart(today) : anchor === today;
-  const stepLabel = view === 'month' ? 'ماه' : view === 'week' ? 'هفته' : 'روز';
-  const anim = dir > 0 ? 'cal-in-next' : dir < 0 ? 'cal-in-prev' : '';
-  const monthCells = view === 'month' ? Array.from({ length: range.days }, (_, i) => addDays(range.from, i)) : [];
+  const listings = new Map<string, Listing>(view.listings.map((l) => [l.id, l]));
+  const clients = new Map<string, Client>(view.clients.map((c) => [c.id, c]));
+  const byDay = new Map<string, Visit[]>();
+  for (const v of [...view.visits].sort((a, b) => a.startsAt.localeCompare(b.startsAt))) {
+    const k = tehranDayKey(new Date(v.startsAt));
+    byDay.set(k, [...(byDay.get(k) ?? []), v]);
+  }
+  const list = byDay.get(day) ?? [];
+  const sum = summary(list);
+  const next = list.length === 0 ? cells.find((c) => c > day && (byDay.get(c)?.length ?? 0) > 0) : undefined;
+  const j = jalaliOf(day);
+  const nowIso = new Date(now).toISOString();
+  // خط «اکنون» پیش از اولین قراری که هنوز نرسیده
+  const nowAt = day === today ? list.findIndex((v) => v.startsAt > nowIso) : -1;
+  const label = dayName(day, today);
 
   return (
     <div className="calpage">
       <div className="hd cal-hd">
         <div className="col" style={{ gap: 4, minWidth: 0 }}>
-          <span className="eb">{eyebrow}</span>
-          <h1 className="t1" aria-live="polite">{head}</h1>
-          <span className="mute sm">{sum ? <>{periodWord} <b style={{ color: 'var(--ink)' }}>{sum}</b> دارید.</> : `${periodWord} قراری ثبت نشده.`}</span>
+          <span className="eb">تقویم</span>
+          <h1 className="t1" aria-live="polite">{label === formatJalaliDay(day) ? label : `${label}، ${formatJalaliDay(day)}`}</h1>
+          <span className="mute sm">{sum ? <>{day === today ? 'امروز' : 'این روز'} <b style={{ color: 'var(--ink)' }}>{sum}</b> دارید.</> : 'قراری ثبت نشده.'}</span>
         </div>
         <span className="sp" />
-        <div className="cal-ctl">
-          <Segmented<View> label="نمای تقویم" value={view} onChange={(v) => go(anchor, v)} options={views} />
-          <div className="cal-step" role="group" aria-label="جابه‌جایی در تقویم">
-            <button type="button" className="ib ghost" aria-label={`${stepLabel} قبل`} onClick={() => step(-1)}><Icon name="chr" /></button>
-            <button type="button" className="cal-today" aria-pressed={isNow} onClick={() => go(today, view, Date.parse(today) > Date.parse(anchor) ? 1 : -1)}>امروز</button>
-            <button type="button" className="ib ghost" aria-label={`${stepLabel} بعد`} onClick={() => step(1)}><Icon name="chl" /></button>
-          </div>
-          <button type="button" className="btn btn-p cal-new" onClick={() => create(view === 'month' || anchor !== today ? anchor : today)}>
-            <Icon name="plus" size="s" thick />
-            قرار تازه
-          </button>
-        </div>
+        <button type="button" className="btn btn-p cal-new" onClick={() => setDialog({ preset: { day } })}>
+          <Icon name="plus" size="s" thick />
+          قرار تازه
+        </button>
       </div>
 
-      {view === 'day' && <WeekStrip anchor={anchor} today={today} visits={placed} listings={listings} onPick={(d) => go(d, 'day', Math.sign(Date.parse(d) - Date.parse(anchor)))} onWeek={(n) => go(addDays(anchor, 7 * n), 'day', n)} />}
-
-      <div key={`${view}:${view === 'month' ? range.from : view === 'week' ? weekStart(anchor) : anchor}`} className={`cal-stage ${anim}`}>
-        {view === 'month' ? (
-          <MonthGrid cells={monthCells} month={jalaliOf(anchor).m} visits={placed} listings={listings} today={today} compact={phone} onOpen={open} onCreate={(d) => create(d)} onMove={onMove} onDay={(d) => go(d, 'day')} />
-        ) : (
-          <TimeGrid
-            days={view === 'week' ? Array.from({ length: 7 }, (_, i) => addDays(weekStart(anchor), i)) : [anchor]}
-            visits={placed}
-            listings={listings}
-            today={today}
-            now={now}
-            hourPx={phone ? 64 : 58}
-            showHead={view === 'week'}
-            onOpen={open}
-            onCreate={create}
-            onMove={onMove}
-            onDay={(d) => go(d, 'day')}
-          />
-        )}
-        {view !== 'month' && visible.length === 0 && (
-          <div className="cal-empty" aria-hidden="true">
-            <Icon name="cal" />
-            <span className="sb">{view === 'week' ? 'هفتهٔ آرامی است' : 'روز آزادی است'}</span>
-            <span className="xs mute">{phone ? 'روی هر ساعت بزنید تا قرار تازه ثبت شود.' : 'روی هر ساعت کلیک کنید تا قرار تازه ثبت شود.'}</span>
+      <div className="bd"><div className="cal-body">
+        <section className="card cal-month" aria-label={`${JALALI_MONTHS[j.m - 1]} ${toFaDigits(j.y)}`}>
+          <div className="cal-mhd">
+            <button type="button" className="ib ghost" aria-label="ماه قبل" onClick={() => pick(addJalaliMonths(day, -1))}><Icon name="chr" /></button>
+            <b className="cal-mname">{JALALI_MONTHS[j.m - 1]} <span className="num">{toFaDigits(j.y)}</span></b>
+            <button type="button" className="ib ghost" aria-label="ماه بعد" onClick={() => pick(addJalaliMonths(day, 1))}><Icon name="chl" /></button>
           </div>
-        )}
-      </div>
+          <div className="cal-wk" aria-hidden="true">
+            {WEEK_SHORT.map((w, i) => <span key={w} className={i === 6 ? 'fri' : ''}>{w}</span>)}
+          </div>
+          <div key={cells[0]} className="cal-days">
+            {cells.map((c) => {
+              const n = byDay.get(c)?.length ?? 0;
+              const out = jalaliOf(c).m !== j.m;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  className={`cal-d${c === today ? ' today' : ''}${out ? ' out' : ''}${weekdayIndex(c) === 6 ? ' fri' : ''}`}
+                  aria-pressed={c === day}
+                  aria-label={`${formatJalaliDay(c)}${n ? `، ${toFaDigits(n)} قرار` : ''}`}
+                  onClick={() => pick(c)}
+                >
+                  <span className="num">{toFaDigits(jalaliOf(c).d)}</span>
+                  <span className="cal-dots">{Array.from({ length: Math.min(n, 3) }, (_, i) => <i key={i} />)}</span>
+                </button>
+              );
+            })}
+          </div>
+          {day !== today && (
+            <button type="button" className="lnk sm cal-back" onClick={() => pick(today)}>برگشت به امروز</button>
+          )}
+        </section>
 
-      {!phone && view !== 'month' && (
-        <p className="cal-tip xs faint">
-          قرارها را با موس به روز و ساعت دیگر بکشید، یا از لبهٔ پایینشان بلندتر کنید. <span className="kbd">←</span> <span className="kbd">→</span> هفتهٔ بعد و قبل، <span className="kbd">T</span> امروز.
-        </p>
-      )}
+        <section key={day} className="card cal-list enter" aria-label={`برنامهٔ ${formatJalaliDay(day)}`}>
+          {list.length === 0 ? (
+            <div className="cal-empty">
+              <span className="cal-empty-i"><Icon name="cal" size="l" /></span>
+              <b>{day === today ? 'امروز قراری ندارید' : 'برای این روز قراری ندارید'}</b>
+              <button type="button" className="btn btn-s" onClick={() => setDialog({ preset: { day } })}>
+                <Icon name="plus" size="s" />
+                ثبت قرار برای این روز
+              </button>
+              {next && (
+                <button type="button" className="lnk sm" onClick={() => pick(next)}>
+                  قرار بعدی: {dayName(next, today)}
+                </button>
+              )}
+            </div>
+          ) : (
+            list.map((v, i) => {
+              const l = v.listingId ? listings.get(v.listingId) : undefined;
+              const c = v.clientId ? clients.get(v.clientId) : undefined;
+              const past = v.done || v.endsAt < nowIso;
+              return (
+                <div key={v.id}>
+                  {i === nowAt && <NowLine />}
+                  <div className={`cal-row${past ? ' past' : ''}`}>
+                    <span className="cal-time num">{formatTime(v.startsAt)}</span>
+                    <button type="button" className="cal-main" onClick={() => setDialog({ visit: v })} aria-label={`${KIND[v.kind].label}: ${v.title}، ساعت ${formatTime(v.startsAt)}. برای ویرایش بزنید`}>
+                      <b className="cal-title">{v.title}</b>
+                      <span className="xs mute rw" style={{ gap: 8, flexWrap: 'wrap' }}>
+                        <span className="cal-kind"><Icon name={KIND[v.kind].icon} size="s" />{KIND[v.kind].label}</span>
+                        {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
+                        {l ? `${l.neighborhood}، ${l.street}` : c ? c.name : ''}
+                        {v.done && <span>· انجام شد</span>}
+                      </span>
+                    </button>
+                    {c?.phone && (
+                      <a className="ib" href={`tel:${c.phone}`} aria-label={`تماس با ${c.name}`} style={{ width: 44, height: 44 }}>
+                        <Icon name="phone" size="s" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          {nowAt === -1 && day === today && list.length > 0 && <NowLine />}
+        </section>
+      </div></div>
 
       {dialog && <VisitDialog visit={dialog.visit} preset={dialog.preset} onClose={() => setDialog(null)} />}
     </div>
   );
 }
 
-/** نوار هفت‌روزهٔ بالای نمای روز؛ با کشیدن انگشت به چپ و راست هفته عوض می‌شود. */
-function WeekStrip({ anchor, today, visits, listings, onPick, onWeek }: { anchor: string; today: string; visits: Placed[]; listings: Map<string, Listing>; onPick: (d: string) => void; onWeek: (n: number) => void }) {
-  const start = weekStart(anchor);
-  const swipe = useRef<{ x: number; y: number } | null>(null);
-  const down = (e: PointerEvent) => {
-    swipe.current = { x: e.clientX, y: e.clientY };
-  };
-  const up = (e: PointerEvent) => {
-    const s = swipe.current;
-    swipe.current = null;
-    if (!s) return;
-    const dx = e.clientX - s.x;
-    // راست‌به‌چپ: هفتهٔ بعد سمت چپ است و با کشیدن به راست می‌آید
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(e.clientY - s.y) * 1.5) onWeek(dx > 0 ? 1 : -1);
-  };
+function NowLine() {
   return (
-    <div className="cal-strip" onPointerDown={down} onPointerUp={up} onPointerCancel={() => (swipe.current = null)}>
-      {Array.from({ length: 7 }, (_, i) => {
-        const d = addDays(start, i);
-        const mine = visits.filter((p) => p.day === d);
-        return (
-          <button key={d} type="button" className={`cal-sd${d === today ? ' today' : ''}${weekdayIndex(d) === 6 ? ' fri' : ''}`} aria-pressed={d === anchor} aria-label={`${formatJalaliDay(d)}${mine.length ? `، ${toFaDigits(mine.length)} قرار` : ''}`} onClick={() => onPick(d)}>
-            <span className="cal-sd-w">{WEEK_SHORT[i]}</span>
-            <span className="cal-sd-n num">{toFaDigits(jalaliOf(d).d)}</span>
-            <span className="cal-dots">
-              {mine.slice(0, 3).map((p) => <i key={p.v.id} className={`d-${(p.v.listingId && listings.get(p.v.listingId)?.deal) || 'none'}`} />)}
-            </span>
-          </button>
-        );
-      })}
+    <div className="cal-now" aria-hidden="true">
+      <span className="num xs b">اکنون</span>
+      <i />
+      <span className="sp" />
     </div>
   );
 }

@@ -1,186 +1,60 @@
-/* تقویم: جدول ساعت‌ها (روز و هفته) و نمای ماه. رنگ هر قرار همان رنگ پلاک فایلش است؛ قرار بی‌فایل خنثی. */
-.calpage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.cal-hd { align-items: flex-end; }
-.cal-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.cal-step { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); }
-.cal-step .ib { width: 40px; height: 40px; border-radius: 10px; }
-.cal-today { height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; font-weight: 700; font-size: 14.5px; color: var(--ink2); transition: background-color var(--t-fast) ease, color var(--t-fast) ease; }
-.cal-today:hover { background: var(--sunk); }
-.cal-today[aria-pressed="true"] { color: var(--pri-text); }
+/* تقویم ساده: جدول ماه کنار برنامهٔ روز. روی گوشی زیر هم. */
+.calpage { display: flex; flex-direction: column; }
+.cal-new { height: 46px; padding: 0 18px; }
+.cal-body { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: 24px; align-items: start; }
 
-.cal-stage { position: relative; margin: 0 28px; }
-.cal-in-next { animation: kl-cal-next 300ms var(--ease-expo) both; }
-.cal-in-prev { animation: kl-cal-prev 300ms var(--ease-expo) both; }
-@keyframes kl-cal-next { from { opacity: 0; transform: translateX(-26px); } }
-@keyframes kl-cal-prev { from { opacity: 0; transform: translateX(26px); } }
+/* ── جدول ماه ── */
+.cal-month { padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+.cal-mhd { display: flex; align-items: center; gap: 6px; }
+.cal-mhd .ib { width: 40px; height: 40px; }
+.cal-mname { flex: 1; text-align: center; font-size: 17px; }
+.cal-wk, .cal-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-wk span { text-align: center; font-size: 13px; font-weight: 600; color: var(--mute); padding: 2px 0; }
+.cal-wk .fri { color: var(--bad); }
+.cal-days { animation: kl-cal-fade 220ms var(--ease-out) both; }
+@keyframes kl-cal-fade { from { opacity: 0; } }
+.cal-d {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  aspect-ratio: 1; min-height: 40px; border: 0; border-radius: 12px; background: transparent; color: var(--ink);
+  font-size: 16px; transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+.cal-d:hover { background: var(--sunk); }
+.cal-d.out { color: var(--faint); }
+.cal-d.fri:not(.out) { color: var(--bad); }
+.cal-d.today { box-shadow: inset 0 0 0 2px var(--pri); font-weight: 700; }
+.cal-d[aria-pressed="true"] { background: var(--pri); color: var(--pri-ink); font-weight: 700; }
+.cal-dots { display: flex; gap: 3px; height: 5px; }
+.cal-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--brass); }
+.cal-d[aria-pressed="true"] .cal-dots i { background: var(--pri-ink); }
+.cal-back { align-self: center; border: 0; background: none; padding: 6px 10px; min-height: 40px; }
 
-/* ── جدول ساعت‌ها ── */
-.cal-scroll {
-  position: relative; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
-  max-height: max(440px, calc(100vh - 262px)); border: 1px solid var(--line); border-radius: 18px; background: var(--paper);
-  box-shadow: 0 1px 2px rgba(18, 20, 18, .03), 0 18px 40px -34px rgba(18, 20, 18, .35);
+/* ── برنامهٔ روز ── */
+.cal-list { padding: 8px 20px; min-height: 320px; }
+.cal-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+.cal-list > div:first-child .cal-row { border-top: 0; }
+.cal-row.past { opacity: .55; }
+.cal-time { width: 58px; flex: none; font-size: 18px; font-weight: 700; color: var(--ink); }
+.cal-main {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 6px 10px; margin: -6px -10px;
+  border: 0; border-radius: 12px; background: transparent; text-align: right; color: inherit; transition: background-color var(--t-fast) ease;
 }
-.cal-grid { --gut: 58px; min-width: calc(var(--gut) + var(--n) * 92px); }
-.cal-head, .cal-body { display: grid; grid-template-columns: var(--gut) repeat(var(--n), minmax(0, 1fr)); }
-.cal-head {
-  position: sticky; top: 0; z-index: 8; border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper) 96%, transparent); backdrop-filter: blur(10px);
-}
-.cal-dh {
-  display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 4px 9px; border: 0; background: transparent;
-  border-inline-start: 1px solid var(--line); transition: background-color var(--t-fast) ease;
-}
-.cal-dh:hover { background: var(--paper2); }
-.cal-dh-w { font-size: 12.5px; font-weight: 600; color: var(--mute); }
-.cal-dh-n { display: grid; place-items: center; min-width: 38px; height: 38px; padding: 0 6px; border-radius: 99px; font-size: 21px; font-weight: 400; line-height: 1; color: var(--ink); }
-.cal-dh-m { font-size: 11.5px; color: var(--faint); min-height: 17px; }
-.cal-dh.today .cal-dh-w { color: var(--pri-text); }
-.cal-dh.today .cal-dh-n { background: var(--pri); color: var(--pri-ink); font-weight: 700; box-shadow: 0 8px 18px -10px var(--pri); }
-.cal-dh.fri .cal-dh-w, .cal-dh.fri:not(.today) .cal-dh-n { color: var(--bad); }
+.cal-main:hover { background: var(--sunk); }
+.cal-title { font-size: 16.5px; line-height: 1.5; }
+.cal-kind { display: inline-flex; align-items: center; gap: 4px; color: var(--pri-text); font-weight: 600; }
+.cal-now { display: flex; align-items: center; gap: 12px; padding: 4px 0; color: var(--brass-text); }
+.cal-now span:first-child { width: 58px; }
+.cal-now i { width: 9px; height: 9px; border-radius: 50%; background: var(--brass); }
+.cal-now .sp { height: 1px; background: var(--brass); }
+.cal-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 300px; text-align: center; font-size: 16px; }
+.cal-empty-i { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: var(--pri-tint); color: var(--pri-text); }
+.cal-empty .lnk { border: 0; background: none; min-height: 40px; }
 
-.cal-body { position: relative; }
-.cal-gutter { position: relative; }
-.cal-gutter > span { position: absolute; inset-inline-end: 10px; transform: translateY(-50%); font-size: 12px; color: var(--faint); white-space: nowrap; }
-.cal-gutter > .cal-now-t { inset-inline-end: 4px; z-index: 3; height: 20px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 99px; background: var(--brass); color: #FFFFFF; font-size: 11.5px; font-weight: 700; }
-
-.cal-col {
-  position: relative; border-inline-start: 1px solid var(--line); cursor: default;
-  background-image:
-    repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px var(--hour)),
-    repeating-linear-gradient(to bottom, transparent 0 calc(var(--hour) / 2), color-mix(in srgb, var(--line) 50%, transparent) calc(var(--hour) / 2) calc(var(--hour) / 2 + 1px), transparent calc(var(--hour) / 2 + 1px) var(--hour));
-  transition: background-color var(--t-med) ease;
-}
-.cal-col.fri { background-color: color-mix(in srgb, var(--sunk) 55%, transparent); }
-.cal-col.today { background-color: color-mix(in srgb, var(--pri-tint) 42%, transparent); }
-.cal-col.drop { background-color: color-mix(in srgb, var(--pri-tint) 70%, transparent); }
-
-.cal-ghost {
-  position: absolute; inset-inline: 3px; z-index: 0; display: flex; align-items: center; gap: 5px; padding: 0 9px;
-  border: 1.5px dashed var(--line2); border-radius: 10px; color: var(--mute); font-size: 12.5px; font-weight: 600; pointer-events: none;
-  animation: kl-fadein 120ms ease both;
-}
-.cal-origin { position: absolute; inset-inline: 3px; border: 1.5px dashed var(--line2); border-radius: 10px; pointer-events: none; }
-
-/* هر قرار: کاشی رنگی با نوار رنگ پلاک در لبهٔ شروع */
-.cal-ev {
-  --pc: var(--ink2);
-  position: absolute; z-index: 1; display: flex; flex-direction: column; align-items: stretch; gap: 1px; overflow: hidden;
-  padding: 5px 9px 6px 8px; border: 0; border-inline-start: 3px solid var(--pc); border-radius: 10px;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--pc) 17%, var(--paper)), color-mix(in srgb, var(--pc) 9%, var(--paper))); color: var(--ink); text-align: right; font-size: 13px; line-height: 1.45;
-  box-shadow: 0 1px 2px rgba(18, 20, 18, .05); cursor: grab; user-select: none; -webkit-user-select: none; touch-action: manipulation;
-  transition: box-shadow var(--t-med) var(--ease-out), transform var(--t-med) var(--ease-out), opacity var(--t-med) ease;
-  animation: kl-cal-ev 260ms var(--ease-out) both;
-}
-@keyframes kl-cal-ev { from { opacity: 0; transform: scale(.96); } }
-.cal-ev:hover { z-index: 4; box-shadow: 0 2px 4px rgba(18, 20, 18, .06), 0 14px 26px -16px rgba(18, 20, 18, .45); transform: translateY(-1px); }
-.cal-ev.d-sale, .cal-chip.d-sale, .cal-dots .d-sale { --pc: var(--sale); }
-.cal-ev.d-rent, .cal-chip.d-rent, .cal-dots .d-rent { --pc: var(--rent); }
-.cal-ev.d-full, .cal-chip.d-full, .cal-dots .d-full { --pc: var(--full); }
-.cal-ev-hd { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: color-mix(in srgb, var(--pc) 78%, var(--ink)); white-space: nowrap; }
-.cal-ev-t { font-weight: 600; font-size: 13.5px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.cal-ev-l { font-size: 12px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cal-ev.short { flex-direction: row; align-items: center; gap: 6px; padding-block: 2px; }
-.cal-ev.short .cal-ev-t { -webkit-line-clamp: 1; font-size: 12.5px; }
-.cal-ev.done { opacity: .55; }
-.cal-ev.done .cal-ev-t { text-decoration: line-through; }
-.cal-ev.dragging {
-  z-index: 7; cursor: grabbing; opacity: 1; transform: scale(1.02);
-  box-shadow: 0 0 0 2px var(--pc), 0 24px 40px -18px rgba(18, 20, 18, .55);
-  transition: top 90ms var(--ease-out), height 90ms var(--ease-out), box-shadow var(--t-med) ease, transform var(--t-med) ease; animation: none;
-}
-.cal-ev-rs { position: absolute; inset-inline: 0; bottom: 0; height: 9px; cursor: ns-resize; }
-.cal-ev-rs::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 18px; height: 3px; margin-left: -9px; border-radius: 3px; background: var(--pc); opacity: 0; transition: opacity var(--t-fast) ease; }
-.cal-ev:hover .cal-ev-rs::after, .cal-ev.dragging .cal-ev-rs::after { opacity: .5; }
-.app.dark .cal-ev { background: linear-gradient(to bottom, color-mix(in srgb, var(--pc) 38%, var(--paper)), color-mix(in srgb, var(--pc) 24%, var(--paper))); }
-.app.dark .cal-chip { background: color-mix(in srgb, var(--pc) 30%, var(--paper)); }
-.app.dark .cal-ev.d-none, .app.dark .cal-chip.d-none { background: var(--sunk); }
-.app.dark .cal-ev-hd { color: color-mix(in srgb, var(--pc) 30%, var(--ink)); }
-
-/* خط «اکنون»: پررنگ در ستون امروز، کم‌رنگ در بقیهٔ هفته */
-.cal-now { position: absolute; inset-inline: 0; z-index: 5; height: 2px; margin-top: -1px; background: var(--brass); pointer-events: none; }
-.cal-now::before { content: ""; position: absolute; inset-inline-start: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 25%, transparent); }
-.cal-now-all { position: absolute; inset-inline-start: var(--gut); inset-inline-end: 0; height: 1px; background: var(--brass); opacity: .35; pointer-events: none; }
-
-.cal-empty {
-  position: absolute; top: 132px; left: 50%; z-index: 6; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 18px 26px; border: 1px solid var(--line); border-radius: 18px; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(6px);
-  box-shadow: var(--sh-lg); pointer-events: none; text-align: center; animation: kl-rise 360ms var(--ease-out) 120ms both;
-}
-.cal-empty .ic { width: 28px; height: 28px; color: var(--brass); margin-bottom: 4px; }
-.cal-tip { margin: 12px 28px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
-
-/* ── نمای ماه ── */
-.cal-month {
-  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; overflow: hidden; margin-bottom: 28px;
-  border: 1px solid var(--line); border-radius: 18px; background: var(--line);
-  box-shadow: 0 1px 2px rgba(18, 20, 18, .03), 0 18px 40px -34px rgba(18, 20, 18, .35);
-}
-.cal-mw { padding: 10px 6px; background: var(--paper2); text-align: center; font-size: 13px; font-weight: 600; color: var(--mute); }
-.cal-mw.fri { color: var(--bad); }
-.cal-cell { position: relative; display: flex; flex-direction: column; gap: 3px; min-width: 0; min-height: 124px; padding: 6px 6px 8px; background: var(--paper); cursor: pointer; transition: background-color var(--t-fast) ease, box-shadow var(--t-fast) ease; }
-.cal-cell:hover { background: var(--paper2); }
-/* روی روز خالی، نشانهٔ «قرار تازه» */
-.cal-month:not(.compact) .cal-cell::after { content: "+"; position: absolute; left: 8px; top: 7px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; font-size: 18px; color: var(--mute); background: var(--sunk); opacity: 0; transform: scale(.8); transition: opacity var(--t-fast) ease, transform var(--t-med) var(--ease-spring); }
-.cal-month:not(.compact) .cal-cell:hover::after { opacity: 1; transform: none; }
-.cal-month:not(.compact) .cal-cell:has(.cal-chip:hover, .cal-dn:hover, .cal-more:hover)::after { opacity: 0; }
-.cal-cell.out { background: var(--paper2); }
-.cal-cell.out > .cal-dn { opacity: .4; }
-.cal-cell.drop { background: var(--pri-tint); box-shadow: inset 0 0 0 2px var(--pri-text); }
-.cal-dn {
-  align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 30px; height: 30px; padding: 0 8px;
-  border: 0; border-radius: 99px; background: transparent; font-size: 14.5px; font-weight: 600; color: var(--ink); transition: background-color var(--t-fast) ease;
-}
-.cal-dn:hover { background: var(--sunk); }
-.cal-dn small { font-size: 12px; font-weight: 600; color: var(--brass-text); }
-.cal-cell.fri .cal-dn { color: var(--bad); }
-.cal-cell.today .cal-dn { background: var(--pri); color: var(--pri-ink); box-shadow: 0 8px 16px -10px var(--pri); }
-.cal-chip {
-  --pc: var(--ink2);
-  position: relative; display: flex; align-items: center; gap: 6px; width: 100%; height: 25px; padding: 0 7px; border: 0; border-inline-start: 3px solid var(--pc); border-radius: 7px;
-  background: color-mix(in srgb, var(--pc) 11%, var(--paper)); color: var(--ink); font-size: 12.5px; text-align: right; cursor: grab; user-select: none; -webkit-user-select: none;
-  transition: box-shadow var(--t-fast) ease;
-}
-.cal-chip:hover { box-shadow: 0 6px 14px -10px rgba(18, 20, 18, .5); }
-.cal-chip > .num { flex: none; font-size: 11.5px; font-weight: 700; color: color-mix(in srgb, var(--pc) 78%, var(--ink)); }
-.cal-chip-t { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; }
-.cal-chip.done { opacity: .55; text-decoration: line-through; }
-.cal-chip.dragging { z-index: 10; cursor: grabbing; box-shadow: 0 0 0 2px var(--pc), 0 18px 30px -14px rgba(18, 20, 18, .55); }
-.cal-more { align-self: flex-start; border: 0; background: transparent; padding: 2px 6px; border-radius: 6px; font-size: 12px; font-weight: 700; color: var(--pri-text); }
-.cal-more:hover { background: var(--sunk); }
-.cal-dots { display: flex; justify-content: center; gap: 3px; min-height: 6px; }
-.cal-dots i { --pc: var(--mute); width: 6px; height: 6px; border-radius: 50%; background: var(--pc); }
-
-/* ── نوار هفته (نمای روز) ── */
-.cal-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 0 28px 14px; touch-action: pan-y; }
-.cal-sd {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 8px; border: 1px solid var(--line); border-radius: 15px; background: var(--paper);
-  transition: background-color var(--t-med) var(--ease-out), color var(--t-med) ease, box-shadow var(--t-med) ease, transform var(--t-fast) ease;
-}
-.cal-sd:hover { background: var(--paper2); }
-.cal-sd:active { transform: scale(.95); }
-.cal-sd-w { font-size: 12px; font-weight: 600; color: var(--mute); }
-.cal-sd-n { font-size: 18px; font-weight: 600; line-height: 1.3; }
-.cal-sd.fri .cal-sd-w { color: var(--bad); }
-.cal-sd.today .cal-sd-n { color: var(--pri-text); font-weight: 800; }
-.cal-sd[aria-pressed="true"] { background: var(--pri); border-color: transparent; color: var(--pri-ink); box-shadow: 0 10px 20px -12px var(--pri); }
-.cal-sd[aria-pressed="true"] .cal-sd-w, .cal-sd[aria-pressed="true"] .cal-sd-n { color: var(--pri-ink); }
-.cal-sd[aria-pressed="true"] .cal-dots i { background: var(--pri-ink); opacity: .85; }
-
-/* ── گوشی ── */
 @media (max-width: 767px) {
-  .cal-hd { gap: 14px; }
-  .cal-ctl { width: 100%; gap: 8px; }
-  .cal-ctl .seg { flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
-  .cal-ctl .seg button { justify-content: center; }
-  .cal-new { height: 44px; padding: 0 14px; }
-  .cal-stage { margin: 0 12px; }
-  .cal-strip { margin: 0 12px 10px; gap: 4px; }
-  .cal-sd { border-radius: 13px; padding: 7px 0; }
-  .cal-scroll { max-height: calc(100dvh - 330px - env(safe-area-inset-bottom)); min-height: 360px; border-radius: 16px; }
-  .cal-grid { --gut: 48px; min-width: 0; }
-  .cal-empty { top: 90px; width: max-content; max-width: calc(100% - 32px); }
-  .cal-month { margin-bottom: 18px; border-radius: 16px; }
-  .cal-month.compact .cal-cell { min-height: 58px; align-items: center; padding: 5px 2px 7px; gap: 4px; }
-  .cal-month.compact .cal-dn { align-self: center; min-width: 32px; height: 32px; padding: 0; font-size: 15px; pointer-events: none; }
-  .cal-mw { padding: 8px 2px; }
+  .cal-body { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .cal-month { padding: 12px 10px 10px; }
+  .cal-d { aspect-ratio: auto; height: 44px; }
+  .cal-list { padding: 4px 14px; min-height: 0; }
+  .cal-empty { min-height: 200px; }
+  .cal-time { width: 50px; font-size: 16px; }
+  .cal-now span:first-child { width: 50px; }
 }
