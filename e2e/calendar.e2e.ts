@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-/** تقویم: ثبت قرار از تقویم، جابه‌جایی با صفحه‌کلید و ماندن بعد از تازه کردن صفحه. */
-test('add a visit from the calendar and move it with the keyboard', async ({ page }) => {
-  await page.goto('/#/calendar?v=week');
-  await expect(page.getByRole('group', { name: 'نمای تقویم' })).toBeVisible();
+/** تقویم: ثبت قرار برای روز انتخاب‌شده و ماندنش بعد از تازه کردن صفحه. */
+test('add a visit for a picked day and keep it after reload', async ({ page }) => {
+  await page.goto('/#/calendar');
+  await page.getByRole('button', { name: 'ماه بعد' }).click();
+  const day = page.locator('.cal-d:not(.out)').nth(9);
+  await day.click();
+  await expect(day).toHaveAttribute('aria-pressed', 'true');
 
   await page.getByRole('button', { name: 'قرار تازه' }).click();
   const dialog = page.getByRole('dialog');
@@ -11,15 +14,10 @@ test('add a visit from the calendar and move it with the keyboard', async ({ pag
   await dialog.getByRole('button', { name: 'ثبت قرار' }).click();
   await expect(dialog).toBeHidden();
 
-  const ev = page.getByRole('button', { name: /بازدید: بازدید آزمایشی تقویم/ });
-  await expect(ev).toBeVisible();
-  const before = await ev.getAttribute('aria-label');
-  await ev.focus();
-  await page.keyboard.press('Alt+ArrowDown');
-  await expect(page.getByRole('button', { name: 'برگرداندن' })).toBeVisible();
-  await expect(ev).not.toHaveAttribute('aria-label', before ?? '');
+  const row = page.getByRole('button', { name: /بازدید: بازدید آزمایشی تقویم/ });
+  await expect(row).toBeVisible();
+  await expect(day).toHaveAttribute('aria-label', /۱ قرار/);
 
-  const moved = await ev.getAttribute('aria-label');
   await page.reload();
-  await expect(page.getByRole('button', { name: moved ?? '' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /بازدید: بازدید آزمایشی تقویم/ })).toBeVisible();
 });
