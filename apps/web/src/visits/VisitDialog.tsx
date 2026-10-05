@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckBox, Icon, Segmented } from '@kelid/ui';
 import {
   addDays, formatJalaliDay, formatPlaque, listingTitle, tehranDayKey, tehranIso, tehranTimeOf, toEnDigits, toFaDigits,
@@ -6,6 +7,7 @@ import {
 } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { useToast } from '../layout/Toasts';
+import { usePhone } from '../layout/usePhone';
 import { JalaliPicker } from './JalaliPicker';
 
 const KINDS: Array<{ value: VisitKind; label: string }> = [
@@ -56,6 +58,8 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
   const [clientId, setClientId] = useState(visit?.clientId ?? preset?.clientId ?? '');
   const [done, setDone] = useState(visit?.done ?? false);
   const [error, setError] = useState('');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const phone = usePhone();
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstRef = useRef<HTMLInputElement>(null);
   // Enter دوباره یا دو کلیک سریع نباید دو قرار ثبت کند.
@@ -68,7 +72,9 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    firstRef.current?.focus();
+    // روی گوشی (همان مرز usePhone) فوکوس روی فیلد، صفحه‌کلید را باز می‌کند و نیمی از برگه را می‌پوشاند.
+    if (matchMedia('(max-width: 767px)').matches) dialogRef.current?.focus();
+    else firstRef.current?.focus();
     return () => prev?.focus();
   }, []);
 
@@ -124,79 +130,97 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
     onClose();
   };
 
-  return (
-    <div className="overlay" onMouseDown={onClose} style={{ alignItems: 'flex-start', overflowY: 'auto', padding: '40px 16px' }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="vd-title" className="pop" onMouseDown={(e) => e.stopPropagation()} onKeyDown={onKeyDown}
-        style={{ width: 'min(560px, 100%)', background: 'var(--paper)', borderRadius: 22, boxShadow: 'var(--sh-lg), 0 0 0 1px var(--line)' }}>
-        <form onSubmit={submit} className="col" style={{ gap: 16, padding: '20px 22px 22px' }}>
-          <div className="rw" style={{ gap: 10 }}>
+  // روی گوشی تقویم بسته است و با دکمهٔ «تقویم» باز می‌شود؛ وگرنه فرم از صفحه بلندتر می‌شود.
+  const showCalendar = !phone || calendarOpen;
+  const quickDays = [{ k: today, l: 'امروز' }, { k: addDays(today, 1), l: 'فردا' }, { k: addDays(today, 2), l: 'پس‌فردا' }];
+  const customDay = !quickDays.some((q) => q.k === day);
+
+  // پنجره بیرون از صفحه رندر می‌شود: صفحه view-transition-name دارد و لایهٔ جدا می‌سازد،
+  // پس داخل آن نوار بالا و نوار پایین گوشی روی پنجره می‌افتادند.
+  return createPortal(
+    <div className="overlay vd-ov" onMouseDown={onClose}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="vd-title" tabIndex={-1} className="vd pop" onMouseDown={(e) => e.stopPropagation()} onKeyDown={onKeyDown}>
+        <form onSubmit={submit} className="vd-form">
+          <div className="vd-hd rw" style={{ gap: 10 }}>
             <h2 id="vd-title" className="t2 sp">{visit ? 'ویرایش قرار' : 'قرار تازه'}</h2>
             <button type="button" className="ib ghost" aria-label="بستن" onClick={onClose}><Icon name="x" /></button>
           </div>
 
-          <Segmented<VisitKind> label="نوع قرار" value={kind} onChange={setKind} options={KINDS} />
-
-          <label className="lbl">
-            عنوان
-            <input ref={firstRef} className="fld" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={suggested || 'مثلاً پیگیری سند'} />
-          </label>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            <label className="lbl">
-              فایل
-              <select className="fld" value={listingId} onChange={(e) => setListingId(e.target.value)}>
-                <option value="">بدون فایل</option>
-                {data?.listings.map((l) => <option key={l.id} value={l.id}>{formatPlaque(l.plaque)} · {listingTitle(l)} · {l.neighborhood}</option>)}
-              </select>
-            </label>
-            <label className="lbl">
-              مشتری
-              <select className="fld" value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                <option value="">بدون مشتری</option>
-                {data?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </label>
-          </div>
-
-          <div className="col" style={{ gap: 8 }}>
-            <div className="rw" style={{ gap: 8, flexWrap: 'wrap' }}>
-              <span className="sb sm" style={{ color: 'var(--ink2)' }}>روز</span>
-              <span className="sm mute sp">{formatJalaliDay(day)}</span>
-              {[{ k: today, l: 'امروز' }, { k: addDays(today, 1), l: 'فردا' }, { k: addDays(today, 2), l: 'پس‌فردا' }].map((q) => (
-                <button key={q.k} type="button" className="tag" aria-pressed={day === q.k} onClick={() => setDay(q.k)} style={{ border: 0, background: day === q.k ? 'var(--pri-tint)' : undefined, color: day === q.k ? 'var(--pri-text)' : undefined }}>{q.l}</button>
-              ))}
+          <div className="vd-bd col">
+            <div className="vd-fill">
+              <Segmented<VisitKind> label="نوع قرار" value={kind} onChange={setKind} options={KINDS} />
             </div>
-            <JalaliPicker value={day} onChange={setDay} label="انتخاب روز" />
-          </div>
 
-          <div className="rw" style={{ gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div className="col" style={{ flex: '1 1 180px', gap: 7 }}>
-              <span id="vd-time" className="sb sm" style={{ color: 'var(--ink2)' }}>ساعت</span>
-              {/* input type=time بسته به زبان ویندوز «PM» و ارقام لاتین نشان می‌دهد؛ دو انتخاب‌گر فارسی ساده‌ترند. */}
-              <div className="rw" role="group" aria-labelledby="vd-time" style={{ gap: 6, direction: 'ltr' }}>
-                <select className="fld num" aria-label="ساعت" value={time.slice(0, 2)} onChange={(e) => setTime(`${e.target.value}:${time.slice(3, 5)}`)} style={{ flex: 1 }}>
-                  {HOURS.map((h) => <option key={h} value={h}>{toFaDigits(h)}</option>)}
+            <label className="lbl">
+              عنوان
+              <input ref={firstRef} className="fld" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={suggested || 'مثلاً پیگیری سند'} />
+            </label>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+              <label className="lbl">
+                فایل
+                <select className="fld" value={listingId} onChange={(e) => setListingId(e.target.value)}>
+                  <option value="">بدون فایل</option>
+                  {data?.listings.map((l) => <option key={l.id} value={l.id}>{formatPlaque(l.plaque)} · {listingTitle(l)} · {l.neighborhood}</option>)}
                 </select>
-                <span className="b">:</span>
-                <select className="fld num" aria-label="دقیقه" value={time.slice(3, 5)} onChange={(e) => setTime(`${time.slice(0, 2)}:${e.target.value}`)} style={{ flex: 1 }}>
-                  {[...new Set([...MINUTES, time.slice(3, 5)])].sort().map((m) => <option key={m} value={m}>{toFaDigits(m)}</option>)}
+              </label>
+              <label className="lbl">
+                مشتری
+                <select className="fld" value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                  <option value="">بدون مشتری</option>
+                  {data?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+              </label>
+            </div>
+
+            <div className="col" style={{ gap: 8 }}>
+              <div className="rw" style={{ gap: 8 }}>
+                <span id="vd-day" className="sb sm" style={{ color: 'var(--ink2)' }}>روز</span>
+                <span className="sp" />
+                <span className="sm b" aria-live="polite">{formatJalaliDay(day)}</span>
+              </div>
+              <div className="vd-days" role="group" aria-labelledby="vd-day">
+                {quickDays.map((q) => (
+                  <button key={q.k} type="button" className="vd-chip" aria-pressed={day === q.k} onClick={() => { setDay(q.k); setCalendarOpen(false); }}>{q.l}</button>
+                ))}
+                {phone && (
+                  <button type="button" className="vd-chip" aria-pressed={customDay} aria-expanded={calendarOpen} onClick={() => setCalendarOpen((o) => !o)}>
+                    <Icon name="cal" size="s" />تقویم
+                  </button>
+                )}
+              </div>
+              {showCalendar && <JalaliPicker value={day} onChange={(k) => { setDay(k); if (phone) setCalendarOpen(false); }} label="انتخاب روز" />}
+            </div>
+
+            <div className="vd-when rw">
+              <div className="col" style={{ flex: '1 1 180px', gap: 7 }}>
+                <span id="vd-time" className="sb sm" style={{ color: 'var(--ink2)' }}>ساعت</span>
+                {/* input type=time بسته به زبان ویندوز «PM» و ارقام لاتین نشان می‌دهد؛ دو انتخاب‌گر فارسی ساده‌ترند. */}
+                <div className="rw" role="group" aria-labelledby="vd-time" style={{ gap: 6, direction: 'ltr' }}>
+                  <select className="fld num" aria-label="ساعت" value={time.slice(0, 2)} onChange={(e) => setTime(`${e.target.value}:${time.slice(3, 5)}`)} style={{ flex: 1 }}>
+                    {HOURS.map((h) => <option key={h} value={h}>{toFaDigits(h)}</option>)}
+                  </select>
+                  <span className="b">:</span>
+                  <select className="fld num" aria-label="دقیقه" value={time.slice(3, 5)} onChange={(e) => setTime(`${time.slice(0, 2)}:${e.target.value}`)} style={{ flex: 1 }}>
+                    {[...new Set([...MINUTES, time.slice(3, 5)])].sort().map((m) => <option key={m} value={m}>{toFaDigits(m)}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="vd-dur col" style={{ gap: 7 }}>
+                <span className="sb sm" style={{ color: 'var(--ink2)' }}>مدت</span>
+                <Segmented<number> label="مدت قرار" value={duration} onChange={setDuration} options={DURATIONS.map((d) => ({ value: d, label: d < 60 ? `${toFaDigits(d)} دقیقه` : `${toFaDigits(d / 60).replace('.', '٫')} ساعت` }))} />
               </div>
             </div>
-            <div className="col" style={{ gap: 7 }}>
-              <span className="sb sm" style={{ color: 'var(--ink2)' }}>مدت</span>
-              <Segmented<number> label="مدت قرار" value={duration} onChange={setDuration} options={DURATIONS.map((d) => ({ value: d, label: d < 60 ? `${toFaDigits(d)} دقیقه` : `${toFaDigits(d / 60).replace('.', '٫')} ساعت` }))} />
-            </div>
+
+            {visit && (
+              <label className="rw sm" style={{ gap: 10 }}>
+                <CheckBox checked={done} onChange={setDone} label="انجام شد" />
+                انجام شد
+              </label>
+            )}
           </div>
 
-          {visit && (
-            <label className="rw sm" style={{ gap: 10 }}>
-              <CheckBox checked={done} onChange={setDone} label="انجام شد" />
-              انجام شد
-            </label>
-          )}
-
-          <div className="rw" style={{ gap: 10 }}>
+          <div className="vd-ft rw">
             {error && <span role="alert" className="tag bad">{error}</span>}
             <span className="sp" />
             <button type="button" className="btn btn-g" onClick={onClose}>انصراف</button>
@@ -204,6 +228,7 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.getElementById('root') ?? document.body,
   );
 }

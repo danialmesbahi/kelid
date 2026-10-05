@@ -125,6 +125,8 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 
 /* پنجره‌های روی صفحه */
 .overlay { animation: kl-fadein 180ms ease both; backdrop-filter: blur(2px); }
+/* برگهٔ پایین گوشی (مثل پنجرهٔ قرار) از لبهٔ پایین بالا می‌آید */
+@keyframes kl-sheet-up { from { transform: translateY(100%); } }
 
 /* ── کاهش حرکت برای کسانی که در ویندوز خاموشش کرده‌اند ── */
 @media (prefers-reduced-motion: reduce) {
