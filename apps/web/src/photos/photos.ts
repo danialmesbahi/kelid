@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toFaDigits, type CoverThumbs, type KelidStore, type NewPhoto } from '@kelid/core';
 import { useQuery, useStore } from '../data';
+import { coverThumbsQuery } from '../queries';
 import { useToast } from '../layout/Toasts';
 
 type WorkerReply = { id: number; ok: true; mime: string; width: number; height: number; bytes: ArrayBuffer; thumb: ArrayBuffer } | { id: number; ok: false; error: string };
@@ -138,7 +139,7 @@ export function prefetchFullPhoto(store: KelidStore, photoId: string | undefined
 
 /** تصویر کوچک کاور همهٔ فایل‌ها؛ برای فهرست‌ها و کارت‌ها. */
 export function useCoverThumbs(): CoverThumbs {
-  return useQuery('cover-thumbs', (s) => s.coverThumbs()) ?? {};
+  return useQuery(coverThumbsQuery.key, coverThumbsQuery.fn) ?? {};
 }
 
 export function coverUrl(thumbs: CoverThumbs, listingId: string): string | undefined {

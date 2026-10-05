@@ -3,6 +3,7 @@ import { Icon, Segmented } from '@kelid/ui';
 import { usePrefsContext } from '../App';
 import { useQuery, useStorageInfo, useStore } from '../data';
 import { useToast } from '../layout/Toasts';
+import { useFirstVisit } from '../layout/useFirstVisit';
 import type { TextSize, ThemePref } from '../prefs';
 
 const whereText = {
@@ -17,11 +18,12 @@ export function SettingsPage() {
   const storage = useStorageInfo();
   const store = useStore();
   const toast = useToast();
+  const first = useFirstVisit('settings');
   const hasSample = useQuery('has-sample', (s) => s.hasSampleData());
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <div className="bd enter" style={{ paddingTop: 26, maxWidth: 900 }}>
+    <div className={first ? 'bd enter' : 'bd'} style={{ paddingTop: 26, maxWidth: 900 }}>
       <h1 className="t1">تنظیمات</h1>
 
       <section aria-labelledby="look" className="col" style={{ gap: 14 }}>

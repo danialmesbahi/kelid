@@ -1,19 +1,29 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { MemoryStore, SqlStore, seed, type KelidStore } from '@kelid/core';
+import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { CachedStore, MemoryStore, SqlStore, seed, type KelidStore } from '@kelid/core';
 import { openDriver } from './db/drivers';
 import { Splash } from './layout/Splash';
 
 export type StorageInfo = { persistent: boolean; where: 'desktop' | 'browser' | 'memory' | 'locked' };
 
 // SqlStore هم مثل درایور فقط یک بار ساخته می‌شود.
-const stores = new WeakMap<object, Promise<KelidStore>>();
-function storeFor(driver: Parameters<typeof SqlStore.open>[0]): Promise<KelidStore> {
-  let p = stores.get(driver);
-  if (!p) {
-    p = SqlStore.open(driver, seed);
-    stores.set(driver, p);
-  }
-  return p;
+let opening: Promise<{ store: KelidStore; storage: StorageInfo }> | null = null;
+
+/**
+ * دیتابیس را باز می‌کند. main.tsx آن را پیش از اولین رندر صدا می‌زند تا Worker و wasm
+ * هم‌زمان با بالا آمدن React آماده شوند، نه بعد از آن.
+ */
+export function openStore(): Promise<{ store: KelidStore; storage: StorageInfo }> {
+  opening ??= (async () => {
+    try {
+      const { driver, persistent, where } = await openDriver();
+      return { store: new CachedStore(await SqlStore.open(driver, seed)), storage: { persistent, where } };
+    } catch (err) {
+      console.error(err);
+      // آخرین راه: برنامه با دادهٔ موقت باز شود تا کاربر قفل نشود.
+      return { store: new CachedStore(new MemoryStore(seed)), storage: { persistent: false, where: 'memory' as const } };
+    }
+  })();
+  return opening;
 }
 
 const StoreContext = createContext<{ store: KelidStore; storage: StorageInfo } | null>(null);
@@ -27,17 +37,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const { driver, persistent, where } = await openDriver();
-        const store = await storeFor(driver);
-        if (!cancelled) setState({ store, storage: { persistent, where } });
-      } catch (err) {
-        console.error(err);
-        // آخرین راه: برنامه با دادهٔ موقت باز شود تا کاربر قفل نشود.
-        if (!cancelled) setState({ store: new MemoryStore(seed), storage: { persistent: false, where: 'memory' } });
-      }
-    })();
+    void openStore().then((s) => {
+      if (!cancelled) setState(s);
+    });
     return () => {
       cancelled = true;
     };
@@ -63,36 +65,94 @@ export function useStorageInfo(): StorageInfo {
 /**
  * حافظهٔ نتیجهٔ کوئری‌ها: وقتی به صفحه‌ای برمی‌گردید، آخرین داده فوراً نمایش داده می‌شود
  * و در پس‌زمینه تازه می‌شود. پس برگشتن هیچ‌وقت لودینگ ندارد.
+ * صفحه‌های اصلی از قبل «گرم» می‌شوند (prefetchQuery) تا اولین باز شدنشان هم بی‌مکث باشد.
  */
-const cache = new Map<string, unknown>();
+type Entry = { data: unknown; has: boolean; fn: (s: KelidStore) => Promise<unknown>; seq: number; warm: boolean; stale: boolean; listeners: Set<() => void> };
+const entries = new Map<string, Entry>();
+const watched = new WeakSet<KelidStore>();
 
-export function useQuery<T>(key: string, fn: (s: KelidStore) => Promise<T>): T | undefined {
+/** اگر همهٔ بخش‌های نتیجه همان قبلی باشند، صفحه دوباره رندر نمی‌شود. */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) || Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  return ka.length === Object.keys(b).length && ka.every((k) => (a as Record<string, unknown>)[k] === (b as Record<string, unknown>)[k]);
+}
+
+function entryFor(key: string, fn: Entry['fn']): Entry {
+  let e = entries.get(key);
+  if (!e) {
+    e = { data: undefined, has: false, fn, seq: 0, warm: false, stale: true, listeners: new Set() };
+    entries.set(key, e);
+  }
+  return e;
+}
+
+function refresh(store: KelidStore, key: string, e: Entry) {
+  const my = ++e.seq;
+  e.stale = false;
+  e.fn(store).then(
+    (d) => {
+      // جواب کهنه‌تر از درخواست بعدی دور ریخته می‌شود
+      if (my !== e.seq || (e.has && same(e.data, d))) return;
+      e.data = d;
+      e.has = true;
+      for (const l of e.listeners) l();
+    },
+    (err) => console.error(key, err),
+  );
+}
+
+/** با هر تغییر داده، کوئری‌های روی صفحه و صفحه‌های گرم تازه می‌شوند؛ بقیه فقط کهنه علامت می‌خورند. */
+function watch(store: KelidStore) {
+  if (watched.has(store)) return;
+  watched.add(store);
+  store.subscribe(() => {
+    for (const [key, e] of entries) {
+      if (e.listeners.size || e.warm) refresh(store, key, e);
+      else e.stale = true;
+    }
+  });
+}
+
+/** دادهٔ یک صفحه را از قبل می‌خواند و همیشه تازه نگه می‌دارد. */
+export function prefetchQuery(store: KelidStore, q: { key: string; fn: Entry['fn'] }) {
+  watch(store);
+  const e = entryFor(q.key, q.fn);
+  e.warm = true;
+  if (!e.has && e.seq === 0) refresh(store, q.key, e);
+}
+
+/** نتیجهٔ ذخیره‌شدهٔ یک کوئری، بدون خواندن دیتابیس؛ برای ساختن جانشین فوری (placeholder). */
+export function peekQuery<T>(key: string): T | undefined {
+  return entries.get(key)?.data as T | undefined;
+}
+
+/**
+ * `placeholder` اگر باشد و هنوز نتیجه‌ای نیامده، همان لحظه از دادهٔ موجود ساخته می‌شود؛ مثلاً پرونده از
+ * فهرست فایل‌ها. اولین رندر صفحه کامل است و انتقال عکس (view transition) مقصدش را پیدا می‌کند.
+ */
+export function useQuery<T>(key: string, fn: (s: KelidStore) => Promise<T>, placeholder?: () => T | undefined): T | undefined {
   const store = useStore();
-  const [data, setData] = useState<T | undefined>(() => cache.get(key) as T | undefined);
-  const fnRef = useRef(fn);
-  fnRef.current = fn;
-
-  useEffect(() => {
-    let alive = true;
-    if (cache.has(key)) setData(cache.get(key) as T);
-    const run = () => {
-      fnRef.current(store).then(
-        (d) => {
-          cache.set(key, d);
-          if (alive) setData(d);
-        },
-        (err) => console.error(key, err),
-      );
-    };
-    run();
-    const off = store.subscribe(run);
-    return () => {
-      alive = false;
-      off();
-    };
-  }, [store, key]);
-
-  return data;
+  const e = entryFor(key, fn);
+  e.fn = fn;
+  // has دست نمی‌خورد تا جواب واقعی دیتابیس حتماً جایگزینش شود
+  if (e.data === undefined && placeholder) e.data = placeholder();
+  const subscribe = useCallback(
+    (cb: () => void) => {
+      watch(store);
+      // ورودی در همین رندر ساخته شده است
+      const cur = entries.get(key)!;
+      cur.listeners.add(cb);
+      if (cur.stale) refresh(store, key, cur);
+      return () => {
+        cur.listeners.delete(cb);
+      };
+    },
+    [store, key],
+  );
+  const get = () => entries.get(key)?.data as T | undefined;
+  return useSyncExternalStore(subscribe, get, get);
 }
 
 /** true فقط اگر `pending` بیشتر از `ms` طول بکشد؛ تا اسکلت لودینگ برای کارهای سریع چشمک نزند. */

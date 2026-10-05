@@ -2,6 +2,8 @@
 .app {
   --ease-out: cubic-bezier(.2, .8, .2, 1);
   --ease-spring: cubic-bezier(.3, 1.4, .5, 1);
+  /* تند شروع می‌شود و نرم می‌نشیند؛ حرکت فوراً دیده می‌شود ولی پایانش آرام است */
+  --ease-expo: cubic-bezier(.16, 1, .3, 1);
   --t-fast: 140ms;
   --t-med: 240ms;
 }
@@ -33,7 +35,7 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 .nav-indicator {
   position: absolute; inset-inline: 0; top: 0; height: 44px; border-radius: 11px;
   background: var(--paper); box-shadow: 0 0 0 1px var(--line), var(--sh);
-  transition: transform 380ms var(--ease-spring), opacity var(--t-med) ease;
+  transition: transform 260ms var(--ease-spring), opacity var(--t-med) ease;
   pointer-events: none;
 }
 .nav-indicator::before {
@@ -41,41 +43,54 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 }
 
 /* ── ورود محتوا ─────────────────────────────────────── */
-.enter > * { animation: kl-rise 420ms var(--ease-out) both; }
-.enter > *:nth-child(2) { animation-delay: 40ms; }
-.enter > *:nth-child(3) { animation-delay: 80ms; }
-.enter > *:nth-child(4) { animation-delay: 120ms; }
-.enter > *:nth-child(n+5) { animation-delay: 160ms; }
-@keyframes kl-rise { from { opacity: 0; transform: translateY(10px); } }
+/* کوتاه نگه داشته شده: محتوا باید تقریباً فوراً سر جایش باشد، حرکت فقط حس نرمی بدهد نه انتظار. */
+.enter > * { animation: kl-rise 240ms var(--ease-out) both; }
+.enter > *:nth-child(2) { animation-delay: 30ms; }
+.enter > *:nth-child(n+3) { animation-delay: 60ms; }
+@keyframes kl-rise { from { opacity: 0; transform: translateY(6px); } }
 
-.stagger > * { animation: kl-rise 360ms var(--ease-out) both; }
-.stagger > *:nth-child(1) { animation-delay: 0ms; }
-.stagger > *:nth-child(2) { animation-delay: 25ms; }
-.stagger > *:nth-child(3) { animation-delay: 50ms; }
-.stagger > *:nth-child(4) { animation-delay: 75ms; }
-.stagger > *:nth-child(5) { animation-delay: 100ms; }
-.stagger > *:nth-child(6) { animation-delay: 125ms; }
-.stagger > *:nth-child(7) { animation-delay: 150ms; }
-.stagger > *:nth-child(n+8) { animation-delay: 175ms; }
+/* جزئیات پرونده هر بار که باز می‌شود: کمی دیرتر از عکس و با فاصلهٔ بیشتر، تا چشم اول عکس را دنبال کند. */
+.arrive > * { animation: kl-arrive 420ms var(--ease-expo) 70ms both; }
+.arrive > *:nth-child(2) { animation-delay: 120ms; }
+@keyframes kl-arrive { from { opacity: 0; transform: translateY(16px); } }
+
+.stagger > * { animation: kl-rise 220ms var(--ease-out) both; }
+.stagger > *:nth-child(2) { animation-delay: 15ms; }
+.stagger > *:nth-child(3) { animation-delay: 30ms; }
+.stagger > *:nth-child(4) { animation-delay: 45ms; }
+.stagger > *:nth-child(5) { animation-delay: 60ms; }
+.stagger > *:nth-child(6) { animation-delay: 75ms; }
+.stagger > *:nth-child(n+7) { animation-delay: 90ms; }
+/* ردیف‌های پایین‌تر از دید انیمیشن نمی‌گیرند؛ صدها انیمیشن هم‌زمان صفحه را کند می‌کرد. */
+.stagger > *:nth-child(n+13) { animation: none; }
 
 /* ── انتقال بین صفحه‌ها (View Transitions) ───────────── */
 .side { view-transition-name: kl-side; }
 .top { view-transition-name: kl-top; }
-.page { view-transition-name: kl-page; }
-::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 ::view-transition-group(kl-side), ::view-transition-group(kl-top) { animation: none; }
 ::view-transition-old(kl-side), ::view-transition-new(kl-side), ::view-transition-old(kl-top), ::view-transition-new(kl-top) { animation: none; }
 /* عکس قدیمی منو پنهان می‌شود؛ وگرنه زیر عکس تازه دیده می‌شد و گزینهٔ قبلی هم فعال به نظر می‌آمد. نشانگر در عکس زنده می‌لغزد. */
 ::view-transition-old(kl-side), ::view-transition-old(kl-top) { display: none; }
-/* محتوای صفحه فقط محو و جابه‌جا می‌شود؛ اندازه‌اش انیمیشن نمی‌گیرد تا چیزی کش نیاید. */
-::view-transition-group(kl-page) { animation: none; }
-::view-transition-old(kl-page) { animation: kl-page-out 160ms ease both; }
-::view-transition-new(kl-page) { animation: kl-page-in 320ms var(--ease-out) both; }
+/* محتوای صفحه همان root است و فقط محو می‌شود. نام جدا (مثلاً روی .page) نمی‌گیرد: عکس گرفتن از صفحه‌ای
+   با صدها ردیف، کل ارتفاعش را می‌کشید و باز شدن پرونده را کند می‌کرد؛ root فقط به اندازهٔ پنجره است. */
+::view-transition-old(root) { animation: kl-page-out 80ms ease both; }
+::view-transition-new(root) { animation: kl-page-in 150ms var(--ease-out) both; }
 @keyframes kl-page-out { to { opacity: 0; } }
-@keyframes kl-page-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes kl-page-in { from { opacity: 0; } }
 /* عکس و پلاکی که از فهرست به پرونده «پرواز» می‌کند */
-::view-transition-group(*) { animation-duration: 380ms; animation-timing-function: var(--ease-out); }
+::view-transition-group(*) { animation-duration: 220ms; animation-timing-function: var(--ease-out); }
 ::view-transition-image-pair(*) { isolation: isolate; }
+/* چیزی که فقط در صفحهٔ قبلی بود (مثلاً پلاک پرونده هنگام برگشت) همراه صفحه فوراً محو می‌شود، نه اینکه سر جای قبلی‌اش روی صفحهٔ تازه بماند. */
+::view-transition-old(*):only-child { animation: kl-page-out 80ms ease both; }
+/* کارت یا عکسی که به عکس پرونده تبدیل می‌شود: در تمام مسیر گوشه‌گرد و بریده می‌ماند و تصویر کش نمی‌آید،
+   حتی وقتی کارت ایستاده به عکس خوابیده تبدیل می‌شود. */
+.vt-cover { view-transition-class: cover; }
+::view-transition-group(*.cover) { animation-duration: 440ms; animation-timing-function: var(--ease-expo); border-radius: 19px; overflow: clip; }
+::view-transition-image-pair(*.cover) { overflow: clip; border-radius: inherit; }
+::view-transition-old(*.cover), ::view-transition-new(*.cover) { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: normal; }
+/* تصویر تازه از اول کامل است و تصویر قبلی رویش محو می‌شود؛ پس وسط راه هیچ‌وقت نیمه‌شفاف نیست. */
+::view-transition-new(*.cover) { animation: none; }
+::view-transition-old(*.cover) { z-index: 1; animation: kl-page-out 120ms ease both; }
 
 /* ── اسکلت لودینگ ───────────────────────────────────── */
 .skel {

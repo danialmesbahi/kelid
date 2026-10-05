@@ -9,3 +9,4 @@ export * from './jalali';
 export * from './sql/driver';
 export * from './sql/schema';
 export * from './sql/sqlStore';
+export * from './cachedStore';

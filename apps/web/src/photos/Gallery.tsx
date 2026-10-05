@@ -3,7 +3,7 @@ import { Cover, Icon } from '@kelid/ui';
 import { toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { useToast } from '../layout/Toasts';
-import { forgetPhotoUrls, photoUrl, prefetchFullPhoto, useFullPhotoUrl, usePhotoUpload } from './photos';
+import { coverUrl, forgetPhotoUrls, photoUrl, prefetchFullPhoto, useCoverThumbs, useFullPhotoUrl, usePhotoUpload } from './photos';
 
 const thumbSrc = (p: PhotoThumb) => photoUrl(p.id, 'thumb', p.thumb, p.mime);
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer.types).includes('Files');
@@ -94,16 +94,18 @@ export function PhotoGallery({ listing }: { listing: Listing }) {
 }
 
 function PhotoGrid({ listing, photos, loaded, onOpen, onPick }: { listing: Listing; photos: PhotoThumb[]; loaded: boolean; onOpen: (i: number) => void; onPick: () => void }) {
+  const thumbs = useCoverThumbs();
   const [first, ...rest] = photos;
   const small = rest.slice(0, 4);
   const more = photos.length - 5;
 
   if (!first) {
-    // هنوز عکسی نیست: همان چیدمان با تصویرسازی، و دعوت به افزودن عکس
+    // هنوز عکسی نیست: همان چیدمان با تصویرسازی، و دعوت به افزودن عکس.
+    // تا فهرست عکس‌ها برسد، کاور کوچکِ آماده نشان داده می‌شود تا عکسِ در حال پرواز جای خالی نبیند.
     return (
       <div className="gallery">
-        <span className="hero" style={{ viewTransitionName: `cover-${listing.id}` }}>
-          <Cover variant={listing.cover} style={{ height: '100%' }} />
+        <span className="hero vt-cover" style={{ viewTransitionName: `cover-${listing.id}` }}>
+          <Cover variant={listing.cover} src={loaded ? undefined : coverUrl(thumbs, listing.id)} style={{ height: '100%' }} />
         </span>
         {(['i', 'j', 'g', 'i'] as const).map((v, i) => <Cover key={i} variant={v} style={{ borderRadius: 14 }} />)}
         {loaded && (
@@ -119,7 +121,7 @@ function PhotoGrid({ listing, photos, loaded, onOpen, onPick }: { listing: Listi
 
   return (
     <div className="gallery">
-      <button type="button" className="hero" onClick={() => onOpen(0)} aria-label="نمایش عکس‌ها" style={{ viewTransitionName: `cover-${listing.id}` }}>
+      <button type="button" className="hero vt-cover" onClick={() => onOpen(0)} aria-label="نمایش عکس‌ها" style={{ viewTransitionName: `cover-${listing.id}` }}>
         <Cover variant={listing.cover} src={thumbSrc(first)} style={{ height: '100%' }}>
           <FullPhotoLayer photoId={first.id} />
         </Cover>

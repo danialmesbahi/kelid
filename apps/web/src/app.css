@@ -11,6 +11,9 @@
   gap: 14px;
   align-items: center;
 }
+/* مرورگر ردیف‌ها و کارت‌های بیرون از دید را نمی‌چیند و نمی‌کشد؛ فهرست صدها فایل هم روان می‌ماند. */
+.filelist > .listgrid.hov { content-visibility: auto; contain-intrinsic-size: auto 66px; }
+.fgrid > .pcard { content-visibility: auto; contain-intrinsic-size: auto 350px; }
 .overlay {
   position: fixed;
   inset: 0;
@@ -21,47 +24,72 @@
   align-items: flex-start;
 }
 
-/* کارت فایل در نمای «کارت»: عکس، جزئیات کلیدی و قیمت جدا با خط نازک؛ رنگ فقط از پلاک می‌آید. */
-.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; padding: 20px 24px 28px; }
-.fcard { display: flex; flex-direction: column; padding: 0; text-align: right; background: var(--paper); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: var(--sh); }
-.fcard.on { border-color: var(--pri-text); box-shadow: 0 0 0 1px var(--pri-text), var(--sh); }
-.fcard .ph { width: 100%; aspect-ratio: 16 / 10; }
-.fcard .ph::after { content: ""; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(to top, rgba(12, 13, 12, .35), transparent); pointer-events: none; }
-.fcard .ph .cnt { z-index: 1; display: inline-flex; align-items: center; gap: 4px; }
-.fcard-st { position: absolute; top: 10px; left: 10px; z-index: 1; padding: 2px 10px; border-radius: 99px; background: var(--warn-tint); color: var(--warn); font-size: 12px; font-weight: 700; }
-.fcard-bd { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 16px; flex: 1; }
-.fcard-t { font-size: 16px; font-weight: 700; line-height: 1.5; }
-.fcard-loc { display: flex; align-items: center; gap: 4px; }
-.fcard-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
-.fcard-facts > span { padding: 2px 9px; border-radius: 8px; background: var(--sunk); color: var(--ink2); font-size: 12.5px; }
-.fcard-pr { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
-.fcard-pr b { font-size: 18px; }
+/* نمای «کارت» در فایل‌ها همان کارت صفحهٔ امروز است (ListingCard)؛ انتخاب‌شده با قاب سبز. */
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; padding: 22px 24px 30px; }
+.app .pcard.on { border-color: var(--pri-text); box-shadow: 0 0 0 1px var(--pri-text), 0 10px 24px -18px rgba(18, 20, 18, .28); }
+.pcard-st { position: absolute; bottom: 10px; right: 10px; z-index: 2; height: 24px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 99px; background: var(--warn-tint); color: var(--warn); font-size: 12px; font-weight: 700; }
+button.pcard { font: inherit; text-align: right; cursor: pointer; }
+/* در فایل‌ها کلیک کارت را انتخاب می‌کند نه باز؛ فلش «برو» آنجا گمراه‌کننده است */
+.fgrid .pcard-go { display: none; }
 
-/* کارت فایل در صفحهٔ امروز: عکس تمام‌قد مثل جلد مجله؛ نوشته‌ها روی سایهٔ تیرهٔ پایین عکس، پس در هر دو تم یکسان‌اند. */
-.hgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; }
-.app .hcard { position: relative; display: block; aspect-ratio: 3 / 4; border-radius: 22px; overflow: hidden; isolation: isolate; color: #FFFFFF; background: var(--deep); box-shadow: 0 1px 2px rgba(12, 13, 12, .08), 0 14px 30px -22px rgba(12, 13, 12, .55); }
-.hcard > .ph { position: absolute; inset: 0; transition: transform 700ms var(--ease-out); }
-.hcard:hover > .ph { transform: scale(1.06); }
-/* سایهٔ پایین برای خوانایی متن، و یک قاب نوری نازک دور کارت */
-.hcard::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to top, rgba(10, 12, 11, .94) 0%, rgba(10, 12, 11, .7) 38%, rgba(10, 12, 11, 0) 68%), linear-gradient(to bottom, rgba(10, 12, 11, .24), rgba(10, 12, 11, 0) 22%); }
-.hcard::after { content: ""; position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
-.hcard-top { position: absolute; top: 12px; right: 12px; left: 12px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.hcard-deal { padding: 3px 11px; border-radius: 99px; font-size: 12.5px; font-weight: 600; background: rgba(10, 12, 11, .38); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22); }
-.hcard-ov { position: absolute; inset: auto 0 0 0; z-index: 2; display: flex; flex-direction: column; gap: 3px; padding: 16px 16px 15px; }
-.hcard-t { font-size: 17px; font-weight: 700; line-height: 1.45; text-shadow: 0 1px 12px rgba(0, 0, 0, .35); }
-.hcard-loc { display: flex; min-width: 0; white-space: nowrap; overflow: hidden; align-items: center; gap: 4px; font-size: 13px; color: rgba(255, 255, 255, .78); }
-.hcard-facts { display: flex; gap: 5px; margin: 8px 0 2px; overflow: hidden; }
-.hcard-facts > span { flex: none; padding: 1px 9px; border-radius: 8px; font-size: 12px; color: rgba(255, 255, 255, .92); background: rgba(255, 255, 255, .12); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
-.hcard-pr { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .16); }
-.hcard-pr b { font-size: 20px; font-weight: 700; line-height: 1.3; white-space: nowrap; }
-.hcard-pr small { font-size: 12px; color: rgba(255, 255, 255, .7); }
-.hcard-go { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .24); transition: background-color var(--t-fast) ease, color var(--t-fast) ease, transform var(--t-med) var(--ease-out); }
-.hcard:hover .hcard-go, .hcard:focus-visible .hcard-go { background: #FFFFFF; color: var(--deep); transform: translateX(-3px); }
-.hcard:hover { box-shadow: 0 30px 50px -28px rgba(12, 13, 12, .7); }
+/* کارت فایل در صفحهٔ امروز: عکس داخل قاب کاغذی با گوشه‌های هم‌مرکز، نوشته روی زمینهٔ روشن تا برای همه خوانا باشد.
+   فقط خود عکس به عکس پرونده «پرواز» می‌کند؛ نوشته‌ها سر جایشان محو می‌شوند و هیچ‌وقت کش نمی‌آیند. */
+.hgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+.app .pcard {
+  --pr: 26px; --pad: 7px;
+  position: relative; display: flex; flex-direction: column; padding: var(--pad); border-radius: var(--pr);
+  background: var(--paper); border: 1px solid var(--line); color: var(--ink);
+  box-shadow: 0 1px 2px rgba(18, 20, 18, .04), 0 10px 24px -18px rgba(18, 20, 18, .28);
+  transition: transform 420ms var(--ease-out), box-shadow 420ms var(--ease-out), border-color var(--t-fast) ease;
+}
+.pcard-media { position: relative; display: block; border-radius: calc(var(--pr) - var(--pad)); aspect-ratio: 5 / 4; }
+.pcard-ph { position: absolute; inset: 0; display: block; border-radius: inherit; overflow: hidden; background: var(--sunk); }
+.pcard-ph > .ph { position: absolute; inset: 0; transition: transform 700ms var(--ease-out); }
+/* سایهٔ خیلی ملایم بالای عکس فقط برای اینکه پلاک و برچسب روی عکس روشن هم دیده شوند */
+.pcard-media::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; background: linear-gradient(to bottom, rgba(10, 12, 11, .22), rgba(10, 12, 11, 0) 34%); box-shadow: inset 0 0 0 1px rgba(18, 20, 18, .06); }
+.pcard-tags { position: absolute; top: 10px; right: 10px; left: 10px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pcard-deal { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px 0 10px; border-radius: 99px; font-size: 12.5px; font-weight: 700; color: #121412; background: rgba(255, 255, 255, .92); box-shadow: 0 2px 8px -2px rgba(10, 12, 11, .25); }
+.pcard-deal::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dot, var(--sale)); }
+.pcard-deal.d-rent { --dot: var(--rent); }
+.pcard-deal.d-full { --dot: var(--full); }
+.pcard-cnt { position: absolute; bottom: 10px; left: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px; border-radius: 8px; font-size: 12px; color: #FFFFFF; background: rgba(18, 20, 18, .62); }
+.pcard-bd { display: flex; flex-direction: column; gap: 2px; padding: 12px 9px 6px; flex: 1; min-width: 0; }
+.pcard-t { font-size: 16.5px; font-weight: 700; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcard-loc { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 13px; color: var(--mute); white-space: nowrap; overflow: hidden; }
+.pcard-facts { font-size: 13px; color: var(--ink2); margin-top: 2px; }
+.pcard-facts b { font-weight: 700; }
+.pcard-ft { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line2); }
+.pcard-ft b { display: block; font-size: 19px; font-weight: 800; line-height: 1.3; white-space: nowrap; letter-spacing: -.2px; }
+.pcard-ft small { display: block; font-size: 12px; color: var(--mute); white-space: nowrap; }
+.pcard-go { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--sunk); color: var(--ink2); transition: background-color 200ms ease, color 200ms ease, transform 420ms var(--ease-out); }
+@media (hover: hover) {
+  .app .pcard:hover { transform: translateY(-6px); border-color: var(--line2); box-shadow: 0 2px 4px rgba(18, 20, 18, .04), 0 28px 48px -26px rgba(18, 20, 18, .45); }
+  .pcard:hover .pcard-ph > .ph { transform: scale(1.06); }
+  .pcard:hover .pcard-go { background: var(--pri); color: var(--pri-ink); transform: translateX(-4px); }
+}
+.pcard:focus-visible .pcard-go { background: var(--pri); color: var(--pri-ink); }
+/* لمس یا کلیک همان لحظه دیده می‌شود، پیش از آنکه پرونده باز شود */
+.app .pcard:active { transform: scale(.975); transition-duration: 120ms; }
+.app.dark .pcard { box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 28px -18px rgba(0, 0, 0, .8); }
+.app.dark .pcard:hover { box-shadow: 0 30px 50px -24px rgba(0, 0, 0, .9); }
+/* روی گوشی همان کارت تمام‌عکس قبلی می‌ماند (مهدی پسندید): عکس کل کارت است و نوشته‌ها روی سایهٔ تیرهٔ پایینش. */
 @media (max-width: 767px) {
-  /* روی گوشی کارت پهن‌تر و کوتاه‌تر تا چهار فایل صفحه را دراز نکنند */
-  .hgrid { gap: 12px; }
-  .app .hcard { aspect-ratio: 4 / 3.4; }
+  .hgrid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .app .hgrid > .pcard { padding: 0; border: 0; border-radius: 22px; overflow: hidden; isolation: isolate; aspect-ratio: 4 / 3.4; color: #FFFFFF; background: var(--deep); box-shadow: 0 1px 2px rgba(12, 13, 12, .08), 0 14px 30px -22px rgba(12, 13, 12, .55); }
+  .hgrid .pcard-media { position: absolute; inset: 0; aspect-ratio: auto; border-radius: inherit; }
+  .hgrid .pcard-media::after { background: linear-gradient(to top, rgba(10, 12, 11, .94) 0%, rgba(10, 12, 11, .7) 38%, rgba(10, 12, 11, 0) 68%), linear-gradient(to bottom, rgba(10, 12, 11, .24), rgba(10, 12, 11, 0) 22%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+  .hgrid .pcard-tags { top: 12px; right: 12px; left: 12px; }
+  .hgrid .pcard-deal { color: #FFFFFF; background: rgba(10, 12, 11, .55); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22); }
+  .hgrid .pcard-deal::before { display: none; }
+  .hgrid .pcard-cnt { display: none; }
+  .hgrid .pcard-bd { position: absolute; inset: auto 0 0 0; z-index: 2; gap: 3px; padding: 16px 16px 15px; }
+  .hgrid .pcard-t { font-size: 17px; white-space: normal; text-shadow: 0 1px 12px rgba(0, 0, 0, .35); }
+  .hgrid .pcard-loc { color: rgba(255, 255, 255, .78); }
+  .hgrid .pcard-facts { color: rgba(255, 255, 255, .9); margin-top: 4px; }
+  .hgrid .pcard-ft { align-items: flex-end; margin-top: 8px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .16); }
+  .hgrid .pcard-ft b { font-size: 20px; font-weight: 700; }
+  .hgrid .pcard-ft small { color: rgba(255, 255, 255, .7); }
+  .hgrid .pcard-go { width: 34px; height: 34px; color: #FFFFFF; background: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .24); }
 }
 /* گالری عکس پرونده: عکس اول بزرگ، چهار عکس کوچک کنارش */
 .gallery { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 172px; gap: 10px; }

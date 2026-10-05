@@ -10,6 +10,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
    │  useStore().addListing(...)               ← writes
    ▼
  KelidStore  (packages/core/src/store.ts — the only contract pages know)
+   ├─ CachedStore (packages/core/src/cachedStore.ts)  wraps the real store in the app: memoizes reads per table
    ├─ SqlStore    (packages/core/src/sql/sqlStore.ts)  real app: SQL + outbox + emit()
    └─ MemoryStore (store.ts)                           tests and last-resort fallback
    ▼
@@ -21,8 +22,9 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 ```
 
 - `apps/web/src/db/drivers.ts#openDriver()` picks the driver once (singleton): `window.kelid` present → desktop, else worker.
-- `apps/web/src/data.tsx#StoreProvider` opens driver → `SqlStore.open(driver, seed)` (runs migrations, seeds sample data once) and shows `<Splash/>` until ready.
-- Every write: `transaction([row change, INSERT INTO outbox …])` then `emit()` → all `useQuery` hooks refetch.
+- `apps/web/src/data.tsx#openStore()` (called from `main.tsx` before the first render) opens driver → `new CachedStore(await SqlStore.open(driver, seed))` (runs migrations, seeds sample data once); `StoreProvider` shows `<Splash/>` until ready.
+- Every write: `transaction([row change, INSERT INTO outbox …])` then `emit()` → `CachedStore` drops only the reads of the tables that write touched, then mounted `useQuery` hooks (and prefetched ones) refetch; a result whose parts are all unchanged does not re-render.
+- Main pages' queries live in `apps/web/src/queries.ts`; `Shell` prefetches them on idle so the first visit to a page renders with data. Long lists render progressively (`layout/useProgressive.ts`) with memoized rows.
 - `outbox(seq, entity, entity_id, op, payload, created_at)` is the sync log for phase 2 (server push, per-field LWW with HLC).
 
 ## Module map
@@ -83,8 +85,8 @@ All routes sit under a pathless `layout/ScrollMemory` route: moving to another p
 1. `apps/web/src/pages/Foo.tsx` exporting `FooPage`; root element `className="bd enter"`.
 2. Register in `App.tsx` under the Shell children (or top-level for full-screen pages).
 3. Add to `NAV` in `layout/Shell.tsx` only if it belongs in the 5-item sidebar (keep it at 5).
-4. Data via `useQuery('foo:…', …)`; first load uses `useSlow` + `PageSkeleton`.
-5. Links to it: `<Link to="/foo" viewTransition>`.
+4. Data via `useQuery('foo:…', …)`; first load uses `useSlow` + `PageSkeleton`. A main sidebar page: put its query in `queries.ts` and add it to the prefetch list in `Shell.tsx`.
+5. Links to it: `<Link to="/foo" viewTransition>` (sidebar/tab-bar entries switch instantly without a view transition).
 
 ### Add an IPC capability (desktop only)
 1. `apps/desktop/src/database.ts` (or a new module): `ipcMain.handle('area:action', …)` — validate inputs.

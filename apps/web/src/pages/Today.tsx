@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
-import { CheckBox, Cover, Icon, Plaque, type IconName } from '@kelid/ui';
-import { dealLabel, formatLongDate, formatTime, headlinePrice, listingTitle, secondaryPrice, tehranToday, toFaDigits, type Listing, type Visit } from '@kelid/core';
+import { Link, useViewTransitionState } from 'react-router';
+import { CheckBox, Icon, Plaque, type IconName } from '@kelid/ui';
+import { formatLongDate, formatTime, toFaDigits, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
+import { todayQuery } from '../queries';
+import { useFirstVisit } from '../layout/useFirstVisit';
+import { ListingCardContent } from '../layout/ListingCard';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { VisitDialog } from '../visits/VisitDialog';
@@ -27,13 +30,9 @@ export function TodayPage() {
   const [dialog, setDialog] = useState<{ visit?: Visit } | null>(null);
   const [newTodo, setNewTodo] = useState('');
   const now = new Date();
-  const dayStart = new Date(`${tehranToday()}T00:00:00+03:30`).toISOString();
-  const dayEnd = new Date(new Date(dayStart).getTime() + 86_400_000).toISOString();
-
-  const data = useQuery(`today:${dayStart}`, async (s) => {
-    const [visits, todos, listings, clients] = await Promise.all([s.listVisits(dayStart, dayEnd), s.listTodos(), s.listListings(), s.listClients()]);
-    return { visits, todos, listings, clients };
-  });
+  const today = todayQuery();
+  const data = useQuery(today.key, today.fn);
+  const first = useFirstVisit('today');
   const thumbs = useCoverThumbs();
 
   if (!data) return <PageSkeleton aside />;
@@ -54,7 +53,7 @@ export function TodayPage() {
 
   return (
     <>
-      <div className="hd enter">
+      <div className={first ? 'hd enter' : 'hd'}>
         <div className="col" style={{ gap: 4 }}>
           <span className="eb">{formatLongDate(now)}</span>
           <h1 className="t1">{greeting(now)}</h1>
@@ -69,7 +68,7 @@ export function TodayPage() {
         </div>
       </div>
 
-      <div className="bd enter">
+      <div className={first ? 'bd enter' : 'bd'}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
           <section aria-labelledby="ag" className="card" style={{ flex: '3 1 480px', minWidth: 0, padding: '20px 22px' }}>
             <div className="rw" style={{ gap: 10, marginBottom: 8 }}>
@@ -135,31 +134,8 @@ export function TodayPage() {
             <span className="sp" style={{ height: 1, background: 'var(--line)' }} />
             <Link viewTransition className="lnk sm" to="/files" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>همهٔ فایل‌ها</Link>
           </div>
-          <div className="hgrid stagger">
-            {recent.map((l) => (
-              <Link key={l.id} viewTransition className="hcard lift" to={`/files/${l.id}`}>
-                <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} style={{ viewTransitionName: `cover-${l.id}` }} />
-                <span className="hcard-top">
-                  <Plaque value={l.plaque} deal={l.deal} />
-                  <span className="hcard-deal">{dealLabel[l.deal]}</span>
-                </span>
-                <span className="hcard-ov">
-                  <span className="hcard-t">{listingTitle(l)}</span>
-                  <span className="hcard-loc"><Icon name="pin" size="s" />{l.neighborhood}{l.street ? `، ${l.street}` : ''}</span>
-                  <span className="hcard-facts">
-                    <span><b className="num">{toFaDigits(l.area)}</b> متر</span>
-                    <span><b className="num">{toFaDigits(l.bedrooms)}</b> خواب</span>
-                  </span>
-                  <span className="hcard-pr">
-                    <span className="col">
-                      <b className="num">{headlinePrice(l)}</b>
-                      <small className="num">{secondaryPrice(l)}</small>
-                    </span>
-                    <span className="hcard-go" aria-hidden="true"><Icon name="chl" size="s" /></span>
-                  </span>
-                </span>
-              </Link>
-            ))}
+          <div className={first ? 'hgrid stagger' : 'hgrid'}>
+            {recent.map((l) => <RecentCard key={l.id} l={l} cover={coverUrl(thumbs, l.id)} />)}
           </div>
         </section>
       </div>
@@ -207,5 +183,20 @@ function AgendaRow({ v, listing, isNext, showNow, onEdit }: { v: Visit; listing?
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * کارت فایل در «تازه‌ترین فایل‌ها». فقط کارتی که باز یا بسته می‌شود نام انتقال می‌گیرد و کل کارت
+ * (با گوشه‌های گرد و متنش) به عکس پرونده تبدیل می‌شود؛ بقیهٔ کارت‌ها همراه صفحه می‌مانند و از هم نمی‌پاشند.
+ */
+function RecentCard({ l, cover }: { l: Listing; cover: string | undefined }) {
+  const to = `/files/${l.id}`;
+  // فقط عکسِ کارتی که باز می‌شود نام انتقال می‌گیرد؛ بقیهٔ کارت‌ها جزو صفحه می‌مانند و نمی‌پرند.
+  const flying = useViewTransitionState(to);
+  return (
+    <Link viewTransition className="pcard" to={to}>
+      <ListingCardContent l={l} cover={cover} flyName={flying ? `cover-${l.id}` : undefined} />
+    </Link>
   );
 }

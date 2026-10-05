@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Icon, Kbd, Plaque, type IconName } from '@kelid/ui';
 import { headlinePrice, listingTitle, normalizeForSearch, normalizePhone, filterListings, toEnDigits } from '@kelid/core';
 import { useQuery } from '../data';
+import { paletteQuery } from '../queries';
 
 type Item = { key: string; group: string; to: string; render: () => ReactNode };
 
@@ -19,7 +20,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const data = useQuery('palette', async (s) => ({ listings: await s.listListings(), clients: await s.listClients() }));
+  const data = useQuery(paletteQuery.key, paletteQuery.fn);
 
   useEffect(() => inputRef.current?.focus(), []);
 
