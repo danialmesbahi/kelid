@@ -39,7 +39,8 @@ function defaultStart(): { day: string; time: string } {
   return { day: tehranDayKey(), time: `${String(h + 1).padStart(2, '0')}:00` };
 }
 
-export type VisitPreset = { listingId?: string; clientId?: string };
+/** day و time از تقویم می‌آیند: کلیک روی یک خانهٔ خالی، قرار تازه را همان روز و ساعت باز می‌کند. */
+export type VisitPreset = { listingId?: string; clientId?: string; day?: string; time?: string };
 
 /**
  * پنجرهٔ ثبت یا ویرایش قرار. کاملاً با صفحه‌کلید کار می‌کند: Tab بین فیلدها، Enter ثبت، Esc بستن.
@@ -50,7 +51,10 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
   const data = useQuery('visit-dialog', async (s) => ({ listings: await s.listListings(), clients: await s.listClients() }));
   const [kind, setKind] = useState<VisitKind>(visit?.kind ?? 'visit');
   const [title, setTitle] = useState(visit?.title ?? '');
-  const [fresh] = useState(defaultStart);
+  const [fresh] = useState(() => {
+    const d = defaultStart();
+    return preset?.day ? { day: preset.day, time: preset.time ?? (preset.day === d.day ? d.time : '09:00') } : d;
+  });
   const [day, setDay] = useState(visit ? tehranDayKey(new Date(visit.startsAt)) : fresh.day);
   const [time, setTime] = useState(visit ? tehranTimeOf(visit.startsAt) : fresh.time);
   const [duration, setDuration] = useState(visit ? Math.max(15, Math.round((Date.parse(visit.endsAt) - Date.parse(visit.startsAt)) / 60_000)) : 60);

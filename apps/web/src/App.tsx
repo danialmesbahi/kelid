@@ -14,6 +14,7 @@ import { EditListingPage } from './pages/EditListing';
 import { ShowPage } from './pages/Show';
 import { SettingsPage } from './pages/Settings';
 import { SoonPage } from './pages/Soon';
+import { CalendarPage } from './calendar/CalendarPage';
 import { ToastProvider } from './layout/Toasts';
 import { UpdateNotice } from './pwa';
 
@@ -39,7 +40,7 @@ const router = createHashRouter([
           { path: 'files', element: <FilesPage /> },
           { path: 'files/:id', element: <FileDetailPage /> },
           { path: 'clients', element: <ClientsPage /> },
-          { path: 'calendar', element: <SoonPage title="تقویم" /> },
+          { path: 'calendar', element: <CalendarPage /> },
           { path: 'deals', element: <SoonPage title="قراردادها" /> },
           { path: 'settings', element: <SettingsPage /> },
         ],
