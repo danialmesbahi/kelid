@@ -31,5 +31,6 @@ export const faTime = (min: number) => toFaDigits(minutesToHhmm(min));
 
 /** کلید روز معتبر از نشانی؛ هر چیز دیگری نادیده گرفته می‌شود. */
 export function validDay(v: string | null): string | undefined {
-  return v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) ? v : undefined;
+  // Date.parse روزهای ناممکن مثل ۳۱ فوریه را هم می‌پذیرد؛ رفت‌وبرگشت آن‌ها را می‌گیرد
+  return v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && addDays(v, 0) === v ? v : undefined;
 }

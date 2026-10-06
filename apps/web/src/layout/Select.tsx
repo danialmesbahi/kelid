@@ -9,7 +9,7 @@ export type SelectOption<T extends string> = { value: T; label: string; hint?: s
 type Place = { top: number; left: number; width: number; up: boolean; max: number };
 
 /** جای فهرست زیر فیلد (یا بالای آن اگر پایین جا نیست)؛ بیرون از پنجره رندر می‌شود تا بریده نشود. */
-export function usePopoverPlace(open: boolean, anchor: React.RefObject<HTMLElement | null>, minWidth = 0): Place | null {
+export function usePopoverPlace(open: boolean, anchor: React.RefObject<HTMLElement | null>, minWidth = 0, need = 260): Place | null {
   const [place, setPlace] = useState<Place | null>(null);
   useLayoutEffect(() => {
     if (!open) return;
@@ -18,11 +18,12 @@ export function usePopoverPlace(open: boolean, anchor: React.RefObject<HTMLEleme
       if (!r) return;
       const below = innerHeight - r.bottom - 12;
       const above = r.top - 12;
-      const up = below < 260 && above > below;
+      const up = below < need && above > below;
       const width = Math.max(r.width, minWidth);
       // راست‌به‌چپ: لبهٔ راست فهرست با لبهٔ راست فیلد یکی است و از صفحه بیرون نمی‌زند
       const left = Math.min(Math.max(8, r.right - width), innerWidth - width - 8);
-      setPlace({ top: up ? r.top - 6 : r.bottom + 6, left, width, up, max: Math.min(360, (up ? above : below) - 6) });
+      // max = همهٔ جای خالی؛ هر فهرست سقف خودش را جدا می‌گذارد تا هیچ‌وقت از صفحه بیرون نزند
+      setPlace({ top: up ? r.top - 6 : r.bottom + 6, left, width, up, max: Math.max(120, (up ? above : below) - 6) });
     };
     update();
     addEventListener('resize', update);
@@ -31,7 +32,7 @@ export function usePopoverPlace(open: boolean, anchor: React.RefObject<HTMLEleme
       removeEventListener('resize', update);
       removeEventListener('scroll', update, true);
     };
-  }, [open, anchor, minWidth]);
+  }, [open, anchor, minWidth, need]);
   return open ? place : null;
 }
 
@@ -84,7 +85,7 @@ export function Select<T extends string>({ value, options, onChange, label, plac
   // گزینهٔ فعال همیشه در دید بماند
   useEffect(() => {
     list.current?.querySelector(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [active, open]);
+  }, [active, ready]);
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -127,14 +128,14 @@ export function Select<T extends string>({ value, options, onChange, label, plac
         <span className={`kp-chev${open ? ' up' : ''}`} aria-hidden="true"><Icon name="down" size="s" /></span>
       </button>
       {place && createPortal(
-        <div className={`kp-pop${place.up ? ' up' : ''}`} style={{ top: place.top, left: place.left, width: place.width }} onKeyDown={onKey}>
+        <div className={`kp-pop${place.up ? ' up' : ''}`} style={{ top: place.top, left: place.left, width: place.width, maxHeight: Math.min(place.max, searchable ? 410 : 362) }} onKeyDown={onKey}>
           {searchable && (
             <div className="kp-search">
               <Icon name="search" size="s" />
               <input ref={search} value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} placeholder="جستجو…" aria-label={`جستجو در ${label}`} aria-controls={id} aria-activedescendant={shown[active] ? `${id}-${active}` : undefined} />
             </div>
           )}
-          <div ref={list} id={id} role="listbox" aria-label={label} tabIndex={-1} className="kp-list" style={{ maxHeight: place.max }} aria-activedescendant={shown[active] ? `${id}-${active}` : undefined}>
+          <div ref={list} id={id} role="listbox" aria-label={label} tabIndex={-1} className="kp-list" aria-activedescendant={shown[active] ? `${id}-${active}` : undefined}>
             {shown.map((o, i) => (
               <div
                 key={o.value}

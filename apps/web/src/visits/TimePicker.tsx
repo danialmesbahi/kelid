@@ -22,7 +22,7 @@ export function TimePicker({ value, onChange, label = 'ساعت' }: { value: str
   const [late, setLate] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
-  const place = usePopoverPlace(open, btn, 340);
+  const place = usePopoverPlace(open, btn, 340, 420);
   const h = Number(value.slice(0, 2));
   const m = value.slice(3, 5);
   const minutes = MINUTES.includes(m) ? MINUTES : [...MINUTES, m].sort();
@@ -59,7 +59,7 @@ export function TimePicker({ value, onChange, label = 'ساعت' }: { value: str
         <span className={`kp-chev${open ? ' up' : ''}`} aria-hidden="true"><Icon name="down" size="s" /></span>
       </button>
       {place && createPortal(
-        <div ref={pop} role="dialog" aria-label={`انتخاب ${label}`} className={`kp-pop kp-tp${place.up ? ' up' : ''}`} style={{ top: place.top, left: place.left, width: place.width, maxHeight: place.max + 120 }} onKeyDown={onKey}>
+        <div ref={pop} role="dialog" aria-label={`انتخاب ${label}`} className={`kp-pop kp-tp${place.up ? ' up' : ''}`} style={{ top: place.top, left: place.left, width: place.width, maxHeight: place.max }} onKeyDown={onKey}>
           <div className="kp-tp-sec">ساعت</div>
           {rows.map((r) => (
             <div key={r.label} className="kp-tp-row">

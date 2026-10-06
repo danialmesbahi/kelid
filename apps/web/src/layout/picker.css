@@ -21,9 +21,12 @@
 @keyframes kl-kp-in-up { from { opacity: 0; transform: translateY(calc(-100% + 6px)) scale(.98); } }
 .app.dark .kp-pop { box-shadow: 0 24px 48px -18px rgba(0, 0, 0, .7); }
 
-.kp-search { display: flex; align-items: center; gap: 8px; padding: 0 14px; height: 48px; border-bottom: 1px solid var(--line); color: var(--mute); }
+.kp-search { flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px; height: 48px; border-bottom: 1px solid var(--line); color: var(--mute); }
 .kp-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
-.kp-list { overflow-y: auto; overscroll-behavior: contain; padding: 6px; outline: none; }
+/* حلقهٔ فوکوس روی خود جعبهٔ جستجو کج می‌افتاد؛ خط زیر جعبه همان نقش را بازی می‌کند */
+.app .kp-search input:focus-visible, .app .kp-list:focus-visible { outline: none; }
+.kp-search:focus-within { color: var(--pri-text); border-bottom-color: var(--pri-text); }
+.kp-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px; outline: none; }
 .kp-opt {
   display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 12px; border-radius: 11px;
   font-size: 15.5px; color: var(--ink); cursor: pointer;
