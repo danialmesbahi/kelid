@@ -33,6 +33,10 @@ async function scenario(store: KelidStore) {
   // برگشت از «تمام شد» زمان بسته شدن را پاک می‌کند
   const back = await store.updateDeal(d.id, { stage: 'signed' });
   expect(back.closedAt).toBeUndefined();
+  // «برگرداندن» روز بستن قبلی را نگه می‌دارد، نه امروز را
+  const undone = await store.updateDeal(d.id, { stage: 'done', closedAt: done.closedAt });
+  expect(undone.closedAt).toBe(done.closedAt);
+  await store.updateDeal(d.id, { stage: 'signed' });
   expect((await store.listDeals()).find((x) => x.id === d.id)?.commissionBuyer).toBe(137_500_000);
 
   await store.archiveDeal(d.id);
@@ -48,7 +52,7 @@ describe('deals', () => {
     let db = openEncrypted(Database as never, file, 'k');
     const id = await scenario(await SqlStore.open(nodeSqliteDriver(db), seed));
     const rows = db.prepare('SELECT op, payload FROM outbox WHERE entity = ? AND entity_id = ? ORDER BY seq').all('deal', id) as Array<{ op: string; payload: string }>;
-    expect(rows.map((r) => r.op)).toEqual(['upsert', 'upsert', 'upsert', 'delete', 'upsert']);
+    expect(rows.map((r) => r.op)).toEqual(['upsert', 'upsert', 'upsert', 'upsert', 'upsert', 'delete', 'upsert']);
     expect(Object.keys(JSON.parse(rows[1]!.payload) as object).sort()).toEqual(['checklist', 'closedAt', 'commissionBuyer', 'stage']);
     expect(JSON.parse(rows[2]!.payload)).toEqual({ stage: 'signed', closedAt: null });
     db.close();

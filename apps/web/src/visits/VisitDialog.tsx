@@ -146,8 +146,9 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
 
   // پنجره بیرون از صفحه رندر می‌شود: صفحه view-transition-name دارد و لایهٔ جدا می‌سازد،
   // پس داخل آن نوار بالا و نوار پایین گوشی روی پنجره می‌افتادند.
+  // کلیک بیرون فقط همین پنجره را ببندد، نه پنل قراردادی که این پنجره از آن باز شده.
   return createPortal(
-    <div className="overlay vd-ov" onMouseDown={onClose}>
+    <div className="overlay vd-ov" onMouseDown={(e) => { e.stopPropagation(); onClose(); }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="vd-title" tabIndex={-1} className="vd pop" onMouseDown={(e) => e.stopPropagation()} onKeyDown={onKeyDown}>
         <form onSubmit={submit} className="vd-form">
           <div className="vd-hd rw" style={{ gap: 10 }}>

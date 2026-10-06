@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { CheckBox, Cover, Icon, Plaque } from '@kelid/ui';
@@ -68,18 +68,23 @@ export function DealPanel({ d, l, clients, onMove, onClose }: { d: Deal; l?: Lis
   }, []);
 
   const save = (patch: Partial<NewDeal>) => void store.updateDeal(d.id, patch);
+  // مبلغ و یادداشت با blur ذخیره می‌شوند؛ قبل از بستن، فیلد فعال را blur می‌کنیم تا نوشته‌ها با Esc یا کلیک بیرون گم نشوند.
+  const close = useCallback(() => {
+    if (ref.current?.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
+    onClose();
+  }, [onClose]);
   // روی window تا هر جای پنل فوکوس باشد کار کند؛ پنجرهٔ قرار، Esc خودش را نگه می‌دارد.
   useEffect(() => {
     if (visit) return;
-    const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && close();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [visit, onClose]);
+  }, [visit, close]);
   const toggle = (id: string, on: boolean) => save({ checklist: on ? [...d.checklist, id] : d.checklist.filter((x) => x !== id) });
   const ring = items.length ? doneCount / items.length : 0;
 
   return createPortal(
-    <div className="overlay dl-ov" onMouseDown={onClose}>
+    <div className="overlay dl-ov" onMouseDown={close}>
       <aside ref={ref} role="dialog" aria-modal="true" aria-label="پروندهٔ معامله" tabIndex={-1} className="dl-panel" onMouseDown={(e) => e.stopPropagation()}>
         <header className="dl-p-hd">
           <span className="dl-p-cover">{l && <Cover variant={l.cover} src={coverUrl(thumbs, l.id)} />}</span>
@@ -91,7 +96,7 @@ export function DealPanel({ d, l, clients, onMove, onClose }: { d: Deal; l?: Lis
             <h2 className="t2 dl-ell">{l ? listingTitle(l) : 'فایل حذف شده'}</h2>
             {l && <Link viewTransition to={`/files/${l.id}`} className="lnk xs">پروندهٔ فایل</Link>}
           </div>
-          <button type="button" className="ib ghost" aria-label="بستن" onClick={onClose}><Icon name="x" /></button>
+          <button type="button" className="ib ghost" aria-label="بستن" onClick={close}><Icon name="x" /></button>
         </header>
 
         <div className="dl-p-bd">

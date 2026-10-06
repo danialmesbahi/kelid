@@ -13,6 +13,8 @@ export type NewClient = Omit<Client, 'id' | 'createdAt' | 'lastContactAt'>;
 export type NewVisit = Omit<Visit, 'id'>;
 export type NewTodo = Pick<Todo, 'title'> & Partial<Pick<Todo, 'detail' | 'action'>>;
 export type NewDeal = Omit<Deal, 'id' | 'createdAt' | 'updatedAt' | 'closedAt'>;
+/** closedAt فقط برای «برگرداندن» است تا روز بستن قبلی (و درآمد همان ماه) سر جایش بماند. */
+export type DealPatch = Partial<NewDeal> & { closedAt?: string };
 /** دادهٔ نمونه‌ای که بار اول در دیتابیس خالی ریخته می‌شود. */
 export type SampleData = { listings: Listing[]; clients: Client[]; visits: Visit[]; todos: Todo[]; deals?: Deal[] };
 
@@ -76,7 +78,7 @@ export interface KelidStore {
   listDeals(): Promise<Deal[]>;
   addDeal(input: NewDeal): Promise<Deal>;
   /** رفتن به «تمام شد» زمان بسته شدن را ثبت می‌کند و برگشتن از آن پاکش می‌کند. */
-  updateDeal(id: string, patch: Partial<NewDeal>): Promise<Deal>;
+  updateDeal(id: string, patch: DealPatch): Promise<Deal>;
   /** حذف نرم؛ با restoreDeal برمی‌گردد. */
   archiveDeal(id: string): Promise<void>;
   restoreDeal(id: string): Promise<void>;
@@ -134,10 +136,10 @@ export function applyListingPatch(cur: Listing, patch: Partial<NewListing>): Lis
  * وصلهٔ معامله؛ فقط فیلدهای عوض‌شده در changed می‌آیند (برای outbox).
  * closedAt با رفتن به «تمام شد» پر و با برگشتن از آن خالی می‌شود.
  */
-export function applyDealPatch(cur: Deal, patch: Partial<NewDeal>, now: string): { next: Deal; changed: Partial<Deal> } {
+export function applyDealPatch(cur: Deal, patch: DealPatch, now: string): { next: Deal; changed: Partial<Deal> } {
   const merged: Deal = { ...cur, ...patch, id: cur.id, createdAt: cur.createdAt };
-  if (patch.stage === 'done' && cur.stage !== 'done') merged.closedAt = now;
-  if (patch.stage && patch.stage !== 'done') merged.closedAt = undefined;
+  if (patch.stage === 'done' && cur.stage !== 'done') merged.closedAt = patch.closedAt ?? now;
+  if (merged.stage !== 'done') merged.closedAt = undefined;
   const changed: Record<string, unknown> = {};
   for (const k of Object.keys(merged) as Array<keyof Deal>) {
     if (k === 'updatedAt') continue;
@@ -332,7 +334,7 @@ export class MemoryStore implements KelidStore {
     return d;
   }
 
-  async updateDeal(id: string, patch: Partial<NewDeal>) {
+  async updateDeal(id: string, patch: DealPatch) {
     const i = this.deals.findIndex((d) => d.id === id && !d.deleted);
     const cur = this.deals[i];
     if (!cur) throw new Error('معامله پیدا نشد');
@@ -344,12 +346,14 @@ export class MemoryStore implements KelidStore {
   }
 
   async archiveDeal(id: string) {
-    this.deals = this.deals.map((d) => (d.id === id ? { ...d, deleted: true } : d));
+    const now = new Date().toISOString();
+    this.deals = this.deals.map((d) => (d.id === id ? { ...d, deleted: true, updatedAt: now } : d));
     this.emit();
   }
 
   async restoreDeal(id: string) {
-    this.deals = this.deals.map((d) => (d.id === id ? { ...d, deleted: false } : d));
+    const now = new Date().toISOString();
+    this.deals = this.deals.map((d) => (d.id === id ? { ...d, deleted: false, updatedAt: now } : d));
     this.emit();
   }
 

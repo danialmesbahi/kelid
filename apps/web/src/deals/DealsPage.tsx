@@ -196,7 +196,17 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     return () => window.removeEventListener('click', stop, true);
   }, []);
 
+  // کشیدن نیمه‌کاره (رها شده بیرون صفحه یا لغو شده) بی‌صدا برمی‌گردد و هیچ معامله‌ای جابه‌جا نمی‌شود
+  const reset = () => {
+    const s = g.current;
+    g.current = null;
+    if (!s?.moved) return;
+    s.el.style.transform = '';
+    dragRef.current = null;
+    setDrag(null);
+  };
   const down = (e: PointerEvent<HTMLDivElement>) => {
+    reset();
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-deal]');
     if (!el || e.button !== 0 || e.pointerType === 'touch') return;
     const d = deals.find((x) => x.id === el.dataset.deal);
@@ -207,6 +217,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
   const moveP = (e: PointerEvent<HTMLDivElement>) => {
     const s = g.current;
     if (!s) return;
+    if (e.buttons === 0) return reset();
     if (!s.moved && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) < 6) return;
     if (!s.moved) s.el.setPointerCapture?.(e.pointerId);
     s.moved = true;
@@ -233,7 +244,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
   };
 
   return (
-    <div className="dl-board" ref={boardRef} onPointerDown={down} onPointerMove={moveP} onPointerUp={up} onPointerCancel={up}>
+    <div className="dl-board" ref={boardRef} onPointerDown={down} onPointerMove={moveP} onPointerUp={up} onPointerCancel={reset}>
       {STAGES.map((s, i) => {
         const mine = deals.filter((d) => d.stage === s.id);
         const sum = mine.reduce((t, d) => t + dealCommission(d), 0);

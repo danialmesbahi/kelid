@@ -1,7 +1,7 @@
 import { newId } from '../id';
 import type { Client, Deal, Listing, Photo, Todo, Visit } from '../model';
 import { normalizeForSearch } from '../persian';
-import type { CoverThumbs, KelidStore, ListingFilter, NewClient, NewDeal, NewListing, NewPhoto, NewTodo, NewVisit, PhotoThumb, SampleData } from '../store';
+import type { CoverThumbs, DealPatch, KelidStore, ListingFilter, NewClient, NewDeal, NewListing, NewPhoto, NewTodo, NewVisit, PhotoThumb, SampleData } from '../store';
 import { applyDealPatch, applyListingPatch, changedClientFields, changedFields, clientSearchText, searchText } from '../store';
 import type { SqlDriver, SqlStatement, SqlValue } from './driver';
 import { migrate } from './schema';
@@ -484,7 +484,7 @@ export class SqlStore implements KelidStore {
     return d;
   }
 
-  async updateDeal(id: string, patch: Partial<NewDeal>) {
+  async updateDeal(id: string, patch: DealPatch) {
     const [r] = await this.db.all<Row>('SELECT * FROM deals WHERE id = ? AND deleted = 0', [id]);
     if (!r) throw new Error('معامله پیدا نشد');
     const cur = rowToDeal(r);
