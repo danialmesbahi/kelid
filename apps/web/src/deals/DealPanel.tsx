@@ -8,6 +8,7 @@ import {
 } from '@kelid/core';
 import { useStore } from '../data';
 import { useToast } from '../layout/Toasts';
+import { Select } from '../layout/Select';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { JalaliPicker } from '../visits/JalaliPicker';
 import { VisitDialog } from '../visits/VisitDialog';
@@ -110,13 +111,15 @@ export function DealPanel({ d, l, clients, onMove, onClose }: { d: Deal; l?: Lis
           </nav>
           {d.stage === 'lost' && <p className="tag warn" style={{ alignSelf: 'flex-start' }}>این معامله منصرف شده؛ با زدن یک مرحله برمی‌گردد.</p>}
 
-          <label className="lbl">
-            مشتری
-            <select className="fld" value={d.clientId ?? ''} onChange={(e) => save({ clientId: e.target.value || undefined })}>
-              <option value="">بدون مشتری</option>
-              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </label>
+          <div className="lbl">
+            <span>مشتری</span>
+            <Select<string>
+              label="مشتری"
+              value={d.clientId ?? ''}
+              onChange={(v) => save({ clientId: v || undefined })}
+              options={[{ value: '', label: 'بدون مشتری' }, ...clients.map((c) => ({ value: c.id, label: c.name, hint: toFaDigits(c.phone) }))]}
+            />
+          </div>
 
           <div className="dl-grid2">
             <Money label={lease ? 'ودیعه' : 'قیمت توافقی'} value={d.price} onSave={(price) => save({ price })} />

@@ -7,6 +7,7 @@ import {
 } from '@kelid/core';
 import { useStore } from '../data';
 import { useToast } from '../layout/Toasts';
+import { Select } from '../layout/Select';
 import { listingStatusFor } from './actions';
 
 /**
@@ -118,13 +119,15 @@ export function NewDealDialog({ data, listingId, onClose, onCreated }: { data: {
                     </div>
                   </div>
                 )}
-                <label className="lbl">
-                  مشتری
-                  <select className="fld" value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                    <option value="">بعداً انتخاب می‌کنم</option>
-                    {data.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </label>
+                <div className="lbl">
+                  <span>مشتری</span>
+                  <Select<string>
+                    label="مشتری"
+                    value={clientId}
+                    onChange={setClientId}
+                    options={[{ value: '', label: 'بعداً انتخاب می‌کنم' }, ...data.clients.map((c) => ({ value: c.id, label: c.name, hint: toFaDigits(c.phone) }))]}
+                  />
+                </div>
                 <p className="hint">مبلغ از قیمت فایل و کمیسیون از تعرفهٔ پیشنهادی پر می‌شود؛ در پروندهٔ معامله عوضشان کنید.</p>
               </>
             )}

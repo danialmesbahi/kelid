@@ -178,7 +178,9 @@ function Empty({ stage }: { stage: Live }) {
 /** ستون‌های خط معامله؛ کارت با موس به ستون دیگر کشیده می‌شود. */
 function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => void; render: (d: Deal) => ReactNode }) {
   const g = useRef<{ d: Deal; x0: number; y0: number; cols: Array<{ id: Live; r: DOMRect }>; moved: boolean; el: HTMLElement } | null>(null);
-  const [drag, setDrag] = useState<{ id: string; to: Live; dx: number; dy: number } | null>(null);
+  // state فقط وقتی عوض می‌شود که ستون زیر موس عوض شود؛ جابه‌جایی خود کارت مستقیم روی DOM است تا هر حرکت موس کل تابلو را رندر نکند.
+  const [drag, setDrag] = useState<{ id: string; to: Live } | null>(null);
+  const dragRef = useRef(drag);
   const boardRef = useRef<HTMLDivElement>(null);
   const swallow = useRef(false);
 
@@ -209,15 +211,24 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     if (!s.moved) s.el.setPointerCapture?.(e.pointerId);
     s.moved = true;
     const hit = s.cols.find((c) => e.clientX >= c.r.left && e.clientX <= c.r.right);
-    setDrag({ id: s.d.id, to: hit?.id ?? (s.d.stage as Live), dx: e.clientX - s.x0, dy: e.clientY - s.y0 });
+    const dx = e.clientX - s.x0;
+    s.el.style.transform = `translate(${dx}px, ${e.clientY - s.y0}px) rotate(${dx > 0 ? 1.5 : -1.5}deg)`;
+    const to = hit?.id ?? (s.d.stage as Live);
+    if (dragRef.current?.id !== s.d.id || dragRef.current.to !== to) {
+      dragRef.current = { id: s.d.id, to };
+      setDrag(dragRef.current);
+    }
   };
   const up = () => {
     const s = g.current;
     g.current = null;
     if (!s?.moved) return;
+    s.el.style.transform = '';
     swallow.current = true;
     setTimeout(() => (swallow.current = false), 0);
-    if (drag && drag.to !== s.d.stage) onMove(s.d, drag.to);
+    const last = dragRef.current;
+    if (last && last.to !== s.d.stage) onMove(s.d, last.to);
+    dragRef.current = null;
     setDrag(null);
   };
 
@@ -237,7 +248,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
             </header>
             <div className="dl-col-bd">
               {mine.map((d) => (
-                <div key={d.id} data-deal={d.id} className={drag?.id === d.id ? 'dl-drag' : undefined} style={drag?.id === d.id ? { transform: `translate(${drag.dx}px, ${drag.dy}px) rotate(${drag.dx > 0 ? 1.5 : -1.5}deg)` } : undefined}>
+                <div key={d.id} data-deal={d.id} className={drag?.id === d.id ? 'dl-drag' : undefined}>
                   {render(d)}
                 </div>
               ))}
