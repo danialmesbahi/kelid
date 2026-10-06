@@ -16,6 +16,7 @@ import { SettingsPage } from './pages/Settings';
 import { SoonPage } from './pages/Soon';
 import { ToastProvider } from './layout/Toasts';
 import { UpdateNotice } from './pwa';
+import { Welcome } from './welcome/Welcome';
 
 type Prefs = ReturnType<typeof usePrefs>;
 const PrefsContext = createContext<Prefs | null>(null);
@@ -60,6 +61,7 @@ export function App() {
       <StoreProvider>
         <ToastProvider>
           <RouterProvider router={router} />
+          {!prefs.welcomed && <Welcome />}
           <UpdateNotice />
         </ToastProvider>
       </StoreProvider>
