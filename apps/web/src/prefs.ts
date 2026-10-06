@@ -31,6 +31,10 @@ function systemDark(): boolean {
 export function usePrefs() {
   const [theme, setTheme] = useState<ThemePref>(() => read('kelid.theme', 'light'));
   const [textSize, setTextSize] = useState<TextSize>(() => read('kelid.textSize', 0));
+  // نام کاربر و دفتر فقط روی همین دستگاه؛ با ورود و همگام‌سازی (فاز ۲) از سرور می‌آیند.
+  const [userName, setUserName] = useState<string>(() => read('kelid.userName', ''));
+  const [officeName, setOfficeName] = useState<string>(() => read('kelid.officeName', ''));
+  const [welcomed, setWelcomed] = useState<boolean>(() => read('kelid.welcomed', false));
 
   useEffect(() => {
     const apply = () => {
@@ -50,5 +54,16 @@ export function usePrefs() {
     write('kelid.textSize', textSize);
   }, [textSize]);
 
-  return { theme, setTheme, textSize, setTextSize };
+  useEffect(() => write('kelid.userName', userName), [userName]);
+  useEffect(() => write('kelid.officeName', officeName), [officeName]);
+  useEffect(() => write('kelid.welcomed', welcomed), [welcomed]);
+
+  return { theme, setTheme, textSize, setTextSize, userName, setUserName, officeName, setOfficeName, welcomed, setWelcomed };
+}
+
+/** «علی» از «علی رضایی»؛ «آقای رضایی» و «خانم احمدی» همان‌طور می‌مانند. */
+export function callName(userName: string): string {
+  const w = userName.trim().split(/\s+/).filter(Boolean);
+  if (w.length === 0) return '';
+  return ['آقای', 'خانم', 'دکتر', 'مهندس'].includes(w[0]!) ? w.slice(0, 2).join(' ') : w[0]!;
 }

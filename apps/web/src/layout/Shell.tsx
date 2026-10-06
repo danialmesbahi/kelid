@@ -6,6 +6,7 @@ import { toFaDigits } from '@kelid/core';
 import { prefetchQuery, useQuery, useStorageInfo, useStore } from '../data';
 import { clientsQuery, coverThumbsQuery, filesQuery, navCountsQuery, paletteQuery } from '../queries';
 import { CommandPalette } from './CommandPalette';
+import { usePrefsContext } from '../App';
 
 const NAV: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
@@ -40,6 +41,7 @@ export function Shell() {
   const storage = useStorageInfo();
   const counts = useQuery(navCountsQuery.key, navCountsQuery.fn);
   const store = useStore();
+  const { officeName, userName } = usePrefsContext();
 
   // بعد از اولین نقاشی، دادهٔ صفحه‌های دیگر در وقت آزاد آماده می‌شود تا رفتن به آن‌ها مکث نداشته باشد.
   useEffect(() => {
@@ -75,7 +77,10 @@ export function Shell() {
       <aside className="side">
         <div className="brand">
           <span className="plq" style={{ height: 34, padding: '0 12px', fontSize: 16 }}>کلید</span>
-          <span className="xs mute" style={{ lineHeight: 1.45 }}>املاک<br />[نام دفتر]</span>
+          <span className="col" style={{ lineHeight: 1.45, minWidth: 0 }}>
+            <span className="sm b" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{officeName || 'دفتر املاک'}</span>
+            {userName && <span className="xs mute" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</span>}
+          </span>
         </div>
         <nav aria-label="منوی اصلی" className="col navwrap" style={{ gap: 2 }}>
           <span className="nav-indicator" aria-hidden="true" style={{ transform: `translateY(${Math.max(idx, 0) * ROW}px)`, opacity: idx < 0 ? 0 : 1 }} />
