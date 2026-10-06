@@ -15,6 +15,8 @@ export default defineConfig({
     locale: 'fa-IR',
     timezoneId: 'Asia/Tehran',
     trace: 'retain-on-failure',
+    // آشنایی بار اول را رد می‌کند؛ تست خود آشنایی این را خالی می‌کند.
+    storageState: { cookies: [], origins: [{ origin: 'http://localhost:4173', localStorage: [{ name: 'kelid.welcomed', value: 'true' }] }] },
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

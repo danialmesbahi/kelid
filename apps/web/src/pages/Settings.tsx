@@ -14,7 +14,7 @@ const whereText = {
 } as const;
 
 export function SettingsPage() {
-  const { theme, setTheme, textSize, setTextSize } = usePrefsContext();
+  const { theme, setTheme, textSize, setTextSize, userName, setUserName, officeName, setOfficeName, setWelcomed } = usePrefsContext();
   const storage = useStorageInfo();
   const store = useStore();
   const toast = useToast();
@@ -25,6 +25,18 @@ export function SettingsPage() {
   return (
     <div className={first ? 'bd enter' : 'bd'} style={{ paddingTop: 26, maxWidth: 900 }}>
       <h1 className="t1">تنظیمات</h1>
+
+      <section aria-labelledby="me" className="col" style={{ gap: 14 }}>
+        <h2 id="me" className="t2">شما و دفتر</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, maxWidth: 620 }}>
+          <label className="lbl">نام شما<input className="fld" defaultValue={userName} onBlur={(e) => setUserName(e.target.value.trim())} placeholder="مثلاً علی رضایی" /></label>
+          <label className="lbl">نام دفتر<input className="fld" defaultValue={officeName} onBlur={(e) => setOfficeName(e.target.value.trim())} placeholder="مثلاً املاک پارسا" /></label>
+        </div>
+        <button type="button" className="lnk sm" style={{ alignSelf: 'flex-start', border: 0, background: 'none', padding: '4px 0', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setWelcomed(false)}>
+          <Icon name="spark" size="s" />
+          نمایش دوبارهٔ آشنایی با کلید
+        </button>
+      </section>
 
       <section aria-labelledby="look" className="col" style={{ gap: 14 }}>
         <h2 id="look" className="t2">ظاهر</h2>

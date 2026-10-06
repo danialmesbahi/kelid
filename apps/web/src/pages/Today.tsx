@@ -10,6 +10,8 @@ import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { VisitDialog } from '../visits/VisitDialog';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
+import { usePrefsContext } from '../App';
+import { callName } from '../prefs';
 
 const ACTION_ICON: Record<'sms' | 'call' | 'camera', { icon: IconName; label: string }> = {
   sms: { icon: 'msg', label: 'پیامک' },
@@ -34,6 +36,7 @@ export function TodayPage() {
   const data = useQuery(today.key, today.fn);
   const first = useFirstVisit('today');
   const thumbs = useCoverThumbs();
+  const who = callName(usePrefsContext().userName);
 
   if (!data) return <PageSkeleton aside />;
   const { visits, todos, listings, clients } = data;
@@ -56,7 +59,7 @@ export function TodayPage() {
       <div className={first ? 'hd enter' : 'hd'}>
         <div className="col" style={{ gap: 4 }}>
           <span className="eb">{formatLongDate(now)}</span>
-          <h1 className="t1">{greeting(now)}</h1>
+          <h1 className="t1">{greeting(now)}{who ? `، ${who}` : ''}</h1>
           <span className="mute">
             امروز <b style={{ color: 'var(--ink)' }}>{toFaDigits(visitCount)} بازدید</b> و <b style={{ color: 'var(--ink)' }}>{toFaDigits(left)} کار مانده</b> دارید.
           </span>
