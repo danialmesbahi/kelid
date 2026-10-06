@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useBlocker } from 'react-router';
 import { Cover, Icon, Segmented } from '@kelid/ui';
-import { dealLabel, formatPlaque, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { dealLabel, formatGrouped, formatPlaque, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
@@ -37,7 +37,7 @@ function parseNum(s: string): number | undefined {
   return digits ? Number(digits) : undefined;
 }
 
-const amountText = (n?: number) => (n ? toFaDigits(n.toLocaleString('en-US')).replace(/,/g, '٬') : '');
+const amountText = (n?: number) => (n ? formatGrouped(n) : '');
 const numText = (n?: number) => (n === undefined ? '' : toFaDigits(n));
 
 type FormState = {

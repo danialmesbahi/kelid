@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { Icon, Kbd, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { prefetchQuery, useQuery, useStorageInfo, useStore } from '../data';
 import { clientsQuery, coverThumbsQuery, filesQuery, navCountsQuery, paletteQuery } from '../queries';
 import { CommandPalette } from './CommandPalette';
+import { usePrefsContext } from '../App';
 
 const NAV: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
@@ -16,12 +18,12 @@ const NAV: Array<{ to: string; icon: IconName; label: string }> = [
 
 const ROW = 46; // ارتفاع هر گزینه + فاصله، برای نشانگر لغزان
 
-/** نوار پایین گوشی؛ تقویم و قراردادها هنوز آماده نیستند، پس جایشان تنظیمات است. */
+/** نوار پایین گوشی؛ قراردادها و تنظیمات در برگهٔ «بیشتر» نوار بالا هستند تا تقویم جا شود. */
 const TABS: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
   { to: '/files', icon: 'files', label: 'فایل‌ها' },
   { to: '/clients', icon: 'users', label: 'مشتری‌ها' },
-  { to: '/settings', icon: 'set', label: 'تنظیمات' },
+  { to: '/calendar', icon: 'cal', label: 'تقویم' },
 ];
 
 function activeIndex(pathname: string): number {
@@ -33,11 +35,13 @@ const storageLabel = { desktop: 'ذخیرهٔ رمزگذاری‌شده روی �
 
 export function Shell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [more, setMore] = useState(false);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const storage = useStorageInfo();
   const counts = useQuery(navCountsQuery.key, navCountsQuery.fn);
   const store = useStore();
+  const { officeName, userName } = usePrefsContext();
 
   // بعد از اولین نقاشی، دادهٔ صفحه‌های دیگر در وقت آزاد آماده می‌شود تا رفتن به آن‌ها مکث نداشته باشد.
   useEffect(() => {
@@ -73,7 +77,10 @@ export function Shell() {
       <aside className="side">
         <div className="brand">
           <span className="plq" style={{ height: 34, padding: '0 12px', fontSize: 16 }}>کلید</span>
-          <span className="xs mute" style={{ lineHeight: 1.45 }}>املاک<br />[نام دفتر]</span>
+          <span className="col" style={{ lineHeight: 1.45, minWidth: 0 }}>
+            <span className="sm b" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{officeName || 'دفتر املاک'}</span>
+            {userName && <span className="xs mute" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</span>}
+          </span>
         </div>
         <nav aria-label="منوی اصلی" className="col navwrap" style={{ gap: 2 }}>
           <span className="nav-indicator" aria-hidden="true" style={{ transform: `translateY(${Math.max(idx, 0) * ROW}px)`, opacity: idx < 0 ? 0 : 1 }} />
@@ -113,6 +120,7 @@ export function Shell() {
             <Kbd>Ctrl K</Kbd>
           </button>
           <span className="sp" />
+          <button type="button" className="ib ghost mset" aria-label="بیشتر" aria-expanded={more} onClick={() => setMore(true)}><Icon name="more" /></button>
           <Link className="btn btn-p top-new" to="/add" viewTransition>
             <Icon name="plus" size="s" thick />
             فایل جدید
@@ -130,6 +138,7 @@ export function Shell() {
       </nav>
 
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      {more && <MoreSheet onClose={() => setMore(false)} />}
     </div>
   );
 }
@@ -140,5 +149,27 @@ function TabLink({ to, icon, label }: { to: string; icon: IconName; label: strin
       <Icon name={icon} />
       {label}
     </NavLink>
+  );
+}
+
+/** برگهٔ «بیشتر» روی گوشی: بخش‌هایی که در نوار پایین جا نشده‌اند. */
+function MoreSheet({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return createPortal(
+    <div className="overlay vd-ov" onMouseDown={onClose}>
+      <nav className="vd pop more-sheet" aria-label="بیشتر" onMouseDown={(e) => e.stopPropagation()}>
+        {[{ to: '/deals', icon: 'deal' as const, label: 'قراردادها' }, { to: '/settings', icon: 'set' as const, label: 'تنظیمات' }].map((n) => (
+          <NavLink key={n.to} to={n.to} className={({ isActive }) => (isActive ? 'nav on' : 'nav')} onClick={onClose}>
+            <Icon name={n.icon} />
+            {n.label}
+          </NavLink>
+        ))}
+      </nav>
+    </div>,
+    document.getElementById('root') ?? document.body,
   );
 }

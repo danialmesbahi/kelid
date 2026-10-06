@@ -114,6 +114,27 @@ export const migrations: string[] = [
   /* 3: یادداشت داخلی برای مشتری */ `
   ALTER TABLE clients ADD COLUMN notes TEXT;
   `,
+  /* 4: معامله‌ها و قراردادها (خط معامله) */ `
+  CREATE TABLE IF NOT EXISTS deals (
+    id TEXT PRIMARY KEY,
+    listing_id TEXT NOT NULL,
+    client_id TEXT,
+    stage TEXT NOT NULL,
+    price INTEGER,
+    rent INTEGER,
+    commission_buyer INTEGER,
+    commission_seller INTEGER,
+    checklist TEXT NOT NULL DEFAULT '[]',
+    due_day TEXT,
+    notes TEXT,
+    closed_at TEXT,
+    sample INTEGER NOT NULL DEFAULT 0,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS deals_listing ON deals(listing_id) WHERE deleted = 0;
+  `,
 ];
 
 export async function migrate(db: SqlDriver): Promise<void> {

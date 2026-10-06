@@ -1,0 +1,60 @@
+/* تقویم ساده: جدول ماه کنار برنامهٔ روز. روی گوشی زیر هم. */
+.calpage { display: flex; flex-direction: column; }
+.cal-new { height: 46px; padding: 0 18px; }
+.cal-body { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: 24px; align-items: start; }
+
+/* ── جدول ماه ── */
+.cal-month { padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+.cal-mhd { display: flex; align-items: center; gap: 6px; }
+.cal-mhd .ib { width: 40px; height: 40px; }
+.cal-mname { flex: 1; text-align: center; font-size: 17px; }
+.cal-wk, .cal-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-wk span { text-align: center; font-size: 13px; font-weight: 600; color: var(--mute); padding: 2px 0; }
+.cal-wk .fri { color: var(--bad); }
+.cal-days { animation: kl-cal-fade 220ms var(--ease-out) both; }
+@keyframes kl-cal-fade { from { opacity: 0; } }
+.cal-d {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  aspect-ratio: 1; min-height: 40px; border: 0; border-radius: 12px; background: transparent; color: var(--ink);
+  font-size: 16px; transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+.cal-d:hover { background: var(--sunk); }
+.cal-d.out { color: var(--faint); }
+.cal-d.fri:not(.out) { color: var(--bad); }
+.cal-d.today { box-shadow: inset 0 0 0 2px var(--pri); font-weight: 700; }
+.cal-d[aria-pressed="true"] { background: var(--pri); color: var(--pri-ink); font-weight: 700; }
+.cal-dots { display: flex; gap: 3px; height: 5px; }
+.cal-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--brass); }
+.cal-d[aria-pressed="true"] .cal-dots i { background: var(--pri-ink); }
+.cal-back { align-self: center; border: 0; background: none; padding: 6px 10px; min-height: 40px; }
+
+/* ── برنامهٔ روز ── */
+.cal-list { padding: 8px 20px; min-height: 320px; }
+.cal-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+.cal-list > div:first-child .cal-row { border-top: 0; }
+.cal-row.past { opacity: .55; }
+.cal-time { width: 58px; flex: none; font-size: 18px; font-weight: 700; color: var(--ink); }
+.cal-main {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 6px 10px; margin: -6px -10px;
+  border: 0; border-radius: 12px; background: transparent; text-align: right; color: inherit; transition: background-color var(--t-fast) ease;
+}
+.cal-main:hover { background: var(--sunk); }
+.cal-title { font-size: 16.5px; line-height: 1.5; }
+.cal-kind { display: inline-flex; align-items: center; gap: 4px; color: var(--pri-text); font-weight: 600; }
+.cal-now { display: flex; align-items: center; gap: 12px; padding: 4px 0; color: var(--brass-text); }
+.cal-now span:first-child { width: 58px; }
+.cal-now i { width: 9px; height: 9px; border-radius: 50%; background: var(--brass); }
+.cal-now .sp { height: 1px; background: var(--brass); }
+.cal-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 300px; text-align: center; font-size: 16px; }
+.cal-empty-i { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: var(--pri-tint); color: var(--pri-text); }
+.cal-empty .lnk { border: 0; background: none; min-height: 40px; }
+
+@media (max-width: 767px) {
+  .cal-body { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .cal-month { padding: 12px 10px 10px; }
+  .cal-d { aspect-ratio: auto; height: 44px; }
+  .cal-list { padding: 4px 14px; min-height: 0; }
+  .cal-empty { min-height: 200px; }
+  .cal-time { width: 50px; font-size: 16px; }
+  .cal-now span:first-child { width: 50px; }
+}

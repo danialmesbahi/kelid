@@ -1,5 +1,5 @@
 import { newId } from './id';
-import type { Client, DealType, Listing, Todo, Visit, Photo } from './model';
+import type { Client, Deal, DealType, Listing, Todo, Visit, Photo } from './model';
 import { normalizeForSearch, toEnDigits } from './persian';
 import { listingTitle } from './format';
 
@@ -12,6 +12,11 @@ export type NewListing = Omit<Listing, 'id' | 'plaque' | 'createdAt' | 'updatedA
 export type NewClient = Omit<Client, 'id' | 'createdAt' | 'lastContactAt'>;
 export type NewVisit = Omit<Visit, 'id'>;
 export type NewTodo = Pick<Todo, 'title'> & Partial<Pick<Todo, 'detail' | 'action'>>;
+export type NewDeal = Omit<Deal, 'id' | 'createdAt' | 'updatedAt' | 'closedAt'>;
+/** closedAt فقط برای «برگرداندن» است تا روز بستن قبلی (و درآمد همان ماه) سر جایش بماند. */
+export type DealPatch = Partial<NewDeal> & { closedAt?: string };
+/** دادهٔ نمونه‌ای که بار اول در دیتابیس خالی ریخته می‌شود. */
+export type SampleData = { listings: Listing[]; clients: Client[]; visits: Visit[]; todos: Todo[]; deals?: Deal[] };
 
 /** عکسی که در مرورگر کوچک شده و آمادهٔ ذخیره است. */
 export interface NewPhoto {
@@ -69,6 +74,14 @@ export interface KelidStore {
   /** حذف نرم؛ با restorePhoto برمی‌گردد. */
   deletePhoto(id: string): Promise<void>;
   restorePhoto(id: string): Promise<void>;
+  /** همهٔ معامله‌ها (منصرف‌شده‌ها هم)، تازه‌ترین تغییر اول. */
+  listDeals(): Promise<Deal[]>;
+  addDeal(input: NewDeal): Promise<Deal>;
+  /** رفتن به «تمام شد» زمان بسته شدن را ثبت می‌کند و برگشتن از آن پاکش می‌کند. */
+  updateDeal(id: string, patch: DealPatch): Promise<Deal>;
+  /** حذف نرم؛ با restoreDeal برمی‌گردد. */
+  archiveDeal(id: string): Promise<void>;
+  restoreDeal(id: string): Promise<void>;
   /** هر بار داده عوض شود صدا زده می‌شود. */
   subscribe(listener: () => void): () => void;
 }
@@ -119,6 +132,23 @@ export function applyListingPatch(cur: Listing, patch: Partial<NewListing>): Lis
   return { ...cur, ...patch, price: { ...cur.price, ...patch.price }, owner: { ...cur.owner, ...patch.owner }, id: cur.id, plaque: cur.plaque, createdAt: cur.createdAt };
 }
 
+/**
+ * وصلهٔ معامله؛ فقط فیلدهای عوض‌شده در changed می‌آیند (برای outbox).
+ * closedAt با رفتن به «تمام شد» پر و با برگشتن از آن خالی می‌شود.
+ */
+export function applyDealPatch(cur: Deal, patch: DealPatch, now: string): { next: Deal; changed: Partial<Deal> } {
+  const merged: Deal = { ...cur, ...patch, id: cur.id, createdAt: cur.createdAt };
+  if (patch.stage === 'done' && cur.stage !== 'done') merged.closedAt = patch.closedAt ?? now;
+  if (merged.stage !== 'done') merged.closedAt = undefined;
+  const changed: Record<string, unknown> = {};
+  for (const k of Object.keys(merged) as Array<keyof Deal>) {
+    if (k === 'updatedAt') continue;
+    if (JSON.stringify(cur[k]) !== JSON.stringify(merged[k])) changed[k] = merged[k];
+  }
+  if ('closedAt' in patch || (cur.closedAt && !merged.closedAt)) changed.closedAt = merged.closedAt;
+  return { next: { ...merged, updatedAt: Object.keys(changed).length ? now : cur.updatedAt }, changed: changed as Partial<Deal> };
+}
+
 export function filterListings(all: Listing[], filter: ListingFilter = {}): Listing[] {
   const q = filter.query ? normalizeForSearch(filter.query) : '';
   return all.filter((l) => (!filter.deal || l.deal === filter.deal) && (!q || searchText(l).includes(q)));
@@ -131,13 +161,15 @@ export class MemoryStore implements KelidStore {
   private visits: Visit[];
   private todos: Array<Todo & { deleted?: boolean }>;
   private photos: Array<PhotoThumb & { bytes: Uint8Array; deleted?: boolean }> = [];
+  private deals: Array<Deal & { deleted?: boolean; sample?: boolean }>;
   private listeners = new Set<() => void>();
 
-  constructor(seed: { listings: Listing[]; clients: Client[]; visits: Visit[]; todos: Todo[] }) {
+  constructor(seed: SampleData) {
     this.listings = seed.listings.map((l) => ({ ...l, sample: true }));
     this.clients = [...seed.clients];
     this.visits = [...seed.visits];
     this.todos = [...seed.todos];
+    this.deals = (seed.deals ?? []).map((d) => ({ ...d, sample: true }));
   }
 
   private emit() {
@@ -286,6 +318,42 @@ export class MemoryStore implements KelidStore {
     this.clients = [];
     this.visits = [];
     this.todos = [];
+    this.deals = this.deals.filter((d) => !d.sample);
+    this.emit();
+  }
+
+  async listDeals() {
+    return this.deals.filter((d) => !d.deleted).map(({ deleted: _d, sample: _s, ...d }) => d).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async addDeal(input: NewDeal) {
+    const now = new Date().toISOString();
+    const d: Deal = { ...input, id: newId(), closedAt: input.stage === 'done' ? now : undefined, createdAt: now, updatedAt: now };
+    this.deals.push(d);
+    this.emit();
+    return d;
+  }
+
+  async updateDeal(id: string, patch: DealPatch) {
+    const i = this.deals.findIndex((d) => d.id === id && !d.deleted);
+    const cur = this.deals[i];
+    if (!cur) throw new Error('معامله پیدا نشد');
+    const { next, changed } = applyDealPatch(cur, patch, new Date().toISOString());
+    if (Object.keys(changed).length === 0) return cur;
+    this.deals[i] = next;
+    this.emit();
+    return next;
+  }
+
+  async archiveDeal(id: string) {
+    const now = new Date().toISOString();
+    this.deals = this.deals.map((d) => (d.id === id ? { ...d, deleted: true, updatedAt: now } : d));
+    this.emit();
+  }
+
+  async restoreDeal(id: string) {
+    const now = new Date().toISOString();
+    this.deals = this.deals.map((d) => (d.id === id ? { ...d, deleted: false, updatedAt: now } : d));
     this.emit();
   }
 

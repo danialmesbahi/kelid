@@ -1,4 +1,4 @@
-import { tehranToday, type Client, type KelidStore, type Listing } from '@kelid/core';
+import { addDays, tehranAt, tehranToday, type Client, type KelidStore, type Listing } from '@kelid/core';
 import { peekQuery } from './data';
 
 /**
@@ -49,3 +49,19 @@ export function cachedListing(id: string): { l: Listing; clients: Client[] } | u
   }
   return undefined;
 }
+
+/** قرارهای چند روز پشت سر هم برای تقویم، با فایل‌ها (رنگ پلاک) و مشتری‌ها (نام). */
+export function calendarQuery(fromKey: string, days: number) {
+  const from = tehranAt(fromKey, 0);
+  const to = tehranAt(addDays(fromKey, days), 0);
+  return q(`calendar:${fromKey}:${days}`, async (s) => {
+    const [visits, listings, clients] = await Promise.all([s.listVisits(from, to), s.listListings(), s.listClients()]);
+    return { visits, listings, clients };
+  });
+}
+
+/** خط معامله: معامله‌ها با فایل‌ها (همهٔ وضعیت‌ها) و مشتری‌ها. */
+export const dealsQuery = q('deals', async (s) => {
+  const [deals, listings, clients] = await Promise.all([s.listDeals(), s.listListings(), s.listClients()]);
+  return { deals, listings, clients };
+});

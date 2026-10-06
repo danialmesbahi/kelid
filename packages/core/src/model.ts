@@ -104,3 +104,31 @@ export interface Todo {
   action?: 'sms' | 'call' | 'camera';
   done: boolean;
 }
+
+/** مرحلهٔ یک معامله؛ «منصرف شد» از خط معامله بیرون می‌رود ولی پاک نمی‌شود. */
+export type DealStage = 'talking' | 'deposit' | 'signed' | 'done' | 'lost';
+
+/** معاملهٔ یک فایل با یک مشتری؛ مبلغ‌ها به تومان. */
+export interface Deal {
+  id: string;
+  listingId: string;
+  clientId?: string;
+  stage: DealStage;
+  /** فروش: قیمت توافقی. رهن و اجاره یا رهن کامل: ودیعه. */
+  price?: number;
+  /** فقط رهن و اجاره: اجارهٔ ماهانه */
+  rent?: number;
+  /** کمیسیون از خریدار یا مستأجر */
+  commissionBuyer?: number;
+  /** کمیسیون از فروشنده یا موجر */
+  commissionSeller?: number;
+  /** شناسهٔ موارد انجام‌شدهٔ چک‌لیست قرارداد (DEAL_CHECKLIST) */
+  checklist: string[];
+  /** روز محضر یا امضا (کلید روز yyyy-mm-dd) */
+  dueDay?: string;
+  notes?: string;
+  /** وقتی به «تمام شد» رسید؛ برای درآمد ماه */
+  closedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
