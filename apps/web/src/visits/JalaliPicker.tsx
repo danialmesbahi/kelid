@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { memo, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Icon } from '@kelid/ui';
 import { JALALI_MONTHS, WEEKDAYS_SHORT, addDays, addJalaliMonths, formatJalaliDay, jalaliMonthDays, jalaliOf, tehranDayKey, toFaDigits, weekdayIndex } from '@kelid/core';
 
@@ -6,7 +6,7 @@ import { JALALI_MONTHS, WEEKDAYS_SHORT, addDays, addJalaliMonths, formatJalaliDa
  * انتخاب تاریخ جلالی. با صفحه‌کلید: ←/→ روز (راست‌به‌چپ)، ↑/↓ هفته، PageUp/PageDown ماه، Enter انتخاب.
  * فقط روزِ زیر فوکوس در ترتیب Tab است تا کاربر مجبور نباشد از تک‌تک روزها رد شود.
  */
-export function JalaliPicker({ value, onChange, label }: { value: string; onChange: (key: string) => void; label: string }) {
+export const JalaliPicker = memo(function JalaliPicker({ value, onChange, label }: { value: string; onChange: (key: string) => void; label: string }) {
   const [month, setMonth] = useState(value);
   // روزِ زیر فوکوس جدا از مقدار است: پیمایش با کلیدها تا Enter چیزی را عوض نمی‌کند.
   const [cursor, setCursor] = useState(value);
@@ -88,4 +88,4 @@ export function JalaliPicker({ value, onChange, label }: { value: string; onChan
       </div>
     </div>
   );
-}
+});

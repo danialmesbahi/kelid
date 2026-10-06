@@ -18,6 +18,9 @@ test('add a visit for a picked day and keep it after reload', async ({ page }) =
   await expect(row).toBeVisible();
   await expect(day).toHaveAttribute('aria-label', /۱ قرار/);
 
+  // روز انتخاب‌شده در نشانی نیست؛ بعد از تازه کردن دوباره همان روز را می‌زنیم
   await page.reload();
+  await page.getByRole('button', { name: 'ماه بعد' }).click();
+  await page.locator('.cal-d:not(.out)').nth(9).click();
   await expect(page.getByRole('button', { name: /بازدید: بازدید آزمایشی تقویم/ })).toBeVisible();
 });

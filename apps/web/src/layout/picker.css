@@ -1,0 +1,55 @@
+/* فهرست کشویی و انتخاب ساعت اختصاصی کلید؛ جای <select> و فیلد ساعت مرورگر. */
+.kp-trigger {
+  display: flex; align-items: center; gap: 10px; text-align: right; cursor: pointer;
+  transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, background-color var(--t-fast) ease;
+}
+.kp-trigger:hover { border-color: var(--pri-text); }
+.kp-trigger[aria-expanded="true"] { border-color: var(--pri-text); box-shadow: 0 0 0 4px var(--pri-tint); }
+.kp-val { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kp-chev { display: grid; place-items: center; width: 28px; height: 28px; margin-inline-end: -6px; border-radius: 8px; background: var(--sunk); color: var(--ink2); transition: transform var(--t-med) var(--ease-out); }
+.kp-chev.up { transform: rotate(180deg); }
+.kp-time .kp-val { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+
+.kp-pop {
+  position: fixed; z-index: 70; display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 16px; background: var(--paper);
+  box-shadow: 0 2px 6px rgba(18, 20, 18, .06), 0 24px 48px -18px rgba(18, 20, 18, .35);
+  transform-origin: top center; animation: kl-kp-in 160ms var(--ease-out) both;
+}
+.kp-pop.up { transform: translateY(-100%); transform-origin: bottom center; animation-name: kl-kp-in-up; }
+@keyframes kl-kp-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+@keyframes kl-kp-in-up { from { opacity: 0; transform: translateY(calc(-100% + 6px)) scale(.98); } }
+.app.dark .kp-pop { box-shadow: 0 24px 48px -18px rgba(0, 0, 0, .7); }
+
+.kp-search { display: flex; align-items: center; gap: 8px; padding: 0 14px; height: 48px; border-bottom: 1px solid var(--line); color: var(--mute); }
+.kp-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
+.kp-list { overflow-y: auto; overscroll-behavior: contain; padding: 6px; outline: none; }
+.kp-opt {
+  display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 12px; border-radius: 11px;
+  font-size: 15.5px; color: var(--ink); cursor: pointer;
+}
+.kp-opt.on { background: var(--sunk); }
+.kp-opt[aria-selected="true"] { color: var(--pri-text); font-weight: 700; }
+.kp-opt[aria-selected="true"].on { background: var(--pri-tint); }
+.kp-ol { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kp-none { padding: 14px 12px; text-align: center; }
+
+/* ── ساعت ── */
+.kp-tp { padding: 14px 14px 16px; gap: 8px; overflow-y: auto; }
+.kp-tp-sec { font-size: 13px; font-weight: 700; color: var(--mute); }
+.kp-tp-row { display: flex; align-items: center; gap: 10px; }
+.kp-tp-l { width: 62px; flex: none; font-size: 13px; color: var(--faint); }
+.kp-tp-grid { flex: 1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.kp-tp-min { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.kp-chip {
+  height: 42px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--ink);
+  font-size: 16px; font-weight: 600; transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+.kp-chip:hover { border-color: var(--pri-text); }
+.kp-chip[aria-pressed="true"] { background: var(--pri); border-color: var(--pri); color: var(--pri-ink); box-shadow: 0 8px 16px -10px var(--pri); }
+.kp-more { align-self: flex-start; border: 0; background: none; padding: 2px 0; min-height: 32px; }
+
+@media (max-width: 767px) {
+  .kp-tp-l { width: 52px; }
+  .kp-chip { height: 44px; }
+}

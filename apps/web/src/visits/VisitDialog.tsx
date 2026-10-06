@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckBox, Icon, Segmented } from '@kelid/ui';
+import { CheckBox, Icon, Plaque, Segmented } from '@kelid/ui';
 import {
   addDays, formatJalaliDay, formatPlaque, listingTitle, tehranDayKey, tehranIso, tehranTimeOf, toEnDigits, toFaDigits,
   type Client, type Listing, type Visit, type VisitKind,
@@ -9,6 +9,8 @@ import { useQuery, useStore } from '../data';
 import { useToast } from '../layout/Toasts';
 import { usePhone } from '../layout/usePhone';
 import { JalaliPicker } from './JalaliPicker';
+import { TimePicker } from './TimePicker';
+import { Select } from '../layout/Select';
 
 const KINDS: Array<{ value: VisitKind; label: string }> = [
   { value: 'visit', label: 'بازدید' },
@@ -18,8 +20,6 @@ const KINDS: Array<{ value: VisitKind; label: string }> = [
 ];
 
 const DURATIONS = [30, 60, 90, 120];
-const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'));
-const MINUTES = ['00', '15', '30', '45'];
 
 /** عنوان پیش‌فرض از نوع قرار و نام مشتری یا پلاک فایل؛ کاربر می‌تواند خودش بنویسد. */
 function autoTitle(kind: VisitKind, client?: Client, listing?: Listing): string {
@@ -73,6 +73,11 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
   const client = data?.clients.find((c) => c.id === clientId);
   const suggested = autoTitle(kind, client, listing);
   const today = tehranDayKey();
+  // ثابت می‌ماند تا تقویم داخل پنجره با هر حرف عنوان دوباره ساخته نشود
+  const pickDay = useCallback((k: string) => {
+    setDay(k);
+    setCalendarOpen(false);
+  }, []);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -161,20 +166,24 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
             </label>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-              <label className="lbl">
-                فایل
-                <select className="fld" value={listingId} onChange={(e) => setListingId(e.target.value)}>
-                  <option value="">بدون فایل</option>
-                  {data?.listings.map((l) => <option key={l.id} value={l.id}>{formatPlaque(l.plaque)} · {listingTitle(l)} · {l.neighborhood}</option>)}
-                </select>
-              </label>
-              <label className="lbl">
-                مشتری
-                <select className="fld" value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                  <option value="">بدون مشتری</option>
-                  {data?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </label>
+              <div className="lbl">
+                <span>فایل</span>
+                <Select<string>
+                  label="فایل"
+                  value={listingId}
+                  onChange={setListingId}
+                  options={[{ value: '', label: 'بدون فایل' }, ...(data?.listings ?? []).map((l) => ({ value: l.id, label: `${listingTitle(l)}`, hint: `${formatPlaque(l.plaque)} · ${l.neighborhood}`, lead: <Plaque value={l.plaque} deal={l.deal} size="s" /> }))]}
+                />
+              </div>
+              <div className="lbl">
+                <span>مشتری</span>
+                <Select<string>
+                  label="مشتری"
+                  value={clientId}
+                  onChange={setClientId}
+                  options={[{ value: '', label: 'بدون مشتری' }, ...(data?.clients ?? []).map((c) => ({ value: c.id, label: c.name, hint: toFaDigits(c.phone) }))]}
+                />
+              </div>
             </div>
 
             <div className="col" style={{ gap: 8 }}>
@@ -193,22 +202,13 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
                   </button>
                 )}
               </div>
-              {showCalendar && <JalaliPicker value={day} onChange={(k) => { setDay(k); if (phone) setCalendarOpen(false); }} label="انتخاب روز" />}
+              {showCalendar && <JalaliPicker value={day} onChange={pickDay} label="انتخاب روز" />}
             </div>
 
             <div className="vd-when rw">
               <div className="col" style={{ flex: '1 1 180px', gap: 7 }}>
-                <span id="vd-time" className="sb sm" style={{ color: 'var(--ink2)' }}>ساعت</span>
-                {/* input type=time بسته به زبان ویندوز «PM» و ارقام لاتین نشان می‌دهد؛ دو انتخاب‌گر فارسی ساده‌ترند. */}
-                <div className="rw" role="group" aria-labelledby="vd-time" style={{ gap: 6, direction: 'ltr' }}>
-                  <select className="fld num" aria-label="ساعت" value={time.slice(0, 2)} onChange={(e) => setTime(`${e.target.value}:${time.slice(3, 5)}`)} style={{ flex: 1 }}>
-                    {HOURS.map((h) => <option key={h} value={h}>{toFaDigits(h)}</option>)}
-                  </select>
-                  <span className="b">:</span>
-                  <select className="fld num" aria-label="دقیقه" value={time.slice(3, 5)} onChange={(e) => setTime(`${time.slice(0, 2)}:${e.target.value}`)} style={{ flex: 1 }}>
-                    {[...new Set([...MINUTES, time.slice(3, 5)])].sort().map((m) => <option key={m} value={m}>{toFaDigits(m)}</option>)}
-                  </select>
-                </div>
+                <span className="sb sm" style={{ color: 'var(--ink2)' }}>ساعت</span>
+                <TimePicker value={time} onChange={setTime} />
               </div>
               <div className="vd-dur col" style={{ gap: 7 }}>
                 <span className="sb sm" style={{ color: 'var(--ink2)' }}>مدت</span>
