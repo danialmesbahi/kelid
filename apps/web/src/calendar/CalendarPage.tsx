@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Icon, Plaque } from '@kelid/ui';
 import {
@@ -23,6 +23,25 @@ function monthCells(key: string): string[] {
   return Array.from({ length: n }, (_, i) => addDays(from, i));
 }
 
+type CalData = { visits: Visit[]; listings: Listing[]; clients: Client[] };
+const indexes = new WeakMap<CalData, { listings: Map<string, Listing>; clients: Map<string, Client>; byDay: Map<string, Visit[]> }>();
+
+/** نقشه‌های جست‌وجو برای هر جواب دیتابیس یک بار ساخته می‌شوند، نه در هر کلیک روی روز. */
+function index(data: CalData) {
+  let ix = indexes.get(data);
+  if (ix) return ix;
+  const byDay = new Map<string, Visit[]>();
+  for (const v of [...data.visits].sort((a, b) => a.startsAt.localeCompare(b.startsAt))) {
+    const k = tehranDayKey(new Date(v.startsAt));
+    const list = byDay.get(k);
+    if (list) list.push(v);
+    else byDay.set(k, [v]);
+  }
+  ix = { listings: new Map(data.listings.map((l) => [l.id, l])), clients: new Map(data.clients.map((c) => [c.id, c])), byDay };
+  indexes.set(data, ix);
+  return ix;
+}
+
 /** «۳ بازدید و ۱ تماس» */
 function summary(list: Visit[]): string {
   const order: VisitKind[] = ['visit', 'call', 'signing', 'task'];
@@ -38,8 +57,10 @@ function summary(list: Visit[]): string {
 export function CalendarPage() {
   const now = useNow();
   const today = tehranDayKey(new Date(now));
-  const [params, setParams] = useSearchParams();
-  const day = validDay(params.get('d')) ?? today;
+  const [params] = useSearchParams();
+  // روز انتخاب‌شده فقط state همین صفحه است؛ عوض کردن نشانی کل مسیرها و منو را دوباره رندر می‌کرد.
+  const [picked, setPicked] = useState(() => validDay(params.get('d')));
+  const day = picked ?? today;
   const [dialog, setDialog] = useState<{ visit?: Visit; preset?: VisitPreset } | null>(null);
 
   const cells = monthCells(day);
@@ -51,12 +72,7 @@ export function CalendarPage() {
   const view = data ?? shown;
   const slow = useSlow(!view);
 
-  const pick = (key: string) => setParams((p) => {
-    const n = new URLSearchParams(p);
-    n.set('d', key);
-    n.delete('v');
-    return n;
-  }, { replace: true });
+  const pick = useCallback((key: string) => setPicked(key === tehranDayKey() ? undefined : key), []);
 
   // ←/→ روز بعد و قبل (راست‌به‌چپ: چپ یعنی بعد)
   const dayRef = useRef(day);
@@ -68,26 +84,18 @@ export function CalendarPage() {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
       if ((e.target as HTMLElement).closest('input, select, textarea, [role="dialog"]')) return;
-      if (e.key === 'ArrowLeft') pick(addDays(dayRef.current, 1));
-      else if (e.key === 'ArrowRight') pick(addDays(dayRef.current, -1));
+      if (e.key === 'ArrowLeft') setPicked(addDays(dayRef.current, 1));
+      else if (e.key === 'ArrowRight') setPicked(addDays(dayRef.current, -1));
       else return;
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // pick فقط setParams را صدا می‌زند که ثابت است
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialog]);
 
   if (!view) return slow ? <PageSkeleton /> : null;
 
-  const listings = new Map<string, Listing>(view.listings.map((l) => [l.id, l]));
-  const clients = new Map<string, Client>(view.clients.map((c) => [c.id, c]));
-  const byDay = new Map<string, Visit[]>();
-  for (const v of [...view.visits].sort((a, b) => a.startsAt.localeCompare(b.startsAt))) {
-    const k = tehranDayKey(new Date(v.startsAt));
-    byDay.set(k, [...(byDay.get(k) ?? []), v]);
-  }
+  const { listings, clients, byDay } = index(view);
   const list = byDay.get(day) ?? [];
   const sum = summary(list);
   const next = list.length === 0 ? cells.find((c) => c > day && (byDay.get(c)?.length ?? 0) > 0) : undefined;
@@ -123,23 +131,9 @@ export function CalendarPage() {
             {WEEK_SHORT.map((w, i) => <span key={w} className={i === 6 ? 'fri' : ''}>{w}</span>)}
           </div>
           <div key={cells[0]} className="cal-days">
-            {cells.map((c) => {
-              const n = byDay.get(c)?.length ?? 0;
-              const out = jalaliOf(c).m !== j.m;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  className={`cal-d${c === today ? ' today' : ''}${out ? ' out' : ''}${weekdayIndex(c) === 6 ? ' fri' : ''}`}
-                  aria-pressed={c === day}
-                  aria-label={`${formatJalaliDay(c)}${n ? `، ${toFaDigits(n)} قرار` : ''}`}
-                  onClick={() => pick(c)}
-                >
-                  <span className="num">{toFaDigits(jalaliOf(c).d)}</span>
-                  <span className="cal-dots">{Array.from({ length: Math.min(n, 3) }, (_, i) => <i key={i} />)}</span>
-                </button>
-              );
-            })}
+            {cells.map((c) => (
+              <DayCell key={c} k={c} n={byDay.get(c)?.length ?? 0} out={jalaliOf(c).m !== j.m} today={c === today} on={c === day} onPick={pick} />
+            ))}
           </div>
           {day !== today && (
             <button type="button" className="lnk sm cal-back" onClick={() => pick(today)}>برگشت به امروز</button>
@@ -198,6 +192,22 @@ export function CalendarPage() {
     </div>
   );
 }
+
+/** هر خانهٔ ماه جدا memo شده؛ با زدن روز تازه فقط دو خانه (قبلی و تازه) دوباره رندر می‌شوند. */
+const DayCell = memo(function DayCell({ k, n, out, today, on, onPick }: { k: string; n: number; out: boolean; today: boolean; on: boolean; onPick: (k: string) => void }) {
+  return (
+    <button
+      type="button"
+      className={`cal-d${today ? ' today' : ''}${out ? ' out' : ''}${weekdayIndex(k) === 6 ? ' fri' : ''}`}
+      aria-pressed={on}
+      aria-label={`${formatJalaliDay(k)}${n ? `، ${toFaDigits(n)} قرار` : ''}`}
+      onClick={() => onPick(k)}
+    >
+      <span className="num">{toFaDigits(jalaliOf(k).d)}</span>
+      <span className="cal-dots">{n > 0 && <i />}{n > 1 && <i />}{n > 2 && <i />}</span>
+    </button>
+  );
+});
 
 function NowLine() {
   return (
