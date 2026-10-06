@@ -33,8 +33,9 @@ export function TimePicker({ value, onChange, label = 'ساعت' }: { value: str
     if (focus) btn.current?.focus();
   };
 
+  const ready = !!place;
   useEffect(() => {
-    if (!open) return;
+    if (!ready) return;
     pop.current?.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus();
     const away = (e: PointerEvent) => {
       const t = e.target as Node;
@@ -42,7 +43,7 @@ export function TimePicker({ value, onChange, label = 'ساعت' }: { value: str
     };
     addEventListener('pointerdown', away, true);
     return () => removeEventListener('pointerdown', away, true);
-  }, [open]);
+  }, [ready]);
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;
@@ -53,7 +54,7 @@ export function TimePicker({ value, onChange, label = 'ساعت' }: { value: str
 
   return (
     <>
-      <button ref={btn} type="button" className="fld kp-trigger kp-time" aria-haspopup="dialog" aria-expanded={open} aria-label={`${label}: ${toFaDigits(value)}`} onClick={() => (open ? close() : setOpen(true))}>
+      <button ref={btn} type="button" className="fld kp-trigger kp-time" aria-haspopup="dialog" aria-expanded={open} aria-label={`${label}: ${toFaDigits(value)}`} onClick={() => (open ? close() : setOpen(true))} onKeyDown={open ? onKey : undefined}>
         <span className="kp-val num">{toFaDigits(value)}</span>
         <span className={`kp-chev${open ? ' up' : ''}`} aria-hidden="true"><Icon name="down" size="s" /></span>
       </button>

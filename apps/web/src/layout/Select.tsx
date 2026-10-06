@@ -68,8 +68,9 @@ export function Select<T extends string>({ value, options, onChange, label, plac
     close();
   };
 
+  const ready = !!place;
   useEffect(() => {
-    if (!open) return;
+    if (!ready) return;
     if (searchable) search.current?.focus();
     else list.current?.focus();
     const away = (e: PointerEvent) => {
@@ -78,7 +79,7 @@ export function Select<T extends string>({ value, options, onChange, label, plac
     };
     addEventListener('pointerdown', away, true);
     return () => removeEventListener('pointerdown', away, true);
-  }, [open, searchable]);
+  }, [ready, searchable]);
 
   // گزینهٔ فعال همیشه در دید بماند
   useEffect(() => {
@@ -114,7 +115,8 @@ export function Select<T extends string>({ value, options, onChange, label, plac
         aria-label={`${label}: ${cur?.label ?? placeholder ?? ''}`}
         onClick={() => (open ? close() : show())}
         onKeyDown={(e) => {
-          if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+          if (open) onKey(e);
+          else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             show();
           }
