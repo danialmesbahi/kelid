@@ -1,5 +1,8 @@
 /* آشنایی بار اول: سمت راست قدم‌ها با نوشتهٔ درشت، سمت چپ نمای سبز کلید با کارت‌های شناور. */
 .wl { position: fixed; inset: 0; z-index: 90; display: flex; background: var(--paper); color: var(--ink); animation: kl-fadein 260ms ease both; }
+/* صفحهٔ پشت آشنایی نباید اسکرول بخورد (روی گوشی نوار اسکرولش دیده می‌شد) */
+html:has(.wl:not(.out)) { overflow: hidden; }
+.wl { overscroll-behavior: contain; }
 .wl.out { animation: kl-wl-out 520ms var(--ease-expo) forwards; pointer-events: none; }
 @keyframes kl-wl-out { to { opacity: 0; transform: scale(1.03); filter: blur(6px); } }
 .wl-ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -107,7 +110,9 @@
 .wl-primary { min-width: 200px; }
 
 @media (max-width: 767px) {
-  .wl { flex-direction: column; overflow-y: auto; }
+  /* اسکرول اگر صفحه کوتاه بود بماند، ولی بی‌نوار؛ لغزش قدم‌ها هم نباید اسکرول افقی بسازد */
+  .wl { flex-direction: column; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+  .wl::-webkit-scrollbar { display: none; }
   .wl-hero { order: 0; flex: 0 0 auto; height: 220px; transition: height var(--t-med) var(--ease-out); }
   /* بعد از قدم اول، تصویر بالا جمع می‌شود تا فرم روی گوشی جا شود */
   .wl.later .wl-hero { height: 112px; }
