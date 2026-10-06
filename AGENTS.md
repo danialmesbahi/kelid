@@ -97,4 +97,4 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 ## Status (update when a phase item lands)
 - Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, app icon, lint + e2e in CI, phone layout + PWA, listing photos, listing editing, clients, visits/to-dos done.
-- Phase 2 server + sync · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar done; deals, map, auto-update · Phase 5 beta.
+- Phase 2 server + sync · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals done; map, auto-update · Phase 5 beta.

@@ -1,8 +1,8 @@
 import { newId } from '../id';
-import type { Client, Listing, Photo, Todo, Visit } from '../model';
+import type { Client, Deal, Listing, Photo, Todo, Visit } from '../model';
 import { normalizeForSearch } from '../persian';
-import type { CoverThumbs, KelidStore, ListingFilter, NewClient, NewListing, NewPhoto, NewTodo, NewVisit, PhotoThumb } from '../store';
-import { applyListingPatch, changedClientFields, changedFields, clientSearchText, searchText } from '../store';
+import type { CoverThumbs, DealPatch, KelidStore, ListingFilter, NewClient, NewDeal, NewListing, NewPhoto, NewTodo, NewVisit, PhotoThumb, SampleData } from '../store';
+import { applyDealPatch, applyListingPatch, changedClientFields, changedFields, clientSearchText, searchText } from '../store';
 import type { SqlDriver, SqlStatement, SqlValue } from './driver';
 import { migrate } from './schema';
 
@@ -91,6 +91,33 @@ function rowToVisit(r: Row): Visit {
   };
 }
 
+function rowToDeal(r: Row): Deal {
+  return {
+    id: s(r.id),
+    listingId: s(r.listing_id),
+    clientId: opt(r.client_id),
+    stage: s(r.stage) as Deal['stage'],
+    price: n(r.price),
+    rent: n(r.rent),
+    commissionBuyer: n(r.commission_buyer),
+    commissionSeller: n(r.commission_seller),
+    checklist: JSON.parse(s(r.checklist) || '[]') as string[],
+    dueDay: opt(r.due_day),
+    notes: opt(r.notes),
+    closedAt: opt(r.closed_at),
+    createdAt: s(r.created_at),
+    updatedAt: s(r.updated_at),
+  };
+}
+
+const DEAL_COLS = 'id, listing_id, client_id, stage, price, rent, commission_buyer, commission_seller, checklist, due_day, notes, closed_at, created_at, updated_at';
+function dealValues(d: Deal): SqlValue[] {
+  return [
+    d.id, d.listingId, d.clientId ?? null, d.stage, d.price ?? null, d.rent ?? null, d.commissionBuyer ?? null, d.commissionSeller ?? null,
+    JSON.stringify(d.checklist), d.dueDay ?? null, d.notes ?? null, d.closedAt ?? null, d.createdAt, d.updatedAt,
+  ];
+}
+
 function rowToPhoto(r: Row): Photo {
   return { id: s(r.id), listingId: s(r.listing_id), ord: Number(r.ord), mime: s(r.mime), width: Number(r.w), height: Number(r.h), createdAt: s(r.created_at) };
 }
@@ -111,7 +138,7 @@ export class SqlStore implements KelidStore {
   private listeners = new Set<() => void>();
   private constructor(private db: SqlDriver) {}
 
-  static async open(db: SqlDriver, sample?: { listings: Listing[]; clients: Client[]; visits: Visit[]; todos: Todo[] }): Promise<SqlStore> {
+  static async open(db: SqlDriver, sample?: SampleData): Promise<SqlStore> {
     await migrate(db);
     const store = new SqlStore(db);
     const [seeded] = await db.all<{ value: string }>("SELECT value FROM meta WHERE key = 'seeded'");
@@ -130,7 +157,7 @@ export class SqlStore implements KelidStore {
     };
   }
 
-  private async insertSample(sample: { listings: Listing[]; clients: Client[]; visits: Visit[]; todos: Todo[] }) {
+  private async insertSample(sample: SampleData) {
     const st: SqlStatement[] = [];
     for (const l of sample.listings) st.push({ sql: `INSERT INTO listings (${LISTING_COLS}, sample) VALUES (${LISTING_PH}, 1)`, params: listingValues(l) });
     for (const c of sample.clients) {
@@ -145,6 +172,7 @@ export class SqlStore implements KelidStore {
     sample.todos.forEach((t, i) => {
       st.push({ sql: 'INSERT INTO todos (id, title, detail, action, done, position, sample, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)', params: [t.id, t.title, t.detail, t.action ?? '', t.done ? 1 : 0, i, nowIso()] });
     });
+    for (const d of sample.deals ?? []) st.push({ sql: `INSERT INTO deals (${DEAL_COLS}, sample) VALUES (${DEAL_COLS.split(',').map(() => '?').join(', ')}, 1)`, params: dealValues(d) });
     st.push({ sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('seeded', '1')" });
     await this.db.transaction(st);
   }
@@ -352,7 +380,7 @@ export class SqlStore implements KelidStore {
   async clearSampleData() {
     await this.db.transaction([
       { sql: 'DELETE FROM photos WHERE listing_id IN (SELECT id FROM listings WHERE sample = 1)' },
-      ...['listings', 'clients', 'visits', 'todos'].map((t) => ({ sql: `DELETE FROM ${t} WHERE sample = 1` })),
+      ...['listings', 'clients', 'visits', 'todos', 'deals'].map((t) => ({ sql: `DELETE FROM ${t} WHERE sample = 1` })),
     ]);
     this.emit();
   }
@@ -436,6 +464,54 @@ export class SqlStore implements KelidStore {
       { sql: 'UPDATE photos SET deleted = 0, ord = ?, updated_at = ? WHERE id = ?', params: [ord, now, id] },
       outbox('photo', id, 'upsert', { deleted: false, ord }),
       photoCount(listingId),
+    ]);
+    this.emit();
+  }
+
+  async listDeals() {
+    const rows = await this.db.all<Row>('SELECT * FROM deals WHERE deleted = 0 ORDER BY updated_at DESC');
+    return rows.map(rowToDeal);
+  }
+
+  async addDeal(input: NewDeal) {
+    const now = nowIso();
+    const d: Deal = { ...input, id: newId(), closedAt: input.stage === 'done' ? now : undefined, createdAt: now, updatedAt: now };
+    await this.db.transaction([
+      { sql: `INSERT INTO deals (${DEAL_COLS}) VALUES (${DEAL_COLS.split(',').map(() => '?').join(', ')})`, params: dealValues(d) },
+      outbox('deal', d.id, 'upsert', d),
+    ]);
+    this.emit();
+    return d;
+  }
+
+  async updateDeal(id: string, patch: DealPatch) {
+    const [r] = await this.db.all<Row>('SELECT * FROM deals WHERE id = ? AND deleted = 0', [id]);
+    if (!r) throw new Error('معامله پیدا نشد');
+    const cur = rowToDeal(r);
+    const { next, changed } = applyDealPatch(cur, patch, nowIso());
+    if (Object.keys(changed).length === 0) return cur;
+    const set = DEAL_COLS.split(', ').filter((c) => c !== 'id' && c !== 'created_at');
+    const vals = dealValues(next).filter((_v, i) => i !== 0 && i !== 12);
+    await this.db.transaction([
+      { sql: `UPDATE deals SET ${set.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, params: [...vals, id] },
+      outbox('deal', id, 'upsert', changed),
+    ]);
+    this.emit();
+    return next;
+  }
+
+  async archiveDeal(id: string) {
+    await this.db.transaction([
+      { sql: 'UPDATE deals SET deleted = 1, updated_at = ? WHERE id = ?', params: [nowIso(), id] },
+      outbox('deal', id, 'delete', {}),
+    ]);
+    this.emit();
+  }
+
+  async restoreDeal(id: string) {
+    await this.db.transaction([
+      { sql: 'UPDATE deals SET deleted = 0, updated_at = ? WHERE id = ?', params: [nowIso(), id] },
+      outbox('deal', id, 'upsert', { deleted: false }),
     ]);
     this.emit();
   }

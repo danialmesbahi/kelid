@@ -129,7 +129,6 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
   .top .gs .kbd, .top-new { display: none !important; }
   .mbrand { display: inline-flex; }
   .mset { display: inline-flex !important; }
-  .mset.active { background: var(--sunk); }
   .hd { padding: 18px 16px 12px; }
   .bd { padding: 6px 16px 32px; gap: 22px; }
   .t1 { font-size: 24px; }
@@ -199,3 +198,7 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
      رفتن به صفحه‌ای بی‌نوار (مثل فایل جدید) و برگشتن از آن همان محو شدن پیش‌فرض را دارد. */
   ::view-transition-old(kl-mtab):not(:only-child) { display: none; }
 }
+
+/* برگهٔ «بیشتر» گوشی */
+.more-sheet { padding: 10px 12px max(14px, env(safe-area-inset-bottom)); gap: 4px; }
+.more-sheet .nav { height: 54px; font-size: 16px; }
