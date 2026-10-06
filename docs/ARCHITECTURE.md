@@ -43,6 +43,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | App chrome | `apps/web/src/layout/*` | `Shell` (sidebar + top bar + shortcuts), `CommandPalette`, `Toasts`, `Splash`, `PageSkeleton` |
 | Photos | `apps/web/src/photos/*` | resize in a Worker (`resize.worker.ts`: 1600px WebP + 400px thumb), `photoUrl` blob-URL cache keyed by photo id, `useCoverThumbs`, `PhotoGallery` + lightbox on `FileDetail`; bytes live in the `photos` table (migration 2) |
 | Jalali calendar | `packages/core/src/jalali.ts` | day keys (`yyyy-mm-dd`, Tehran), `jalaliOf`, `jalaliMonthDays`, `tehranIso` / `tehranTimeOf` — `Intl` + `formatToParts` only, no library |
+| Calendar | `apps/web/src/calendar/*`, `packages/core/src/agenda.ts` | `TimeGrid` (day/week), `MonthGrid`, `calendar.css`; `layoutDay` puts overlapping visits side by side, `weekStart` = Saturday |
 | Visits | `apps/web/src/visits/*` | `VisitDialog` (add/edit; Today, FileDetail, client panel) and keyboard `JalaliPicker` |
 | Prefs | `apps/web/src/prefs.ts` | theme light/dark/auto, text size → `--zoom`; applied pre-paint in `index.html`; user/office name and `welcomed` flag (localStorage until phase 2 login) |
 | Welcome | `apps/web/src/welcome/` | first-run 4-step intro over the app (name, text size/theme live, keep or clear sample data); re-open from Settings. e2e skips it via `storageState` in `playwright.config.ts` |
@@ -59,7 +60,8 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | `/files` | `Files` | list/cards, deal filter, preview pane; double-click → detail |
 | `/files/:id` | `FileDetail` | hero cover/plaque shared-element transition, archive + undo |
 | `/clients` | `Clients` | `?c=id` selection, best matches, start a showing, edit / archive with undo |
-| `/calendar`, `/deals` | `Soon` | placeholders (phase 4) |
+| `/calendar` | `CalendarPage` | `?v=day\|week\|month&d=yyyy-mm-dd`; week time grid (drag to move, drag bottom edge to resize, Alt+arrows), month grid (drag to another day), phone = day view + week strip; color = listing's plaque color |
+| `/deals` | `Soon` | placeholder (phase 4) |
 | `/settings` | `Settings` | theme, text size, storage info, clear sample data |
 | `/add` | `Add` | full-screen form outside the shell (`ListingForm`) |
 | `/files/:id/edit` | `EditListing` | same `ListingForm` prefilled; status, unsaved-changes prompt (`useBlocker`) |

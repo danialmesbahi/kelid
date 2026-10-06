@@ -13,7 +13,7 @@ function trimDecimal(n: number): string {
 export function formatToman(amount: number, short = false): string {
   if (amount >= BILLION) return `${trimDecimal(amount / BILLION)} ${short ? 'م‌د' : 'میلیارد'}`;
   if (amount >= MILLION) return `${trimDecimal(amount / MILLION)} ${short ? 'م' : 'میلیون'}`;
-  return toFaDigits(amount.toLocaleString('en-US')).replace(/,/g, '٬');
+  return formatGrouped(amount);
 }
 
 export const dealLabel: Record<DealType, string> = {
@@ -50,14 +50,24 @@ export function floorLabel(l: Listing): string {
 }
 
 /** ساعت به وقت تهران، مثل ۱۰:۳۰ */
+// ساختن Intl.DateTimeFormat گران است (ده‌ها برابر خود format)؛ یک بار ساخته و بارها استفاده می‌شود.
+const timeFmt = new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' });
+const longFmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' });
+const groupFmt = new Intl.NumberFormat('en-US');
+
+/** عدد با جداکنندهٔ هزارگان فارسی، مثل ۱۲٬۵۰۰٬۰۰۰ */
+export function formatGrouped(n: number): string {
+  return toFaDigits(groupFmt.format(n)).replace(/,/g, '٬');
+}
+
 export function formatTime(iso: string): string {
-  return new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date(iso));
+  return timeFmt.format(new Date(iso));
 }
 
 /** تاریخ جلالی، مثل «یکشنبه، ۱۲ مهر ۱۴۰۵» */
 export function formatLongDate(date: Date): string {
   // ترتیب خروجی Intl بین مرورگرها فرق دارد؛ اجزا را جدا می‌گیریم و خودمان می‌چینیم.
-  const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Tehran' }).formatToParts(date);
+  const parts = longFmt.formatToParts(date);
   const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? '';
   return `${get('weekday')}، ${get('day')} ${get('month')} ${get('year')}`;
 }

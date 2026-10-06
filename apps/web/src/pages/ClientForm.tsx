@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { Icon, Segmented, Switch } from '@kelid/ui';
 import {
-  bestMatches, dealLabel, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
+  bestMatches, dealLabel, formatGrouped, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
   type Client, type ClientTemperature, type DealType, type NewClient, type PropertyKind,
 } from '@kelid/core';
 import { useQuery, useStore } from '../data';
@@ -31,7 +31,7 @@ const parseNum = (s: string) => {
   const d = toEnDigits(s).replace(/[^\d]/g, '');
   return d ? Number(d) : undefined;
 };
-const amountText = (n?: number) => (n ? toFaDigits(n.toLocaleString('en-US')).replace(/,/g, '٬') : '');
+const amountText = (n?: number) => (n ? formatGrouped(n) : '');
 const numText = (n?: number) => (n === undefined ? '' : toFaDigits(n));
 
 type FormState = {

@@ -17,12 +17,12 @@ const NAV: Array<{ to: string; icon: IconName; label: string }> = [
 
 const ROW = 46; // ارتفاع هر گزینه + فاصله، برای نشانگر لغزان
 
-/** نوار پایین گوشی؛ تقویم و قراردادها هنوز آماده نیستند، پس جایشان تنظیمات است. */
+/** نوار پایین گوشی؛ تنظیمات به دکمهٔ چرخ‌دندهٔ نوار بالا رفته تا تقویم جا شود. */
 const TABS: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
   { to: '/files', icon: 'files', label: 'فایل‌ها' },
   { to: '/clients', icon: 'users', label: 'مشتری‌ها' },
-  { to: '/settings', icon: 'set', label: 'تنظیمات' },
+  { to: '/calendar', icon: 'cal', label: 'تقویم' },
 ];
 
 function activeIndex(pathname: string): number {
@@ -118,6 +118,7 @@ export function Shell() {
             <Kbd>Ctrl K</Kbd>
           </button>
           <span className="sp" />
+          <NavLink to="/settings" className="ib ghost mset" aria-label="تنظیمات"><Icon name="set" /></NavLink>
           <Link className="btn btn-p top-new" to="/add" viewTransition>
             <Icon name="plus" size="s" thick />
             فایل جدید
