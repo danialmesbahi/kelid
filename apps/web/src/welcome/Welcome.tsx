@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { usePrefsContext } from '../App';
 import { useQuery, useStore } from '../data';
 import { usePhone } from '../layout/usePhone';
 import { callName, type TextSize, type ThemePref } from '../prefs';
+import { WelcomeHero } from './WelcomeHero';
 import './welcome.css';
 
 const STEPS = ['خوش آمدید', 'آشنایی', 'راحتی چشم', 'شروع'] as const;
@@ -30,6 +31,7 @@ export function Welcome() {
   const [keepSample, setKeepSample] = useState(true);
   const [leaving, setLeaving] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   // هر قدم تازه، اولین فیلد یا دکمهٔ اصلی‌اش فوکوس می‌گیرد تا با Enter جلو رفت.
   useEffect(() => {
@@ -40,6 +42,8 @@ export function Welcome() {
   const go = (n: number) => {
     setDir(n > step ? 1 : -1);
     setStep(n);
+    // روی گوشی قدم تازه از بالای صفحه شروع شود
+    rootRef.current?.scrollTo({ top: 0 });
   };
 
   const finish = async () => {
@@ -65,21 +69,16 @@ export function Welcome() {
 
   const who = callName(name);
 
+  // Enter در فیلد اسم به فیلد دفتر برود، نه قدم بعد؛ روی صفحه‌کلید گوشی طبیعی‌تر است
+  const toOffice = (ev: KeyboardEvent<HTMLInputElement>) => {
+    if (ev.key !== 'Enter') return;
+    ev.preventDefault();
+    ev.currentTarget.closest('label')?.nextElementSibling?.querySelector('input')?.focus();
+  };
+
   return (
-    <div className={`wl${step > 0 ? ' later' : ''}${leaving ? ' out' : ''}`} role="dialog" aria-modal="true" aria-labelledby="wl-title">
-      <aside className="wl-hero" aria-hidden="true">
-        <div className="wl-glow" />
-        <div className="wl-stage">
-          <span className="plq wl-key">کلید</span>
-          <span className="wl-float f1"><span className="plq s">۰۲۷</span><b>آپارتمان ۱۲۰ متری</b><small>سعادت‌آباد · ۲۸ میلیارد</small></span>
-          <span className="wl-float f2"><span className="av">ک</span><b>آقای کریمی</b><small className="ok">۹۲٪ جور</small></span>
-          <span className="wl-float f3"><Icon name="cal" size="s" /><b>بازدید ساعت ۱۰:۳۰</b><small>فردا</small></span>
-        </div>
-        <div className="wl-hero-ft">
-          <b>{office.trim() || 'دفتر املاک شما'}</b>
-          <span>همهٔ فایل‌ها و مشتری‌ها، مرتب و دم دست</span>
-        </div>
-      </aside>
+    <div ref={rootRef} className={`wl${leaving ? ' out' : ''}`} role="dialog" aria-modal="true" aria-labelledby="wl-title">
+      <WelcomeHero office={office} />
 
       <form className="wl-main" onSubmit={next}>
         <header className="wl-top">
@@ -93,7 +92,7 @@ export function Welcome() {
         <div ref={bodyRef} key={step} className={`wl-body ${dir > 0 ? 'fwd' : 'back'}`}>
           {step === 0 && (
             <>
-              <span className="eb">{greetingNow()}</span>
+              <span className="eb">آشنایی کوتاه · کمتر از یک دقیقه</span>
               <h1 id="wl-title" className="wl-h">به کلید خوش آمدید</h1>
               <p className="wl-lead">دفتر املاکتان، مرتب و همیشه دم دست؛ حتی وقتی اینترنت نیست.</p>
               <ul className="wl-points">
@@ -108,10 +107,10 @@ export function Welcome() {
             <>
               <span className="eb">قدم ۲</span>
               <h1 id="wl-title" className="wl-h">شما را چه صدا کنیم؟</h1>
-              <p className="wl-lead">اسم شما در خوش‌آمد صفحهٔ «امروز» و اسم دفتر کنار منو می‌آید. هر وقت خواستید در تنظیمات عوضشان کنید.</p>
+              <p className="wl-lead">{phone ? 'اسم شما در خوش‌آمد صفحهٔ «امروز» می‌آید؛ از تنظیمات هم عوض می‌شود.' : 'اسم شما در خوش‌آمد صفحهٔ «امروز» و اسم دفتر کنار منو می‌آید. هر وقت خواستید در تنظیمات عوضشان کنید.'}</p>
               <div className="wl-fields">
-                <label className="lbl">نام شما<input className="fld wl-fld" value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً علی رضایی" autoComplete="name" /></label>
-                <label className="lbl">نام دفتر<input className="fld wl-fld" value={office} onChange={(e) => setOffice(e.target.value)} placeholder="مثلاً املاک پارسا" autoComplete="organization" /></label>
+                <label className="lbl">نام شما<input className="fld wl-fld" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={toOffice} enterKeyHint="next" placeholder="مثلاً علی رضایی" autoComplete="name" /></label>
+                <label className="lbl">نام دفتر<input className="fld wl-fld" value={office} onChange={(e) => setOffice(e.target.value)} enterKeyHint="next" placeholder="مثلاً املاک پارسا" autoComplete="organization" /></label>
               </div>
               <div className="wl-preview" aria-live="polite">
                 <span className="plq" style={{ height: 34, padding: '0 12px', fontSize: 16 }}>کلید</span>
@@ -127,7 +126,7 @@ export function Welcome() {
             <>
               <span className="eb">قدم ۳</span>
               <h1 id="wl-title" className="wl-h">نوشته‌ها راحت خوانده می‌شوند؟</h1>
-              <p className="wl-lead">اندازه‌ای را بزنید که بدون عینک هم راحت بخوانید. همین حالا روی کل برنامه اعمال می‌شود.</p>
+              {!phone && <p className="wl-lead">اندازه‌ای را بزنید که بدون عینک هم راحت بخوانید. همین حالا روی کل برنامه اعمال می‌شود.</p>}
               <div className="wl-choices" role="radiogroup" aria-label="اندازهٔ نوشته">
                 {([0, 1, 2] as TextSize[]).map((z) => (
                   <Choice key={z} on={prefs.textSize === z} onClick={() => prefs.setTextSize(z)} label={['معمولی', 'درشت', 'خیلی درشت'][z]!}>
@@ -201,8 +200,10 @@ function Choice({ on, onClick, label, hint, children }: { on: boolean; onClick: 
   return (
     <button type="button" role="radio" aria-checked={on} className="wl-choice" onClick={onClick}>
       <span className="wl-choice-art" aria-hidden="true">{children}</span>
-      <span className="wl-choice-l">{label}</span>
-      {hint && <span className="xs mute">{hint}</span>}
+      <span className="wl-choice-txt">
+        <span className="wl-choice-l">{label}</span>
+        {hint && <span className="xs mute">{hint}</span>}
+      </span>
       <span className="wl-tick" aria-hidden="true"><Icon name="check" size="s" thick /></span>
     </button>
   );
