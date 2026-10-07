@@ -22,12 +22,12 @@ function greetingNow(): string {
  * آشنایی بار اول: چهار قدم کوتاه با نوشتهٔ درشت و دکمه‌های بزرگ، برای کسی که اولین بار برنامه را باز می‌کند.
  * هر تغییری (اندازهٔ نوشته، پوسته) همان لحظه روی خود برنامه دیده می‌شود. همه‌جا «بعداً» هست.
  */
-export function Welcome({ continued = false }: { continued?: boolean }) {
+export function Welcome({ continued = false, signedUp = false }: { /** همین الان از صفحهٔ ثبت‌نام آمده؛ صحنه دوباره بازی نمی‌شود. */ continued?: boolean; /** دفتر با ثبت‌نام ساخته شده؛ خوش‌آمد و نام و دفتر دیگر پرسیده نمی‌شوند، حتی بعد از تازه کردن صفحه. */ signedUp?: boolean }) {
   const prefs = usePrefsContext();
   const store = useStore();
   const phone = usePhone();
   const hasSample = useQuery('has-sample', (s) => s.hasSampleData());
-  const first = continued ? AFTER_LOGIN : 0;
+  const first = signedUp ? AFTER_LOGIN : 0;
   const [step, setStep] = useState(first);
   const [dir, setDir] = useState(1);
   const [name, setName] = useState(prefs.userName);
@@ -85,7 +85,7 @@ export function Welcome({ continued = false }: { continued?: boolean }) {
       <WelcomeHero office={office} />
 
       <form className="wl-main" onSubmit={next}>
-        {continued ? (
+        {signedUp ? (
           <header className="wl-top">
             <span className="plq lg-brand">کلید</span>
             <span className="sp" />
@@ -139,7 +139,7 @@ export function Welcome({ continued = false }: { continued?: boolean }) {
 
           {step === 2 && (
             <>
-              <span className="eb">{continued ? 'دفترتان ساخته شد · یک تنظیم کوچک' : 'قدم ۳'}</span>
+              <span className="eb">{signedUp ? (continued ? 'دفترتان ساخته شد · یک تنظیم کوچک' : 'یک تنظیم کوچک') : 'قدم ۳'}</span>
               <h1 id="wl-title" className="wl-h">نوشته‌ها راحت خوانده می‌شوند؟</h1>
               {!phone && <p className="wl-lead">اندازه‌ای را بزنید که بدون عینک هم راحت بخوانید. همین حالا روی کل برنامه اعمال می‌شود.</p>}
               <div className="wl-choices" role="radiogroup" aria-label="اندازهٔ نوشته">
@@ -193,7 +193,7 @@ export function Welcome({ continued = false }: { continued?: boolean }) {
           {step > first ? (
             <button type="button" className="btn btn-g btn-lg" onClick={() => go(step - 1)}>قبلی</button>
           ) : (
-            continued && <button type="button" className="btn btn-g btn-lg" onClick={skip}>بعداً</button>
+            signedUp && <button type="button" className="btn btn-g btn-lg" onClick={skip}>بعداً</button>
           )}
           <span className="sp" />
           <button type="submit" className="btn btn-p btn-lg wl-primary">
