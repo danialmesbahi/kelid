@@ -98,7 +98,7 @@ function Gate({ welcomed }: { welcomed: boolean }) {
           }}
         />
       )}
-      {ready && !showLogin && !welcomed && <Welcome continued={afterLogin} />}
+      {ready && !showLogin && !welcomed && <Welcome continued={afterLogin} signedUp={status === 'signedIn'} />}
     </>
   );
 }
