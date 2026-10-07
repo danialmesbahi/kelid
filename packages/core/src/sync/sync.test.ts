@@ -151,7 +151,9 @@ describe('sync between two offline devices', () => {
     await sync(a, server);
     await sync(b, server);
     await b.updateListing(l.id, { area: 77 });
-    await a.updateListing(l.id, { area: 99 }); // دیرتر
+    // «دیرتر» یعنی یک میلی‌ثانیه بعد؛ در همان میلی‌ثانیه برنده را شناسهٔ دستگاه تعیین می‌کند (درست، ولی تصادفی برای تست).
+    await new Promise((r) => setTimeout(r, 5));
+    await a.updateListing(l.id, { area: 99 });
     await sync(b, server); // b می‌فرستد و می‌گیرد
     await a.applyRemote(server.pull('0', 100).entities, '999', null); // a هنوز نفرستاده
     expect((await a.getListing(l.id))?.area).toBe(99);
