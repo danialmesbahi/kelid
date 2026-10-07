@@ -12,13 +12,20 @@ import { applyServerChange } from './server';
 import type { IncomingEntity, OutgoingChange } from './types';
 
 const dirs: string[] = [];
+const handles: Array<{ close(): void }> = [];
 afterEach(() => {
+  // ویندوز فایل باز را پاک نمی‌کند؛ اول دیتابیس‌ها بسته می‌شوند.
+  for (const db of handles.splice(0)) db.close();
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
+function track<T extends { close(): void }>(db: T): T {
+  handles.push(db);
+  return db;
+}
 async function device(): Promise<SqlStore> {
   const d = mkdtempSync(join(tmpdir(), 'kelid-sync-'));
   dirs.push(d);
-  return SqlStore.open(nodeSqliteDriver(openEncrypted(Database as never, join(d, 'k.db'), 'k')));
+  return SqlStore.open(nodeSqliteDriver(track(openEncrypted(Database as never, join(d, 'k.db'), 'k'))));
 }
 
 /** همان رفتار سرور، در حافظه: ادغام، شمارهٔ نسخه برای دریافت، و پلاک یکتا در دفتر. */
@@ -170,7 +177,7 @@ describe('sync between two offline devices', () => {
     const d = mkdtempSync(join(tmpdir(), 'kelid-sync-'));
     dirs.push(d);
     const { seed } = await import('../seed');
-    const a = await SqlStore.open(nodeSqliteDriver(openEncrypted(Database as never, join(d, 'k.db'), 'k')), seed);
+    const a = await SqlStore.open(nodeSqliteDriver(track(openEncrypted(Database as never, join(d, 'k.db'), 'k'))), seed);
     const sampleListing = (await a.listListings())[0]!;
     await a.updateListing(sampleListing.id, { area: 1 });
     const { changes, lastSeq } = await a.pendingChanges(10);
