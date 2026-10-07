@@ -9,6 +9,9 @@ import { WelcomeHero } from './WelcomeHero';
 import './welcome.css';
 
 const STEPS = ['خوش آمدید', 'آشنایی', 'راحتی چشم', 'شروع'] as const;
+// بعد از ورود، خوش‌آمد و نام و دفتر را صفحهٔ ورود گرفته؛ آشنایی همان مسیر را با همان نقطه‌ها ادامه می‌دهد.
+const LOGIN_STEPS = ['شمارهٔ موبایل', 'کد پیامکی', 'حساب'] as const;
+const AFTER_LOGIN = 2;
 
 function greetingNow(): string {
   const h = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date()));
@@ -24,7 +27,8 @@ export function Welcome({ continued = false }: { continued?: boolean }) {
   const store = useStore();
   const phone = usePhone();
   const hasSample = useQuery('has-sample', (s) => s.hasSampleData());
-  const [step, setStep] = useState(0);
+  const first = continued ? AFTER_LOGIN : 0;
+  const [step, setStep] = useState(first);
   const [dir, setDir] = useState(1);
   const [name, setName] = useState(prefs.userName);
   const [office, setOffice] = useState(prefs.officeName);
@@ -81,13 +85,24 @@ export function Welcome({ continued = false }: { continued?: boolean }) {
       <WelcomeHero office={office} />
 
       <form className="wl-main" onSubmit={next}>
-        <header className="wl-top">
-          <ol className="wl-dots" aria-label={`قدم ${toFaDigits(step + 1)} از ${toFaDigits(STEPS.length)}`}>
-            {STEPS.map((s, i) => <li key={s} className={i === step ? 'on' : i < step ? 'past' : ''} aria-current={i === step ? 'step' : undefined}><span className="visually-hidden">{s}</span></li>)}
-          </ol>
-          <span className="sp" />
-          <button type="button" className="btn btn-g" onClick={skip}>بعداً</button>
-        </header>
+        {continued ? (
+          <header className="wl-top">
+            <span className="plq lg-brand">کلید</span>
+            <span className="sp" />
+            <ol className="wl-dots" aria-label={`قدم ${toFaDigits(LOGIN_STEPS.length + step - first + 1)} از ${toFaDigits(LOGIN_STEPS.length + STEPS.length - first)}`}>
+              {LOGIN_STEPS.map((s) => <li key={s} className="past"><span className="visually-hidden">{s}</span></li>)}
+              {STEPS.slice(first).map((s, i) => <li key={s} className={i + first === step ? 'on' : i + first < step ? 'past' : ''} aria-current={i + first === step ? 'step' : undefined}><span className="visually-hidden">{s}</span></li>)}
+            </ol>
+          </header>
+        ) : (
+          <header className="wl-top">
+            <ol className="wl-dots" aria-label={`قدم ${toFaDigits(step + 1)} از ${toFaDigits(STEPS.length)}`}>
+              {STEPS.map((s, i) => <li key={s} className={i === step ? 'on' : i < step ? 'past' : ''} aria-current={i === step ? 'step' : undefined}><span className="visually-hidden">{s}</span></li>)}
+            </ol>
+            <span className="sp" />
+            <button type="button" className="btn btn-g" onClick={skip}>بعداً</button>
+          </header>
+        )}
 
         <div ref={bodyRef} key={step} className={`wl-body ${dir > 0 ? 'fwd' : 'back'}`}>
           {step === 0 && (
@@ -124,7 +139,7 @@ export function Welcome({ continued = false }: { continued?: boolean }) {
 
           {step === 2 && (
             <>
-              <span className="eb">قدم ۳</span>
+              <span className="eb">{continued ? 'وارد شدید · یک تنظیم کوچک' : 'قدم ۳'}</span>
               <h1 id="wl-title" className="wl-h">نوشته‌ها راحت خوانده می‌شوند؟</h1>
               {!phone && <p className="wl-lead">اندازه‌ای را بزنید که بدون عینک هم راحت بخوانید. همین حالا روی کل برنامه اعمال می‌شود.</p>}
               <div className="wl-choices" role="radiogroup" aria-label="اندازهٔ نوشته">
@@ -175,7 +190,11 @@ export function Welcome({ continued = false }: { continued?: boolean }) {
         </div>
 
         <footer className="wl-ft">
-          {step > 0 && <button type="button" className="btn btn-g btn-lg" onClick={() => go(step - 1)}>قبلی</button>}
+          {step > first ? (
+            <button type="button" className="btn btn-g btn-lg" onClick={() => go(step - 1)}>قبلی</button>
+          ) : (
+            continued && <button type="button" className="btn btn-g btn-lg" onClick={skip}>بعداً</button>
+          )}
           <span className="sp" />
           <button type="submit" className="btn btn-p btn-lg wl-primary">
             {step === 0 ? 'شروع آشنایی' : step === STEPS.length - 1 ? 'ورود به کلید' : 'ادامه'}
