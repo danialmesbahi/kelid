@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { usePrefsContext } from '../App';
 import { useAuth } from '../auth/AuthContext';
 import { flushProfile, pendingProfile } from '../auth/profile';
-import { getSyncTarget, useStore } from '../data';
-import { startSync } from './state';
+import { getSyncTarget, useStorageInfo, useStore } from '../data';
+import { startSync, useSyncStatus } from './state';
 
 /** وقتی وارد حساب شده‌اید و دیتابیس ماندگار است، همگام‌سازی پشت صحنه کار می‌کند. چیزی نمایش نمی‌دهد. */
 export function SyncRunner() {
@@ -15,6 +15,16 @@ export function SyncRunner() {
     token.current = withToken;
   }, [withToken]);
   const office = session?.office.id;
+  const { persistent } = useStorageInfo();
+  const pending = useSyncStatus()?.pending ?? 0;
+
+  // حافظهٔ موقت: بستن صفحه پیش از رسیدن تغییرها به سرور یعنی گم شدنشان؛ مرورگر یک بار می‌پرسد.
+  useEffect(() => {
+    if (persistent || !pending) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    addEventListener('beforeunload', warn);
+    return () => removeEventListener('beforeunload', warn);
+  }, [persistent, pending]);
 
   useEffect(() => {
     const target = getSyncTarget();

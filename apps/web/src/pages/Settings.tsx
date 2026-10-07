@@ -15,6 +15,7 @@ const whereText = {
   memory: { title: 'موقت', detail: 'این مرورگر حافظهٔ ماندگار ندارد؛ با بستن صفحه داده‌ها پاک می‌شوند. از Chrome یا Edge به‌روز استفاده کنید.' },
   locked: { title: 'موقت (تب دیگری باز است)', detail: 'کلید در یک تب یا پنجرهٔ دیگر همین مرورگر باز است. آن را ببندید و این صفحه را دوباره باز کنید تا به اطلاعات اصلی وصل شوید.' },
 } as const;
+const syncedTemp = 'اطلاعات از سرور دفتر می‌آید و هر تغییر همان لحظه فرستاده می‌شود؛ فقط بدون اینترنت چیزی روی این مرورگر نگه داشته نمی‌شود.';
 
 export function SettingsPage() {
   const { theme, setTheme, textSize, setTextSize, userName, setUserName, officeName, setOfficeName, setWelcomed } = usePrefsContext();
@@ -81,7 +82,9 @@ export function SettingsPage() {
           </span>
           <div className="col sp" style={{ gap: 2 }}>
             <h2 id="data" className="t2">محل ذخیرهٔ اطلاعات: {whereText[storage.where].title}</h2>
-            <span className="mute sm" style={{ lineHeight: 1.8 }}>{whereText[storage.where].detail}</span>
+            <span className="mute sm" style={{ lineHeight: 1.8 }}>
+              {status === 'signedIn' && !storage.persistent ? syncedTemp : whereText[storage.where].detail}
+            </span>
           </div>
         </div>
         {hasSample && (

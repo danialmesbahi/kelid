@@ -34,16 +34,16 @@ export function openStore(): Promise<{ store: KelidStore; storage: StorageInfo }
       // با حساب کلید فقط دادهٔ واقعی دفتر؛ نمونه‌ها مال حالت بی‌سرور (فقط همین دستگاه) است.
       const sql = await SqlStore.open(driver, API_URL ? undefined : seed);
       const cached = new CachedStore(sql);
-      if (where === 'desktop' || where === 'browser') {
-        syncTarget = {
-          store: sql,
-          subscribe: (fn) => sql.subscribe(fn),
-          refresh: () => {
-            cached.dropAll();
-            sql.notifyChanged();
-          },
-        };
-      }
+      // حافظهٔ موقت (مرورگر بی‌OPFS، یا تب دوم) هم همگام می‌شود: داده از سرور دفتر می‌آید و تغییرها همان لحظه می‌روند.
+      // وگرنه کاربرِ واردشده دفتری خالی می‌دید و هر چه ثبت می‌کرد با بستن صفحه گم می‌شد.
+      syncTarget = {
+        store: sql,
+        subscribe: (fn) => sql.subscribe(fn),
+        refresh: () => {
+          cached.dropAll();
+          sql.notifyChanged();
+        },
+      };
       return { store: cached, storage: { persistent, where } };
     } catch (err) {
       console.error(err);
