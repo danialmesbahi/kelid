@@ -64,6 +64,14 @@ export const migrations: readonly string[] = [
     expires_at timestamptz not null
   );
   `,
+  // 4: ورود با رمز عبور (کد پیامکی گزینهٔ دوم است). بعد از پنج رمز اشتباه، شماره ربع ساعت قفل می‌شود.
+  // otp_at: این دستگاه کی با کد پیامکی وارد شد؛ فقط تا چند دقیقه بعدش می‌شود بدون رمز قبلی رمز تازه گذاشت (فراموشی رمز).
+  `
+  alter table users add column password_hash text;
+  alter table users add column failed_logins int not null default 0;
+  alter table users add column locked_until timestamptz;
+  alter table devices add column otp_at timestamptz;
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

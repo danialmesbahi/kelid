@@ -134,7 +134,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await post(a, '/auth/otp', { phone })).statusCode).toBe(200);
       const v = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'لپ‌تاپ' });
       expect(v.statusCode).toBe(200);
-      const s = await post(a, '/auth/signup', { signupToken: v.json().signupToken, name: 'علی رضایی', officeName: 'املاک پارسا', deviceName: 'لپ‌تاپ' });
+      const s = await post(a, '/auth/signup', { signupToken: v.json().signupToken, name: 'علی رضایی', officeName: 'املاک پارسا', deviceName: 'لپ‌تاپ', password: 'parsa-1404' });
       expect(s.statusCode).toBe(200);
       return s.json();
     }
@@ -220,7 +220,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       await allowResend(phone);
       await post(a, '/auth/otp', { phone });
       const v = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'x' });
-      const body = { signupToken: v.json().signupToken, name: 'م', officeName: 'د', deviceName: 'x' };
+      const body = { signupToken: v.json().signupToken, name: 'م', officeName: 'د', deviceName: 'x', password: '12345678' };
       expect((await post(a, '/auth/signup', body)).statusCode).toBe(200);
       expect((await post(a, '/auth/signup', body)).statusCode).toBe(400);
       await a.close();
@@ -257,10 +257,66 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       await a.close();
     });
 
+    it('logs in with the password; a wrong password and an unknown phone get the same answer', async () => {
+      const a = newApp();
+      const phone = freshPhone();
+      const s = await signUp(a, phone);
+      expect(s.user.hasPassword).toBe(true);
+      const { rows } = await owner.query('select password_hash from users where id = $1', [s.user.id]);
+      expect(rows[0].password_hash).toMatch(/^scrypt\$/);
+      expect(rows[0].password_hash).not.toContain('parsa-1404');
+
+      const ok = await post(a, '/auth/login', { phone: phone.replace(/^0/, '+98'), password: 'parsa-1404', deviceName: 'گوشی' });
+      expect(ok.statusCode).toBe(200);
+      expect(ok.json()).toMatchObject({ user: { id: s.user.id, hasPassword: true }, office: { id: s.office.id } });
+      const wrong = await post(a, '/auth/login', { phone, password: 'parsa-1403', deviceName: 'x' });
+      const nobody = await post(a, '/auth/login', { phone: freshPhone(), password: 'parsa-1404', deviceName: 'x' });
+      expect([wrong.statusCode, wrong.json()]).toEqual([400, { error: 'wrong' }]);
+      expect([nobody.statusCode, nobody.json()]).toEqual([400, { error: 'wrong' }]);
+      await a.close();
+    });
+
+    it('locks a phone for a while after five wrong passwords', async () => {
+      const a = newApp();
+      const phone = freshPhone();
+      await signUp(a, phone);
+      for (let i = 0; i < 5; i++) expect((await post(a, '/auth/login', { phone, password: 'nope-nope', deviceName: 'x' })).json().error).toBe('wrong');
+      const locked = await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'x' });
+      expect(locked.statusCode).toBe(429);
+      expect(locked.json().retryAfter).toBeGreaterThan(14 * 60);
+      await owner.query("update users set locked_until = now() - interval '1 second' where phone = $1", [phone]);
+      expect((await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'x' })).statusCode).toBe(200);
+      await a.close();
+    });
+
+    it('changes the password with the current one, or without it right after an SMS login', async () => {
+      const a = newApp();
+      const phone = freshPhone();
+      await signUp(a, phone);
+      const pwd = (await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'x' })).json();
+      expect((await post(a, '/auth/password', { password: 'new-pass-1' }, pwd.accessToken)).json().error).toBe('wrong');
+      expect((await post(a, '/auth/password', { password: 'new-pass-1', current: 'bad-guess' }, pwd.accessToken)).json().error).toBe('wrong');
+      expect((await post(a, '/auth/password', { password: 'short', current: 'parsa-1404' }, pwd.accessToken)).json().error).toBe('bad_password');
+      expect((await post(a, '/auth/password', { password: 'new-pass-1', current: 'parsa-1404' }, pwd.accessToken)).statusCode).toBe(204);
+      expect((await post(a, '/auth/login', { phone, password: 'new-pass-1', deviceName: 'x' })).statusCode).toBe(200);
+
+      // رمز فراموش شد: ورود با کد پیامکی، بعد رمز تازه بدون رمز قبلی — فقط یک بار.
+      await allowResend(phone);
+      await post(a, '/auth/otp', { phone });
+      const otp = (await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'گوشی' })).json();
+      expect((await post(a, '/auth/password', { password: 'forgot-1404' }, otp.accessToken)).statusCode).toBe(204);
+      expect((await post(a, '/auth/password', { password: 'again-1404' }, otp.accessToken)).json().error).toBe('wrong');
+      expect((await post(a, '/auth/login', { phone, password: 'forgot-1404', deviceName: 'x' })).statusCode).toBe(200);
+      expect((await post(a, '/auth/password', { password: 'x'.repeat(8) })).statusCode).toBe(401);
+      await a.close();
+    });
+
     it('validates input', async () => {
       const a = newApp();
       expect((await post(a, '/auth/otp', { phone: '123' })).json().error).toBe('bad_phone');
       expect((await post(a, '/auth/verify', { phone: '09121234567', code: '12', deviceName: 'x' })).json().error).toBe('bad_code');
+      expect((await post(a, '/auth/login', { phone: '12', password: 'x', deviceName: 'x' })).json().error).toBe('bad_phone');
+      expect((await post(a, '/auth/login', { phone: '09121234567', password: 'x'.repeat(129), deviceName: 'x' })).statusCode).toBe(400);
       expect((await a.inject({ method: 'GET', url: '/auth/devices' })).statusCode).toBe(401);
       expect((await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: 'Bearer nope' } })).statusCode).toBe(401);
       await a.close();

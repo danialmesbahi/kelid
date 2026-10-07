@@ -58,7 +58,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 **Server**
 - Office data is read and written only inside `withOffice(pool, officeId, db => …)` (`apps/server/src/db.ts`); every table gets `enable` + `force row level security` and a policy on `kelid_office()` (a test fails otherwise).
-- Auth tables (`users`, `devices`, `otp_codes`, `signup_tickets`) are global on purpose (no office before login) and only `auth/routes.ts` touches them; codes and tokens are stored as hashes only. SMS goes through `SmsSender` (`auth/sms.ts`).
+- Auth tables (`users`, `devices`, `otp_codes`, `signup_tickets`) are global on purpose (no office before login) and only `auth/routes.ts` touches them; codes and tokens are stored as hashes only, passwords as scrypt hashes (`auth/password.ts`). SMS goes through `SmsSender` (`auth/sms.ts`).
 - The runtime DB role is never superuser/BYPASSRLS and doesn't own the tables; migrations run with the owner role. 5xx responses never include internal error text.
 
 **UI / UX**
