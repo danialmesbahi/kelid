@@ -5,6 +5,7 @@ import { hashPassword, passwordOk, verifyPassword, PASSWORD_MAX } from './passwo
 import { normalizePhone } from './phone';
 import { RateLimiter } from './rateLimit';
 import type { SmsSender } from './sms';
+import { kickDevice } from '../sync/live';
 import { deriveKey, otpCode, otpHash, randomToken, safeEqual, sha256, signAccess, verifyAccess, type AccessClaims } from './tokens';
 
 export const ACCESS_TTL = 15 * 60;
@@ -275,6 +276,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
       // توکن قدیمیِ چرخیده دوباره آمد و پاسخ گم‌شده هم نیست ⇒ احتمالاً دزدیده شده؛ دستگاه بیرون می‌افتد.
       if ((d.is_prev && !d.in_grace) || d.idle) {
         await db.query('update devices set revoked_at = now() where id = $1', [d.id]);
+        await kickDevice(db, d.id);
         if (d.is_prev) req.log.warn({ device: d.id }, 'refresh token reuse; device revoked');
         return null;
       }
@@ -286,6 +288,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
 
   app.post('/auth/logout', { preHandler: requireAuth }, async (req, reply) => {
     await pool.query('update devices set revoked_at = now() where id = $1', [req.auth!.dev]);
+    await kickDevice(pool, req.auth!.dev);
     return reply.status(204).send();
   });
 
@@ -302,6 +305,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     { preHandler: requireAuth, schema: { params: { type: 'object', properties: { id: { type: 'string', format: 'uuid' } }, required: ['id'] } } },
     async (req, reply) => {
       const { rowCount } = await pool.query('update devices set revoked_at = now() where id = $1 and user_id = $2 and revoked_at is null', [req.params.id, req.auth!.sub]);
+      if (rowCount) await kickDevice(pool, req.params.id);
       return reply.status(rowCount ? 204 : 404).send();
     },
   );

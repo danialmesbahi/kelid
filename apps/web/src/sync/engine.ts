@@ -12,9 +12,14 @@ export interface SyncStatus {
 const PUSH_BATCH = 200;
 const PHOTO_BATCH = 8;
 const PULL_BATCH = 500;
-const DEBOUNCE_MS = 1500;
+// کوتاه تا تغییر تقریباً همان لحظه روی بقیهٔ دستگاه‌ها باشد، ولی چند ذخیرهٔ پشت هم یک‌جا بروند.
+const DEBOUNCE_MS = 300;
+// خبر زنده از سرور ⇒ کمی صبر تا چند خبر پشت هم یک pull شوند.
+const LIVE_MS = 120;
+// اتصال زنده هست؛ این فقط تور ایمنی است اگر جایی خبری گم شود.
 const PERIODIC_MS = 60_000;
 const RETRY_MS = [5_000, 15_000, 60_000, 180_000];
+const LIVE_RETRY_MS = [1_000, 3_000, 10_000, 30_000];
 
 /**
  * همگام‌سازی پشت صحنه: اول صف تغییرهای این دستگاه فرستاده می‌شود، بعد تغییرهای بقیه گرفته می‌شود.
@@ -31,6 +36,7 @@ export class SyncEngine {
   private retry = 0;
   private stopped = false;
   private cleanup: Array<() => void> = [];
+  private live = new AbortController();
 
   private store: SyncTarget['store'];
 
@@ -54,13 +60,71 @@ export class SyncEngine {
     const id = setInterval(() => document.visibilityState === 'visible' && navigator.onLine !== false && this.schedule(0), PERIODIC_MS);
     this.cleanup.push(() => removeEventListener('online', now), () => document.removeEventListener('visibilitychange', visible), () => clearInterval(id));
     this.schedule(0);
+    void this.listen();
   }
 
   stop() {
     this.stopped = true;
+    this.live.abort();
     clearTimeout(this.timer);
     for (const c of this.cleanup.splice(0)) c();
     this.listeners.clear();
+  }
+
+  /**
+   * اتصال زنده به سرور تا وقتی موتور روشن است: هر خبر یعنی یک pull کوتاه. قطع شد ⇒ با فاصلهٔ کم دوباره وصل
+   * می‌شود و بعد از وصل شدن یک بار سر می‌زند تا چیزی که وسط قطعی آمده جا نماند.
+   */
+  async listen() {
+    const listen = this.api.listen;
+    if (!listen) return;
+    let fails = 0;
+    let first = true;
+    while (!this.stopped) {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await this.until('online');
+        continue;
+      }
+      const began = Date.now();
+      try {
+        await this.withToken((t) =>
+          listen(
+            t,
+            {
+              open: () => {
+                if (!first) this.schedule(0);
+                first = false;
+              },
+              change: () => this.schedule(LIVE_MS),
+            },
+            this.live.signal,
+          ),
+        );
+        // اتصالی که زود بسته شد هم شکست حساب می‌شود؛ وگرنه حلقه‌ای بی‌وقفه به سرور فشار می‌آورد.
+        fails = Date.now() - began < 5_000 ? fails + 1 : 0;
+      } catch (e) {
+        // بیرون شده یا سرور قدیمی: همگام‌سازی معمول ادامه دارد.
+        if (e instanceof ApiError && (e.code === 'unauthorized' || e.code === 'not_found')) return;
+        fails++;
+      }
+      if (fails) await this.until('online', LIVE_RETRY_MS[Math.min(fails - 1, LIVE_RETRY_MS.length - 1)]!);
+    }
+  }
+
+  /** صبر تا رویداد یا زمان، یا خاموش شدن موتور. */
+  private until(event: 'online', ms?: number): Promise<void> {
+    return new Promise((done) => {
+      const finish = () => {
+        clearTimeout(t);
+        removeEventListener(event, finish);
+        this.live.signal.removeEventListener('abort', finish);
+        done();
+      };
+      const t = ms === undefined ? undefined : setTimeout(finish, ms);
+      // برگشت اینترنت ⇒ همان لحظه دوباره وصل شو، نه بعد از پایان فاصله.
+      addEventListener(event, finish);
+      this.live.signal.addEventListener('abort', finish);
+    });
   }
 
   getStatus = () => this.status;

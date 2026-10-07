@@ -1,6 +1,7 @@
 // تست روی PostgreSQL واقعی. محلی: npm run db:up و دو متغیر زیر (‎.env.example‎)؛ در CI کار server آن‌ها را می‌دهد.
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
 import type { SmsSender } from './auth/sms';
@@ -377,6 +378,64 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await put(s1.accessToken, 'p2', { mime: 'text/html', bytes: html, thumb: jpeg })).statusCode).toBe(400);
       expect((await put(s1.accessToken, 'a.b', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(400);
       expect((await post(a, '/sync/photos/p3', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(401);
+      await a.close();
+    });
+
+    it('tells the other devices of the office, live, that something changed', async () => {
+      const a = newApp();
+      await a.listen({ port: 0, host: '127.0.0.1' });
+      const base = `http://127.0.0.1:${(a.server.address() as AddressInfo).port}`;
+      const phone = freshPhone();
+      const s1 = await signUp(a, phone);
+      const s2 = (await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'گوشی' })).json();
+      const other = await signUp(a, freshPhone());
+      const open = async (token: string) => {
+        const ctl = new AbortController();
+        const res = await fetch(`${base}/sync/events`, { headers: { authorization: `Bearer ${token}` }, signal: ctl.signal });
+        const state = { text: '', ended: false };
+        void (async () => {
+          const reader = res.body!.getReader();
+          const dec = new TextDecoder();
+          try {
+            for (;;) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              state.text += dec.decode(value);
+            }
+          } catch {
+            // بستن از سمت تست
+          }
+          state.ended = true;
+        })();
+        return { res, state, stop: () => ctl.abort() };
+      };
+      const until = async (ok: () => boolean) => {
+        for (let i = 0; i < 100 && !ok(); i++) await new Promise((r) => setTimeout(r, 20));
+        return ok();
+      };
+      const e1 = await open(s1.accessToken);
+      const e2 = await open(s2.accessToken);
+      const eo = await open(other.accessToken);
+      expect(e1.res.status).toBe(200);
+      expect(e1.res.headers.get('content-type')).toMatch(/^text\/event-stream/);
+      expect(e1.res.headers.get('x-content-type-options')).toBe('nosniff');
+
+      await push(a, s1.accessToken, [{ seq: 1, kind: 'listing', id: randomUUID(), fields: listing(), hlc: hlc(t0) }]);
+      expect(await until(() => e2.state.text.includes('data: change'))).toBe(true);
+      await new Promise((r) => setTimeout(r, 150));
+      // فرستنده خودش خبر نمی‌گیرد و دفتر دیگر هیچ‌چیز نمی‌شنود
+      expect(e1.state.text).not.toContain('data: change');
+      expect(eo.state.text).not.toContain('data: change');
+
+      // دستگاهِ بیرون‌شده همان لحظه قطع می‌شود
+      expect((await a.inject({ method: 'DELETE', url: `/auth/devices/${s2.deviceId}`, headers: { authorization: `Bearer ${s1.accessToken}` } })).statusCode).toBe(204);
+      expect(await until(() => e2.state.ended)).toBe(true);
+      // یک دستگاه بیش از سه اتصال باز نگه نمی‌دارد؛ قدیمی‌ترین بسته می‌شود
+      const more = [await open(s1.accessToken), await open(s1.accessToken), await open(s1.accessToken)];
+      expect(await until(() => e1.state.ended)).toBe(true);
+      expect(more.some((m) => m.state.ended)).toBe(false);
+      expect((await fetch(`${base}/sync/events`)).status).toBe(401);
+      for (const e of [eo, ...more]) e.stop();
       await a.close();
     });
 

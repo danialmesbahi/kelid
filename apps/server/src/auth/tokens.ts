@@ -46,3 +46,13 @@ export function verifyAccess(key: Buffer, token: string, now = Date.now()): Acce
     return null;
   }
 }
+
+/** پایان عمر توکنی که verifyAccess پذیرفته، به میلی‌ثانیه؛ اتصال زنده بیشتر از توکنش باز نمی‌ماند. */
+export function accessExpiry(token: string): number {
+  try {
+    const p = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8')) as { exp?: unknown };
+    return typeof p.exp === 'number' ? p.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}

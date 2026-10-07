@@ -96,4 +96,18 @@ describe('SyncEngine', () => {
     e.stop();
     expect(e.getStatus()).toMatchObject({ phase: 'offline', pending: 1 });
   });
+
+  it('pulls right away when the server says another device changed something', async () => {
+    const api = demoSyncApi();
+    const a = await device();
+    const b = await device();
+    const ea = new SyncEngine(a.target, api, token, 'o1');
+    const eb = new SyncEngine(b.target, api, token, 'o1');
+    void eb.listen();
+    const made = await a.sql.addListing(listing);
+    await ea.run();
+    for (let i = 0; i < 100 && !(await b.sql.getListing(made.id)); i++) await new Promise((r) => setTimeout(r, 20));
+    expect((await b.sql.getListing(made.id))?.neighborhood).toBe('ونک');
+    eb.stop();
+  });
 });

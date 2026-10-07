@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { applyServerChange, decodeHlc, Hlc, SYNC_KINDS, type EntityState, type SyncKind } from '@kelid/core/sync';
 import { authGuard, type AuthOptions } from '../auth/routes';
+import { accessExpiry } from '../auth/tokens';
 import { withOffice } from '../db';
+import { securityHeaders } from '../headers';
+import { announce, LiveHub } from './live';
 
 export const PUSH_MAX = 500;
 const PHOTO_MAX = 2 * 1024 * 1024;
@@ -30,6 +33,8 @@ function thumbOk(b: Buffer): boolean {
   return looksLike('image/webp', b) || looksLike('image/jpeg', b) || looksLike('image/png', b);
 }
 export const PULL_MAX = 500;
+// پراکسی‌ها و NATها اتصال بی‌صدا را می‌بندند؛ یک خط خالی هر چند ثانیه بازش نگه می‌دارد.
+const HEARTBEAT_MS = 25_000;
 // دستگاهی که ساعتش جلوست نباید تا ابد برنده باشد؛ زمان‌های بیش از یک دقیقه جلوتر از سرور با ساعت سرور عوض می‌شوند.
 const FUTURE_SLACK_MS = 60_000;
 
@@ -82,6 +87,8 @@ const pullSchema = {
 export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: AuthOptions) {
   const requireAuth = authGuard(pool, jwtSecret);
   const serverClock = new Hlc('srv');
+  const hub = new LiveHub(pool, app.log);
+  app.addHook('preClose', async () => hub.close());
 
   app.post('/sync/push', { preHandler: requireAuth, bodyLimit: 8 * 1024 * 1024, schema: pushSchema }, async (req) => {
     const changes = (req.body as { changes: Change[] }).changes;
@@ -135,6 +142,7 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
          on conflict (office_id, kind, id) do update set fields = excluded.fields, clocks = excluded.clocks, version = nextval('entity_version')`,
         [JSON.stringify(records)],
       );
+      await announce(db, office, req.auth!.dev);
     });
     return { ok: true, hlc: maxHlc };
   });
@@ -146,10 +154,48 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
     const bytes = Buffer.from(body.bytes, 'base64');
     const thumb = Buffer.from(body.thumb, 'base64');
     if (bytes.length > PHOTO_MAX || thumb.length > THUMB_MAX || !looksLike(body.mime, bytes) || !thumbOk(thumb)) return reply.status(400).send({ error: 'bad_photo' });
-    await withOffice(pool, req.auth!.off, (db) =>
-      db.query('insert into photo_blobs (id, mime, bytes, thumb) values ($1, $2, $3, $4) on conflict (office_id, id) do nothing', [id, body.mime, bytes, thumb]),
-    );
+    await withOffice(pool, req.auth!.off, async (db) => {
+      const r = await db.query('insert into photo_blobs (id, mime, bytes, thumb) values ($1, $2, $3, $4) on conflict (office_id, id) do nothing', [id, body.mime, bytes, thumb]);
+      // دستگاه‌هایی که مشخصات عکس را دارند ولی بایتش را نه، همین حالا می‌گیرندش.
+      if (r.rowCount) await announce(db, req.auth!.off, req.auth!.dev);
+    });
     return reply.status(204).send();
+  });
+
+  /**
+   * اتصال زنده (Server-Sent Events): وقتی دستگاه دیگری از همین دفتر چیزی فرستاد، فقط «تازه داری» می‌آید و
+   * دستگاه همان pull همیشگی را می‌زند. داده از این راه نمی‌آید؛ پس هر دسترسی همچنان از RLS و pull می‌گذرد.
+   * عمر اتصال از توکنش بیشتر نیست و دستگاهِ بیرون‌شده همان لحظه قطع می‌شود.
+   */
+  app.get('/sync/events', { preHandler: requireAuth }, async (req, reply) => {
+    const { off, dev } = req.auth!;
+    if (!hub.hasRoom(off)) return reply.status(503).header('retry-after', '30').send({ error: 'busy' });
+    await hub.ready();
+    const ttl = accessExpiry(req.headers.authorization!.slice(7)) - Date.now();
+    if (ttl <= 0) return reply.status(401).send({ error: 'unauthorized' });
+
+    reply.hijack();
+    const res = reply.raw;
+    const head: Record<string, string> = { ...securityHeaders };
+    for (const [k, v] of Object.entries(reply.getHeaders())) if (typeof v === 'string') head[k] = v;
+    res.writeHead(200, { ...head, 'content-type': 'text/event-stream; charset=utf-8', 'x-accel-buffering': 'no' });
+    res.write('retry: 3000\n: ready\n\n');
+
+    let open = true;
+    const close = () => {
+      if (!open) return;
+      open = false;
+      clearInterval(beat);
+      clearTimeout(expire);
+      remove();
+      res.end();
+    };
+    const beat = setInterval(() => res.write(': \n\n'), HEARTBEAT_MS);
+    // توکن تمام شد ⇒ اتصال بسته می‌شود و دستگاه با توکن تازه (و بررسی دوبارهٔ دستگاه) برمی‌گردد.
+    const expire = setTimeout(close, ttl);
+    const remove = hub.add({ office: off, device: dev, ping: () => open && res.write('data: change\n\n'), close });
+    req.raw.on('close', close);
+    res.on('error', close);
   });
 
   app.get('/sync/photos/:id', { preHandler: requireAuth, schema: { params: idParam } }, async (req, reply) => {

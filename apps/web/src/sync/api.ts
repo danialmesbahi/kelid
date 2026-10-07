@@ -14,7 +14,20 @@ export interface SyncApi {
   uploadPhoto(token: string, photo: PhotoBlob): Promise<void>;
   /** null = هنوز بالا نیامده (دستگاه صاحبش آفلاین است). */
   downloadPhoto(token: string, id: string): Promise<PhotoBlob | null>;
+  /**
+   * اتصال زنده: با هر «دستگاه دیگری چیزی فرستاد» change صدا زده می‌شود. تا بسته شدن اتصال باز می‌ماند؛
+   * سرور قدیمی که آن را ندارد not_found می‌دهد و همگام‌سازی دوره‌ای کافی است.
+   */
+  listen?(token: string, on: LiveEvents, signal: AbortSignal): Promise<void>;
 }
+
+export interface LiveEvents {
+  open(): void;
+  change(): void;
+}
+
+// سرور هر ۲۵ ثانیه یک خط خالی می‌فرستد؛ سکوت طولانی‌تر یعنی اتصال بی‌صدا مرده (وای‌فای عوض شد، پراکسی بست).
+const LIVE_SILENCE_MS = 70_000;
 
 // بایت‌ها در JSON به‌صورت base64؛ تکه‌تکه تا آرایهٔ بزرگ پشتهٔ تابع را پر نکند.
 function toB64(b: Uint8Array): string {
@@ -45,6 +58,50 @@ export function httpSyncApi(base: string): SyncApi {
         throw e;
       }
     },
+    listen: async (token, on, signal) => {
+      // fetch به‌جای EventSource: توکن در هدر می‌رود، نه در آدرس (که در لاگ‌ها می‌ماند).
+      const ctl = new AbortController();
+      const abort = () => ctl.abort();
+      signal.addEventListener('abort', abort);
+      let quiet: ReturnType<typeof setTimeout> | undefined;
+      const alive = () => {
+        clearTimeout(quiet);
+        quiet = setTimeout(abort, LIVE_SILENCE_MS);
+      };
+      try {
+        alive();
+        let res: Response;
+        try {
+          res = await fetch(`${root}/sync/events`, { headers: { authorization: `Bearer ${token}`, accept: 'text/event-stream' }, signal: ctl.signal, credentials: 'omit', cache: 'no-store' });
+        } catch {
+          if (signal.aborted) return;
+          throw new ApiError('offline');
+        }
+        if (res.status === 401) throw new ApiError('unauthorized');
+        if (!res.ok || !res.body) throw new ApiError(res.status === 404 ? 'not_found' : 'server');
+        on.open();
+        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buf = '';
+        try {
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) return;
+            alive();
+            buf += value;
+            for (let i = buf.indexOf('\n\n'); i >= 0; i = buf.indexOf('\n\n')) {
+              if (/^data:/m.test(buf.slice(0, i))) on.change();
+              buf = buf.slice(i + 2);
+            }
+            if (buf.length > 4096) buf = '';
+          }
+        } catch {
+          if (!signal.aborted) throw new ApiError('offline');
+        }
+      } finally {
+        clearTimeout(quiet);
+        signal.removeEventListener('abort', abort);
+      }
+    },
   };
 }
 
@@ -53,7 +110,13 @@ export function demoSyncApi(): SyncApi {
   const rows = new Map<string, { kind: IncomingEntity['kind']; id: string; state: EntityState; version: number }>();
   let version = 0;
   const photos = new Map<string, PhotoBlob>();
+  const live = new Set<LiveEvents>();
   return {
+    listen(_t, on, signal) {
+      live.add(on);
+      on.open();
+      return new Promise((done) => signal.addEventListener('abort', () => done(void live.delete(on))));
+    },
     async uploadPhoto(_t, p) {
       await new Promise((r) => setTimeout(r, 120));
       if (!photos.has(p.id)) photos.set(p.id, { ...p });
@@ -70,6 +133,7 @@ export function demoSyncApi(): SyncApi {
         const { state, changed } = applyServerChange(rows.get(key)?.state, c, (p) => (p !== null && !taken.has(p) ? p : Math.max(0, ...taken) + 1));
         if (changed) rows.set(key, { kind: c.kind, id: c.id, state, version: ++version });
       }
+      for (const l of live) l.change();
       return { hlc: null };
     },
     async pull(_t, cursor, limit) {
