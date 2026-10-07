@@ -20,6 +20,7 @@ import { UpdateNotice } from './pwa';
 import { Welcome } from './welcome/Welcome';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { SyncRunner } from './sync/SyncRunner';
+import { Greeting } from './auth/Greeting';
 import { Login } from './auth/Login';
 
 type Prefs = ReturnType<typeof usePrefs>;
@@ -80,6 +81,8 @@ function Gate({ welcomed }: { welcomed: boolean }) {
   // صفحهٔ ورود بعد از ورود موفق تا پایان انیمیشن کنار رفتنش می‌ماند.
   const [loginOpen, setLoginOpen] = useState(false);
   const [afterLogin, setAfterLogin] = useState(false);
+  const [greet, setGreet] = useState<'back' | 'new' | null>(null);
+  const prefs = usePrefsContext();
   useEffect(() => {
     if (status === 'signedOut') setLoginOpen(true);
   }, [status]);
@@ -91,14 +94,25 @@ function Gate({ welcomed }: { welcomed: boolean }) {
       {status === 'signedIn' && <SyncRunner />}
       {showLogin && (
         <Login
-          handOff={!welcomed}
-          onDone={() => {
+          onDone={(mode) => {
             setLoginOpen(false);
             setAfterLogin(true);
+            // بعد از ورود همیشه صفحهٔ امروز، نه صفحه‌ای که از آن خارج شده بود (مثلاً تنظیمات).
+            void router.navigate('/', { replace: true });
+            setGreet(mode === 'login' ? 'back' : 'new');
           }}
         />
       )}
       {ready && !showLogin && !welcomed && <Welcome continued={afterLogin} signedUp={status === 'signedIn'} />}
+      {greet && status === 'signedIn' && !showLogin && welcomed && (
+        <Greeting
+          kind={greet}
+          name={prefs.userName}
+          office={prefs.officeName}
+          onClose={() => setGreet(null)}
+          onStart={() => void router.navigate('/add', { viewTransition: true })}
+        />
+      )}
     </>
   );
 }

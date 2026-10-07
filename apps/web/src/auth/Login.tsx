@@ -54,7 +54,7 @@ function clock(sec: number): string {
  * ورود: شماره ← کد ← داخل برنامه. ثبت‌نام: نام شما، نام دفتر و شماره ← کد ← آشنایی کوتاه.
  * این‌که شماره‌ای حساب دارد یا نه فقط بعد از کد درست معلوم می‌شود تا کسی نتواند شماره‌های مشتری‌ها را امتحان کند.
  */
-export function Login({ onDone, handOff = false }: { onDone: (mode: AuthMode) => void; /** آشنایی بلافاصله جایش را می‌گیرد؛ بدون محو شدن. */ handOff?: boolean }) {
+export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   const { api, signIn } = useAuth();
   const prefs = usePrefsContext();
   const store = useStore();
@@ -132,13 +132,14 @@ export function Login({ onDone, handOff = false }: { onDone: (mode: AuthMode) =>
     // نام‌ها از این به بعد از سرور می‌آیند؛ همان‌ها در منو و صفحهٔ امروز دیده می‌شوند.
     if (s.user.name) prefs.setUserName(s.user.name);
     if (s.office.name) prefs.setOfficeName(s.office.name);
-    const tour = kind === 'signup' && handOff;
-    if (kind === 'login') {
-      // دستگاه تازه در دفتری که از قبل هست: آشنایی لازم نیست و نمونه‌ها نباید کنار فایل‌های واقعی دفتر بنشینند.
-      prefs.setWelcomed(true);
-      if (await store.hasSampleData()) await store.clearSampleData();
+    if (kind === 'signup') {
+      // دفتر تازه: آشنایی کوتاه همیشه می‌آید، حتی اگر این مرورگر قبلاً آشنایی را دیده باشد؛ بی‌فاصله جای این صفحه را می‌گیرد.
+      prefs.setWelcomed(false);
+      return onDone(kind);
     }
-    if (tour) return onDone(kind);
+    // دستگاه تازه در دفتری که از قبل هست: آشنایی لازم نیست و نمونه‌ها نباید کنار فایل‌های واقعی دفتر بنشینند.
+    prefs.setWelcomed(true);
+    if (await store.hasSampleData()) await store.clearSampleData();
     setLeaving(true);
     setTimeout(() => onDone(kind), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 520);
   };
