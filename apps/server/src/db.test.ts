@@ -120,25 +120,25 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
     await expect(assertSafeRole(fake({ rolsuper: false, rolbypassrls: true, owns: false }))).rejects.toThrow(/BYPASSRLS/);
   });
 
+  const codes = new Map<string, string>();
+  const sms: SmsSender = { sendOtp: async (phone, code) => void codes.set(phone, code) };
+  const newApp = () => buildApp({ db: app, logLevel: 'silent', auth: { pool: app, sms, jwtSecret: 's'.repeat(48) } });
+  let n = 0;
+  const freshPhone = () => `0912${String(Date.now() % 10_000_000).padStart(7, '0').slice(0, 5)}${String(n++ % 100).padStart(2, '0')}`;
+  const post = (a: ReturnType<typeof newApp>, url: string, payload: object, token?: string) =>
+    a.inject({ method: 'POST', url, payload, headers: token ? { authorization: `Bearer ${token}` } : {} });
+  const allowResend = (phone: string) => owner.query("update otp_codes set last_sent_at = now() - interval '2 minutes' where phone = $1", [phone]);
+
+  async function signUp(a: ReturnType<typeof newApp>, phone: string) {
+    expect((await post(a, '/auth/otp', { phone })).statusCode).toBe(200);
+    const v = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'لپ‌تاپ' });
+    expect(v.statusCode).toBe(200);
+    const s = await post(a, '/auth/signup', { signupToken: v.json().signupToken, name: 'علی رضایی', officeName: 'املاک پارسا', deviceName: 'لپ‌تاپ' });
+    expect(s.statusCode).toBe(200);
+    return s.json();
+  }
+
   describe('phone login', () => {
-    const codes = new Map<string, string>();
-    const sms: SmsSender = { sendOtp: async (phone, code) => void codes.set(phone, code) };
-    const newApp = () => buildApp({ db: app, logLevel: 'silent', auth: { pool: app, sms, jwtSecret: 's'.repeat(48) } });
-    let n = 0;
-    const freshPhone = () => `0912${String(Date.now() % 10_000_000).padStart(7, '0').slice(0, 5)}${String(n++ % 100).padStart(2, '0')}`;
-    const post = (a: ReturnType<typeof newApp>, url: string, payload: object, token?: string) =>
-      a.inject({ method: 'POST', url, payload, headers: token ? { authorization: `Bearer ${token}` } : {} });
-    const allowResend = (phone: string) => owner.query("update otp_codes set last_sent_at = now() - interval '2 minutes' where phone = $1", [phone]);
-
-    async function signUp(a: ReturnType<typeof newApp>, phone: string) {
-      expect((await post(a, '/auth/otp', { phone })).statusCode).toBe(200);
-      const v = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'لپ‌تاپ' });
-      expect(v.statusCode).toBe(200);
-      const s = await post(a, '/auth/signup', { signupToken: v.json().signupToken, name: 'علی رضایی', officeName: 'املاک پارسا', deviceName: 'لپ‌تاپ' });
-      expect(s.statusCode).toBe(200);
-      return s.json();
-    }
-
     it('signs up a new office, then logs the same phone straight in', async () => {
       const a = newApp();
       const phone = freshPhone();
@@ -263,6 +263,102 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await post(a, '/auth/verify', { phone: '09121234567', code: '12', deviceName: 'x' })).json().error).toBe('bad_code');
       expect((await a.inject({ method: 'GET', url: '/auth/devices' })).statusCode).toBe(401);
       expect((await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: 'Bearer nope' } })).statusCode).toBe(401);
+      await a.close();
+    });
+  });
+
+  describe('sync', () => {
+    const hlc = (wall: number, count = 0, node = 'dev') => `${wall.toString(36).padStart(10, '0')}-${count.toString(36).padStart(5, '0')}-${node}`;
+    const t0 = Date.now() - 60_000;
+    const listing = (extra: object = {}) => ({ deal: 'sale', status: 'active', kind: 'apartment', neighborhood: 'ونک', area: 90, createdAt: '2026-10-07T10:00:00Z', ...extra });
+    const push = (a: ReturnType<typeof newApp>, token: string, changes: object[]) => post(a, '/sync/push', { changes }, token);
+    const pull = (a: ReturnType<typeof newApp>, token: string, cursor = '0', limit?: number) =>
+      a.inject({ method: 'GET', url: `/sync/pull?cursor=${cursor}${limit ? `&limit=${limit}` : ''}`, headers: { authorization: `Bearer ${token}` } });
+
+    it('merges per field by HLC and replays are harmless', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      const id = randomUUID();
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'listing', id, fields: listing({ plaque: 7 }), hlc: hlc(t0) }])).statusCode).toBe(200);
+      // دستگاه دیگر: یکی جدیدتر برای area، یکی قدیمی‌تر برای neighborhood
+      await push(a, s.accessToken, [
+        { seq: 1, kind: 'listing', id, fields: { area: 120 }, hlc: hlc(t0 + 10, 0, 'b') },
+        { seq: 2, kind: 'listing', id, fields: { neighborhood: 'قدیمی' }, hlc: hlc(t0 - 10, 0, 'b') },
+      ]);
+      // همان دسته دوباره رسید (پاسخ گم شده بود)
+      await push(a, s.accessToken, [{ seq: 1, kind: 'listing', id, fields: listing({ plaque: 7 }), hlc: hlc(t0) }]);
+      const r = (await pull(a, s.accessToken)).json();
+      expect(r.entities).toHaveLength(1);
+      expect(r.entities[0].fields).toMatchObject({ area: 120, neighborhood: 'ونک', plaque: 7 });
+      expect(r.more).toBe(false);
+      // بعد از نشانگر، چیزی تازه نیست
+      expect((await pull(a, s.accessToken, r.cursor)).json().entities).toEqual([]);
+      await a.close();
+    });
+
+    it('gives each listing a unique plaque in the office, keeping a free proposed one', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      const [x, y, z] = [randomUUID(), randomUUID(), randomUUID()];
+      await push(a, s.accessToken, [{ seq: 1, kind: 'listing', id: x, fields: listing({ plaque: 3 }), hlc: hlc(t0) }]);
+      await push(a, s.accessToken, [
+        { seq: 1, kind: 'listing', id: y, fields: listing({ plaque: 3 }), hlc: hlc(t0, 0, 'b') },
+        { seq: 2, kind: 'listing', id: z, fields: listing(), hlc: hlc(t0, 1, 'b') },
+        // پلاک بعداً از دستگاه عوض نمی‌شود
+        { seq: 3, kind: 'listing', id: x, fields: { plaque: 99 }, hlc: hlc(t0 + 5, 0, 'b') },
+      ]);
+      const byId = Object.fromEntries((await pull(a, s.accessToken)).json().entities.map((e: { id: string; fields: { plaque: number } }) => [e.id, e.fields.plaque]));
+      expect(byId).toEqual({ [x]: 3, [y]: 4, [z]: 5 });
+      await a.close();
+    });
+
+    it('keeps offices apart even with the same record id', async () => {
+      const a = newApp();
+      const s1 = await signUp(a, freshPhone());
+      const s2 = await signUp(a, freshPhone());
+      const id = randomUUID();
+      await push(a, s1.accessToken, [{ seq: 1, kind: 'client', id, fields: { name: 'مشتری الف', need: {}, createdAt: 'x' }, hlc: hlc(t0) }]);
+      expect((await pull(a, s2.accessToken)).json().entities).toEqual([]);
+      await push(a, s2.accessToken, [{ seq: 1, kind: 'client', id, fields: { name: 'جعلی' }, hlc: hlc(t0 + 99) }]);
+      expect((await pull(a, s1.accessToken)).json().entities[0].fields.name).toBe('مشتری الف');
+      await a.close();
+    });
+
+    it('pages through changes in order', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      const changes = Array.from({ length: 7 }, (_, i) => ({ seq: i + 1, kind: 'todo', id: `t${i}`, fields: { title: `کار ${i}` }, hlc: hlc(t0, i) }));
+      await push(a, s.accessToken, changes);
+      const seen: string[] = [];
+      let cursor = '0';
+      for (;;) {
+        const page = (await pull(a, s.accessToken, cursor, 3)).json();
+        seen.push(...page.entities.map((e: { id: string }) => e.id));
+        cursor = page.cursor;
+        if (!page.more) break;
+      }
+      expect(seen).toEqual(changes.map((c) => c.id));
+      await a.close();
+    });
+
+    it('does not let a device with a clock in the future win forever', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'clock', fields: { title: 'آینده' }, hlc: hlc(Date.now() + 365 * 864e5) }]);
+      await push(a, s.accessToken, [{ seq: 2, kind: 'todo', id: 'clock', fields: { title: 'اکنون' }, hlc: hlc(Date.now() + 5_000, 0, 'b') }]);
+      expect((await pull(a, s.accessToken)).json().entities[0].fields.title).toBe('اکنون');
+      await a.close();
+    });
+
+    it('rejects bad input and missing auth', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      expect((await push(a, '', [])).statusCode).toBe(401);
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'secret', id: 'x', fields: {}, hlc: hlc(t0) }])).statusCode).toBe(400);
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: '../x', fields: {}, hlc: hlc(t0) }])).statusCode).toBe(400);
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'x', fields: { 'bad key': 1 }, hlc: hlc(t0) }])).statusCode).toBe(400);
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'x', fields: {}, hlc: 'yesterday' }])).statusCode).toBe(400);
+      expect((await pull(a, s.accessToken, "1;drop")).statusCode).toBe(400);
       await a.close();
     });
   });

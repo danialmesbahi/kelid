@@ -135,6 +135,10 @@ export const migrations: string[] = [
   );
   CREATE INDEX IF NOT EXISTS deals_listing ON deals(listing_id) WHERE deleted = 0;
   `,
+  /* 5: همگام‌سازی؛ زمان منطقی (HLC) هر تغییر تا ادغام بین دستگاه‌ها ترتیب درست داشته باشد */ `
+  ALTER TABLE outbox ADD COLUMN hlc TEXT;
+  CREATE INDEX IF NOT EXISTS outbox_entity ON outbox(entity_id);
+  `,
 ];
 
 export async function migrate(db: SqlDriver): Promise<void> {

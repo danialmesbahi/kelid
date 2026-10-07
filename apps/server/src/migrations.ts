@@ -64,6 +64,27 @@ export const migrations: readonly string[] = [
     expires_at timestamptz not null
   );
   `,
+  // 3: همگام‌سازی. هر رکورد دفتر (فایل، مشتری، قرار، کار، معامله، مشخصات عکس) یک ردیف با مقدار و زمان HLC هر فیلد.
+  // version از یک دنباله می‌آید و ارسال‌های هر دفتر پشت یک قفل‌اند، پس «همه چیز بعد از نسخهٔ N» هیچ‌وقت چیزی جا نمی‌اندازد.
+  `
+  create sequence entity_version;
+  create table entities (
+    office_id uuid not null default kelid_office() references offices (id),
+    kind text not null check (kind in ('listing', 'client', 'visit', 'todo', 'deal', 'photo')),
+    id text not null check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
+    fields jsonb not null,
+    clocks jsonb not null,
+    version bigint not null default nextval('entity_version'),
+    primary key (office_id, kind, id)
+  );
+  create index entities_pull on entities (office_id, version);
+  create unique index entities_plaque on entities (office_id, ((fields ->> 'plaque')::int)) where kind = 'listing' and fields ? 'plaque';
+  alter table entities enable row level security;
+  alter table entities force row level security;
+  create policy office_isolation on entities
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

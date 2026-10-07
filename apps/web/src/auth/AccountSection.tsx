@@ -4,6 +4,7 @@ import { formatLongDate, toFaDigits } from '@kelid/core';
 import { useSlow } from '../data';
 import { useToast } from '../layout/Toasts';
 import { ApiError, type Device } from './api';
+import { syncNow, syncText, toneColor, useSyncStatus } from '../sync/state';
 import { useAuth } from './AuthContext';
 import { formatPhone } from './phone';
 import './account.css';
@@ -24,6 +25,7 @@ export function AccountSection() {
   const [failed, setFailed] = useState(false);
   const [asking, setAsking] = useState<string | null>(null); // شناسهٔ دستگاه یا «out» برای خروج
   const slow = useSlow(!devices && !failed);
+  const sync = useSyncStatus();
 
   const load = useCallback(() => {
     if (!api) return;
@@ -66,6 +68,28 @@ export function AccountSection() {
           <button type="button" className="btn btn-s" onClick={() => setAsking('out')}><Icon name="out" size="s" />خروج از حساب</button>
         )}
       </div>
+
+      {sync && (
+        <div className="soft acc-sync" aria-live="polite">
+          <span className={sync.phase === 'syncing' ? 'dot sync-pulse' : 'dot'} style={{ background: toneColor[syncText(sync).tone] }} />
+          <span className="col" style={{ minWidth: 0, lineHeight: 1.6 }}>
+            <span className="sb">{syncText(sync).label}</span>
+            <span className="xs mute">
+              {sync.phase === 'blocked'
+                ? 'اطلاعات این دستگاه با دفتر دیگری همگام شده و به این حساب فرستاده نمی‌شود.'
+                : sync.lastSync
+                  ? `آخرین همگام‌سازی: ${seen(new Date(sync.lastSync).toISOString())}. تغییرها خودکار بین دستگاه‌های دفتر جابه‌جا می‌شوند.`
+                  : 'تغییرها خودکار بین دستگاه‌های دفتر جابه‌جا می‌شوند؛ بدون اینترنت هم کار کنید.'}
+            </span>
+          </span>
+          {sync.phase !== 'blocked' && (
+            <button type="button" className="btn btn-s" disabled={sync.phase === 'syncing'} onClick={syncNow}>
+              <Icon name="sync" size="s" />
+              همگام‌سازی
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="col" style={{ gap: 10 }}>
         <span className="sb">دستگاه‌هایی که وارد شده‌اند</span>

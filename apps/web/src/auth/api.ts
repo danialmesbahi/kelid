@@ -46,30 +46,33 @@ export interface AuthApi {
 
 const CODES: readonly string[] = ['bad_phone', 'bad_code', 'bad_name', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized'];
 
+/** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
+export async function request<T>(root: string, method: 'GET' | 'POST' | 'DELETE', path: string, body?: object, token?: string, timeoutMs = 12_000): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(root + path, {
+      method,
+      headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+      // درخواست آویزان روی اینترنت ضعیف نباید صفحه را منتظر نگه دارد.
+      signal: AbortSignal.timeout(timeoutMs),
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+  } catch {
+    throw new ApiError('offline');
+  }
+  if (res.status === 204) return undefined as T;
+  const data = (await res.json().catch(() => ({}))) as { error?: string; retryAfter?: number; attemptsLeft?: number };
+  if (res.ok) return data as T;
+  if (res.status === 401) throw new ApiError('unauthorized');
+  const code = (CODES.includes(data.error ?? '') ? data.error : 'server') as ApiErrorCode;
+  throw new ApiError(code, data.retryAfter, data.attemptsLeft);
+}
+
 export function httpApi(base: string): AuthApi {
   const root = base.replace(/\/+$/, '');
-  async function call<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: object, token?: string): Promise<T> {
-    let res: Response;
-    try {
-      res = await fetch(root + path, {
-        method,
-        headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body: body ? JSON.stringify(body) : undefined,
-        // درخواست آویزان روی اینترنت ضعیف نباید صفحه را منتظر نگه دارد.
-        signal: AbortSignal.timeout(12_000),
-        credentials: 'omit',
-        cache: 'no-store',
-      });
-    } catch {
-      throw new ApiError('offline');
-    }
-    if (res.status === 204) return undefined as T;
-    const data = (await res.json().catch(() => ({}))) as { error?: string; retryAfter?: number; attemptsLeft?: number };
-    if (res.ok) return data as T;
-    if (res.status === 401) throw new ApiError('unauthorized');
-    const code = (CODES.includes(data.error ?? '') ? data.error : 'server') as ApiErrorCode;
-    throw new ApiError(code, data.retryAfter, data.attemptsLeft);
-  }
+  const call = <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: object, token?: string) => request<T>(root, method, path, body, token);
 
   return {
     requestOtp: (phone) => call('POST', '/auth/otp', { phone }),
@@ -138,8 +141,10 @@ export function demoApi(): AuthApi {
   };
 }
 
+export const API_URL = (import.meta.env.VITE_KELID_API_URL as string | undefined) || null;
+
 export function apiFromEnv(): AuthApi | null {
-  const url = import.meta.env.VITE_KELID_API_URL as string | undefined;
+  const url = API_URL;
   if (!url) return null;
   return url === 'demo' ? demoApi() : httpApi(url);
 }

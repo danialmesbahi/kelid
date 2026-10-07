@@ -39,6 +39,20 @@ declare module 'fastify' {
 const deviceName = { type: 'string', minLength: 1, maxLength: 100 } as const;
 const bodySchema = (props: Record<string, object>, required: string[]) => ({ body: { type: 'object', additionalProperties: false, required, properties: props } });
 
+/** درخواست بدون توکن معتبر یا از دستگاهِ بیرون‌شده، 401 می‌گیرد. req.auth در app.ts تعریف شده است. */
+export function authGuard(pool: Pool, jwtSecret: string) {
+  const accessKey = deriveKey(jwtSecret, 'access');
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    const h = req.headers.authorization;
+    const claims = h?.startsWith('Bearer ') ? verifyAccess(accessKey, h.slice(7)) : null;
+    if (!claims) return reply.status(401).send({ error: 'unauthorized' });
+    // دستگاهی که از فهرست حذف شد همان لحظه بیرون می‌افتد، نه بعد از پایان عمر توکن.
+    const { rowCount } = await pool.query('select 1 from devices where id = $1 and user_id = $2 and revoked_at is null', [claims.dev, claims.sub]);
+    if (!rowCount) return reply.status(401).send({ error: 'unauthorized' });
+    req.auth = claims;
+  };
+}
+
 export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }: AuthOptions) {
   const accessKey = deriveKey(jwtSecret, 'access');
   const otpKey = deriveKey(jwtSecret, 'otp');
@@ -48,18 +62,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
   const limited = (reply: FastifyReply, retryAfter: number) =>
     reply.status(429).header('retry-after', String(retryAfter)).send({ error: 'too_many', retryAfter });
 
-  app.decorateRequest('auth', null);
-
-  /** درخواست بدون توکن معتبر یا از دستگاهِ بیرون‌شده، 401 می‌گیرد. */
-  const requireAuth = async (req: FastifyRequest, reply: FastifyReply) => {
-    const h = req.headers.authorization;
-    const claims = h?.startsWith('Bearer ') ? verifyAccess(accessKey, h.slice(7)) : null;
-    if (!claims) return reply.status(401).send({ error: 'unauthorized' });
-    // دستگاهی که از فهرست حذف شد همان لحظه بیرون می‌افتد، نه بعد از پایان عمر توکن.
-    const { rowCount } = await pool.query('select 1 from devices where id = $1 and user_id = $2 and revoked_at is null', [claims.dev, claims.sub]);
-    if (!rowCount) return reply.status(401).send({ error: 'unauthorized' });
-    req.auth = claims;
-  };
+  const requireAuth = authGuard(pool, jwtSecret);
 
   app.post('/auth/otp', { schema: bodySchema({ phone: { type: 'string', maxLength: 30 } }, ['phone']) }, async (req, reply) => {
     const phone = normalizePhone((req.body as { phone: string }).phone);

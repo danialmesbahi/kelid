@@ -19,6 +19,7 @@ import { ToastProvider } from './layout/Toasts';
 import { UpdateNotice } from './pwa';
 import { Welcome } from './welcome/Welcome';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { SyncRunner } from './sync/SyncRunner';
 import { Login } from './auth/Login';
 
 type Prefs = ReturnType<typeof usePrefs>;
@@ -87,6 +88,7 @@ function Gate({ welcomed }: { welcomed: boolean }) {
   return (
     <>
       {ready && <RouterProvider router={router} />}
+      {status === 'signedIn' && <SyncRunner />}
       {showLogin && (
         <Login
           handOff={!welcomed}

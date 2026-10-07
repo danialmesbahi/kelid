@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { authRoutes, type AuthOptions } from './auth/routes';
+import { syncRoutes } from './sync/routes';
 import type { Queryable } from './db';
 
 export interface AppOptions {
@@ -73,7 +74,11 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
     }
   });
 
-  if (auth) void app.register(authRoutes, auth);
+  app.decorateRequest('auth', null);
+  if (auth) {
+    void app.register(authRoutes, auth);
+    void app.register(syncRoutes, auth);
+  }
 
   return app;
 }

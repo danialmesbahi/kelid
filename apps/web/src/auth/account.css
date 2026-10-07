@@ -6,6 +6,8 @@
 .acc-sub > * { white-space: nowrap; }
 .acc-ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .acc-ask > .xs { flex-basis: 100%; text-align: end; }
+.acc-sync { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 14px; row-gap: 10px; padding: 12px 16px; border-radius: 14px; }
+.acc-sync > .dot { width: 10px; height: 10px; }
 .acc-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 @media (max-width: 767px) {
   .acc-head { grid-template-columns: auto minmax(0, 1fr); }
@@ -14,4 +16,5 @@
   .acc-ask { justify-content: flex-start; }
   .acc-ask > .xs { text-align: start; }
   .acc-dev .acc-ask { grid-column: 1 / -1; }
+  .acc-sync > .btn { grid-column: 1 / -1; justify-self: start; }
 }

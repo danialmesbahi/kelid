@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { Icon, Kbd, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { prefetchQuery, useQuery, useStorageInfo, useStore } from '../data';
+import { syncText, toneColor, useSyncStatus } from '../sync/state';
 import { clientsQuery, coverThumbsQuery, filesQuery, navCountsQuery, paletteQuery } from '../queries';
 import { CommandPalette } from './CommandPalette';
 import { usePrefsContext } from '../App';
@@ -39,6 +40,7 @@ export function Shell() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const storage = useStorageInfo();
+  const sync = useSyncStatus();
   const counts = useQuery(navCountsQuery.key, navCountsQuery.fn);
   const store = useStore();
   const { officeName, userName } = usePrefsContext();
@@ -100,10 +102,17 @@ export function Shell() {
             <span className="xs mute num">نسخهٔ آزمایشی</span>
           </span>
           <span className="bar"><span style={{ width: '76%' }} /></span>
-          <span className="rw xs mute" style={{ gap: 6 }}>
-            <span className="dot" style={{ background: storage.persistent ? 'var(--ok)' : 'var(--warn)' }} />
-            {storageLabel[storage.where]}
-          </span>
+          {sync ? (
+            <span className="rw xs mute" style={{ gap: 6 }} aria-live="polite">
+              <span className={sync.phase === 'syncing' ? 'dot sync-pulse' : 'dot'} style={{ background: toneColor[syncText(sync).tone] }} />
+              {syncText(sync).label}
+            </span>
+          ) : (
+            <span className="rw xs mute" style={{ gap: 6 }}>
+              <span className="dot" style={{ background: storage.persistent ? 'var(--ok)' : 'var(--warn)' }} />
+              {storageLabel[storage.where]}
+            </span>
+          )}
         </Link>
         <NavLink to="/settings" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
           <Icon name="set" />

@@ -1,0 +1,166 @@
+import { ApiError } from '../auth/api';
+import type { SyncTarget } from '../data';
+import type { SyncApi } from './api';
+
+export type SyncPhase = 'idle' | 'syncing' | 'offline' | 'error' | 'blocked';
+export interface SyncStatus {
+  phase: SyncPhase;
+  pending: number;
+  lastSync: number | null;
+}
+
+const PUSH_BATCH = 200;
+const PULL_BATCH = 500;
+const DEBOUNCE_MS = 1500;
+const PERIODIC_MS = 60_000;
+const RETRY_MS = [5_000, 15_000, 60_000, 180_000];
+
+/**
+ * همگام‌سازی پشت صحنه: اول صف تغییرهای این دستگاه فرستاده می‌شود، بعد تغییرهای بقیه گرفته می‌شود.
+ * هیچ‌وقت جلوی کار کاربر را نمی‌گیرد: نوشتن‌ها همیشه محلی‌اند و این فقط وقتی اینترنت هست کارش را می‌کند.
+ * هر قدم قابل تکرار است؛ اگر برنامه وسط کار بسته شود، دفعهٔ بعد از همان‌جا ادامه می‌دهد و چیزی گم نمی‌شود.
+ */
+export class SyncEngine {
+  private status: SyncStatus = { phase: 'idle', pending: 0, lastSync: null };
+  private listeners = new Set<() => void>();
+  private running: Promise<void> | null = null;
+  private again = false;
+  private applying = false;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private retry = 0;
+  private stopped = false;
+  private cleanup: Array<() => void> = [];
+
+  private store: SyncTarget['store'];
+
+  constructor(
+    private target: SyncTarget,
+    private api: SyncApi,
+    private withToken: <T>(fn: (token: string) => Promise<T>) => Promise<T>,
+    private officeId: string,
+  ) {
+    this.store = target.store;
+  }
+
+  start() {
+    // نوشتن محلی ⇒ کمی صبر تا چند تغییر پشت هم یک‌جا بروند.
+    this.cleanup.push(this.target.subscribe(() => !this.applying && this.schedule(DEBOUNCE_MS)));
+    const now = () => this.schedule(0);
+    const visible = () => document.visibilityState === 'visible' && this.schedule(0);
+    addEventListener('online', now);
+    document.addEventListener('visibilitychange', visible);
+    // هر دقیقه یک سر زدن کوچک، فقط وقتی برنامه جلوی چشم است؛ پس‌زمینه هیچ پردازشی ندارد.
+    const id = setInterval(() => document.visibilityState === 'visible' && navigator.onLine !== false && this.schedule(0), PERIODIC_MS);
+    this.cleanup.push(() => removeEventListener('online', now), () => document.removeEventListener('visibilitychange', visible), () => clearInterval(id));
+    this.schedule(0);
+  }
+
+  stop() {
+    this.stopped = true;
+    clearTimeout(this.timer);
+    for (const c of this.cleanup.splice(0)) c();
+    this.listeners.clear();
+  }
+
+  getStatus = () => this.status;
+  onStatus = (fn: () => void) => {
+    this.listeners.add(fn);
+    return () => void this.listeners.delete(fn);
+  };
+
+  private set(patch: Partial<SyncStatus>) {
+    const next = { ...this.status, ...patch };
+    if (next.phase === this.status.phase && next.pending === this.status.pending && next.lastSync === this.status.lastSync) return;
+    this.status = next;
+    for (const l of this.listeners) l();
+  }
+
+  private schedule(ms: number) {
+    if (this.stopped) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => void this.run(), ms);
+  }
+
+  /** یک دور کامل؛ اگر وسطش تغییر تازه‌ای آمد، بلافاصله یک دور دیگر. */
+  run(): Promise<void> {
+    if (this.running) {
+      this.again = true;
+      return this.running;
+    }
+    this.running = this.cycle().finally(() => {
+      this.running = null;
+      if (this.again && !this.stopped) {
+        this.again = false;
+        this.schedule(0);
+      }
+    });
+    return this.running;
+  }
+
+  private async cycle() {
+    const info = await this.store.syncInfo();
+    this.set({ pending: info.pending });
+    if (info.office && info.office !== this.officeId) return this.set({ phase: 'blocked' });
+    if (navigator.onLine === false) return this.set({ phase: 'offline' });
+    this.set({ phase: 'syncing' });
+    try {
+      await this.store.bindOffice(this.officeId);
+      await this.pushAll();
+      await this.pullAll();
+      this.retry = 0;
+      this.set({ phase: 'idle', pending: (await this.store.syncInfo()).pending, lastSync: Date.now() });
+    } catch (e) {
+      const offline = e instanceof ApiError && e.code === 'offline';
+      this.set({ phase: offline ? 'offline' : 'error', pending: (await this.store.syncInfo()).pending });
+      if (e instanceof ApiError && e.code === 'unauthorized') return; // صفحهٔ ورود برمی‌گردد
+      this.schedule(RETRY_MS[Math.min(this.retry++, RETRY_MS.length - 1)]!);
+    }
+  }
+
+  private async pushAll() {
+    for (;;) {
+      if (this.stopped) return;
+      const { changes, lastSeq } = await this.store.pendingChanges(PUSH_BATCH);
+      if (!lastSeq) return;
+      if (changes.length) await this.withToken((t) => this.api.push(t, changes));
+      // فقط بعد از تأیید سرور پاک می‌شود؛ پاسخ گم‌شده یعنی ارسال دوباره، که سرور بی‌اثر می‌پذیرد.
+      await this.store.ackChanges(lastSeq);
+      this.set({ pending: Math.max(0, this.status.pending - changes.length) });
+    }
+  }
+
+  private async pullAll() {
+    let pages = 0;
+    let got = false;
+    for (;;) {
+      if (this.stopped) break;
+      const { cursor } = await this.store.syncInfo();
+      const page = await this.withToken((t) => this.api.pull(t, cursor, PULL_BATCH));
+      if (page.entities.length) {
+        this.applying = true;
+        try {
+          await this.store.applyRemote(page.entities, page.cursor, page.hlc, { quiet: true });
+        } finally {
+          this.applying = false;
+        }
+        got = true;
+        // اولین همگام‌سازی با هزاران فایل: صفحه‌ها هر چند دسته یک بار تازه می‌شوند و بین دسته‌ها نفس می‌کشند.
+        if (++pages % 6 === 0) this.notify();
+        await new Promise((r) => setTimeout(r, 0));
+      } else if (page.cursor !== cursor) {
+        await this.store.applyRemote([], page.cursor, page.hlc, { quiet: true });
+      }
+      if (!page.more) break;
+    }
+    if (got) this.notify();
+  }
+
+  private notify() {
+    this.applying = true;
+    try {
+      this.target.refresh();
+    } finally {
+      this.applying = false;
+    }
+  }
+}
