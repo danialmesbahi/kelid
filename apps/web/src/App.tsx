@@ -90,7 +90,7 @@ function Gate({ welcomed }: { welcomed: boolean }) {
       {showLogin && (
         <Login
           handOff={!welcomed}
-          onClosed={() => {
+          onDone={() => {
             setLoginOpen(false);
             setAfterLogin(true);
           }}

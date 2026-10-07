@@ -42,6 +42,9 @@ html[dir="rtl"] .lg-otp { justify-content: end; }
 .lg-msg { display: flex; align-items: flex-start; gap: 8px; min-height: 26px; margin: 0; max-width: 520px; font-size: 14.5px; line-height: 1.8; color: var(--mute); }
 .lg-msg > .ic { flex: none; margin-top: 4px; }
 .lg-msg.err { color: var(--bad); font-weight: 600; animation: kl-fadein 200ms ease both; }
+.lg-phone.done { border-color: color-mix(in srgb, var(--ok) 45%, var(--line2)); color: var(--ok); background: color-mix(in srgb, var(--pri-tint) 35%, var(--paper)); }
+.lg-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 6px 0 0; font-size: 14.5px; color: var(--mute); }
+.lg-switch .lg-link { font-weight: 700; }
 .lg-demo { align-self: flex-start; padding: 6px 12px; border-radius: 10px; background: var(--warn-tint); color: var(--warn); font-size: 13.5px; }
 
 @media (prefers-reduced-motion: reduce) {
