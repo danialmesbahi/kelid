@@ -236,6 +236,12 @@ describe('sync between two offline devices', () => {
     await a.addPhotos(sampleListing.id, [{ mime: 'image/jpeg', width: 1, height: 1, bytes: new Uint8Array([1]), thumb: new Uint8Array([1]) }]);
     expect(await a.photosToUpload(10)).toEqual([]);
     expect((await a.pendingChanges(50)).changes.filter((c) => c.kind === 'photo')).toEqual([]);
+    // نمونه‌ها پاک شدند: صفِ ویرایش‌هایشان هم دیگر به دفتر نمی‌رود (پیش‌تر عکس بی‌صاحب به سرور می‌رسید)
+    await a.clearSampleData();
+    expect((await a.pendingChanges(500)).changes).toEqual([]);
+    // عکسی از سرور که فایلش روی این دستگاه نیست، هر دور دوباره پرسیده نمی‌شود
+    await a.applyRemote([{ kind: 'photo', id: 'p-orphan', fields: { listingId: 'l-gone', ord: 0, mime: 'image/jpeg', width: 1, height: 1, createdAt: '2026-01-01T00:00:00Z' } }], '1', null);
+    expect(await a.photosToDownload(10)).toEqual([]);
 
     await a.bindOffice('office-a');
     await a.addTodo({ title: 'کار' });

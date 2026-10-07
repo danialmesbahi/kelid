@@ -574,29 +574,25 @@ export class SqlStore implements KelidStore, Syncable {
     const rows = await this.db.all<Row>('SELECT seq, entity, entity_id, op, payload, hlc, created_at FROM outbox ORDER BY seq LIMIT ?', [limit]);
     const last = rows.at(-1);
     if (!last) return { changes: [], lastSeq: 0 };
-    // ویرایش دادهٔ نمونه هم در صف می‌آید، ولی نمونه‌ها مال آشنایی همین دستگاه‌اند و به دفتر فرستاده نمی‌شوند.
-    const sample = new Set<string>();
-    for (const [kind, table] of Object.entries(TABLE)) {
+    // فقط رکوردی فرستاده می‌شود که هنوز هست و نمونه نیست. نمونه‌ها مال آشنایی همین دستگاه‌اند؛ و چون پاک کردن نمونه‌ها
+    // تنها حذف واقعی است (بقیه نرم‌اند)، صفِ رکوردِ ناپیدا هم یعنی نمونهٔ پاک‌شده، نه دادهٔ دفتر.
+    const keep = new Set<string>();
+    const queries: Array<[string, string]> = [
+      ...Object.entries(TABLE).map(([kind, table]): [string, string] => [kind, `SELECT id FROM ${table} WHERE sample = 0 AND id IN `]),
+      ['photo', 'SELECT p.id FROM photos p JOIN listings l ON l.id = p.listing_id WHERE l.sample = 0 AND p.id IN '],
+    ];
+    for (const [kind, sql] of queries) {
       const ids = rows.filter((r) => r.entity === kind).map((r) => s(r.entity_id));
       for (let i = 0; i < ids.length; i += SYNC_CHUNK) {
         const part = ids.slice(i, i + SYNC_CHUNK);
-        const hits = await this.db.all<{ id: string }>(`SELECT id FROM ${table} WHERE sample = 1 AND id IN (${part.map(() => '?').join(',')})`, part);
-        for (const h of hits) sample.add(`${kind}:${h.id}`);
+        const hits = await this.db.all<{ id: string }>(`${sql}(${part.map(() => '?').join(',')})`, part);
+        for (const h of hits) keep.add(`${kind}:${h.id}`);
       }
-    }
-    const photoIds = rows.filter((r) => r.entity === 'photo').map((r) => s(r.entity_id));
-    for (let i = 0; i < photoIds.length; i += SYNC_CHUNK) {
-      const part = photoIds.slice(i, i + SYNC_CHUNK);
-      const hits = await this.db.all<{ id: string }>(
-        `SELECT p.id FROM photos p JOIN listings l ON l.id = p.listing_id WHERE l.sample = 1 AND p.id IN (${part.map(() => '?').join(',')})`,
-        part,
-      );
-      for (const h of hits) sample.add(`photo:${h.id}`);
     }
     const changes: OutgoingChange[] = [];
     for (const r of rows) {
       const kind = s(r.entity) as SyncKind;
-      if (!SYNC_KINDS.includes(kind) || sample.has(`${kind}:${s(r.entity_id)}`)) continue;
+      if (!SYNC_KINDS.includes(kind) || !keep.has(`${kind}:${s(r.entity_id)}`)) continue;
       const fields: Record<string, unknown> = r.op === 'delete' ? { deleted: true } : (JSON.parse(s(r.payload) || '{}') as Record<string, unknown>);
       delete fields.id;
       // شمار عکس را هر دستگاه از عکس‌های خودش حساب می‌کند.
@@ -691,7 +687,11 @@ export class SqlStore implements KelidStore, Syncable {
   }
 
   async photosToDownload(limit: number) {
-    const rows = await this.db.all<{ id: string }>('SELECT id FROM photos WHERE blob_state = 2 AND deleted = 0 ORDER BY ord, id LIMIT ?', [limit]);
+    // عکسِ فایلی که روی این دستگاه نیست پرسیده نمی‌شود؛ وگرنه عکسِ بی‌صاحب هر دور دوباره از سرور خواسته می‌شد.
+    const rows = await this.db.all<{ id: string }>(
+      'SELECT p.id FROM photos p JOIN listings l ON l.id = p.listing_id WHERE p.blob_state = 2 AND p.deleted = 0 ORDER BY p.ord, p.id LIMIT ?',
+      [limit],
+    );
     return rows.map((r) => r.id);
   }
 
