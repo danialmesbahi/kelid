@@ -27,6 +27,19 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 - Main pages' queries live in `apps/web/src/queries.ts`; `Shell` prefetches them on idle so the first visit to a page renders with data. Long lists render progressively (`layout/useProgressive.ts`) with memoized rows.
 - `outbox(seq, entity, entity_id, op, payload, created_at)` is the sync log for phase 2 (server push, per-field LWW with HLC).
 
+## Server (phase 2, `apps/server`)
+
+```
+ Fastify app (src/app.ts)  security headers on every reply, generic 5xx body, GET /health
+   ▼
+ withOffice(pool, officeId, fn)  (src/db.ts)  BEGIN → set_config('kelid.office_id', id, true) → fn → COMMIT
+   ▼
+ PostgreSQL 16  one schema for all offices; each table: ENABLE + FORCE RLS, policy `office_id = kelid_office()`
+```
+
+- Two roles (`apps/server/db/init.sql`): `kelid_owner` owns tables and runs `migrations.ts` (append-only, advisory-locked, applied on start); `kelid_app` (DATABASE_URL) has only row DML, so it cannot turn RLS off. `assertSafeRole()` refuses superuser/BYPASSRLS at startup.
+- Tests: `config.test.ts`, `app.test.ts` run everywhere; `db.test.ts` needs `KELID_TEST_*` URLs (CI job `server` on Linux with a Postgres service).
+
 ## Module map
 
 | Area | Files | Notes |

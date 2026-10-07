@@ -24,6 +24,7 @@ If `graphify` is installed (`uv tool install graphifyy`), prefer it over broad f
 ```
 apps/web        React 19 + Vite 8 UI (shared by web, PWA and desktop). Pages in src/pages, chrome in src/layout, DB drivers in src/db
 apps/desktop    Electron 44 shell: main.ts (window, single-instance), database.ts (encrypted SQLite + IPC), preload.ts (window.kelid)
+apps/server     Phase 2 API: Fastify 5 + PostgreSQL 16 with row-level security per office (app.ts routes, db.ts withOffice, migrations.ts)
 packages/core   Pure TS domain: model, Persian text/number utils, formatting, client↔listing matching, KelidStore + SqlStore + schema
 packages/ui     Design system: kelid.css (tokens/components), motion.css (animation), icons.ts, components.tsx (Icon, Plaque, Cover…)
 docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
@@ -35,6 +36,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 | install | `npm install` |
 | web dev (http://localhost:5173) | `npm run dev` |
 | desktop dev (Electron + Vite) | `npm run dev:desktop` |
+| server dev (http://localhost:3000, needs Docker) | `npm run db:up` once, then `npm run dev:server` |
 | tests (Vitest, real SQLCipher) | `npm test` |
 | type check (all projects) | `npm run typecheck` |
 | lint (ESLint + typescript-eslint + react-hooks) | `npm run lint` |
@@ -53,6 +55,10 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 - Deletes are soft (`deleted = 1`) so they can be undone and synced.
 - Schema changes: **append** a new entry to `migrations` in `packages/core/src/sql/schema.ts`. Never edit a shipped migration.
 - Text that users search goes through `normalizeForSearch` (Arabic ي/ك, ZWNJ, digits, diacritics).
+
+**Server**
+- Office data is read and written only inside `withOffice(pool, officeId, db => …)` (`apps/server/src/db.ts`); every table gets `enable` + `force row level security` and a policy on `kelid_office()` (a test fails otherwise).
+- The runtime DB role is never superuser/BYPASSRLS and doesn't own the tables; migrations run with the owner role. 5xx responses never include internal error text.
 
 **UI / UX**
 - All user-facing text is Persian; the app is `dir="rtl"`. Show numbers with `toFaDigits`, parse input with `toEnDigits`. Money via `formatToman`, dates via `format.ts` (Persian calendar, Asia/Tehran).
@@ -97,4 +103,4 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 ## Status (update when a phase item lands)
 - Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, app icon, lint + e2e in CI, phone layout + PWA, listing photos, listing editing, clients, visits/to-dos done.
-- Phase 2 server + sync · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals done; map, auto-update · Phase 5 beta.
+- Phase 2 🟡 server scaffold (Fastify + Postgres RLS) done; login, sync · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals done; map, auto-update · Phase 5 beta.
