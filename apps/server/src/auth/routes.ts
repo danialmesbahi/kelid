@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { transaction as tx, type Db, type Pool } from '../db';
+import { hashPassword, passwordOk, verifyPassword, PASSWORD_MAX } from './password';
 import { normalizePhone } from './phone';
 import { RateLimiter } from './rateLimit';
 import type { SmsSender } from './sms';
@@ -14,6 +15,9 @@ const MAX_SENDS_PER_HOUR = 5; // برای هر شماره
 const SIGNUP_TTL = 15 * 60;
 const REFRESH_IDLE_DAYS = 180; // دستگاهی که این‌قدر سر نزده دوباره کد می‌خواهد
 const REUSE_GRACE = 60; // ثانیه؛ تکرار درخواست تمدیدی که پاسخش در راه گم شده
+const MAX_PASSWORD_FAILS = 5; // برای هر شماره؛ بعدش قفل موقت
+const LOCK_MINUTES = 15;
+const RESET_WINDOW = 10 * 60; // ثانیه بعد از ورود با کد که بدون رمز قبلی می‌شود رمز تازه گذاشت
 
 export interface AuthOptions {
   pool: Pool;
@@ -26,7 +30,7 @@ export interface Session {
   accessExpiresIn: number;
   refreshToken: string;
   deviceId: string;
-  user: { id: string; name: string; phone: string };
+  user: { id: string; name: string; phone: string; hasPassword: boolean };
   office: { id: string; name: string };
 }
 
@@ -37,6 +41,7 @@ declare module 'fastify' {
 }
 
 const deviceName = { type: 'string', minLength: 1, maxLength: 100 } as const;
+const password = { type: 'string', maxLength: PASSWORD_MAX } as const;
 const bodySchema = (props: Record<string, object>, required: string[]) => ({ body: { type: 'object', additionalProperties: false, required, properties: props } });
 
 /** درخواست بدون توکن معتبر یا از دستگاهِ بیرون‌شده، 401 می‌گیرد. req.auth در app.ts تعریف شده است. */
@@ -58,6 +63,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
   const otpKey = deriveKey(jwtSecret, 'otp');
   const otpByIp = new RateLimiter(10, 10 * 60_000);
   const verifyByIp = new RateLimiter(30, 10 * 60_000);
+  const loginByIp = new RateLimiter(20, 10 * 60_000);
 
   const limited = (reply: FastifyReply, retryAfter: number) =>
     reply.status(429).header('retry-after', String(retryAfter)).send({ error: 'too_many', retryAfter });
@@ -135,7 +141,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
 
         const user = await db.query<{ id: string; office_id: string }>('select id, office_id from users where phone = $1', [phone]);
         const u = user.rows[0];
-        if (u) return { session: await startSession(db, u.id, u.office_id, body.deviceName) };
+        if (u) return { session: await startSession(db, u.id, u.office_id, body.deviceName, true) };
         const ticket = randomToken();
         await db.query('insert into signup_tickets (hash, phone, expires_at) values ($1, $2, now() + make_interval(secs => $3))', [sha256(ticket), phone, SIGNUP_TTL]);
         await db.query('delete from signup_tickets where expires_at < now()');
@@ -150,32 +156,86 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
     '/auth/signup',
     {
       schema: bodySchema(
-        { signupToken: { type: 'string', maxLength: 100 }, name: { type: 'string', maxLength: 100 }, officeName: { type: 'string', maxLength: 200 }, deviceName },
-        ['signupToken', 'name', 'officeName', 'deviceName'],
+        { signupToken: { type: 'string', maxLength: 100 }, name: { type: 'string', maxLength: 100 }, officeName: { type: 'string', maxLength: 200 }, deviceName, password },
+        ['signupToken', 'name', 'officeName', 'deviceName', 'password'],
       ),
     },
     async (req, reply) => {
-      const body = req.body as { signupToken: string; name: string; officeName: string; deviceName: string };
+      const body = req.body as { signupToken: string; name: string; officeName: string; deviceName: string; password: string };
       const name = body.name.trim();
       const officeName = body.officeName.trim();
       if (!name || !officeName) return reply.status(400).send({ error: 'bad_name' });
+      if (!passwordOk(body.password)) return reply.status(400).send({ error: 'bad_password' });
+      const hash = await hashPassword(body.password);
       const session = await tx(pool, async (db) => {
         const t = await db.query<{ phone: string }>('delete from signup_tickets where hash = $1 and expires_at > now() returning phone', [sha256(body.signupToken)]);
         const phone = t.rows[0]?.phone;
         if (!phone) return null;
         const existing = await db.query<{ id: string; office_id: string }>('select id, office_id from users where phone = $1', [phone]);
-        if (existing.rows[0]) return startSession(db, existing.rows[0].id, existing.rows[0].office_id, body.deviceName);
+        // شماره از قبل حساب داشت: همان حساب باز می‌شود و رمزش دست نمی‌خورد (شماره همین الان با کد تأیید شده).
+        if (existing.rows[0]) return startSession(db, existing.rows[0].id, existing.rows[0].office_id, body.deviceName, true);
         const officeId = randomUUID();
         const userId = randomUUID();
         await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
         await db.query('insert into offices (id, name) values ($1, $2)', [officeId, officeName]);
-        await db.query('insert into users (id, office_id, phone, name) values ($1, $2, $3, $4)', [userId, officeId, phone, name]);
-        return startSession(db, userId, officeId, body.deviceName);
+        await db.query('insert into users (id, office_id, phone, name, password_hash) values ($1, $2, $3, $4, $5)', [userId, officeId, phone, name, hash]);
+        return startSession(db, userId, officeId, body.deviceName, true);
       });
       if (!session) return reply.status(400).send({ error: 'expired' });
       return session;
     },
   );
+
+  app.post('/auth/login', { schema: bodySchema({ phone: { type: 'string', maxLength: 30 }, password, deviceName }, ['phone', 'password', 'deviceName']) }, async (req, reply) => {
+    const body = req.body as { phone: string; password: string; deviceName: string };
+    const phone = normalizePhone(body.phone);
+    if (!phone) return reply.status(400).send({ error: 'bad_phone' });
+    const ipWait = loginByIp.take(req.ip);
+    if (ipWait) return limited(reply, ipWait);
+
+    const { rows } = await pool.query<{ id: string; office_id: string; password_hash: string | null; locked: number }>(
+      `select id, office_id, password_hash, greatest(0, ceil(extract(epoch from locked_until - now())))::int as locked from users where phone = $1`,
+      [phone],
+    );
+    const u = rows[0];
+    if (u && u.locked > 0) return limited(reply, u.locked);
+    // شمارهٔ بی‌حساب و رمز اشتباه یک جواب دارند تا نشود فهمید چه کسی کاربر کلید است.
+    const ok = await verifyPassword(body.password, u?.password_hash ?? null);
+    if (!u || !ok) {
+      if (u) {
+        await pool.query(
+          `update users set failed_logins = case when failed_logins + 1 >= $2 then 0 else failed_logins + 1 end,
+                            locked_until = case when failed_logins + 1 >= $2 then now() + make_interval(mins => $3) else locked_until end
+            where id = $1`,
+          [u.id, MAX_PASSWORD_FAILS, LOCK_MINUTES],
+        );
+      }
+      return reply.status(400).send({ error: 'wrong' });
+    }
+    const session = await tx(pool, async (db) => {
+      await db.query('update users set failed_logins = 0, locked_until = null where id = $1', [u.id]);
+      return startSession(db, u.id, u.office_id, body.deviceName, false);
+    });
+    return session;
+  });
+
+  /** رمز تازه: با رمز فعلی، یا بدون آن تا چند دقیقه بعد از ورود با کد پیامکی روی همین دستگاه (فراموشی رمز). */
+  app.post('/auth/password', { preHandler: requireAuth, schema: bodySchema({ password, current: password }, ['password']) }, async (req, reply) => {
+    const body = req.body as { password: string; current?: string };
+    if (!passwordOk(body.password)) return reply.status(400).send({ error: 'bad_password' });
+    const { rows } = await pool.query<{ password_hash: string | null; fresh: boolean }>(
+      `select u.password_hash, coalesce(d.otp_at > now() - make_interval(secs => $3), false) as fresh
+         from users u join devices d on d.user_id = u.id where u.id = $1 and d.id = $2`,
+      [req.auth!.sub, req.auth!.dev, RESET_WINDOW],
+    );
+    const r = rows[0];
+    if (!r) return reply.status(401).send({ error: 'unauthorized' });
+    if (r.password_hash && !r.fresh && !(body.current && (await verifyPassword(body.current, r.password_hash)))) return reply.status(400).send({ error: 'wrong' });
+    await pool.query('update users set password_hash = $2, failed_logins = 0, locked_until = null where id = $1', [req.auth!.sub, await hashPassword(body.password)]);
+    // فرصت بی‌رمز یک‌بار مصرف است.
+    await pool.query('update devices set otp_at = null where id = $1', [req.auth!.dev]);
+    return reply.status(204).send();
+  });
 
   app.post('/auth/refresh', { schema: bodySchema({ refreshToken: { type: 'string', maxLength: 100 } }, ['refreshToken']) }, async (req, reply) => {
     const hash = sha256((req.body as { refreshToken: string }).refreshToken);
@@ -225,10 +285,10 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
     },
   );
 
-  async function startSession(db: Db, userId: string, officeId: string, name: string): Promise<Session> {
+  async function startSession(db: Db, userId: string, officeId: string, name: string, viaOtp: boolean): Promise<Session> {
     const deviceId = randomUUID();
     const refresh = randomToken();
-    await db.query('insert into devices (id, user_id, name, refresh_hash) values ($1, $2, $3, $4)', [deviceId, userId, name.trim() || 'دستگاه', sha256(refresh)]);
+    await db.query('insert into devices (id, user_id, name, refresh_hash, otp_at) values ($1, $2, $3, $4, $5)', [deviceId, userId, name.trim() || 'دستگاه', sha256(refresh), viaOtp ? new Date() : null]);
     return session(db, deviceId, userId, officeId, refresh);
   }
 
@@ -242,7 +302,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
   }
 
   async function session(db: Db, deviceId: string, userId: string, officeId: string, refreshToken: string): Promise<Session> {
-    const u = await db.query<{ name: string; phone: string }>('select name, phone from users where id = $1', [userId]);
+    const u = await db.query<{ name: string; phone: string; has_password: boolean }>('select name, phone, password_hash is not null as has_password from users where id = $1', [userId]);
     // نام دفتر پشت RLS است؛ فقط در تراکنشی که دفتر خودش تنظیم شده دیده می‌شود.
     await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
     const o = await db.query<{ name: string }>('select name from offices where id = $1', [officeId]);
@@ -251,7 +311,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
       accessExpiresIn: ACCESS_TTL,
       refreshToken,
       deviceId,
-      user: { id: userId, name: u.rows[0]?.name ?? '', phone: u.rows[0]?.phone ?? '' },
+      user: { id: userId, name: u.rows[0]?.name ?? '', phone: u.rows[0]?.phone ?? '', hasPassword: u.rows[0]?.has_password ?? false },
       office: { id: officeId, name: o.rows[0]?.name ?? '' },
     };
   }

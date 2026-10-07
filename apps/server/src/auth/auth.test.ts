@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { hashPassword, verifyPassword } from './password';
 import { normalizePhone } from './phone';
 import { RateLimiter } from './rateLimit';
 import { KavenegarSms } from './sms';
@@ -72,5 +73,18 @@ describe('KavenegarSms', () => {
     const failing = new KavenegarSms('SECRET', 't', (async () => new Response('', { status: 403 })) as unknown as typeof fetch);
     await expect(failing.sendOtp('09121234567', '1')).rejects.toThrow('kavenegar: HTTP 403');
     await failing.sendOtp('09121234567', '1').catch((e: Error) => expect(e.message).not.toContain('SECRET'));
+  });
+});
+
+describe('passwords', () => {
+  it('hashes with a random salt and verifies only the right password', async () => {
+    const h1 = await hashPassword('رمز من ۱۲۳');
+    const h2 = await hashPassword('رمز من ۱۲۳');
+    expect(h1).toMatch(/^scrypt\$32768\$8\$1\$/);
+    expect(h1).not.toBe(h2);
+    expect(await verifyPassword('رمز من ۱۲۳', h1)).toBe(true);
+    expect(await verifyPassword('رمز من ۱۲۴', h1)).toBe(false);
+    expect(await verifyPassword('رمز من ۱۲۳', null)).toBe(false);
+    expect(await verifyPassword('x', 'garbage')).toBe(false);
   });
 });

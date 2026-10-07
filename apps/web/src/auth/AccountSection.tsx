@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Icon, Skeleton } from '@kelid/ui';
 import { formatLongDate, toFaDigits } from '@kelid/core';
 import { useSlow } from '../data';
@@ -60,7 +60,7 @@ export function AccountSection() {
         </div>
         {asking === 'out' ? (
           <span className="acc-ask">
-            <span className="xs mute">برای ورود دوباره کد پیامکی لازم است. اطلاعات روی همین دستگاه می‌ماند.</span>
+            <span className="xs mute">برای ورود دوباره شماره و رمز عبور لازم است. اطلاعات روی همین دستگاه می‌ماند.</span>
             <button type="button" className="btn btn-g" onClick={() => setAsking(null)}>انصراف</button>
             <button type="button" className="btn btn-d" onClick={() => void signOut()}>بله، خارج شو</button>
           </span>
@@ -69,6 +69,7 @@ export function AccountSection() {
         )}
       </div>
 
+      <PasswordRow />
       {sync && (
         <div className="soft acc-sync" aria-live="polite">
           <span className={sync.phase === 'syncing' ? 'dot sync-pulse' : 'dot'} style={{ background: toneColor[syncText(sync).tone] }} />
@@ -127,5 +128,90 @@ export function AccountSection() {
         )}
       </div>
     </section>
+  );
+}
+
+/** گذاشتن یا عوض کردن رمز عبور؛ رمز فعلی لازم است تا کسی که فقط به دستگاه باز دست یافته نتواند رمز را عوض کند. */
+function PasswordRow() {
+  const { session, api, withToken, markPassword } = useAuth();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (!session || !api) return null;
+  // نشست‌های قدیمی این را نمی‌دانند؛ رمز فعلی پرسیده می‌شود و سرور اگر رمزی نبود نادیده‌اش می‌گیرد.
+  const has = session.user.hasPassword !== false;
+
+  const close = () => {
+    setOpen(false);
+    setCurrent('');
+    setNext('');
+    setError('');
+    setShow(false);
+  };
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    if (next.length < 8) return setError('رمز تازه دست‌کم ۸ نویسه باشد.');
+    setBusy(true);
+    setError('');
+    try {
+      await withToken((t) => api.setPassword(t, next, has ? current : undefined));
+      await markPassword();
+      toast(has ? 'رمز عبور عوض شد' : 'رمز عبور گذاشته شد');
+      close();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : '';
+      setError(code === 'wrong' ? 'رمز فعلی درست نیست.' : code === 'bad_password' ? 'رمز تازه دست‌کم ۸ نویسه باشد.' : code === 'offline' ? 'برای این کار اینترنت لازم است.' : 'رمز ذخیره نشد؛ دوباره امتحان کنید.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="soft acc-pass">
+      <div className="acc-dev" style={{ padding: 0 }}>
+        <Icon name="lock" />
+        <span className="col" style={{ minWidth: 0, lineHeight: 1.6 }}>
+          <span className="sb">رمز عبور</span>
+          <span className="xs mute">{has ? 'با شمارهٔ موبایل و رمز وارد می‌شوید؛ کد پیامکی هم همیشه هست.' : 'هنوز رمزی نگذاشته‌اید؛ ورود فقط با کد پیامکی است.'}</span>
+        </span>
+        {!open && (
+          <button type="button" className="btn btn-s" onClick={() => setOpen(true)}>
+            <Icon name="key" size="s" />
+            {has ? 'تغییر رمز' : 'گذاشتن رمز'}
+          </button>
+        )}
+      </div>
+      {open && (
+        <form className="acc-pwform enter" onSubmit={save} noValidate>
+          {/* برای مدیر رمز مرورگر: رمز تازه مال همین شماره است. */}
+          <input type="text" autoComplete="username" value={session.user.phone} readOnly hidden />
+          {has && (
+            <label className="lbl">
+              رمز فعلی
+              <input className="fld" type={show ? 'text' : 'password'} dir="ltr" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} maxLength={128} autoFocus />
+            </label>
+          )}
+          <label className="lbl">
+            <span>رمز تازه <span className="hint">دست‌کم ۸ نویسه</span></span>
+            <input className="fld" type={show ? 'text' : 'password'} dir="ltr" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} maxLength={128} autoFocus={!has} />
+          </label>
+          <label className="acc-show xs">
+            <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
+            نمایش رمز
+          </label>
+          {error && <p className="acc-err xs" role="alert"><Icon name="warn" size="s" />{error}</p>}
+          <span className="acc-ask">
+            <button type="button" className="btn btn-g" onClick={close} disabled={busy}>انصراف</button>
+            <button type="submit" className="btn btn-p" disabled={busy} aria-busy={busy}>{busy ? 'لحظه‌ای صبر کنید…' : 'ذخیرهٔ رمز'}</button>
+          </span>
+        </form>
+      )}
+    </div>
   );
 }

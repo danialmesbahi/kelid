@@ -64,7 +64,15 @@ export const migrations: readonly string[] = [
     expires_at timestamptz not null
   );
   `,
-  // 3: همگام‌سازی. هر رکورد دفتر (فایل، مشتری، قرار، کار، معامله، مشخصات عکس) یک ردیف با مقدار و زمان HLC هر فیلد.
+  // 3: ورود با رمز عبور (کد پیامکی گزینهٔ دوم است). بعد از پنج رمز اشتباه، شماره ربع ساعت قفل می‌شود.
+  // otp_at: این دستگاه کی با کد پیامکی وارد شد؛ فقط تا چند دقیقه بعدش می‌شود بدون رمز قبلی رمز تازه گذاشت (فراموشی رمز).
+  `
+  alter table users add column password_hash text;
+  alter table users add column failed_logins int not null default 0;
+  alter table users add column locked_until timestamptz;
+  alter table devices add column otp_at timestamptz;
+  `,
+  // 4: همگام‌سازی. هر رکورد دفتر (فایل، مشتری، قرار، کار، معامله، مشخصات عکس) یک ردیف با مقدار و زمان HLC هر فیلد.
   // version از یک دنباله می‌آید و ارسال‌های هر دفتر پشت یک قفل‌اند، پس «همه چیز بعد از نسخهٔ N» هیچ‌وقت چیزی جا نمی‌اندازد.
   `
   create sequence entity_version;

@@ -10,6 +10,8 @@ interface AuthValue {
   api: AuthApi | null;
   signIn(s: Session): Promise<void>;
   signOut(): Promise<void>;
+  /** رمز گذاشته شد؛ نشست ذخیره‌شده هم باخبر می‌شود تا تنظیمات درست نشانش دهد. */
+  markPassword(): Promise<void>;
   /** کاری که توکن دسترسی می‌خواهد؛ توکن کهنه خودکار تمدید و یک بار دوباره امتحان می‌شود. */
   withToken<T>(fn: (token: string) => Promise<T>): Promise<T>;
 }
@@ -103,6 +105,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // خروج روی همین دستگاه حتی بدون اینترنت انجام می‌شود؛ سرور اگر در دسترس بود باخبر می‌شود.
         if (API && token) await API.logout(token).catch(() => {});
         await dropSession();
+      },
+      markPassword: async () => {
+        const cur = saved.current;
+        if (!cur) return;
+        const keep = { ...cur, user: { ...cur.user, hasPassword: true } };
+        await saveSession(keep);
+        saved.current = keep;
+        setSession(keep);
       },
       withToken: async (fn) => {
         const a = access.current;
