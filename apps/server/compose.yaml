@@ -1,0 +1,13 @@
+# PostgreSQL محلی برای توسعه و تست سرور: npm run db:up
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+    # فقط روی همین کامپیوتر؛ 5433 تا با PostgreSQL نصب‌شدهٔ احتمالی تداخل نکند.
+    ports: ['127.0.0.1:5433:5432']
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - kelid-pg:/var/lib/postgresql/data
+volumes:
+  kelid-pg:

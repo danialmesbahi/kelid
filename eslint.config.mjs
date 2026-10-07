@@ -22,8 +22,8 @@ export default tseslint.config(
     },
   },
   {
-    // کد Node: پروسهٔ اصلی Electron، اسکریپت‌ها، تست‌ها و تنظیمات ابزارها
-    files: ['apps/desktop/**', 'scripts/**', 'e2e/**', '**/*.test.ts', '**/*.config.{ts,mjs,js}', 'packages/core/src/sql/nodeDriver.ts'],
+    // کد Node: پروسهٔ اصلی Electron، سرور، اسکریپت‌ها، تست‌ها و تنظیمات ابزارها
+    files: ['apps/desktop/**', 'apps/server/**', 'scripts/**', 'e2e/**', '**/*.test.ts', '**/*.config.{ts,mjs,js}', 'packages/core/src/sql/nodeDriver.ts'],
     languageOptions: { globals: globals.node },
   },
   {
