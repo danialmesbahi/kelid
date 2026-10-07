@@ -9,8 +9,8 @@ import { WelcomeHero } from './WelcomeHero';
 import './welcome.css';
 
 const STEPS = ['خوش آمدید', 'آشنایی', 'راحتی چشم', 'شروع'] as const;
-// بعد از ورود، خوش‌آمد و نام و دفتر را صفحهٔ ورود گرفته؛ آشنایی همان مسیر را با همان نقطه‌ها ادامه می‌دهد.
-const LOGIN_STEPS = ['شمارهٔ موبایل', 'کد پیامکی', 'حساب'] as const;
+// بعد از ثبت‌نام، خوش‌آمد و نام و دفتر را صفحهٔ ثبت‌نام گرفته؛ آشنایی همان مسیر را با همان نقطه‌ها ادامه می‌دهد.
+const LOGIN_STEPS = ['دفتر و شماره', 'کد پیامکی'] as const;
 const AFTER_LOGIN = 2;
 
 function greetingNow(): string {
@@ -139,7 +139,7 @@ export function Welcome({ continued = false }: { continued?: boolean }) {
 
           {step === 2 && (
             <>
-              <span className="eb">{continued ? 'وارد شدید · یک تنظیم کوچک' : 'قدم ۳'}</span>
+              <span className="eb">{continued ? 'دفترتان ساخته شد · یک تنظیم کوچک' : 'قدم ۳'}</span>
               <h1 id="wl-title" className="wl-h">نوشته‌ها راحت خوانده می‌شوند؟</h1>
               {!phone && <p className="wl-lead">اندازه‌ای را بزنید که بدون عینک هم راحت بخوانید. همین حالا روی کل برنامه اعمال می‌شود.</p>}
               <div className="wl-choices" role="radiogroup" aria-label="اندازهٔ نوشته">
