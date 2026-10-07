@@ -100,6 +100,7 @@ export class SyncEngine {
             this.live.signal,
           ),
         );
+        if (this.stopped) return;
         // اتصالی که زود بسته شد هم شکست حساب می‌شود؛ وگرنه حلقه‌ای بی‌وقفه به سرور فشار می‌آورد.
         fails = Date.now() - began < 5_000 ? fails + 1 : 0;
       } catch (e) {
@@ -114,15 +115,16 @@ export class SyncEngine {
   /** صبر تا رویداد یا زمان، یا خاموش شدن موتور. */
   private until(event: 'online', ms?: number): Promise<void> {
     return new Promise((done) => {
+      if (this.live.signal.aborted) return done();
       const finish = () => {
         clearTimeout(t);
-        removeEventListener(event, finish);
+        if (typeof removeEventListener === 'function') removeEventListener(event, finish);
         this.live.signal.removeEventListener('abort', finish);
         done();
       };
       const t = ms === undefined ? undefined : setTimeout(finish, ms);
       // برگشت اینترنت ⇒ همان لحظه دوباره وصل شو، نه بعد از پایان فاصله.
-      addEventListener(event, finish);
+      if (typeof addEventListener === 'function') addEventListener(event, finish);
       this.live.signal.addEventListener('abort', finish);
     });
   }
