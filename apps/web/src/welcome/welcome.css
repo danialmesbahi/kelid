@@ -7,6 +7,8 @@ html:has(.wl:not(.out)) { overflow: hidden; }
 .wl { overscroll-behavior: contain; }
 .wl.out { animation: kl-wl-out 520ms var(--ease-expo) forwards; pointer-events: none; }
 @keyframes kl-wl-out { to { opacity: 0; transform: scale(1.03); } }
+/* درست بعد از صفحهٔ ورود: صحنه همان است که بود، دوباره بالا نمی‌آید؛ فقط متن قدم‌ها جابه‌جا می‌شود. */
+.wl.cont, .wl.cont .wl-hero :is(.wl-stars, .wl-moon, .wl-far, .wl-mid, .wl-near, .wl-lit rect, .wl-ring, .wl-halo, .wl-key, .wl-float, .wl-hero-ft) { animation-duration: 0s; animation-delay: 0s; }
 .wl-ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── نمای شب شهر ── */

@@ -7,6 +7,12 @@ interface DesktopBridge {
     transaction(statements: SqlStatement[]): Promise<void>;
     execScript(sql: string): Promise<void>;
   };
+  /** نشست ورود، رمزشده با DPAPI ویندوز. */
+  session?: {
+    get(): Promise<string | null>;
+    set(value: string): Promise<void>;
+    clear(): Promise<void>;
+  };
 }
 
 declare global {

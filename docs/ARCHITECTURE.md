@@ -38,7 +38,9 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 ```
 
 - Two roles (`apps/server/db/init.sql`): `kelid_owner` owns tables and runs `migrations.ts` (append-only, advisory-locked, applied on start); `kelid_app` (DATABASE_URL) has only row DML, so it cannot turn RLS off. `assertSafeRole()` refuses superuser/BYPASSRLS at startup.
-- Tests: `config.test.ts`, `app.test.ts` run everywhere; `db.test.ts` needs `KELID_TEST_*` URLs (CI job `server` on Linux with a Postgres service).
+- Login (`src/auth/`): `POST /auth/otp` (6-digit code, 2 min, resend after 60 s, 5 per phone per hour, 10 per IP per 10 min) → `POST /auth/verify` (5 wrong guesses burn the code) → existing phone gets a session, a new one gets a 15-min `signupToken` for `POST /auth/signup` (creates office + user). Session = 15-min HS256 access JWT `{sub, off, dev}` + per-device refresh token, rotated on every `POST /auth/refresh`; replaying an old one after a 60 s grace revokes the device. `GET/DELETE /auth/devices`, `POST /auth/logout`; `requireAuth` also rejects revoked devices immediately.
+- Web side (`apps/web/src/auth/`): `AuthProvider` + `Login` only when `VITE_KELID_API_URL` is set. A saved session opens the app instantly, even offline; only a 401 from the server sends the user back to login. Refresh token: Windows → DPAPI-encrypted `session.bin` via `window.kelid.session` (`apps/desktop/src/session.ts`); web → localStorage. Access token stays in memory.
+- Tests: `config.test.ts`, `app.test.ts`, `auth/auth.test.ts` run everywhere; `db.test.ts` needs `KELID_TEST_*` URLs (CI job `server` on Linux with a Postgres service).
 
 ## Module map
 

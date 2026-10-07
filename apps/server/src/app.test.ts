@@ -44,4 +44,15 @@ describe('server app', () => {
     expect(res.statusCode).toBe(404);
     await app.close();
   });
+
+  it('answers CORS preflight only for listed origins', async () => {
+    const app = buildApp({ db: okDb, logLevel: 'silent', corsOrigins: ['https://app.kelid.ir'] });
+    const ok = await app.inject({ method: 'OPTIONS', url: '/auth/otp', headers: { origin: 'https://app.kelid.ir', 'access-control-request-method': 'POST' } });
+    expect(ok.statusCode).toBe(204);
+    expect(ok.headers['access-control-allow-origin']).toBe('https://app.kelid.ir');
+    expect(ok.headers['access-control-allow-headers']).toContain('authorization');
+    const evil = await app.inject({ method: 'GET', url: '/health', headers: { origin: 'https://evil.example' } });
+    expect(evil.headers['access-control-allow-origin']).toBeUndefined();
+    await app.close();
+  });
 });

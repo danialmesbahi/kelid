@@ -19,7 +19,7 @@ function greetingNow(): string {
  * آشنایی بار اول: چهار قدم کوتاه با نوشتهٔ درشت و دکمه‌های بزرگ، برای کسی که اولین بار برنامه را باز می‌کند.
  * هر تغییری (اندازهٔ نوشته، پوسته) همان لحظه روی خود برنامه دیده می‌شود. همه‌جا «بعداً» هست.
  */
-export function Welcome() {
+export function Welcome({ continued = false }: { continued?: boolean }) {
   const prefs = usePrefsContext();
   const store = useStore();
   const phone = usePhone();
@@ -77,7 +77,7 @@ export function Welcome() {
   };
 
   return (
-    <div ref={rootRef} className={`wl${leaving ? ' out' : ''}`} role="dialog" aria-modal="true" aria-labelledby="wl-title">
+    <div ref={rootRef} className={`wl${continued ? ' cont' : ''}${leaving ? ' out' : ''}`} role="dialog" aria-modal="true" aria-labelledby="wl-title">
       <WelcomeHero office={office} />
 
       <form className="wl-main" onSubmit={next}>

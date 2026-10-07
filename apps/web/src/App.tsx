@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { createHashRouter, RouterProvider } from 'react-router';
 import { StoreProvider } from './data';
 import { usePrefs } from './prefs';
@@ -18,6 +18,8 @@ import { DealsPage } from './deals/DealsPage';
 import { ToastProvider } from './layout/Toasts';
 import { UpdateNotice } from './pwa';
 import { Welcome } from './welcome/Welcome';
+import { AuthProvider, useAuth } from './auth/AuthContext';
+import { Login } from './auth/Login';
 
 type Prefs = ReturnType<typeof usePrefs>;
 const PrefsContext = createContext<Prefs | null>(null);
@@ -59,13 +61,42 @@ export function App() {
   const prefs = usePrefs();
   return (
     <PrefsContext.Provider value={prefs}>
-      <StoreProvider>
-        <ToastProvider>
-          <RouterProvider router={router} />
-          {!prefs.welcomed && <Welcome />}
-          <UpdateNotice />
-        </ToastProvider>
-      </StoreProvider>
+      <AuthProvider>
+        <StoreProvider>
+          <ToastProvider>
+            <Gate welcomed={prefs.welcomed} />
+            <UpdateNotice />
+          </ToastProvider>
+        </StoreProvider>
+      </AuthProvider>
     </PrefsContext.Provider>
+  );
+}
+
+/** بدون سرور (VITE_KELID_API_URL) مثل قبل؛ با سرور، تا ورود نشده خود برنامه ساخته نمی‌شود. */
+function Gate({ welcomed }: { welcomed: boolean }) {
+  const { status } = useAuth();
+  // صفحهٔ ورود بعد از ورود موفق تا پایان انیمیشن کنار رفتنش می‌ماند.
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [afterLogin, setAfterLogin] = useState(false);
+  useEffect(() => {
+    if (status === 'signedOut') setLoginOpen(true);
+  }, [status]);
+  const showLogin = status === 'signedOut' || loginOpen;
+  const ready = status === 'off' || status === 'signedIn';
+  return (
+    <>
+      {ready && <RouterProvider router={router} />}
+      {showLogin && (
+        <Login
+          handOff={!welcomed}
+          onClosed={() => {
+            setLoginOpen(false);
+            setAfterLogin(true);
+          }}
+        />
+      )}
+      {ready && !showLogin && !welcomed && <Welcome continued={afterLogin} />}
+    </>
   );
 }
