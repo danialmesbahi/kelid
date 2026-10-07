@@ -67,3 +67,9 @@ export function callName(userName: string): string {
   if (w.length === 0) return '';
   return ['آقای', 'خانم', 'دکتر', 'مهندس'].includes(w[0]!) ? w.slice(0, 2).join(' ') : w[0]!;
 }
+
+/** سلام متناسب با ساعت تهران. */
+export function greetingNow(): string {
+  const h = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date()));
+  return h < 12 ? 'صبح بخیر' : h < 17 ? 'روز بخیر' : 'عصر بخیر';
+}

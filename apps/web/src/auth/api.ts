@@ -87,17 +87,37 @@ export function httpApi(base: string): AuthApi {
 
 /**
  * سرور خیالی برای پیش‌نمایش و آزمایش رابط، بدون اینترنت (VITE_KELID_API_URL=demo).
- * کد همیشه ۱۲۳۴۵۶ است؛ شمارهٔ ۰۹۱۲۰۰۰۰۰۰۰ «کاربر قدیمی» است و بقیه دفتر تازه می‌سازند.
+ * کد همیشه ۱۲۳۴۵۶ است؛ شمارهٔ ۰۹۱۲۰۰۰۰۰۰۰ از قبل حساب دارد و هر شماره‌ای که ثبت‌نام کند در همین مرورگر به یاد می‌ماند.
  */
 export function demoApi(): AuthApi {
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
   let tries = 0;
+  // حساب‌های پیش‌نمایش در همین مرورگر می‌مانند تا «ثبت‌نام، خروج، ورود دوباره» مثل سرور واقعی کار کند.
+  type Account = { name: string; office: string };
+  const KEY = 'kelid.demo.accounts';
+  const accounts = (): Record<string, Account> => {
+    try {
+      return { '09120000000': { name: 'علی رضایی', office: 'املاک پارسا' }, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Account>) };
+    } catch {
+      return { '09120000000': { name: 'علی رضایی', office: 'املاک پارسا' } };
+    }
+  };
+  const remember = (phone: string, a: Account) => {
+    try {
+      const { '09120000000': _seed, ...mine } = accounts();
+      localStorage.setItem(KEY, JSON.stringify({ ...mine, [phone]: a }));
+    } catch {
+      // حافظهٔ مرورگر بسته است؛ پیش‌نمایش فقط تا بستن صفحه یادش می‌ماند.
+    }
+  };
+  let verified = '';
   const devices: Device[] = [
     { id: 'd-phone', name: 'گوشی اندروید', createdAt: new Date(Date.now() - 864e5 * 12).toISOString(), lastSeenAt: new Date(Date.now() - 36e5 * 3).toISOString(), current: false },
   ];
-  const session = (name: string, office: string, phone: string): Session => {
+  const session = (phone: string): Session => {
+    const a = accounts()[phone] ?? { name: '', office: '' };
     if (!devices.some((d) => d.current)) devices.unshift({ id: 'd-this', name: deviceLabel(), createdAt: new Date().toISOString(), lastSeenAt: new Date().toISOString(), current: true });
-    return { accessToken: 'demo', accessExpiresIn: 900, refreshToken: 'demo-refresh', deviceId: 'd-this', user: { id: 'u1', name, phone }, office: { id: 'o1', name: office } };
+    return { accessToken: 'demo', accessExpiresIn: 900, refreshToken: `demo-refresh:${phone}`, deviceId: 'd-this', user: { id: `u${phone}`, name: a.name, phone }, office: { id: 'o1', name: a.office } };
   };
   return {
     demoCode: '123456',
@@ -114,15 +134,20 @@ export function demoApi(): AuthApi {
         if (tries >= 5) throw new ApiError('expired');
         throw new ApiError('wrong', undefined, 5 - tries);
       }
-      return phone === '09120000000' ? { session: session('علی رضایی', 'املاک پارسا', phone) } : { signupToken: 'demo-ticket' };
+      verified = phone;
+      return accounts()[phone] ? { session: session(phone) } : { signupToken: 'demo-ticket' };
     },
     async signup(_t, name, officeName) {
       await wait(500);
-      return session(name, officeName, '09121234567');
+      if (!verified) throw new ApiError('expired');
+      remember(verified, { name, office: officeName });
+      return session(verified);
     },
-    async refresh() {
+    async refresh(token) {
       await wait(200);
-      return session('علی رضایی', 'املاک پارسا', '09120000000');
+      const phone = token.startsWith('demo-refresh:') ? token.slice('demo-refresh:'.length) : '09120000000';
+      if (!accounts()[phone]) throw new ApiError('unauthorized');
+      return session(phone);
     },
     async logout() {
       await wait(250);

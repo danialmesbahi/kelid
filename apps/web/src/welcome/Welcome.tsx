@@ -4,7 +4,7 @@ import { toFaDigits } from '@kelid/core';
 import { usePrefsContext } from '../App';
 import { useQuery, useStore } from '../data';
 import { usePhone } from '../layout/usePhone';
-import { callName, type TextSize, type ThemePref } from '../prefs';
+import { callName, greetingNow, type TextSize, type ThemePref } from '../prefs';
 import { WelcomeHero } from './WelcomeHero';
 import './welcome.css';
 
@@ -12,11 +12,6 @@ const STEPS = ['خوش آمدید', 'آشنایی', 'راحتی چشم', 'شرو
 // بعد از ثبت‌نام، خوش‌آمد و نام و دفتر را صفحهٔ ثبت‌نام گرفته؛ آشنایی همان مسیر را با همان نقطه‌ها ادامه می‌دهد.
 const LOGIN_STEPS = ['دفتر و شماره', 'کد پیامکی'] as const;
 const AFTER_LOGIN = 2;
-
-function greetingNow(): string {
-  const h = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date()));
-  return h < 12 ? 'صبح بخیر' : h < 17 ? 'روز بخیر' : 'عصر بخیر';
-}
 
 /**
  * آشنایی بار اول: چهار قدم کوتاه با نوشتهٔ درشت و دکمه‌های بزرگ، برای کسی که اولین بار برنامه را باز می‌کند.
