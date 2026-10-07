@@ -75,6 +75,8 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   const [password, setPassword] = useState('');
   // ورود با کد انجام شد و حالا رمز تازه می‌گذارد؛ نشست تا آن موقع کنار نگه داشته می‌شود.
   const [pending, setPending] = useState<Session | null>(null);
+  // فقط سرور توسعه: کدی که به‌جای پیامک روی صفحه می‌آید.
+  const [devCode, setDevCode] = useState('');
   const [dir, setDir] = useState(1);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -152,7 +154,8 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     setBusy(true);
     setError('');
     try {
-      const { retryAfter } = await api.requestOtp(phone);
+      const { retryAfter, devCode: dev } = await api.requestOtp(phone);
+      setDevCode(dev ?? '');
       setResendAt(Date.now() + retryAfter * 1000);
       setNow(Date.now());
       setCode('');
@@ -170,6 +173,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     // نام‌ها از این به بعد از سرور می‌آیند؛ همان‌ها در منو و صفحهٔ امروز دیده می‌شوند.
     if (s.user.name) prefs.setUserName(s.user.name);
     if (s.office.name) prefs.setOfficeName(s.office.name);
+    if (await store.hasSampleData()) await store.clearSampleData();
     if (kind === 'signup') {
       // دفتر تازه: آشنایی کوتاه همیشه می‌آید، حتی اگر این مرورگر قبلاً آشنایی را دیده باشد؛ بی‌فاصله جای این صفحه را می‌گیرد.
       prefs.setWelcomed(false);
@@ -177,7 +181,6 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     }
     // دستگاه تازه در دفتری که از قبل هست: آشنایی لازم نیست و نمونه‌ها نباید کنار فایل‌های واقعی دفتر بنشینند.
     prefs.setWelcomed(true);
-    if (await store.hasSampleData()) await store.clearSampleData();
     setLeaving(true);
     setTimeout(() => onDone(kind), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 520);
   };
@@ -467,7 +470,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
                   </button>
                 )}
               </Message>
-              {api?.demoCode && <span className="lg-demo">پیش‌نمایش: کد <b>{toFaDigits(api.demoCode)}</b> است</span>}
+              {(devCode || api?.demoCode) && <span className="lg-demo">نسخهٔ آزمایشی (پیامک واقعی فرستاده نمی‌شود): کد <b className="lg-num">{toFaDigits(devCode || api?.demoCode || '')}</b></span>}
             </>
           )}
 

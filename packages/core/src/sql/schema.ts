@@ -139,6 +139,10 @@ export const migrations: string[] = [
   ALTER TABLE outbox ADD COLUMN hlc TEXT;
   CREATE INDEX IF NOT EXISTS outbox_entity ON outbox(entity_id);
   `,
+  /* 6: بایت عکس‌ها هم همگام می‌شوند. blob_state: ۰ = هنوز به سرور نرفته، ۱ = سرور هم دارد، ۲ = مشخصاتش از سرور آمده و بایت‌ها در راه است */ `
+  ALTER TABLE photos ADD COLUMN blob_state INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX IF NOT EXISTS photos_blob ON photos(blob_state) WHERE blob_state <> 1;
+  `,
 ];
 
 export async function migrate(db: SqlDriver): Promise<void> {

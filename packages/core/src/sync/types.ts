@@ -29,4 +29,20 @@ export interface Syncable {
   bindOffice(officeId: string): Promise<void>;
   /** خبر دادن به صفحه‌ها بعد از چند applyRemote آرام. */
   notifyChanged(): void;
+  /** عکس‌هایی که بایتشان هنوز به سرور نرفته (عکس‌های دادهٔ نمونه هرگز). */
+  photosToUpload(limit: number): Promise<PhotoBlob[]>;
+  markPhotosUploaded(ids: string[]): Promise<void>;
+  /** عکس‌هایی که مشخصاتشان از سرور آمده و بایتشان هنوز نه. */
+  photosToDownload(limit: number): Promise<string[]>;
+  savePhotoBlob(blob: PhotoBlob): Promise<void>;
+  /** همهٔ دادهٔ دفتر از این دستگاه پاک می‌شود (ورود دفتر دیگر، یا خروج روی کامپیوتر مشترک). */
+  resetLocalData(): Promise<void>;
+}
+
+/** بایت‌های یک عکس، جدا از مشخصاتش که با بقیهٔ تغییرها می‌رود. */
+export interface PhotoBlob {
+  id: string;
+  mime: string;
+  bytes: Uint8Array;
+  thumb: Uint8Array;
 }

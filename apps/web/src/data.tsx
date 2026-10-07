@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { CachedStore, MemoryStore, SqlStore, seed, type KelidStore, type Syncable } from '@kelid/core';
+import { API_URL } from './auth/api';
 import { openDriver } from './db/drivers';
 import { Splash } from './layout/Splash';
 
@@ -30,7 +31,8 @@ export function openStore(): Promise<{ store: KelidStore; storage: StorageInfo }
   opening ??= (async () => {
     try {
       const { driver, persistent, where } = await openDriver();
-      const sql = await SqlStore.open(driver, seed);
+      // با حساب کلید فقط دادهٔ واقعی دفتر؛ نمونه‌ها مال حالت بی‌سرور (فقط همین دستگاه) است.
+      const sql = await SqlStore.open(driver, API_URL ? undefined : seed);
       const cached = new CachedStore(sql);
       if (where === 'desktop' || where === 'browser') {
         syncTarget = {
@@ -46,7 +48,7 @@ export function openStore(): Promise<{ store: KelidStore; storage: StorageInfo }
     } catch (err) {
       console.error(err);
       // آخرین راه: برنامه با دادهٔ موقت باز شود تا کاربر قفل نشود.
-      return { store: new CachedStore(new MemoryStore(seed)), storage: { persistent: false, where: 'memory' as const } };
+      return { store: new CachedStore(new MemoryStore(API_URL ? { listings: [], clients: [], visits: [], todos: [], deals: [] } : seed)), storage: { persistent: false, where: 'memory' as const } };
     }
   })();
   return opening;

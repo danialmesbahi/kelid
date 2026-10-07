@@ -7,7 +7,7 @@ import type { SqlDriver, SqlStatement, SqlValue } from './driver';
 import { migrate } from './schema';
 import { Hlc, encodeHlc } from '../sync/hlc';
 import { REQUIRED, orUndef, sanitizeFields } from '../sync/sanitize';
-import { SYNC_KINDS, type IncomingEntity, type OutgoingChange, type SyncKind, type Syncable } from '../sync/types';
+import { SYNC_KINDS, type IncomingEntity, type OutgoingChange, type PhotoBlob, type SyncKind, type Syncable } from '../sync/types';
 
 type Cell = SqlValue | undefined;
 type Row = Record<string, Cell>;
@@ -125,9 +125,23 @@ function rowToPhoto(r: Row): Photo {
   return { id: s(r.id), listingId: s(r.listing_id), ord: Number(r.ord), mime: s(r.mime), width: Number(r.w), height: Number(r.h), createdAt: s(r.created_at) };
 }
 
+/** عکسی که دستگاه دیگری گذاشته: اول فقط مشخصات (بی‌بایت، blob_state = ۲)، بایت‌ها بعد با savePhotoBlob می‌رسند. */
+function remotePhoto(id: string, row: Row | undefined, f: Record<string, unknown>, deleted: number): SqlStatement {
+  const now = nowIso();
+  if (row) {
+    return { sql: 'UPDATE photos SET ord = ?, deleted = ?, updated_at = ? WHERE id = ?', params: [typeof f.ord === 'number' ? f.ord : Number(row.ord), deleted, now, id] };
+  }
+  const empty = new Uint8Array(0);
+  return {
+    sql: 'INSERT INTO photos (id, listing_id, ord, mime, w, h, bytes, thumb, deleted, created_at, updated_at, blob_state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)',
+    params: [id, String(f.listingId), typeof f.ord === 'number' ? f.ord : 0, String(f.mime), Number(f.width), Number(f.height), empty, empty, deleted, String(f.createdAt), now],
+  };
+}
+
 /** تعداد عکس فایل از خود جدول عکس‌ها حساب می‌شود تا هیچ‌وقت ناهماهنگ نشود. */
 function photoCount(listingId: string): SqlStatement {
-  return { sql: 'UPDATE listings SET photo_count = (SELECT COUNT(*) FROM photos WHERE listing_id = ? AND deleted = 0) WHERE id = ?', params: [listingId, listingId] };
+  // عکسی که بایتش هنوز از سرور نرسیده شمرده نمی‌شود تا شمار با عکس‌های دیدنی یکی باشد.
+  return { sql: 'UPDATE listings SET photo_count = (SELECT COUNT(*) FROM photos WHERE listing_id = ? AND deleted = 0 AND blob_state <> 2) WHERE id = ?', params: [listingId, listingId] };
 }
 
 function outboxRow(entity: string, id: string, op: 'upsert' | 'delete', payload: unknown, hlc: string): SqlStatement {
@@ -414,12 +428,12 @@ export class SqlStore implements KelidStore, Syncable {
   }
 
   async listPhotos(listingId: string) {
-    const rows = await this.db.all<Row>('SELECT id, listing_id, ord, mime, w, h, created_at, thumb FROM photos WHERE listing_id = ? AND deleted = 0 ORDER BY ord, created_at, id', [listingId]);
+    const rows = await this.db.all<Row>('SELECT id, listing_id, ord, mime, w, h, created_at, thumb FROM photos WHERE listing_id = ? AND deleted = 0 AND blob_state <> 2 ORDER BY ord, created_at, id', [listingId]);
     return rows.map((r): PhotoThumb => ({ ...rowToPhoto(r), thumb: blob(r.thumb) }));
   }
 
   async getPhoto(id: string) {
-    const [r] = await this.db.all<Row>('SELECT mime, bytes FROM photos WHERE id = ? AND deleted = 0', [id]);
+    const [r] = await this.db.all<Row>('SELECT mime, bytes FROM photos WHERE id = ? AND deleted = 0 AND blob_state <> 2', [id]);
     return r ? { mime: s(r.mime), bytes: blob(r.bytes) } : undefined;
   }
 
@@ -427,8 +441,8 @@ export class SqlStore implements KelidStore, Syncable {
     const rows = await this.db.all<Row>(
       // همان ترتیب listPhotos، تا با ord برابر هم کاور همیشه یک عکس مشخص باشد.
       `SELECT p.id, p.listing_id, p.mime, p.thumb FROM photos p
-       WHERE p.deleted = 0 AND p.id = (
-         SELECT q.id FROM photos q WHERE q.listing_id = p.listing_id AND q.deleted = 0 ORDER BY q.ord, q.created_at, q.id LIMIT 1
+       WHERE p.deleted = 0 AND p.blob_state <> 2 AND p.id = (
+         SELECT q.id FROM photos q WHERE q.listing_id = p.listing_id AND q.deleted = 0 AND q.blob_state <> 2 ORDER BY q.ord, q.created_at, q.id LIMIT 1
        )`,
     );
     const out: CoverThumbs = {};
@@ -570,6 +584,15 @@ export class SqlStore implements KelidStore, Syncable {
         for (const h of hits) sample.add(`${kind}:${h.id}`);
       }
     }
+    const photoIds = rows.filter((r) => r.entity === 'photo').map((r) => s(r.entity_id));
+    for (let i = 0; i < photoIds.length; i += SYNC_CHUNK) {
+      const part = photoIds.slice(i, i + SYNC_CHUNK);
+      const hits = await this.db.all<{ id: string }>(
+        `SELECT p.id FROM photos p JOIN listings l ON l.id = p.listing_id WHERE l.sample = 1 AND p.id IN (${part.map(() => '?').join(',')})`,
+        part,
+      );
+      for (const h of hits) sample.add(`photo:${h.id}`);
+    }
     const changes: OutgoingChange[] = [];
     for (const r of rows) {
       const kind = s(r.entity) as SyncKind;
@@ -603,7 +626,7 @@ export class SqlStore implements KelidStore, Syncable {
   async applyRemote(entities: IncomingEntity[], cursor: string, hlc: string | null, opts: { quiet?: boolean } = {}) {
     const st: SqlStatement[] = [];
     const byKind = new Map<string, string[]>();
-    for (const e of entities) if (e.kind !== 'photo') byKind.set(e.kind, [...(byKind.get(e.kind) ?? []), e.id]);
+    for (const e of entities) byKind.set(e.kind, [...(byKind.get(e.kind) ?? []), e.id]);
 
     // فیلدهایی که روی همین دستگاه عوض شده‌اند و هنوز نرفته‌اند دست نمی‌خورند؛ بعد از ارسال، نسخهٔ ادغام‌شده برمی‌گردد.
     const pending = new Map<string, Set<string>>();
@@ -619,12 +642,15 @@ export class SqlStore implements KelidStore, Syncable {
           else for (const k of Object.keys(JSON.parse(s(r.payload) || '{}') as object)) set.add(k);
           pending.set(key, set);
         }
-        for (const r of await this.db.all<Row>(`SELECT * FROM ${TABLE[kind as keyof typeof TABLE]} WHERE id IN (${ph})`, part)) existing.set(`${kind}:${s(r.id)}`, r);
+        const table = kind === 'photo' ? 'photos' : TABLE[kind as keyof typeof TABLE];
+        // بایت عکس‌ها لازم نیست؛ فقط مشخصات.
+        const cols = kind === 'photo' ? 'id, listing_id, ord, deleted' : '*';
+        for (const r of await this.db.all<Row>(`SELECT ${cols} FROM ${table} WHERE id IN (${ph})`, part)) existing.set(`${kind}:${s(r.id)}`, r);
       }
     }
 
+    const photoListings = new Set<string>();
     for (const e of entities) {
-      if (e.kind === 'photo') continue;
       const key = `${e.kind}:${e.id}`;
       const skip = pending.get(key);
       const f = sanitizeFields(e.kind, e.fields);
@@ -633,8 +659,14 @@ export class SqlStore implements KelidStore, Syncable {
       const row = existing.get(key);
       if (!row && REQUIRED[e.kind].some((k) => !(k in f))) continue;
       const deleted = 'deleted' in f ? (f.deleted ? 1 : 0) : Number(row?.deleted ?? 0);
+      if (e.kind === 'photo') {
+        st.push(remotePhoto(e.id, row, f, deleted));
+        photoListings.add(row ? s(row.listing_id) : String(f.listingId));
+        continue;
+      }
       st.push(...this.remoteRow(e.kind, e.id, row, f, deleted, plaque));
     }
+    for (const l of photoListings) st.push(photoCount(l));
     st.push({ sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('sync_cursor', ?)", params: [cursor] });
     if (hlc) {
       st.push({ sql: "INSERT INTO meta (key, value) VALUES ('hlc', ?) ON CONFLICT(key) DO UPDATE SET value = MAX(value, excluded.value)", params: [hlc] });
@@ -642,6 +674,43 @@ export class SqlStore implements KelidStore, Syncable {
     await this.db.transaction(st);
     this.hlc.receive(hlc);
     if (!opts.quiet) this.emit();
+  }
+
+  async photosToUpload(limit: number): Promise<PhotoBlob[]> {
+    const rows = await this.db.all<Row>(
+      `SELECT p.id, p.mime, p.bytes, p.thumb FROM photos p LEFT JOIN listings l ON l.id = p.listing_id
+       WHERE p.blob_state = 0 AND COALESCE(l.sample, 0) = 0 ORDER BY p.created_at, p.id LIMIT ?`,
+      [limit],
+    );
+    return rows.map((r) => ({ id: s(r.id), mime: s(r.mime), bytes: blob(r.bytes), thumb: blob(r.thumb) }));
+  }
+
+  async markPhotosUploaded(ids: string[]) {
+    if (!ids.length) return;
+    await this.db.transaction([{ sql: `UPDATE photos SET blob_state = 1 WHERE blob_state = 0 AND id IN (${ids.map(() => '?').join(',')})`, params: ids }]);
+  }
+
+  async photosToDownload(limit: number) {
+    const rows = await this.db.all<{ id: string }>('SELECT id FROM photos WHERE blob_state = 2 AND deleted = 0 ORDER BY ord, id LIMIT ?', [limit]);
+    return rows.map((r) => r.id);
+  }
+
+  async savePhotoBlob(b: PhotoBlob) {
+    const [r] = await this.db.all<Row>('SELECT listing_id FROM photos WHERE id = ? AND blob_state = 2', [b.id]);
+    if (!r) return;
+    await this.db.transaction([
+      { sql: 'UPDATE photos SET mime = ?, bytes = ?, thumb = ?, blob_state = 1 WHERE id = ? AND blob_state = 2', params: [b.mime, b.bytes, b.thumb, b.id] },
+      photoCount(s(r.listing_id)),
+    ]);
+  }
+
+  async resetLocalData() {
+    await this.db.transaction([
+      ...['photos', 'listings', 'clients', 'visits', 'todos', 'deals', 'outbox'].map((t) => ({ sql: `DELETE FROM ${t}` })),
+      // شناسهٔ دستگاه و ساعت منطقی می‌مانند؛ فقط پیوند با دفتر قبلی و نشانگر دریافت.
+      { sql: "DELETE FROM meta WHERE key IN ('sync_office', 'sync_cursor')" },
+    ]);
+    this.emit();
   }
 
   /** ردیف محلی از وضعیت سرور؛ همان ستون‌ها و همان متن جستجو که نوشتن‌های عادی می‌سازند. */

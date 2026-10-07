@@ -93,7 +93,15 @@ const SPECS: Record<SyncKind, Record<string, Check>> = {
     updatedAt: str,
     deleted: bool,
   },
-  photo: {},
+  photo: {
+    listingId: (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v),
+    ord: num,
+    mime: oneOf('image/webp', 'image/jpeg', 'image/png'),
+    width: num,
+    height: num,
+    createdAt: str,
+    deleted: bool,
+  },
 };
 
 /** فیلدهایی که یک رکورد تازه حتماً باید داشته باشد تا در دیتابیس محلی ساخته شود. */
@@ -103,7 +111,7 @@ export const REQUIRED: Record<SyncKind, readonly string[]> = {
   visit: ['kind', 'title', 'startsAt', 'endsAt'],
   todo: ['title'],
   deal: ['listingId', 'stage', 'createdAt'],
-  photo: [],
+  photo: ['listingId', 'mime', 'width', 'height', 'createdAt'],
 };
 
 export function sanitizeFields(kind: SyncKind, fields: Record<string, unknown>): Record<string, unknown> {

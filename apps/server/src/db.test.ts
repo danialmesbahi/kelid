@@ -30,6 +30,9 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       for r in select tablename from pg_tables where schemaname = 'public' loop
         execute format('drop table if exists %I cascade', r.tablename);
       end loop;
+      for r in select sequencename from pg_sequences where schemaname = 'public' loop
+        execute format('drop sequence if exists %I cascade', r.sequencename);
+      end loop;
       for r in select p.oid::regprocedure as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' loop
         execute format('drop function if exists %s cascade', r.f);
       end loop;
@@ -311,6 +314,29 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       await a.close();
     });
 
+    it('updates the name and the office name for every device of the office', async () => {
+      const a = newApp();
+      const phone = freshPhone();
+      const s = await signUp(a, phone);
+      const r = await post(a, '/auth/profile', { name: ' مریم احمدی ', officeName: 'املاک آفتاب' }, s.accessToken);
+      expect(r.json()).toEqual({ name: 'مریم احمدی', officeName: 'املاک آفتاب' });
+      const again = (await post(a, '/auth/refresh', { refreshToken: s.refreshToken })).json();
+      expect([again.user.name, again.office.name]).toEqual(['مریم احمدی', 'املاک آفتاب']);
+      expect((await post(a, '/auth/profile', { officeName: '  ' }, s.accessToken)).json().error).toBe('bad_name');
+      expect((await post(a, '/auth/profile', { name: 'x' })).statusCode).toBe(401);
+      await a.close();
+    });
+
+    it('returns the code only when the dev console SMS is on', async () => {
+      const dev = buildApp({ db: app, logLevel: 'silent', auth: { pool: app, sms, jwtSecret: 's'.repeat(48), devCodes: true } });
+      const phone = freshPhone();
+      expect((await post(dev, '/auth/otp', { phone })).json().devCode).toBe(codes.get(phone));
+      await dev.close();
+      const prod = newApp();
+      expect((await post(prod, '/auth/otp', { phone: freshPhone() })).json().devCode).toBeUndefined();
+      await prod.close();
+    });
+
     it('validates input', async () => {
       const a = newApp();
       expect((await post(a, '/auth/otp', { phone: '123' })).json().error).toBe('bad_phone');
@@ -330,6 +356,29 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
     const push = (a: ReturnType<typeof newApp>, token: string, changes: object[]) => post(a, '/sync/push', { changes }, token);
     const pull = (a: ReturnType<typeof newApp>, token: string, cursor = '0', limit?: number) =>
       a.inject({ method: 'GET', url: `/sync/pull?cursor=${cursor}${limit ? `&limit=${limit}` : ''}`, headers: { authorization: `Bearer ${token}` } });
+
+    it('stores photo bytes per office: real images only, never readable by another office', async () => {
+      const a = newApp();
+      const s1 = await signUp(a, freshPhone());
+      const s2 = await signUp(a, freshPhone());
+      const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP'), Buffer.from([1, 2, 3])]).toString('base64');
+      const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 9]).toString('base64');
+      const put = (t: string, id: string, body: object) => post(a, `/sync/photos/${id}`, body, t);
+      const get = (t: string, id: string) => a.inject({ method: 'GET', url: `/sync/photos/${id}`, headers: { authorization: `Bearer ${t}` } });
+      expect((await put(s1.accessToken, 'p1', { mime: 'image/webp', bytes: webp, thumb: jpeg })).statusCode).toBe(204);
+      // دوباره فرستادن بی‌اثر است و عکس را عوض نمی‌کند
+      expect((await put(s1.accessToken, 'p1', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(204);
+      expect((await get(s1.accessToken, 'p1')).json()).toEqual({ mime: 'image/webp', bytes: webp, thumb: jpeg });
+      expect((await get(s2.accessToken, 'p1')).statusCode).toBe(404);
+      expect((await get(s1.accessToken, 'nope')).statusCode).toBe(404);
+      // فایلی که خودش را عکس جا زده
+      const html = Buffer.from('<script>alert(1)</script>').toString('base64');
+      expect((await put(s1.accessToken, 'p2', { mime: 'image/jpeg', bytes: html, thumb: jpeg })).json().error).toBe('bad_photo');
+      expect((await put(s1.accessToken, 'p2', { mime: 'text/html', bytes: html, thumb: jpeg })).statusCode).toBe(400);
+      expect((await put(s1.accessToken, 'a.b', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(400);
+      expect((await post(a, '/sync/photos/p3', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(401);
+      await a.close();
+    });
 
     it('merges per field by HLC and replays are harmless', async () => {
       const a = newApp();

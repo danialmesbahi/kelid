@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ApiError, apiFromEnv, type AuthApi, type Session } from './api';
+import { clearProfileQueue } from './profile';
 import { clearSession, loadSession, saveSession, type SavedSession } from './storage';
 
 export type AuthStatus = 'off' | 'loading' | 'signedOut' | 'signedIn';
@@ -12,6 +13,8 @@ interface AuthValue {
   signOut(): Promise<void>;
   /** رمز گذاشته شد؛ نشست ذخیره‌شده هم باخبر می‌شود تا تنظیمات درست نشانش دهد. */
   markPassword(): Promise<void>;
+  /** نام‌ها همان که سرور دارد (بعد از ویرایش در تنظیمات). */
+  setNames(name: string, officeName: string): Promise<void>;
   /** کاری که توکن دسترسی می‌خواهد؛ توکن کهنه خودکار تمدید و یک بار دوباره امتحان می‌شود. */
   withToken<T>(fn: (token: string) => Promise<T>): Promise<T>;
 }
@@ -49,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saved.current = null;
     access.current = null;
     await clearSession();
+    clearProfileQueue();
     setSession(null);
     setStatus('signedOut');
   }, []);
@@ -110,6 +114,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cur = saved.current;
         if (!cur) return;
         const keep = { ...cur, user: { ...cur.user, hasPassword: true } };
+        await saveSession(keep);
+        saved.current = keep;
+        setSession(keep);
+      },
+      setNames: async (name, officeName) => {
+        const cur = saved.current;
+        if (!cur) return;
+        const keep = { ...cur, user: { ...cur.user, name }, office: { ...cur.office, name: officeName } };
         await saveSession(keep);
         saved.current = keep;
         setSession(keep);

@@ -9,7 +9,7 @@ import type { NewListing } from '../store';
 import { Hlc, decodeHlc, encodeHlc } from './hlc';
 import { mergeChange, type EntityState } from './merge';
 import { applyServerChange } from './server';
-import type { IncomingEntity, OutgoingChange } from './types';
+import type { IncomingEntity, OutgoingChange, PhotoBlob } from './types';
 
 const dirs: string[] = [];
 const handles: Array<{ close(): void }> = [];
@@ -192,5 +192,56 @@ describe('sync between two offline devices', () => {
     await b.applyRemote([{ kind: 'listing', id: 'x1', fields: { ...listing(3), features: 'nope', createdAt: '2026-01-01T00:00:00Z', plaque: 5 } }], '2', null);
     expect((await b.getListing('x1'))?.features).toEqual([]);
     void server;
+  });
+
+  it('moves photo bytes too: metadata first, bytes after, deletes and order follow', async () => {
+    const server = new FakeServer();
+    const blobs = new Map<string, PhotoBlob>();
+    const a = await device();
+    const b = await device();
+    const l = await a.addListing(listing(1));
+    const img = (n: number) => ({ mime: 'image/webp', width: 800, height: 600, bytes: new Uint8Array([n, 1, 2, 3]), thumb: new Uint8Array([n, 9]) });
+    const [p1, p2] = await a.addPhotos(l.id, [img(1), img(2)]);
+    await sync(a, server);
+    for (const x of await a.photosToUpload(10)) blobs.set(x.id, x);
+    await a.markPhotosUploaded([...blobs.keys()]);
+    expect(await a.photosToUpload(10)).toEqual([]);
+
+    await sync(b, server);
+    // مشخصات رسیده، بایت‌ها نه: عکس هنوز دیده نمی‌شود و شمرده نمی‌شود.
+    expect(await b.listPhotos(l.id)).toEqual([]);
+    expect((await b.getListing(l.id))?.photoCount).toBe(0);
+    const want = await b.photosToDownload(10);
+    expect(want.sort()).toEqual([p1!.id, p2!.id].sort());
+    for (const id of want) await b.savePhotoBlob(blobs.get(id)!);
+    expect((await b.listPhotos(l.id)).map((p) => [p.id, [...p.thumb]])).toEqual([[p1!.id, [1, 9]], [p2!.id, [2, 9]]]);
+    expect([...((await b.getPhoto(p2!.id))?.bytes ?? [])]).toEqual([2, 1, 2, 3]);
+    expect((await b.getListing(l.id))?.photoCount).toBe(2);
+    expect(await b.photosToUpload(10)).toEqual([]); // از سرور آمده؛ دوباره فرستاده نمی‌شود
+
+    await a.reorderPhotos(l.id, [p2!.id, p1!.id]);
+    await a.deletePhoto(p1!.id);
+    await sync(a, server);
+    await sync(b, server);
+    expect((await b.listPhotos(l.id)).map((p) => p.id)).toEqual([p2!.id]);
+    expect((await b.getListing(l.id))?.photoCount).toBe(1);
+  });
+
+  it('never uploads photos of sample listings, and a reset clears the office from the device', async () => {
+    const d = mkdtempSync(join(tmpdir(), 'kelid-sync-'));
+    dirs.push(d);
+    const { seed } = await import('../seed');
+    const a = await SqlStore.open(nodeSqliteDriver(track(openEncrypted(Database as never, join(d, 'k.db'), 'k'))), seed);
+    const sampleListing = (await a.listListings())[0]!;
+    await a.addPhotos(sampleListing.id, [{ mime: 'image/jpeg', width: 1, height: 1, bytes: new Uint8Array([1]), thumb: new Uint8Array([1]) }]);
+    expect(await a.photosToUpload(10)).toEqual([]);
+    expect((await a.pendingChanges(50)).changes.filter((c) => c.kind === 'photo')).toEqual([]);
+
+    await a.bindOffice('office-a');
+    await a.addTodo({ title: 'کار' });
+    await a.resetLocalData();
+    expect(await a.listListings()).toEqual([]);
+    expect(await a.listTodos()).toEqual([]);
+    expect(await a.syncInfo()).toEqual({ office: null, cursor: '0', pending: 0 });
   });
 });

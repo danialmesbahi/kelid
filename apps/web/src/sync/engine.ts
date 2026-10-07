@@ -10,6 +10,7 @@ export interface SyncStatus {
 }
 
 const PUSH_BATCH = 200;
+const PHOTO_BATCH = 8;
 const PULL_BATCH = 500;
 const DEBOUNCE_MS = 1500;
 const PERIODIC_MS = 60_000;
@@ -107,6 +108,9 @@ export class SyncEngine {
       await this.store.bindOffice(this.officeId);
       await this.pushAll();
       await this.pullAll();
+      // عکس‌ها بعد از مشخصاتشان؛ سنگین‌ترند و نباید جلوی رسیدن فایل‌ها و مشتری‌ها را بگیرند.
+      await this.photosUp();
+      await this.photosDown();
       this.retry = 0;
       this.set({ phase: 'idle', pending: (await this.store.syncInfo()).pending, lastSync: Date.now() });
     } catch (e) {
@@ -153,6 +157,45 @@ export class SyncEngine {
       if (!page.more) break;
     }
     if (got) this.notify();
+  }
+
+  private async photosUp() {
+    for (;;) {
+      if (this.stopped) return;
+      const batch = await this.store.photosToUpload(PHOTO_BATCH);
+      if (!batch.length) return;
+      const done: string[] = [];
+      for (const p of batch) {
+        try {
+          await this.withToken((t) => this.api.uploadPhoto(t, p));
+        } catch (e) {
+          // عکسی که سرور نمی‌پذیرد (خراب یا بیش از اندازه) هر دور دوباره فرستاده نمی‌شود؛ روی همین دستگاه می‌ماند.
+          if (!(e instanceof ApiError && e.code === 'bad_photo')) throw e;
+        }
+        done.push(p.id);
+      }
+      await this.store.markPhotosUploaded(done);
+    }
+  }
+
+  private async photosDown() {
+    // عکسی که هنوز روی سرور نیست (دستگاه صاحبش آفلاین است) در همین دور دوباره پرسیده نمی‌شود.
+    const tried = new Set<string>();
+    let got = 0;
+    for (;;) {
+      if (this.stopped) break;
+      const ids = (await this.store.photosToDownload(tried.size + PHOTO_BATCH)).filter((id) => !tried.has(id));
+      if (!ids.length) break;
+      for (const id of ids) {
+        tried.add(id);
+        const blob = await this.withToken((t) => this.api.downloadPhoto(t, id));
+        if (!blob) continue;
+        await this.store.savePhotoBlob(blob);
+        // هر چند عکس یک بار صفحه تازه شود، نه با هر عکس.
+        if (++got % PHOTO_BATCH === 0) this.notify();
+      }
+    }
+    if (got % PHOTO_BATCH) this.notify();
   }
 
   private notify() {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { transaction as tx, type Db, type Pool } from '../db';
+import { transaction as tx, withOffice, type Db, type Pool } from '../db';
 import { hashPassword, passwordOk, verifyPassword, PASSWORD_MAX } from './password';
 import { normalizePhone } from './phone';
 import { RateLimiter } from './rateLimit';
@@ -23,6 +23,8 @@ export interface AuthOptions {
   pool: Pool;
   sms: SmsSender;
   jwtSecret: string;
+  /** فقط توسعه با پیامک console: کد در پاسخ هم می‌آید تا پیش‌نمایش بی‌پیامک کار کند. config در production اجازه نمی‌دهد. */
+  devCodes?: boolean;
 }
 
 export interface Session {
@@ -58,7 +60,7 @@ export function authGuard(pool: Pool, jwtSecret: string) {
   };
 }
 
-export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }: AuthOptions) {
+export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, devCodes = false }: AuthOptions) {
   const accessKey = deriveKey(jwtSecret, 'access');
   const otpKey = deriveKey(jwtSecret, 'otp');
   const otpByIp = new RateLimiter(10, 10 * 60_000);
@@ -110,7 +112,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
       return reply.status(503).send({ error: 'sms_failed' });
     }
     // پاسخ برای شمارهٔ تازه و قدیمی یکی است تا نشود فهمید چه کسی کاربر کلید است.
-    return { retryAfter: RESEND_AFTER, expiresIn: OTP_TTL };
+    return { retryAfter: RESEND_AFTER, expiresIn: OTP_TTL, ...(devCodes ? { devCode: code } : {}) };
   });
 
   app.post(
@@ -236,6 +238,25 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
     await pool.query('update devices set otp_at = null where id = $1', [req.auth!.dev]);
     return reply.status(204).send();
   });
+
+  /** نام شما و نام دفتر؛ روی همهٔ دستگاه‌های دفتر با تمدید بعدی ورود دیده می‌شود. */
+  app.post(
+    '/auth/profile',
+    { preHandler: requireAuth, schema: bodySchema({ name: { type: 'string', maxLength: 100 }, officeName: { type: 'string', maxLength: 200 } }, []) },
+    async (req, reply) => {
+      const body = req.body as { name?: string; officeName?: string };
+      const name = body.name?.trim();
+      const officeName = body.officeName?.trim();
+      if (name === '' || officeName === '') return reply.status(400).send({ error: 'bad_name' });
+      const { sub, off } = req.auth!;
+      if (name !== undefined) await pool.query('update users set name = $2 where id = $1', [sub, name]);
+      // جدول دفترها پشت RLS است؛ فقط دفتر خود کاربر.
+      if (officeName !== undefined) await withOffice(pool, off, (db) => db.query('update offices set name = $2 where id = $1', [off, officeName]));
+      const u = await pool.query<{ name: string }>('select name from users where id = $1', [sub]);
+      const o = await withOffice(pool, off, (db) => db.query<{ name: string }>('select name from offices where id = $1', [off]));
+      return { name: u.rows[0]?.name ?? '', officeName: o.rows[0]?.name ?? '' };
+    },
+  );
 
   app.post('/auth/refresh', { schema: bodySchema({ refreshToken: { type: 'string', maxLength: 100 } }, ['refreshToken']) }, async (req, reply) => {
     const hash = sha256((req.body as { refreshToken: string }).refreshToken);

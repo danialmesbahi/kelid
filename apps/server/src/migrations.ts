@@ -93,6 +93,23 @@ export const migrations: readonly string[] = [
     using (office_id = kelid_office())
     with check (office_id = kelid_office());
   `,
+  // 5: بایت عکس فایل‌ها؛ مشخصات عکس مثل بقیه در entities است. هر عکس یک بار نوشته می‌شود و دیگر عوض نمی‌شود.
+  `
+  create table photo_blobs (
+    office_id uuid not null default kelid_office() references offices (id),
+    id text not null check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
+    mime text not null check (mime in ('image/webp', 'image/jpeg', 'image/png')),
+    bytes bytea not null check (octet_length(bytes) <= 2097152),
+    thumb bytea not null check (octet_length(thumb) <= 262144),
+    created_at timestamptz not null default now(),
+    primary key (office_id, id)
+  );
+  alter table photo_blobs enable row level security;
+  alter table photo_blobs force row level security;
+  create policy office_isolation on photo_blobs
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

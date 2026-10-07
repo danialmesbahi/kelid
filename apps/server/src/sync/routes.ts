@@ -4,6 +4,31 @@ import { authGuard, type AuthOptions } from '../auth/routes';
 import { withOffice } from '../db';
 
 export const PUSH_MAX = 500;
+const PHOTO_MAX = 2 * 1024 * 1024;
+const THUMB_MAX = 256 * 1024;
+const idParam = { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,64}$' } } } as const;
+const b64 = (max: number) => ({ type: 'string', maxLength: Math.ceil(max / 3) * 4, pattern: '^[A-Za-z0-9+/]*={0,2}$' }) as const;
+const photoSchema = {
+  params: idParam,
+  body: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['mime', 'bytes', 'thumb'],
+    properties: { mime: { type: 'string', enum: ['image/webp', 'image/jpeg', 'image/png'] }, bytes: b64(PHOTO_MAX), thumb: b64(THUMB_MAX) },
+  },
+} as const;
+
+/** فقط تصویر واقعی پذیرفته می‌شود: امضای چند بایت اول باید با نوعش بخواند. */
+function looksLike(mime: string, b: Buffer): boolean {
+  if (mime === 'image/jpeg') return b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+  if (mime === 'image/png') return b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  return b.length > 12 && b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP';
+}
+
+/** نوع بندانگشتی را از خود بایت‌ها؛ برنامه همیشه webp یا jpeg می‌سازد. */
+function thumbOk(b: Buffer): boolean {
+  return looksLike('image/webp', b) || looksLike('image/jpeg', b) || looksLike('image/png', b);
+}
 export const PULL_MAX = 500;
 // دستگاهی که ساعتش جلوست نباید تا ابد برنده باشد؛ زمان‌های بیش از یک دقیقه جلوتر از سرور با ساعت سرور عوض می‌شوند.
 const FUTURE_SLACK_MS = 60_000;
@@ -112,6 +137,28 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
       );
     });
     return { ok: true, hlc: maxHlc };
+  });
+
+  // بایت عکس‌ها جدا از تغییرها: هر عکس یک بار بالا می‌رود و هر دستگاه یک بار پایین می‌آوردش.
+  app.post('/sync/photos/:id', { preHandler: requireAuth, bodyLimit: 4 * 1024 * 1024, schema: photoSchema }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = req.body as { mime: string; bytes: string; thumb: string };
+    const bytes = Buffer.from(body.bytes, 'base64');
+    const thumb = Buffer.from(body.thumb, 'base64');
+    if (bytes.length > PHOTO_MAX || thumb.length > THUMB_MAX || !looksLike(body.mime, bytes) || !thumbOk(thumb)) return reply.status(400).send({ error: 'bad_photo' });
+    await withOffice(pool, req.auth!.off, (db) =>
+      db.query('insert into photo_blobs (id, mime, bytes, thumb) values ($1, $2, $3, $4) on conflict (office_id, id) do nothing', [id, body.mime, bytes, thumb]),
+    );
+    return reply.status(204).send();
+  });
+
+  app.get('/sync/photos/:id', { preHandler: requireAuth, schema: { params: idParam } }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const r = await withOffice(pool, req.auth!.off, (db) => db.query<{ mime: string; bytes: Buffer; thumb: Buffer }>('select mime, bytes, thumb from photo_blobs where id = $1', [id]));
+    const row = r.rows[0];
+    // هنوز بالا نیامده (دستگاه صاحبش آفلاین است)؛ دستگاه دفعهٔ بعد دوباره می‌پرسد.
+    if (!row) return reply.status(404).send({ error: 'not_found' });
+    return { mime: row.mime, bytes: row.bytes.toString('base64'), thumb: row.thumb.toString('base64') };
   });
 
   app.get('/sync/pull', { preHandler: requireAuth, schema: pullSchema }, async (req) => {

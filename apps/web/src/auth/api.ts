@@ -19,7 +19,7 @@ export interface Device {
   current: boolean;
 }
 
-export type ApiErrorCode = 'bad_phone' | 'bad_code' | 'bad_name' | 'bad_password' | 'wrong' | 'expired' | 'too_many' | 'sms_failed' | 'unauthorized' | 'offline' | 'server';
+export type ApiErrorCode = 'bad_phone' | 'bad_code' | 'bad_name' | 'bad_password' | 'wrong' | 'expired' | 'too_many' | 'sms_failed' | 'unauthorized' | 'not_found' | 'bad_photo' | 'offline' | 'server';
 
 export class ApiError extends Error {
   constructor(
@@ -36,7 +36,8 @@ export type VerifyResult = { session: Session } | { signupToken: string };
 export interface AuthApi {
   /** فقط پیش‌نمایش: کد آزمایشی که روی صفحه نشان داده می‌شود. */
   demoCode?: string;
-  requestOtp(phone: string): Promise<{ retryAfter: number }>;
+  /** devCode فقط وقتی سرور توسعه پیامک واقعی نمی‌فرستد (کد روی صفحه نشان داده می‌شود). */
+  requestOtp(phone: string): Promise<{ retryAfter: number; devCode?: string }>;
   /** ورود اصلی: شماره و رمز عبور. شمارهٔ بی‌حساب و رمز اشتباه هر دو `wrong` می‌دهند. */
   login(phone: string, password: string, deviceName: string): Promise<Session>;
   verify(phone: string, code: string, deviceName: string): Promise<VerifyResult>;
@@ -47,9 +48,11 @@ export interface AuthApi {
   logout(accessToken: string): Promise<void>;
   devices(accessToken: string): Promise<Device[]>;
   removeDevice(accessToken: string, id: string): Promise<void>;
+  /** نام شما و نام دفتر روی سرور، تا دستگاه‌های دیگر دفتر هم ببینند. */
+  updateProfile(accessToken: string, p: { name?: string; officeName?: string }): Promise<{ name: string; officeName: string }>;
 }
 
-const CODES: readonly string[] = ['bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized'];
+const CODES: readonly string[] = ['bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo'];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
 export async function request<T>(root: string, method: 'GET' | 'POST' | 'DELETE', path: string, body?: object, token?: string, timeoutMs = 12_000): Promise<T> {
@@ -92,6 +95,7 @@ export function httpApi(base: string): AuthApi {
     logout: (token) => call('POST', '/auth/logout', {}, token),
     devices: (token) => call('GET', '/auth/devices', undefined, token),
     removeDevice: (token, id) => call('DELETE', `/auth/devices/${encodeURIComponent(id)}`, undefined, token),
+    updateProfile: (token, p) => call('POST', '/auth/profile', p, token),
   };
 }
 
@@ -136,7 +140,8 @@ export function demoApi(): AuthApi {
       refreshToken: `demo-refresh:${phone}`,
       deviceId: 'd-this',
       user: { id: `u${phone}`, name: a.name, phone, hasPassword: !!a.password },
-      office: { id: 'o1', name: a.office },
+      // هر حساب دفتر خودش را دارد، مثل سرور واقعی.
+      office: { id: phone === '09120000000' ? 'o1' : `o${phone}`, name: a.office },
     };
   };
   return {
@@ -202,6 +207,15 @@ export function demoApi(): AuthApi {
     async removeDevice(_t, id) {
       await wait(250);
       devices.splice(devices.findIndex((d) => d.id === id), 1);
+    },
+    async updateProfile(token, p) {
+      await wait(300);
+      const phone = token.startsWith('demo:') ? token.slice('demo:'.length) : '';
+      const a = accounts()[phone];
+      if (!a) throw new ApiError('unauthorized');
+      const next = { ...a, name: p.name?.trim() || a.name, office: p.officeName?.trim() || a.office };
+      remember(phone, next);
+      return { name: next.name, officeName: next.office };
     },
   };
 }

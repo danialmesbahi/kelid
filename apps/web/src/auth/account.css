@@ -14,6 +14,11 @@
 .acc-show { display: inline-flex; align-items: center; gap: 8px; justify-self: start; color: var(--mute); cursor: pointer; }
 .acc-show input { width: 18px; height: 18px; accent-color: var(--pri); }
 .acc-err { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--bad); font-weight: 600; }
+/* تأیید خروج جای خودش را دارد تا نام کاربر کنارش له نشود. */
+.acc-head > .acc-ask { grid-column: 1 / -1; padding-top: 4px; border-top: 1px solid var(--line); }
+.acc-wipe { display: inline-flex; align-items: center; gap: 8px; flex-basis: 100%; justify-content: flex-end; color: var(--ink2); cursor: pointer; }
+.acc-wipe input { width: 18px; height: 18px; accent-color: var(--bad); }
+.acc-wipe-warn { flex-basis: 100%; text-align: end; color: var(--warn); font-weight: 600; }
 .acc-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 @media (max-width: 767px) {
   .acc-head { grid-template-columns: auto minmax(0, 1fr); }
@@ -21,6 +26,7 @@
   .acc-head > .btn { justify-self: start; }
   .acc-ask { justify-content: flex-start; }
   .acc-ask > .xs { text-align: start; }
+  .acc-wipe { justify-content: flex-start; }
   .acc-dev .acc-ask { grid-column: 1 / -1; }
   .acc-sync > .btn { grid-column: 1 / -1; justify-self: start; }
   .acc-pass .acc-dev { grid-template-columns: auto minmax(0, 1fr); }
