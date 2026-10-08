@@ -13,3 +13,4 @@ export * from './sql/schema';
 export * from './sql/sqlStore';
 export * from './cachedStore';
 export * from './sync';
+export * from './plans';

@@ -71,3 +71,10 @@ export function formatLongDate(date: Date): string {
   const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? '';
   return `${get('weekday')}، ${get('day')} ${get('month')} ${get('year')}`;
 }
+
+/** تاریخ جلالی بی روز هفته، مثل «۱۲ مهر ۱۴۰۵» */
+export function formatDate(date: Date): string {
+  const parts = longFmt.formatToParts(date);
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? '';
+  return `${get('day')} ${get('month')} ${get('year')}`;
+}

@@ -10,6 +10,7 @@ import { useAuth, useMember } from '../auth/AuthContext';
 import { TeamSection } from '../auth/TeamSection';
 import { flushProfile, queueProfile } from '../auth/profile';
 import { UpdateSection } from '../updates';
+import { SubscriptionSection } from '../billing/SubscriptionSection';
 
 const whereText = {
   desktop: { title: 'روی همین کامپیوتر، رمزگذاری‌شده', detail: 'دیتابیس با AES-256 رمز شده و کلیدش را خود ویندوز برای حساب کاربری شما نگه می‌دارد.' },
@@ -134,13 +135,7 @@ export function SettingsPage() {
 
       <UpdateSection />
 
-      <section aria-labelledby="sub" className="card" style={{ padding: 24, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
-        <span className="ib" style={{ width: 52, height: 52, border: 0, background: 'var(--pri-tint)', color: 'var(--pri-text)', borderRadius: 16 }}><Icon name="gem" size="l" /></span>
-        <div className="col" style={{ flex: '1 1 260px' }}>
-          <h2 id="sub" className="t2">اشتراک</h2>
-          <span className="mute sm">پرداخت و مدیریت اشتراک در فاز ۳ وصل می‌شود.</span>
-        </div>
-      </section>
+      <SubscriptionSection />
     </div>
   );
 }

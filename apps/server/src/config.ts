@@ -1,4 +1,5 @@
 import type { S3Config } from './storage/s3';
+import { DEV_LICENSE_SEED } from './billing/license';
 
 // تنظیمات سرور فقط از متغیرهای محیطی (‎.env‎ در توسعه). مقدار اشتباه = توقف با پیام روشن.
 export interface Config {
@@ -19,6 +20,16 @@ export interface Config {
   corsOrigins: string[];
   /** فضای ذخیره‌سازی عکس‌ها (آروان، لیارا، MinIO)؛ null = بایت عکس‌ها در خود دیتابیس. */
   s3: S3Config | null;
+  billing: BillingConfig;
+}
+
+export interface BillingConfig {
+  /** دانهٔ ۳۲ بایتی Ed25519 (base64url) که مجوز اشتراک را امضا می‌کند. */
+  licenseSeed: string;
+  /** null = پرداخت خاموش (وضعیت اشتراک و مجوز همچنان کار می‌کند). dev = درگاه آزمایشی همین سرور، فقط توسعه. */
+  gateway: { provider: 'zarinpal'; merchantId: string; sandbox: boolean } | { provider: 'dev' } | null;
+  /** نشانی عمومی همین سرور؛ درگاه کاربر را به آن برمی‌گرداند. */
+  publicUrl: string;
 }
 
 const levels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
@@ -78,8 +89,37 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     s3 = { endpoint, region: env.S3_REGION || 'us-east-1', bucket: env.S3_BUCKET!, accessKeyId: env.S3_ACCESS_KEY_ID!, secretAccessKey: env.S3_SECRET_ACCESS_KEY! };
   }
 
+  const licenseSeed = env.LICENSE_PRIVATE_KEY ?? (production ? '' : DEV_LICENSE_SEED);
+  if (!/^[A-Za-z0-9_-]{43}$/.test(licenseSeed)) problems.push('LICENSE_PRIVATE_KEY تنظیم نشده یا ۳۲ بایت base64url نیست (npm run license-keys -w @kelid/server)');
+  else if (production && licenseSeed === DEV_LICENSE_SEED) problems.push('LICENSE_PRIVATE_KEY کلید توسعه است؛ در production کلید تازه بسازید');
+
+  const gatewayName = env.PAYMENT_GATEWAY ?? (production ? '' : 'dev');
+  let gateway: BillingConfig['gateway'] = null;
+  if (gatewayName === 'zarinpal') {
+    const merchantId = env.ZARINPAL_MERCHANT_ID ?? '';
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(merchantId)) problems.push('ZARINPAL_MERCHANT_ID باید شناسهٔ ۳۶ نویسه‌ای مرچنت زرین‌پال باشد');
+    const sandbox = env.ZARINPAL_SANDBOX ?? 'false';
+    if (sandbox !== 'true' && sandbox !== 'false') problems.push('ZARINPAL_SANDBOX باید true یا false باشد');
+    gateway = { provider: 'zarinpal', merchantId, sandbox: sandbox === 'true' };
+  } else if (gatewayName === 'dev') {
+    // درگاهی که هر پرداختی را می‌پذیرد در production یعنی اشتراک مجانی برای همه.
+    if (production) problems.push('PAYMENT_GATEWAY=dev در production مجاز نیست');
+    gateway = { provider: 'dev' };
+  } else if (gatewayName !== '') {
+    problems.push('PAYMENT_GATEWAY باید zarinpal باشد (dev فقط برای توسعه است)');
+  }
+
+  const publicUrl = (env.PUBLIC_URL ?? (production ? '' : `http://localhost:${port}`)).replace(/\/+$/, '');
+  if (!isWebUrl(publicUrl, production)) problems.push(production ? 'PUBLIC_URL باید نشانی https:// همین سرور باشد' : 'PUBLIC_URL باید نشانی http(s):// همین سرور باشد');
+
   if (problems.length) throw new ConfigError(`تنظیمات سرور ناقص است:\n- ${problems.join('\n- ')}`);
-  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3 };
+  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3, billing: { licenseSeed, gateway, publicUrl } };
+}
+
+function isWebUrl(url: string, httpsOnly: boolean): boolean {
+  if (!URL.canParse(url)) return false;
+  const u = new URL(url);
+  return (u.protocol === 'https:' || (!httpsOnly && u.protocol === 'http:')) && !u.username && !u.search && !u.hash;
 }
 
 function isPostgresUrl(url: string): boolean {

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig } from './config';
+import { DEV_LICENSE_SEED } from './billing/license';
 
 const url = 'postgres://kelid_app:secret@localhost:5432/kelid';
 const base = { DATABASE_URL: url, JWT_SECRET: 'j'.repeat(40) };
+// بقیهٔ چیزهایی که production لازم دارد، تا هر تست فقط یک مشکل را بسنجد.
+const prodBilling = { LICENSE_PRIVATE_KEY: 'k'.repeat(43), PUBLIC_URL: 'https://api.kelid.ir' };
 
 describe('loadConfig', () => {
   it('fills safe defaults', () => {
@@ -17,6 +20,7 @@ describe('loadConfig', () => {
       sms: { provider: 'console' },
       corsOrigins: [],
       s3: null,
+      billing: { licenseSeed: DEV_LICENSE_SEED, gateway: { provider: 'dev' }, publicUrl: 'http://localhost:3000' },
     });
   });
 
@@ -46,7 +50,7 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...base, NODE_ENV: 'production' })).toThrow(/SMS_PROVIDER/);
     expect(() => loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'console' })).toThrow(/production/);
     expect(() => loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar' })).toThrow(/KAVENEGAR/);
-    const ok = loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar', KAVENEGAR_API_KEY: 'k', KAVENEGAR_TEMPLATE: 't' });
+    const ok = loadConfig({ ...base, ...prodBilling, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar', KAVENEGAR_API_KEY: 'k', KAVENEGAR_TEMPLATE: 't' });
     expect(ok.sms).toEqual({ provider: 'kavenegar', apiKey: 'k', template: 't' });
   });
 
@@ -75,5 +79,18 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...base, CORS_ORIGINS: 'https://app.kelid.ir, null' }).corsOrigins).toEqual(['https://app.kelid.ir', 'null']);
     expect(() => loadConfig({ ...base, CORS_ORIGINS: '*' })).toThrow(/CORS_ORIGINS/);
     expect(() => loadConfig({ ...base, CORS_ORIGINS: 'https://a.ir/path' })).toThrow(/CORS_ORIGINS/);
+  });
+
+  it('keeps billing safe in production', () => {
+    const prod = { ...base, ...prodBilling, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar', KAVENEGAR_API_KEY: 'k', KAVENEGAR_TEMPLATE: 't' };
+    // بدون درگاه: پرداخت خاموش، مجوز روشن.
+    expect(loadConfig(prod).billing).toEqual({ licenseSeed: 'k'.repeat(43), gateway: null, publicUrl: 'https://api.kelid.ir' });
+    expect(() => loadConfig({ ...prod, LICENSE_PRIVATE_KEY: undefined })).toThrow(/LICENSE_PRIVATE_KEY/);
+    expect(() => loadConfig({ ...prod, LICENSE_PRIVATE_KEY: DEV_LICENSE_SEED })).toThrow(/LICENSE_PRIVATE_KEY/);
+    expect(() => loadConfig({ ...prod, PAYMENT_GATEWAY: 'dev' })).toThrow(/PAYMENT_GATEWAY/);
+    expect(() => loadConfig({ ...prod, PUBLIC_URL: 'http://api.kelid.ir' })).toThrow(/PUBLIC_URL/);
+    expect(() => loadConfig({ ...prod, PAYMENT_GATEWAY: 'zarinpal', ZARINPAL_MERCHANT_ID: 'x' })).toThrow(/ZARINPAL_MERCHANT_ID/);
+    const zp = loadConfig({ ...prod, PAYMENT_GATEWAY: 'zarinpal', ZARINPAL_MERCHANT_ID: '1344b5d4-0048-11e8-94db-005056a205be' });
+    expect(zp.billing.gateway).toEqual({ provider: 'zarinpal', merchantId: '1344b5d4-0048-11e8-94db-005056a205be', sandbox: false });
   });
 });

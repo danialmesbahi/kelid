@@ -8,6 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./node": "./src/sql/nodeDriver.ts",
-    "./sync": "./src/sync/index.ts"
+    "./sync": "./src/sync/index.ts",
+    "./plans": "./src/plans.ts",
+    "./format": "./src/format.ts"
   }
 }

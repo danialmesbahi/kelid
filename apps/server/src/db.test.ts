@@ -7,6 +7,9 @@ import { buildApp } from './app';
 import type { SmsSender } from './auth/sms';
 import { assertSafeRole, createPool, withOffice, type Pool, type Queryable } from './db';
 import { migrate, migrations } from './migrations';
+import { DEV_LICENSE_SEED, licenseKey, publicKeyOf, verifyLicense } from './billing/license';
+import { DevGateway } from './billing/gateway';
+import { decodeLicense, planById } from '@kelid/core/plans';
 
 const rootEnv = new URL('../../../.env', import.meta.url);
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
@@ -751,6 +754,144 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await post(a, '/auth/invite/accept', {}, b.accessToken)).json().error).toBe('not_alone');
       expect((await post(a, '/auth/invite/decline', {}, b.accessToken)).statusCode).toBe(204);
       expect((await post(a, '/auth/refresh', { refreshToken: b.refreshToken })).json().invite).toBeNull();
+      await a.close();
+    });
+  });
+
+  describe('billing', () => {
+    const key = licenseKey(DEV_LICENSE_SEED);
+    const pub = publicKeyOf(key);
+    const billApp = () =>
+      buildApp({
+        db: app,
+        logLevel: 'silent',
+        auth: { pool: app, sms, jwtSecret: 's'.repeat(48) },
+        billing: { licenseKey: key, gateway: new DevGateway(), publicUrl: 'http://kelid.test' },
+      });
+    const get = (a: ReturnType<typeof newApp>, url: string, token?: string) => a.inject({ method: 'GET', url, headers: token ? { authorization: `Bearer ${token}` } : {} });
+    const local = (url: string) => url.replace('http://kelid.test', '');
+    const DAY = 86_400_000;
+
+    it('gives a new office a signed trial license', async () => {
+      const a = billApp();
+      const s = await signUp(a, freshPhone());
+      expect(verifyLicense(pub, s.license)).toBe(true);
+      const lic = decodeLicense(s.license)!.payload;
+      expect(lic).toMatchObject({ off: s.office.id, plan: 'office', seats: 5, trial: true });
+      expect(lic.exp * 1000 - Date.now()).toBeGreaterThan(13.9 * DAY);
+      // دستکاری یک بایت امضا را باطل می‌کند.
+      const [body, sig] = s.license.split('.');
+      const forged = Buffer.from(body, 'base64url').toString().replace('"seats":5', '"seats":50');
+      expect(verifyLicense(pub, `${Buffer.from(forged).toString('base64url')}.${sig}`)).toBe(false);
+
+      const b = (await get(a, '/billing', s.accessToken)).json();
+      expect(b).toMatchObject({ plan: 'office', trial: true, seats: 5, used: 1, canPay: true, payments: [] });
+      expect(b.plans.map((p: { id: string }) => p.id)).toEqual(['solo', 'office', 'pro']);
+      expect(verifyLicense(pub, b.license)).toBe(true);
+      expect((await post(a, '/auth/refresh', { refreshToken: s.refreshToken })).json().license).toBeTruthy();
+      await a.close();
+    });
+
+    it('renews through the gateway once, keeping the trial days', async () => {
+      const a = billApp();
+      const s = await signUp(a, freshPhone());
+      const before = decodeLicense(s.license)!.payload.exp * 1000;
+      const c = await post(a, '/billing/checkout', { plan: 'pro', period: 'year' }, s.accessToken);
+      expect(c.statusCode).toBe(200);
+      const { id, payUrl } = c.json();
+      expect((await get(a, `/billing/payments/${id}`, s.accessToken)).json()).toMatchObject({ status: 'pending', amount: planById('pro')!.monthly * 10, license: null });
+
+      const gate = await get(a, local(payUrl));
+      expect(gate.statusCode).toBe(200);
+      expect(gate.headers['content-type']).toMatch(/text\/html/);
+      expect(gate.headers['content-security-policy']).toContain("style-src 'unsafe-inline'");
+      expect(gate.headers['content-security-policy']).not.toContain('script');
+      const ok = gate.body.match(/href="([^"]+Status=OK)"/)![1]!.replace(/&#38;/g, '&');
+      const paid = await get(a, local(ok));
+      expect(paid.statusCode).toBe(200);
+      expect(paid.body).toContain('پرداخت انجام شد');
+      expect(paid.body).toContain('به کلید برگردید');
+
+      const r = (await get(a, `/billing/payments/${id}`, s.accessToken)).json();
+      expect(r).toMatchObject({ status: 'paid', plan: 'pro', period: 'year' });
+      expect(r.refId).toMatch(/^\d+$/);
+      const lic = decodeLicense(r.license)!.payload;
+      expect(lic).toMatchObject({ plan: 'pro', seats: 15, trial: false });
+      // ۱۴ روز آزمایشی + ۳۶۵ روز
+      expect(Math.abs(lic.exp * 1000 - (before + 365 * DAY))).toBeLessThan(60_000);
+
+      // برگشت دوباره از درگاه دوباره تمدید نمی‌کند.
+      expect((await get(a, local(ok))).body).toContain('پرداخت انجام شد');
+      const b = (await get(a, '/billing', s.accessToken)).json();
+      expect(b).toMatchObject({ plan: 'pro', trial: false, seats: 15 });
+      expect(b.payments).toHaveLength(1);
+      expect(Math.abs(Date.parse(b.expiresAt) - lic.exp * 1000)).toBeLessThan(1000);
+      await a.close();
+    });
+
+    it('ignores forged, canceled and cross-office callbacks', async () => {
+      const a = billApp();
+      const s = await signUp(a, freshPhone());
+      const other = await signUp(a, freshPhone());
+      const { id, payUrl } = (await post(a, '/billing/checkout', { plan: 'office', period: 'month' }, s.accessToken)).json();
+      const u = new URL(payUrl);
+      const authority = u.searchParams.get('Authority')!;
+      expect((await get(a, `/billing/callback?o=${s.office.id}&p=${id}&Authority=DEVnope&Status=OK`)).statusCode).toBe(404);
+      // پرداخت دفتر دیگر از راه دفتر خودش پیدا نمی‌شود (RLS).
+      expect((await get(a, `/billing/callback?o=${other.office.id}&p=${id}&Authority=${authority}&Status=OK`)).statusCode).toBe(404);
+      expect((await get(a, `/billing/payments/${id}`, other.accessToken)).statusCode).toBe(404);
+      expect((await get(a, `/billing/callback?o=not-a-uuid&p=${id}`)).statusCode).toBe(400);
+
+      const no = await get(a, `/billing/callback?o=${s.office.id}&p=${id}&Authority=${authority}&Status=NOK`);
+      expect(no.body).toContain('پرداخت لغو شد');
+      // بعد از لغو، «OK» ساختگی هم چیزی را عوض نمی‌کند.
+      expect((await get(a, `/billing/callback?o=${s.office.id}&p=${id}&Authority=${authority}&Status=OK`)).body).toContain('پرداخت لغو شد');
+      expect((await get(a, '/billing', s.accessToken)).json()).toMatchObject({ trial: true, payments: [] });
+      await a.close();
+    });
+
+    it('lets only managers pay, and only for a plan that fits the team', async () => {
+      const a = billApp();
+      const m = await signUp(a, freshPhone());
+      const phone = freshPhone();
+      await post(a, '/team/invites', { phone, name: 'سارا', role: 'agent' }, m.accessToken);
+      expect((await post(a, '/billing/checkout', { plan: 'solo', period: 'month' }, m.accessToken)).json().error).toBe('too_small');
+      await post(a, '/auth/otp', { phone });
+      const v = (await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'گوشی' })).json();
+      const agent = (await post(a, '/auth/join', { signupToken: v.signupToken, name: 'سارا', password: 'agent-1404', deviceName: 'گوشی' })).json();
+      expect((await post(a, '/billing/checkout', { plan: 'office', period: 'month' }, agent.accessToken)).statusCode).toBe(403);
+      expect((await get(a, '/billing', agent.accessToken)).statusCode).toBe(200);
+      expect((await post(a, '/billing/checkout', { plan: 'gold', period: 'month' }, m.accessToken)).statusCode).toBe(400);
+      // مبلغ فقط از فهرست سرور است؛ عددی که برنامه بفرستد دور ریخته می‌شود.
+      const cheap = (await post(a, '/billing/checkout', { plan: 'office', period: 'month', amount: 1 }, m.accessToken)).json();
+      expect((await get(a, `/billing/payments/${cheap.id}`, m.accessToken)).json().amount).toBe(planById('office')!.monthly);
+      await a.close();
+    });
+
+    it('keeps an expired office readable but not writable', async () => {
+      const a = billApp();
+      const s = await signUp(a, freshPhone());
+      const hlc = `${Date.now().toString(36).padStart(10, '0')}-00000-dev`;
+      const push = (seq: number) => post(a, '/sync/push', { changes: [{ seq, kind: 'todo', id: `t${seq}`, fields: { title: 'کار' }, hlc }] }, s.accessToken);
+      expect((await push(1)).statusCode).toBe(200);
+      await withOffice(owner, s.office.id, (db) => db.query("update offices set expires_at = now() - interval '1 day' where id = $1", [s.office.id]));
+      expect((await push(2)).statusCode).toBe(402);
+      expect((await push(2)).json().error).toBe('subscription');
+      expect((await post(a, '/sync/photos/p1', { mime: 'image/png', bytes: '', thumb: '' }, s.accessToken)).statusCode).toBe(402);
+      expect((await post(a, '/team/invites', { phone: freshPhone(), name: 'x', role: 'agent' }, s.accessToken)).statusCode).toBe(402);
+      const pulled = await get(a, '/sync/pull', s.accessToken);
+      expect(pulled.statusCode).toBe(200);
+      expect(pulled.json().entities).toHaveLength(1);
+      const lic = decodeLicense((await post(a, '/auth/refresh', { refreshToken: s.refreshToken })).json().license)!.payload;
+      expect(lic.exp * 1000).toBeLessThan(Date.now());
+      // تمدید = نوشتن دوباره باز.
+      const { payUrl } = (await post(a, '/billing/checkout', { plan: 'office', period: 'month' }, s.accessToken)).json();
+      const u = new URL(payUrl);
+      await get(a, `/billing/callback?o=${u.searchParams.get('o')}&p=${u.searchParams.get('p')}&Authority=${u.searchParams.get('Authority')}&Status=OK`);
+      expect((await push(3)).statusCode).toBe(200);
+      const b = (await get(a, '/billing', s.accessToken)).json();
+      // تمام‌شده از امروز حساب می‌شود، نه از روز پایان.
+      expect(Math.abs(Date.parse(b.expiresAt) - (Date.now() + 30 * DAY))).toBeLessThan(60_000);
       await a.close();
     });
   });

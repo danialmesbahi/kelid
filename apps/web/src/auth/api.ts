@@ -1,3 +1,4 @@
+import { encodeLicense, nextExpiry, PLANS, planById, priceOf, TRIAL_DAYS, type Period, type Plan, type PlanId } from '@kelid/core';
 import { phoneDigits } from './phone';
 
 // ارتباط با سرور ورود (apps/server/src/auth/routes.ts). نشانی سرور در زمان ساخت: VITE_KELID_API_URL.
@@ -22,6 +23,39 @@ export interface Session {
   user: { id: string; name: string; phone: string; hasPassword?: boolean; role?: Role; seeOwnerPhones?: boolean };
   office: { id: string; name: string };
   invite?: InviteInfo | null;
+  /** مجوز امضاشدهٔ اشتراک دفتر؛ سرور قدیمی ندارد. */
+  license?: string;
+}
+
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'canceled';
+
+export interface Receipt {
+  id: string;
+  plan: PlanId;
+  period: Period;
+  /** تومان */
+  amount: number;
+  status: PaymentStatus;
+  refId: string | null;
+  card: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  /** پایان اشتراک بعد از همین پرداخت. */
+  expiresAt: string | null;
+}
+
+export interface Billing {
+  plan: PlanId;
+  trial: boolean;
+  expiresAt: string;
+  seats: number;
+  /** همکاران + دعوت‌های باز */
+  used: number;
+  plans: Plan[];
+  /** درگاه پرداخت روی سرور روشن است. */
+  canPay: boolean;
+  payments: Receipt[];
+  license: string;
 }
 
 export interface Member {
@@ -66,6 +100,7 @@ export interface Device {
 export type ApiErrorCode =
   | 'bad_phone' | 'bad_code' | 'bad_name' | 'bad_password' | 'wrong' | 'expired' | 'too_many' | 'sms_failed' | 'unauthorized' | 'not_found' | 'bad_photo'
   | 'forbidden' | 'no_seat' | 'member' | 'last_manager' | 'self' | 'not_alone'
+  | 'subscription' | 'too_small' | 'no_gateway' | 'gateway'
   // فقط سمت برنامه: توکن مال دفتر دیگری است (کاربر دفترش را عوض کرد)؛ همگام‌سازی دفتر قبلی همان‌جا می‌ایستد.
   | 'office_changed'
   | 'offline' | 'server';
@@ -109,11 +144,18 @@ export interface AuthApi {
   cancelInvite(accessToken: string, phone: string): Promise<void>;
   updateMember(accessToken: string, id: string, p: { role?: Role; seeOwnerPhones?: boolean }): Promise<void>;
   removeMember(accessToken: string, id: string): Promise<void>;
+  /** اشتراک دفتر، پلن‌ها و رسیدها، با مجوز تازه. */
+  billing(accessToken: string): Promise<Billing>;
+  /** شروع پرداخت (فقط مدیر)؛ مبلغ را سرور از پلن حساب می‌کند. payUrl خالی = پیش‌نمایش بی‌درگاه. */
+  checkout(accessToken: string, plan: PlanId, period: Period): Promise<{ id: string; payUrl: string }>;
+  /** وضعیت یک پرداخت؛ بعد از پرداخت مجوز تازه هم دارد. */
+  payment(accessToken: string, id: string): Promise<Receipt & { license: string | null }>;
 }
 
 const CODES: readonly string[] = [
   'bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo',
   'forbidden', 'no_seat', 'member', 'last_manager', 'self', 'not_alone',
+  'subscription', 'too_small', 'no_gateway', 'gateway',
 ];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
@@ -166,6 +208,9 @@ export function httpApi(base: string): AuthApi {
     cancelInvite: (token, phone) => call('DELETE', `/team/invites/${encodeURIComponent(phone)}`, undefined, token),
     updateMember: (token, id, p) => call('POST', `/team/members/${encodeURIComponent(id)}`, p, token),
     removeMember: (token, id) => call('DELETE', `/team/members/${encodeURIComponent(id)}`, undefined, token),
+    billing: (token) => call('GET', '/billing', undefined, token),
+    checkout: (token, plan, period) => call('POST', '/billing/checkout', { plan, period }, token),
+    payment: (token, id) => call('GET', `/billing/payments/${encodeURIComponent(id)}`, undefined, token),
   };
 }
 
@@ -183,11 +228,13 @@ export function demoApi(): AuthApi {
   type Account = { name: string; office: string; password?: string; officeId?: string; role?: Role; seeOwnerPhones?: boolean };
   const KEY = 'kelid.demo.accounts';
   const SEED: Account = { name: 'علی رضایی', office: 'املاک پارسا', password: '12345678' };
+  // دفتری که اشتراکش تمام شده، برای دیدن حالت فقط‌خواندنی.
+  const EXPIRED: Account = { name: 'مینا کریمی', office: 'املاک آفتاب', password: '12345678' };
   const accounts = (): Record<string, Account> => {
     try {
-      return { '09120000000': SEED, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Account>) };
+      return { '09120000000': SEED, '09120000001': EXPIRED, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Account>) };
     } catch {
-      return { '09120000000': SEED };
+      return { '09120000000': SEED, '09120000001': EXPIRED };
     }
   };
   const remember = (phone: string, a: Account) => {
@@ -249,8 +296,50 @@ export function demoApi(): AuthApi {
       // هر حساب دفتر خودش را دارد، مثل سرور واقعی.
       office: { id: officeOf(phone), name: a.office },
       invite: null,
+      license: demoLicense(officeOf(phone)),
     };
   };
+
+  // اشتراک پیش‌نمایش: دفتر نمونه پنج روز آزمایشی مانده دارد تا یادآوری دیده شود. در همین مرورگر می‌ماند.
+  type DemoSub = { plan: PlanId; trial: boolean; expiresAt: string; seats: number; payments: Receipt[] };
+  const BILL = 'kelid.demo.billing';
+  const DAY = 864e5;
+  const subs = (): Record<string, DemoSub> => {
+    try {
+      return JSON.parse(localStorage.getItem(BILL) ?? '{}') as Record<string, DemoSub>;
+    } catch {
+      return {};
+    }
+  };
+  const subOf = (office: string): DemoSub => {
+    const known = subs()[office];
+    if (known) return known;
+    const days = office === 'o1' ? 5 : office === 'o09120000001' ? -3 : TRIAL_DAYS;
+    const sub: DemoSub = { plan: 'office', trial: office !== 'o09120000001', expiresAt: new Date(Date.now() + days * DAY).toISOString(), seats: 5, payments: [] };
+    saveSub(office, sub);
+    return sub;
+  };
+  const saveSub = (office: string, sub: DemoSub) => {
+    try {
+      localStorage.setItem(BILL, JSON.stringify({ ...subs(), [office]: sub }));
+    } catch {
+      /* فقط تا بستن صفحه */
+    }
+  };
+  // پیش‌نمایش امضا ندارد؛ برنامه در حالت demo امضا را نمی‌سنجد.
+  const demoLicense = (office: string) => {
+    const s = subOf(office);
+    const iat = Math.floor(Date.now() / 1000);
+    return `${encodeLicense({ v: 1, off: office, plan: s.plan, seats: s.seats, trial: s.trial, exp: Math.floor(Date.parse(s.expiresAt) / 1000), iat, chk: iat + 14 * 86_400 })}.demo`;
+  };
+  const pending = new Map<string, { office: string; plan: PlanId; period: Period; at: number; receipt?: Receipt }>();
+  const userOf = (token: string) => {
+    const phone = phoneOf(token);
+    const a = accounts()[phone];
+    if (!a) throw new ApiError('unauthorized');
+    return { phone, office: officeOf(phone), manager: (a.role ?? 'manager') === 'manager' };
+  };
+
   return {
     demoCode: '123456',
     async login(phone, password) {
@@ -377,6 +466,39 @@ export function demoApi(): AuthApi {
       if (m.phone === phoneOf(token)) throw new ApiError('self');
       if (m.role === 'manager' && t.members.filter((x) => x.role === 'manager').length <= 1) throw new ApiError('last_manager');
       t.members = t.members.filter((x) => x.id !== id);
+    },
+    async billing(token) {
+      await wait(300);
+      const { phone, office } = userOf(token);
+      const s = subOf(office);
+      const t = teamOf(phone);
+      return { ...s, used: t.members.length + t.invites.length, plans: [...PLANS], canPay: true, payments: s.payments, license: demoLicense(office) };
+    },
+    async checkout(token, plan, period) {
+      await wait(500);
+      const { phone, office, manager } = userOf(token);
+      if (!manager) throw new ApiError('forbidden');
+      const t = teamOf(phone);
+      if (planById(plan)!.seats < t.members.length + t.invites.length) throw new ApiError('too_small');
+      const id = `pay-${Date.now()}`;
+      pending.set(id, { office, plan, period, at: Date.now() });
+      return { id, payUrl: '' };
+    },
+    async payment(token, id) {
+      await wait(200);
+      const { office } = userOf(token);
+      const p = pending.get(id);
+      if (!p || p.office !== office) throw new ApiError('not_found');
+      const plan = planById(p.plan)!;
+      // پیش‌نمایش: «پرداخت» دو ثانیه و نیم بعد خودش انجام می‌شود.
+      if (!p.receipt && Date.now() - p.at > 2500) {
+        const s = subOf(office);
+        const until = new Date(nextExpiry(s, plan, p.period, Date.now())).toISOString();
+        p.receipt = { id, plan: plan.id, period: p.period, amount: priceOf(plan, p.period), status: 'paid', refId: String(Math.floor(1e8 + Math.random() * 9e8)), card: '6037-99**-****-1234', createdAt: new Date(p.at).toISOString(), paidAt: new Date().toISOString(), expiresAt: until };
+        saveSub(office, { plan: plan.id, trial: false, expiresAt: until, seats: plan.seats, payments: [p.receipt, ...s.payments] });
+      }
+      if (p.receipt) return { ...p.receipt, license: demoLicense(office) };
+      return { id, plan: plan.id, period: p.period, amount: priceOf(plan, p.period), status: 'pending', refId: null, card: null, createdAt: new Date(p.at).toISOString(), paidAt: null, expiresAt: null, license: null };
     },
     async updateProfile(token, p) {
       await wait(300);

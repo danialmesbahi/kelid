@@ -143,6 +143,38 @@ export const migrations: readonly string[] = [
   alter table photo_blobs add column thumb_mime text check (thumb_mime in ('image/webp', 'image/jpeg', 'image/png'));
   alter table photo_blobs add constraint photo_blobs_bytes check (case when stored = 's3' then object_key is not null else bytes is not null and thumb is not null end);
   `,
+  // 8: اشتراک. هر دفتر یک پلن و پایان اعتبار دارد؛ دفتر تازه (و دفترهای موجود) ۱۴ روز آزمایشی با پلن «دفتر» می‌گیرند.
+  // پرداخت‌ها مال دفترند و پشت RLS؛ برگشت از درگاه شناسهٔ دفتر را در نشانی دارد و ردیف را فقط از راه همان دفتر می‌خواند.
+  // amount به ریال، همان که درگاه می‌گیرد. authority شناسهٔ درگاه برای همان پرداخت است.
+  `
+  alter table offices add column plan text not null default 'office' check (plan ~ '^[a-z]{2,20}$');
+  alter table offices add column trial boolean not null default true;
+  alter table offices add column expires_at timestamptz not null default now() + interval '14 days';
+
+  create table payments (
+    office_id uuid not null default kelid_office() references offices (id),
+    id uuid not null,
+    plan text not null check (plan ~ '^[a-z]{2,20}$'),
+    period text not null check (period in ('month', 'year')),
+    amount bigint not null check (amount > 0),
+    gateway text not null check (gateway in ('zarinpal', 'dev')),
+    authority text check (authority ~ '^[A-Za-z0-9_-]{1,64}$'),
+    status text not null default 'pending' check (status in ('pending', 'paid', 'failed', 'canceled')),
+    ref_id text check (length(ref_id) <= 64),
+    card text check (length(card) <= 32),
+    created_by uuid not null references users (id),
+    created_at timestamptz not null default now(),
+    paid_at timestamptz,
+    expires_at timestamptz,
+    primary key (office_id, id)
+  );
+  create index payments_recent on payments (office_id, created_at desc);
+  alter table payments enable row level security;
+  alter table payments force row level security;
+  create policy office_isolation on payments
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

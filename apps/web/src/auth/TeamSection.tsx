@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Icon, Segmented, Skeleton, Switch } from '@kelid/ui';
-import { toFaDigits } from '@kelid/core';
+import { Link } from 'react-router';
+import { PLANS, toFaDigits } from '@kelid/core';
 import { useSlow } from '../data';
 import { useToast } from '../layout/Toasts';
 import { useSyncStatus } from '../sync/state';
@@ -147,6 +148,12 @@ export function TeamSection() {
       {team && (
         <span className="tm-meter" role="meter" aria-label="جاهای پر دفتر" aria-valuemin={0} aria-valuemax={team.seats} aria-valuenow={used}>
           <span style={{ width: `${Math.min(100, (used / team.seats) * 100)}%` }} className={full ? 'full' : ''} />
+        </span>
+      )}
+      {manager && full && team && PLANS.some((p) => p.seats > team.seats) && (
+        <span className="sm mute">
+          همهٔ جاهای دفتر پر است. برای همکار بیشتر،{' '}
+          <Link className="b" style={{ color: 'var(--pri-text)' }} to="/plans" viewTransition>پلن بزرگ‌تر</Link> بگیرید.
         </span>
       )}
 

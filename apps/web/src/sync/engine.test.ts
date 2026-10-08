@@ -54,6 +54,27 @@ describe('SyncEngine', () => {
     expect(eb.getStatus().lastSync).not.toBeNull();
   });
 
+  it('keeps the queue on the device while the subscription has ended, still pulling the office', async () => {
+    const api = demoSyncApi();
+    const a = await device();
+    const b = await device();
+    const theirs = await b.sql.addListing(listing);
+    await new SyncEngine(b.target, api, token, 'o1').run();
+    const mine = await a.sql.addListing({ ...listing, neighborhood: 'تجریش' });
+    const ended: SyncApi = { ...api, push: () => Promise.reject(new ApiError('subscription')), uploadPhoto: () => Promise.reject(new ApiError('subscription')) };
+    const ea = new SyncEngine(a.target, ended, token, 'o1');
+    await ea.run();
+    ea.stop();
+    expect(ea.getStatus()).toMatchObject({ phase: 'held', pending: 1 });
+    expect((await a.sql.getListing(theirs.id))?.neighborhood).toBe('ونک');
+    // تمدید شد: همان صف بی‌کم‌وکاست می‌رود.
+    const renewed = new SyncEngine(a.target, api, token, 'o1');
+    await renewed.run();
+    expect(renewed.getStatus()).toMatchObject({ phase: 'idle', pending: 0 });
+    await new SyncEngine(b.target, api, token, 'o1').run();
+    expect((await b.sql.getListing(mine.id))?.neighborhood).toBe('تجریش');
+  });
+
   it('carries photo bytes across devices, and retries a photo that is not uploaded yet', async () => {
     const api = demoSyncApi();
     const a = await device();

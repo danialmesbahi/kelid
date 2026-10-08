@@ -11,6 +11,7 @@ import { usePrefsContext } from '../App';
 import { useUpdatedToast } from '../updates';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from './Toasts';
+import { LicenseBar, PlanLine } from '../billing/LicenseUi';
 
 const NAV: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
@@ -113,12 +114,8 @@ export function Shell() {
           ))}
         </nav>
         <div className="sp" />
-        <Link to="/settings" className="soft" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: 14 }}>
-          <span className="rw sm" style={{ justifyContent: 'space-between' }}>
-            <span className="b">پلن حرفه‌ای</span>
-            <span className="xs mute num">نسخهٔ آزمایشی</span>
-          </span>
-          <span className="bar"><span style={{ width: '76%' }} /></span>
+        <Link to="/settings" className="soft lic-card" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: 14 }}>
+          <PlanLine />
           {sync ? (
             <span className="rw xs mute" style={{ gap: 6 }} aria-live="polite">
               <span className={sync.phase === 'syncing' ? 'dot sync-pulse' : 'dot'} style={{ background: toneColor[syncText(sync).tone] }} />
@@ -153,6 +150,7 @@ export function Shell() {
           </Link>
         </div>
         <div className="page col" style={{ flex: 1 }}>
+          <LicenseBar />
           <Outlet />
         </div>
       </main>

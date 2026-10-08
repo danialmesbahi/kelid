@@ -107,7 +107,7 @@ export async function seatsLeft(db: Db, officeId: string, exceptPhone: string | 
 }
 
 /** از authRoutes ثبت می‌شود تا همان نگهبان ورود را داشته باشد. */
-export function teamRoutes(app: FastifyInstance, pool: Pool, requireAuth: preHandlerAsyncHookHandler) {
+export function teamRoutes(app: FastifyInstance, pool: Pool, requireAuth: preHandlerAsyncHookHandler, requireActive: preHandlerAsyncHookHandler) {
   // دعوت پیامک نمی‌فرستد، ولی سقف دارد تا کسی با آن شماره‌ها را امتحان نکند.
   const invitesByOffice = new RateLimiter(30, 60 * 60_000);
 
@@ -151,7 +151,8 @@ export function teamRoutes(app: FastifyInstance, pool: Pool, requireAuth: preHan
   app.post(
     '/team/invites',
     {
-      ...guard,
+      // دفتری که اشتراکش تمام شده همکار تازه دعوت نمی‌کند؛ برداشتن و تغییر نقش باز است.
+      preHandler: [requireAuth, managerOnly, requireActive],
       schema: {
         body: {
           type: 'object',

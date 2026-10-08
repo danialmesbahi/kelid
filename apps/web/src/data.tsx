@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { CachedStore, MemoryStore, SqlStore, seed, type KelidStore, type Syncable } from '@kelid/core';
 import { API_URL } from './auth/api';
+import { guardWrites } from './billing/readOnly';
 import { openDriver } from './db/drivers';
 import { Splash } from './layout/Splash';
 
@@ -66,7 +67,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     void openStore().then((s) => {
-      if (!cancelled) setState(s);
+      // با حساب کلید، بعد از پایان اشتراک فقط خواندن؛ بی سرور اشتراکی در کار نیست.
+      if (!cancelled) setState(API_URL ? { ...s, store: guardWrites(s.store) } : s);
     });
     return () => {
       cancelled = true;
