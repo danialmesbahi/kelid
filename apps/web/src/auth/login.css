@@ -2,6 +2,7 @@
 .lg-brand { height: 34px; padding: 0 14px; font-size: 17px; }
 
 .lg-field { max-width: 440px; }
+.lg-one { grid-template-columns: minmax(0, 1fr); max-width: 440px; }
 .lg-phone {
   position: relative; display: flex; align-items: center; gap: 12px; height: 66px; padding: 0 18px;
   border: 1.5px solid var(--line2); border-radius: 18px; background: var(--paper); color: var(--mute);

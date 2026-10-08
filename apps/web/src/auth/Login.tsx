@@ -6,16 +6,17 @@ import { useStore } from '../data';
 import { useToast } from '../layout/Toasts';
 import { usePhone } from '../layout/usePhone';
 import { WelcomeHero } from '../welcome/WelcomeHero';
-import { ApiError, deviceLabel, type Session } from './api';
+import { ApiError, deviceLabel, type InviteInfo, type Session } from './api';
 import { formatPhone, phoneDigits } from './phone';
 import { useAuth } from './AuthContext';
 import '../welcome/welcome.css';
 import './login.css';
 
-export type AuthMode = 'login' | 'signup';
+export type AuthMode = 'login' | 'signup' | 'join';
 /** password: شماره و رمز (راه اصلی). code: ورود با کد پیامکی یا فراموشی رمز. signup: دفتر تازه. */
 type Flow = 'password' | 'code' | 'signup';
-type Step = 'phone' | 'otp' | 'details' | 'code' | 'nouser' | 'newpass';
+/** join: شماره‌ای که دفتری دعوتش کرده، بعد از کد درست. */
+type Step = 'phone' | 'otp' | 'details' | 'code' | 'nouser' | 'newpass' | 'join';
 const LEN = 6;
 const MIN_PASSWORD = 8;
 
@@ -42,7 +43,11 @@ function errorText(e: unknown, step: Step): string {
     case 'offline':
       return 'به اینترنت وصل نیستید. اولین ورود اینترنت می‌خواهد؛ بعد از آن کلید بدون اینترنت هم کار می‌کند.';
     case 'bad_name':
-      return 'نام شما و نام دفتر را بنویسید.';
+      return step === 'join' ? 'نامتان را بنویسید.' : 'نام شما و نام دفتر را بنویسید.';
+    case 'no_seat':
+      return 'در این دفتر جای خالی نمانده. به مدیر دفتر بگویید یک جا آزاد کند، بعد دوباره امتحان کنید.';
+    case 'not_found':
+      return 'این دعوت دیگر برقرار نیست. اگر لازم است، مدیر دفتر دوباره دعوتتان کند؛ یا دفتر خودتان را بسازید.';
     default:
       return 'سرور کلید جواب نداد. چند لحظه بعد دوباره امتحان کنید.';
   }
@@ -82,6 +87,8 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   const [code, setCode] = useState('');
   // کد درست بود ولی شماره حساب نداشت: ساختن دفتر دیگر کد تازه نمی‌خواهد.
   const [ticket, setTicket] = useState('');
+  // دفتری که این شماره را دعوت کرده (بعد از کد درست).
+  const [invite, setInvite] = useState<InviteInfo | null>(null);
   const [name, setName] = useState('');
   const [office, setOffice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -96,7 +103,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   const codeRef = useRef<HTMLInputElement>(null);
   const passRef = useRef<HTMLInputElement>(null);
 
-  const order: Step[] = ['phone', 'otp', 'details', 'code', 'nouser', 'newpass'];
+  const order: Step[] = ['phone', 'otp', 'details', 'code', 'nouser', 'newpass', 'join'];
   const go = (s: Step, f: Flow = flow) => {
     setDir(order.indexOf(s) >= order.indexOf(step) ? 1 : -1);
     setError('');
@@ -205,6 +212,13 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
           setPassword('');
           go('newpass');
         } else await finish(r.session, 'login');
+      } else if (r.invite) {
+        // دعوت شده: پیوستن به همان دفتر راه اصلی است؛ ساختن دفتر جدا هم یک دکمه آن‌طرف‌تر است.
+        setTicket(r.signupToken);
+        setInvite(r.invite);
+        if (!name.trim()) setName(r.invite.name);
+        if (flow !== 'signup') setPassword('');
+        go('join');
       } else if (flow === 'signup') {
         await createOffice(r.signupToken);
       } else {
@@ -245,6 +259,28 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     }
   };
 
+  /** پیوستن به دفتری که دعوت کرده: نام و رمز، بی‌کد دوباره. */
+  const joinOffice = async () => {
+    if (!api || busy || !invite) return;
+    if (!name.trim()) return void fail(new ApiError('bad_name'));
+    if (password.length < MIN_PASSWORD) return fail(new ApiError('bad_password')), passRef.current?.focus();
+    setBusy(true);
+    setError('');
+    try {
+      await finish(await api.join(ticket, name.trim(), password, deviceLabel()), 'join');
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'expired') {
+        // بلیت ربع ساعت اعتبار دارد؛ بعدش یک کد تازه.
+        setTicket('');
+        setInvite(null);
+        go('otp', 'code');
+      } else if (e instanceof ApiError && e.code === 'not_found') setInvite(null);
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /** ثبت‌نام: با شماره‌ای که همین الان تأیید شده دیگر کد نمی‌خواهد. */
   const submitDetails = async () => {
     if (!validDetails()) return;
@@ -269,6 +305,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     else if (step === 'details') void submitDetails();
     else if (step === 'code') void verify();
     else if (step === 'newpass') void saveNewPassword();
+    else if (step === 'join') void (invite ? joinOffice() : go('details', 'signup'));
     else go('details', 'signup');
   };
 
@@ -282,6 +319,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
 
   const switchTo = (f: Flow, isForgot = false) => {
     setTicket('');
+    setInvite(null);
     setCode('');
     setForgot(isForgot);
     if (f !== 'code') setPassword('');
@@ -289,10 +327,13 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   };
 
   // ورود با رمز یک صفحه است و نقطهٔ قدم ندارد.
-  const steps: Step[] = flow === 'signup' ? ['details', 'code'] : flow === 'code' ? (forgot || step === 'newpass' ? ['otp', 'code', 'newpass'] : ['otp', 'code']) : [];
+  const steps: Step[] =
+    step === 'join'
+      ? flow === 'signup' ? ['details', 'code', 'join'] : ['otp', 'code', 'join']
+      : flow === 'signup' ? ['details', 'code'] : flow === 'code' ? (forgot || step === 'newpass' ? ['otp', 'code', 'newpass'] : ['otp', 'code']) : [];
   const idx = step === 'nouser' ? 1 : steps.indexOf(step);
   const back: Step | null =
-    step === 'code' ? (flow === 'signup' ? 'details' : 'otp') : step === 'otp' ? 'phone' : step === 'nouser' ? 'otp' : step === 'details' && ticket ? 'nouser' : null;
+    step === 'code' ? (flow === 'signup' ? 'details' : 'otp') : step === 'otp' ? 'phone' : step === 'nouser' ? 'otp' : step === 'details' && ticket ? (invite ? 'join' : 'nouser') : null;
   const backFlow = (s: Step): Flow => (s === 'phone' ? 'password' : s === 'otp' || s === 'nouser' ? 'code' : flow);
 
   const phoneBad = !!error && (errCode === 'bad_phone' || step === 'otp');
@@ -325,7 +366,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
 
   return (
     <div className={`wl lg${leaving ? ' out' : ''}`} role="dialog" aria-modal="true" aria-labelledby="lg-title">
-      <WelcomeHero office={flow === 'signup' ? office : ''} />
+      <WelcomeHero office={step === 'join' ? (invite?.officeName ?? '') : flow === 'signup' ? office : ''} />
 
       <form className="wl-main" onSubmit={submit} noValidate>
         <header className="wl-top">
@@ -486,6 +527,47 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
             </>
           )}
 
+          {step === 'join' && (
+            <>
+              <span className="eb">دعوت به دفتر</span>
+              {invite ? (
+                <>
+                  <h1 id="lg-title" className="wl-h">به «{invite.officeName}» بپیوندید</h1>
+                  <p className="wl-lead">
+                    {invite.invitedBy} شما را به‌عنوان <b>{invite.role === 'manager' ? 'مدیر' : 'مشاور'}</b> به دفتر دعوت کرده است. نامتان را ببینید و یک رمز عبور بگذارید.
+                  </p>
+                  <div className="wl-fields lg-one">
+                    <label className="lbl">نام شما<input className="fld wl-fld" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} enterKeyHint="next" placeholder="مثلاً سارا نوری" autoComplete="name" /></label>
+                  </div>
+                  {phoneField}
+                  <PasswordField
+                    inputRef={passRef}
+                    label="رمز عبور برای ورودهای بعدی"
+                    value={password}
+                    onChange={(v) => {
+                      setPassword(v);
+                      if (error) setError('');
+                    }}
+                    autoComplete="new-password"
+                    bad={errCode === 'bad_password'}
+                    shake={shake && errCode === 'bad_password'}
+                    onShakeEnd={() => setShake(false)}
+                    aside={<span className="xs mute">دست‌کم {toFaDigits(MIN_PASSWORD)} نویسه</span>}
+                  />
+                  <Message id="lg-msg" error={error}>
+                    <Icon name="check" size="s" />
+                    شماره‌تان همین الان تأیید شد؛ کد دوباره لازم نیست.
+                  </Message>
+                </>
+              ) : (
+                <>
+                  <h1 id="lg-title" className="wl-h">دعوت برقرار نیست</h1>
+                  <Message id="lg-msg" error={error} />
+                </>
+              )}
+            </>
+          )}
+
           {step === 'newpass' && (
             <>
               <span className="eb">{forgot ? 'فراموشی رمز · قدم ۳' : 'وارد شدید'}</span>
@@ -516,6 +598,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
         <footer className="wl-ft">
           {back && <button type="button" className="btn btn-g btn-lg" onClick={() => go(back, backFlow(back))} disabled={busy}>{step === 'nouser' ? 'شمارهٔ دیگر' : 'قبلی'}</button>}
           {step === 'newpass' && <button type="button" className="btn btn-g btn-lg" onClick={() => void saveNewPassword(true)} disabled={busy}>بعداً</button>}
+          {step === 'join' && invite && <button type="button" className="btn btn-g btn-lg" onClick={() => go('details', 'signup')} disabled={busy}>دفتر جدا می‌سازم</button>}
           <span className="sp" />
           <button type="submit" className="btn btn-p btn-lg wl-primary" disabled={busy || (step === 'code' && code.length < LEN)} aria-busy={busy}>
             {busy
@@ -525,6 +608,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
               : step === 'details' ? (ticket ? 'ساختن دفتر و ورود' : 'دریافت کد')
               : step === 'code' ? (flow === 'signup' ? 'ساختن دفتر' : 'ورود')
               : step === 'newpass' ? 'ذخیره و ورود'
+              : step === 'join' && invite ? 'پیوستن به دفتر'
               : 'ساختن دفتر تازه'}
             <Icon name="chl" size="s" />
           </button>

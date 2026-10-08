@@ -62,7 +62,9 @@ describe('SyncEngine', () => {
     const [p] = await a.sql.addPhotos(l.id, [{ mime: 'image/webp', width: 4, height: 3, bytes: new Uint8Array([7, 7, 7]), thumb: new Uint8Array([7]) }]);
     // a فقط مشخصات را فرستاد و پیش از بالا رفتن عکس افتاد
     const noPhotos: SyncApi = { ...api, uploadPhoto: () => Promise.reject(new ApiError('offline')) };
-    await new SyncEngine(a.target, noPhotos, token, 'o1').run();
+    const dropped = new SyncEngine(a.target, noPhotos, token, 'o1');
+    await dropped.run();
+    dropped.stop(); // دور دوبارهٔ زمان‌بندی‌شده بعد از بسته شدن دیتابیس اجرا نشود
     const eb = new SyncEngine(b.target, api, token, 'o1');
     await eb.run();
     expect(eb.getStatus().phase).toBe('idle');
@@ -111,5 +113,45 @@ describe('SyncEngine', () => {
     eb.stop();
     // دوری که هنوز در راه است پیش از بسته شدن دیتابیس تمام شود
     await eb.run();
+  });
+
+  it('drops owner phones when the permission is taken away, and gets them back when it is given', async () => {
+    const base = demoSyncApi();
+    let phones = true;
+    const api: SyncApi = {
+      ...base,
+      pull: async (t, cursor, limit) => {
+        const page = await base.pull(t, cursor, limit);
+        const hide = (f: Record<string, unknown>) => ({ ...f, owner: { ...(f.owner as object), phone: '' } });
+        return { ...page, entities: page.entities.map((e) => (phones || e.kind !== 'listing' ? e : { ...e, fields: hide(e.fields) })), ownerPhones: phones };
+      },
+    };
+    const a = await device();
+    const b = await device();
+    const made = await a.sql.addListing(listing);
+    await new SyncEngine(a.target, api, token, 'o1').run();
+    const eb = new SyncEngine(b.target, api, token, 'o1');
+    await eb.run();
+    expect((await b.sql.getListing(made.id))?.owner.phone).toBe('0912');
+
+    phones = false;
+    await eb.run();
+    expect((await b.sql.getListing(made.id))?.owner).toEqual({ name: 'مالک', phone: '' });
+
+    phones = true;
+    await eb.run();
+    expect((await b.sql.getListing(made.id))?.owner.phone).toBe('0912');
+  });
+
+  it('sends nothing with a token of another office', async () => {
+    const a = await device();
+    await a.sql.addListing(listing);
+    let pushed = 0;
+    const api: SyncApi = { ...demoSyncApi(), push: async () => (pushed++, { hlc: null }) };
+    const jwt = `h.${btoa(JSON.stringify({ sub: 'u', off: 'o2', dev: 'd' })).replace(/=+$/, '')}.s`;
+    const e = new SyncEngine(a.target, api, (fn) => fn(jwt), 'o1');
+    await e.run();
+    expect(e.getStatus().phase).toBe('blocked');
+    expect(pushed).toBe(0);
   });
 });

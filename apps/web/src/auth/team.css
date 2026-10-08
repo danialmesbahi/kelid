@@ -1,0 +1,51 @@
+/* همکاران دفتر در تنظیمات؛ ردیف‌ها آرام، کنترل‌ها فقط در «تغییر». روی گوشی برچسب‌ها و دکمه‌ها زیر نام می‌روند. */
+.tm-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 14px; row-gap: 10px; }
+.tm-ic { width: 52px; height: 52px; border: 0; border-radius: 16px; background: var(--pri-tint); color: var(--pri-text); }
+.tm-meter { display: block; height: 6px; border-radius: 99px; background: var(--sunk); overflow: hidden; }
+.tm-meter > span { display: block; height: 100%; border-radius: inherit; background: var(--pri); transition: width .3s var(--ease-out); }
+.tm-meter > span.full { background: var(--warn); }
+.tm-row { display: flex; flex-direction: column; gap: 12px; padding: 10px 14px; border-radius: 14px; }
+.tm-inv { border: 1px dashed var(--line2); }
+.tm-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: 12px; row-gap: 8px; }
+.tm-who { min-width: 0; line-height: 1.6; }
+.tm-sub { display: flex; flex-wrap: wrap; gap: 0 6px; }
+.tm-sub > * { white-space: nowrap; }
+/* جداکننده نقطهٔ گرد، نه «·» که کنار رقم فارسی شبیه صفر است. */
+.tm-sub > * + *::before { content: ''; display: inline-block; width: 3px; height: 3px; margin-inline: 2px 8px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.tm-num { unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+.tm-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.tm-tags .tag { height: 26px; font-size: 12.5px; }
+.tm-wait { background: transparent; border: 1px dashed var(--line2); color: var(--mute); }
+.tm-inv-act { display: flex; align-items: center; gap: 4px; }
+.tm-editor { display: flex; flex-direction: column; gap: 14px; padding: 14px 0 4px; border-top: 1px solid var(--line); }
+.tm-field { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 6px 14px; }
+.tm-field > .seg, .tm-field > .rw { justify-self: start; }
+.tm-hint { grid-column: 2; line-height: 1.8; }
+.tm-remove { display: flex; justify-content: flex-start; }
+.tm-remove > .acc-ask { justify-content: flex-start; }
+.tm-remove > .acc-ask > .xs { text-align: start; }
+.tm-danger { display: inline-flex; align-items: center; gap: 6px; padding: 4px 0; border: 0; background: none; color: var(--bad) !important; }
+.tm-form { display: flex; flex-direction: column; gap: 16px; padding: 18px; border-radius: 16px; }
+.tm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+.tm-sent { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 14px; row-gap: 10px; padding: 12px 16px; border-radius: 14px; }
+.tm-sent > .ic { color: var(--ok); }
+.tm-invite { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 14px; row-gap: 10px; padding: 14px 16px; border-radius: 14px; background: var(--warn-tint); color: var(--ink); }
+.tm-invite > .ic { color: var(--warn); }
+.tm-warn { color: var(--warn); font-weight: 600; }
+.tm-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; line-height: 1.8; }
+.tm-note > .ic { flex: none; margin-top: 4px; }
+@media (max-width: 767px) {
+  .tm-head { grid-template-columns: auto minmax(0, 1fr); }
+  .tm-head > .btn { grid-column: 1 / -1; justify-self: start; }
+  .tm-line { grid-template-columns: auto minmax(0, 1fr); }
+  .tm-line > .tm-tags { grid-column: 2; justify-content: flex-start; }
+  .tm-line > .tm-edit-btn, .tm-line > .tm-inv-act { grid-column: 2; justify-self: start; }
+  .tm-field { grid-template-columns: minmax(0, 1fr); }
+  .tm-hint { grid-column: 1; }
+  .tm-grid { grid-template-columns: minmax(0, 1fr); }
+  .tm-sent, .tm-invite { grid-template-columns: auto minmax(0, 1fr); }
+  .tm-sent > .acc-ask, .tm-invite > .acc-ask { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-meter > span { transition: none; }
+}

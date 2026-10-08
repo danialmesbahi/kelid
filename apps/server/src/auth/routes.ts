@@ -4,6 +4,7 @@ import { transaction as tx, withOffice, type Db, type Pool } from '../db';
 import { hashPassword, passwordOk, verifyPassword, PASSWORD_MAX } from './password';
 import { normalizePhone } from './phone';
 import { RateLimiter } from './rateLimit';
+import { lockTeam, pendingInvite, placeUser, seatsLeft, teamRoutes, type InviteInfo, type Role } from './team';
 import type { SmsSender } from './sms';
 import { kickDevice } from '../sync/live';
 import { deriveKey, otpCode, otpHash, randomToken, safeEqual, sha256, signAccess, verifyAccess, type AccessClaims } from './tokens';
@@ -28,18 +29,25 @@ export interface AuthOptions {
   devCodes?: boolean;
 }
 
+export type { InviteInfo, Role };
+
 export interface Session {
   accessToken: string;
   accessExpiresIn: number;
   refreshToken: string;
   deviceId: string;
-  user: { id: string; name: string; phone: string; hasPassword: boolean };
+  /** seeOwnerPhones همان اجازهٔ مؤثر است: مدیر همیشه می‌بیند. */
+  user: { id: string; name: string; phone: string; hasPassword: boolean; role: Role; seeOwnerPhones: boolean };
   office: { id: string; name: string };
+  /** دعوت دفتر دیگری برای این شماره، اگر باشد. */
+  invite: InviteInfo | null;
 }
 
 declare module 'fastify' {
   interface FastifyRequest {
     auth: AccessClaims | null;
+    /** نقش و اجازهٔ همین لحظهٔ کاربر از دیتابیس، نه از توکن؛ تغییر نقش بی‌درنگ اثر دارد. */
+    member: { role: Role; ownerPhones: boolean } | null;
   }
 }
 
@@ -54,10 +62,16 @@ export function authGuard(pool: Pool, jwtSecret: string) {
     const h = req.headers.authorization;
     const claims = h?.startsWith('Bearer ') ? verifyAccess(accessKey, h.slice(7)) : null;
     if (!claims) return reply.status(401).send({ error: 'unauthorized' });
-    // دستگاهی که از فهرست حذف شد همان لحظه بیرون می‌افتد، نه بعد از پایان عمر توکن.
-    const { rowCount } = await pool.query('select 1 from devices where id = $1 and user_id = $2 and revoked_at is null', [claims.dev, claims.sub]);
-    if (!rowCount) return reply.status(401).send({ error: 'unauthorized' });
+    // دستگاهی که از فهرست حذف شد، کسی که از دفتر برداشته شد یا به دفتر دیگری رفت، همان لحظه بیرون می‌افتد، نه بعد از پایان عمر توکن.
+    const { rows } = await pool.query<{ role: Role; phones: boolean }>(
+      `select u.role, (u.role = 'manager' or u.see_owner_phones) as phones from devices d join users u on u.id = d.user_id
+        where d.id = $1 and d.user_id = $2 and d.revoked_at is null and u.removed_at is null and u.office_id = $3`,
+      [claims.dev, claims.sub, claims.off],
+    );
+    const m = rows[0];
+    if (!m) return reply.status(401).send({ error: 'unauthorized' });
     req.auth = claims;
+    req.member = { role: m.role, ownerPhones: m.phones };
   };
 }
 
@@ -142,13 +156,14 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
         }
         await db.query('update otp_codes set code_hash = null where phone = $1', [phone]);
 
-        const user = await db.query<{ id: string; office_id: string }>('select id, office_id from users where phone = $1', [phone]);
+        const user = await db.query<{ id: string; office_id: string }>('select id, office_id from users where phone = $1 and removed_at is null', [phone]);
         const u = user.rows[0];
         if (u) return { session: await startSession(db, u.id, u.office_id, body.deviceName, true) };
         const ticket = randomToken();
         await db.query('insert into signup_tickets (hash, phone, expires_at) values ($1, $2, now() + make_interval(secs => $3))', [sha256(ticket), phone, SIGNUP_TTL]);
         await db.query('delete from signup_tickets where expires_at < now()');
-        return { signupToken: ticket };
+        // شماره همین الان ثابت شد؛ حالا می‌شود گفت کدام دفتر دعوتش کرده.
+        return { signupToken: ticket, invite: await pendingInvite(db, phone, null) };
       });
       if ('error' in result) return reply.status(400).send(result);
       return 'session' in result ? result.session : result;
@@ -174,14 +189,16 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
         const t = await db.query<{ phone: string }>('delete from signup_tickets where hash = $1 and expires_at > now() returning phone', [sha256(body.signupToken)]);
         const phone = t.rows[0]?.phone;
         if (!phone) return null;
-        const existing = await db.query<{ id: string; office_id: string }>('select id, office_id from users where phone = $1', [phone]);
+        const existing = await db.query<{ id: string; office_id: string; removed: boolean }>('select id, office_id, removed_at is not null as removed from users where phone = $1', [phone]);
+        const old = existing.rows[0];
         // شماره از قبل حساب داشت: همان حساب باز می‌شود و رمزش دست نمی‌خورد (شماره همین الان با کد تأیید شده).
-        if (existing.rows[0]) return startSession(db, existing.rows[0].id, existing.rows[0].office_id, body.deviceName, true);
+        if (old && !old.removed) return startSession(db, old.id, old.office_id, body.deviceName, true);
         const officeId = randomUUID();
-        const userId = randomUUID();
         await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
         await db.query('insert into offices (id, name) values ($1, $2)', [officeId, officeName]);
-        await db.query('insert into users (id, office_id, phone, name, password_hash) values ($1, $2, $3, $4, $5)', [userId, officeId, phone, name, hash]);
+        const userId = await placeUser(db, old?.id ?? null, { officeId, phone, name, hash, role: 'manager', seeOwnerPhones: true });
+        // دفتر خودش را ساخت: دعوت‌های دیگر یعنی «نه، ممنون».
+        await db.query('delete from invites where phone = $1', [phone]);
         return startSession(db, userId, officeId, body.deviceName, true);
       });
       if (!session) return reply.status(400).send({ error: 'expired' });
@@ -197,7 +214,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     if (ipWait) return limited(reply, ipWait);
 
     const { rows } = await pool.query<{ id: string; office_id: string; password_hash: string | null; locked: number }>(
-      `select id, office_id, password_hash, greatest(0, ceil(extract(epoch from locked_until - now())))::int as locked from users where phone = $1`,
+      `select id, office_id, password_hash, greatest(0, ceil(extract(epoch from locked_until - now())))::int as locked from users where phone = $1 and removed_at is null`,
       [phone],
     );
     const u = rows[0];
@@ -249,6 +266,8 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
       const name = body.name?.trim();
       const officeName = body.officeName?.trim();
       if (name === '' || officeName === '') return reply.status(400).send({ error: 'bad_name' });
+      // نام دفتر را فقط مدیر عوض می‌کند.
+      if (officeName !== undefined && req.member!.role !== 'manager') return reply.status(403).send({ error: 'forbidden' });
       const { sub, off } = req.auth!;
       if (name !== undefined) await pool.query('update users set name = $2 where id = $1', [sub, name]);
       // جدول دفترها پشت RLS است؛ فقط دفتر خود کاربر.
@@ -267,7 +286,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
                 d.rotated_at > now() - make_interval(secs => $2) as in_grace,
                 d.last_seen_at < now() - make_interval(days => $3) as idle
            from devices d join users u on u.id = d.user_id
-          where (d.refresh_hash = $1 or d.prev_refresh_hash = $1) and d.revoked_at is null
+          where (d.refresh_hash = $1 or d.prev_refresh_hash = $1) and d.revoked_at is null and u.removed_at is null
           for update of d`,
         [hash, REUSE_GRACE, REFRESH_IDLE_DAYS],
       );
@@ -310,6 +329,76 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     },
   );
 
+  /** شمارهٔ تازه‌ای که دعوت شده، بعد از کد درست: نام و رمز، و عضو همان دفتر می‌شود (جا از وقت دعوت برایش نگه داشته شده). */
+  app.post(
+    '/auth/join',
+    { schema: bodySchema({ signupToken: { type: 'string', maxLength: 100 }, name: { type: 'string', maxLength: 100 }, deviceName, password }, ['signupToken', 'name', 'deviceName', 'password']) },
+    async (req, reply) => {
+      const body = req.body as { signupToken: string; name: string; deviceName: string; password: string };
+      const name = body.name.trim();
+      if (!name) return reply.status(400).send({ error: 'bad_name' });
+      if (!passwordOk(body.password)) return reply.status(400).send({ error: 'bad_password' });
+      const hash = await hashPassword(body.password);
+      const result = await tx(pool, async (db) => {
+        const t = await db.query<{ phone: string }>('select phone from signup_tickets where hash = $1 and expires_at > now() for update', [sha256(body.signupToken)]);
+        const phone = t.rows[0]?.phone;
+        if (!phone) return { error: 'expired' as const };
+        const inv = await db.query<{ office_id: string; role: Role; see_owner_phones: boolean }>(
+          'select office_id, role, see_owner_phones from invites where phone = $1 order by created_at desc limit 1',
+          [phone],
+        );
+        const invite = inv.rows[0];
+        // دعوت در این فاصله لغو شد؛ بلیت می‌ماند تا بشود دفتر تازه ساخت.
+        if (!invite) return { error: 'not_found' as const };
+        await lockTeam(db, invite.office_id);
+        if ((await seatsLeft(db, invite.office_id, phone)) <= 0) return { error: 'no_seat' as const };
+        await db.query('delete from signup_tickets where hash = $1', [sha256(body.signupToken)]);
+        const existing = await db.query<{ id: string; office_id: string; removed: boolean }>('select id, office_id, removed_at is not null as removed from users where phone = $1', [phone]);
+        const old = existing.rows[0];
+        if (old && !old.removed) return { session: await startSession(db, old.id, old.office_id, body.deviceName, true) };
+        const userId = await placeUser(db, old?.id ?? null, { officeId: invite.office_id, phone, name, hash, role: invite.role, seeOwnerPhones: invite.see_owner_phones });
+        await db.query('delete from invites where phone = $1', [phone]);
+        return { session: await startSession(db, userId, invite.office_id, body.deviceName, true) };
+      });
+      if ('error' in result) return reply.status(result.error === 'no_seat' ? 409 : 400).send(result);
+      return result.session;
+    },
+  );
+
+  /**
+   * کسی که در کلید دفتر خودش را دارد و دفتر دیگری دعوتش کرده: به آن دفتر می‌رود. فقط اگر در دفتر فعلی‌اش تنهاست؛
+   * وگرنه مدیر دفتر فعلی باید اول برش دارد. دستگاه‌های دیگرش با تمدید بعدی به دفتر تازه می‌روند.
+   */
+  app.post('/auth/invite/accept', { preHandler: requireAuth }, async (req, reply) => {
+    const { sub, off, dev } = req.auth!;
+    const result = await tx(pool, async (db) => {
+      const me = await db.query<{ phone: string }>('select phone from users where id = $1 for update', [sub]);
+      const phone = me.rows[0]?.phone ?? '';
+      const inv = await db.query<{ office_id: string; role: Role; see_owner_phones: boolean }>(
+        'select office_id, role, see_owner_phones from invites where phone = $1 and office_id <> $2 order by created_at desc limit 1',
+        [phone, off],
+      );
+      const invite = inv.rows[0];
+      if (!invite) return { error: 'not_found' as const };
+      const others = await db.query('select 1 from users where office_id = $1 and removed_at is null and id <> $2 limit 1', [off, sub]);
+      if (others.rowCount) return { error: 'not_alone' as const };
+      await lockTeam(db, invite.office_id);
+      if ((await seatsLeft(db, invite.office_id, phone)) <= 0) return { error: 'no_seat' as const };
+      await db.query('update users set office_id = $2, role = $3, see_owner_phones = $4 where id = $1', [sub, invite.office_id, invite.role, invite.see_owner_phones]);
+      await db.query('delete from invites where phone = $1', [phone]);
+      return { session: await rotate(db, dev, sub, invite.office_id) };
+    });
+    if ('error' in result) return reply.status(result.error === 'not_found' ? 404 : 409).send(result);
+    return result.session;
+  });
+
+  app.post('/auth/invite/decline', { preHandler: requireAuth }, async (req, reply) => {
+    await pool.query('delete from invites where office_id <> $2 and phone = (select phone from users where id = $1)', [req.auth!.sub, req.auth!.off]);
+    return reply.status(204).send();
+  });
+
+  teamRoutes(app, pool, requireAuth);
+
   async function startSession(db: Db, userId: string, officeId: string, name: string, viaOtp: boolean): Promise<Session> {
     const deviceId = randomUUID();
     const refresh = randomToken();
@@ -327,7 +416,12 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
   }
 
   async function session(db: Db, deviceId: string, userId: string, officeId: string, refreshToken: string): Promise<Session> {
-    const u = await db.query<{ name: string; phone: string; has_password: boolean }>('select name, phone, password_hash is not null as has_password from users where id = $1', [userId]);
+    const u = await db.query<{ name: string; phone: string; has_password: boolean; role: Role; phones: boolean }>(
+      `select name, phone, password_hash is not null as has_password, role, (role = 'manager' or see_owner_phones) as phones from users where id = $1`,
+      [userId],
+    );
+    const me = u.rows[0];
+    const invite = me ? await pendingInvite(db, me.phone, officeId) : null;
     // نام دفتر پشت RLS است؛ فقط در تراکنشی که دفتر خودش تنظیم شده دیده می‌شود.
     await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
     const o = await db.query<{ name: string }>('select name from offices where id = $1', [officeId]);
@@ -336,8 +430,9 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
       accessExpiresIn: ACCESS_TTL,
       refreshToken,
       deviceId,
-      user: { id: userId, name: u.rows[0]?.name ?? '', phone: u.rows[0]?.phone ?? '', hasPassword: u.rows[0]?.has_password ?? false },
+      user: { id: userId, name: me?.name ?? '', phone: me?.phone ?? '', hasPassword: me?.has_password ?? false, role: me?.role ?? 'agent', seeOwnerPhones: me?.phones ?? false },
       office: { id: officeId, name: o.rows[0]?.name ?? '' },
+      invite,
     };
   }
 }
