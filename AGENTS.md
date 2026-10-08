@@ -75,6 +75,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 - Never load anything from external CDNs or Google Fonts (blocked/unstable in Iran). Bundle all assets.
 - Electron renderer stays sandboxed: `contextIsolation`, `sandbox`, no `nodeIntegration`. The renderer reaches native code **only** through `window.kelid` from `preload.ts`; add IPC channels there and in `database.ts` with input validation.
 - The desktop DB key is protected by Windows DPAPI (`safeStorage`) — never log it, never write it in plain text.
+- Desktop updates install only when signed with the release key (`apps/desktop/src/updateSignature.ts`); ship releases through `npm run release -w @kelid/desktop` (docs/ARCHITECTURE.md → Releasing). The private key never enters the repo.
 - No secrets in the repo. Config goes in `.env` (git-ignored); document new variables in `.env.example`.
 - Native npm modules must ship prebuilt binaries (no Visual Studio / node-gyp on dev machines). npm 12 blocks install scripts unless listed under `allowScripts` in the root `package.json`.
 
@@ -104,4 +105,4 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 ## Status (update when a phase item lands)
 - Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, app icon, lint + e2e in CI, phone layout + PWA, listing photos, listing editing, clients, visits/to-dos done.
-- Phase 2 🟡 server scaffold (Fastify + Postgres RLS), phone + password login (SMS code as the second way), offline-first sync (HLC per-field merge, photo bytes, per-office device guard) done; deploy · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals done; map, auto-update · Phase 5 beta.
+- Phase 2 🟡 server scaffold (Fastify + Postgres RLS), phone + password login (SMS code as the second way), offline-first sync (HLC per-field merge, photo bytes, per-office device guard) done; deploy · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals, Windows auto-update done; map · Phase 5 beta.

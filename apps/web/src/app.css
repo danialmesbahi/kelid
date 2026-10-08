@@ -202,3 +202,6 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
 /* برگهٔ «بیشتر» گوشی */
 .more-sheet { padding: 10px 12px max(14px, env(safe-area-inset-bottom)); gap: 4px; }
 .more-sheet .nav { height: 54px; font-size: 16px; }
+
+/* تازه‌های نسخهٔ برنامهٔ ویندوز */
+.upd-notes { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 4px; line-height: 1.8; font-size: 14px; color: var(--ink2); }

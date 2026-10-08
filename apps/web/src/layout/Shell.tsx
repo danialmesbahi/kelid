@@ -8,6 +8,7 @@ import { syncText, toneColor, useSyncStatus } from '../sync/state';
 import { clientsQuery, coverThumbsQuery, filesQuery, navCountsQuery, paletteQuery } from '../queries';
 import { CommandPalette } from './CommandPalette';
 import { usePrefsContext } from '../App';
+import { useUpdatedToast } from '../updates';
 
 const NAV: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
@@ -44,6 +45,7 @@ export function Shell() {
   const counts = useQuery(navCountsQuery.key, navCountsQuery.fn);
   const store = useStore();
   const { officeName, userName } = usePrefsContext();
+  useUpdatedToast();
 
   // بعد از اولین نقاشی، دادهٔ صفحه‌های دیگر در وقت آزاد آماده می‌شود تا رفتن به آن‌ها مکث نداشته باشد.
   useEffect(() => {

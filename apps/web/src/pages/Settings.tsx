@@ -8,6 +8,7 @@ import type { TextSize, ThemePref } from '../prefs';
 import { AccountSection } from '../auth/AccountSection';
 import { useAuth } from '../auth/AuthContext';
 import { flushProfile, queueProfile } from '../auth/profile';
+import { UpdateSection } from '../updates';
 
 const whereText = {
   desktop: { title: 'روی همین کامپیوتر، رمزگذاری‌شده', detail: 'دیتابیس با AES-256 رمز شده و کلیدش را خود ویندوز برای حساب کاربری شما نگه می‌دارد.' },
@@ -114,6 +115,8 @@ export function SettingsPage() {
           </div>
         )}
       </section>
+
+      <UpdateSection />
 
       <section aria-labelledby="sub" className="card" style={{ padding: 24, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
         <span className="ib" style={{ width: 52, height: 52, border: 0, background: 'var(--pri-tint)', color: 'var(--pri-text)', borderRadius: 16 }}><Icon name="gem" size="l" /></span>
