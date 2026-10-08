@@ -1,0 +1,634 @@
+/* پنل فروشنده؛ رنگ‌ها، گوشه‌ها و فاصله‌ها فقط از توکن‌های kelid.css. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 10, 0.42);
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.ad-shell .side {
+  flex: 0 0 248px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.ad-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.ad-me .ib {
+  width: 36px;
+  height: 36px;
+}
+.ad-ell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ph-n {
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+.ad-ok {
+  color: var(--ok);
+}
+.ad-warn {
+  color: var(--warn);
+}
+.ad-bad {
+  color: var(--bad);
+}
+
+/* ورود */
+.ad-login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+.ad-login-card {
+  width: min(420px, 100%);
+  padding: 30px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: var(--sh-lg);
+}
+.ad-pass {
+  position: relative;
+  display: block;
+}
+.ad-pass .fld {
+  padding-left: 52px;
+}
+.ad-pass .ib {
+  position: absolute;
+  left: 4px;
+  top: 3px;
+}
+.ad-code {
+  font-size: 22px;
+  letter-spacing: 0.35em;
+  text-align: center;
+}
+.ad-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--sunk);
+  color: var(--ink2);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.ad-note .ic {
+  margin-top: 4px;
+}
+.ad-note.bad {
+  background: var(--bad-tint);
+  color: var(--bad);
+}
+
+/* آمار */
+.ad-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 1.5fr);
+  gap: 12px;
+}
+.ad-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px 16px;
+  text-align: start;
+  border-radius: 16px;
+  min-width: 0;
+}
+button.ad-stat {
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.2s var(--ease-out, ease);
+}
+button.ad-stat:hover {
+  border-color: var(--line2);
+}
+button.ad-stat.on {
+  border-color: var(--pri);
+  box-shadow: 0 0 0 1px var(--pri);
+}
+.ad-stat-n {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.35;
+  font-feature-settings: 'tnum';
+}
+.ad-money {
+  color: var(--deep-ink);
+}
+.ad-money > .sm,
+.ad-money > .xs {
+  color: var(--deep-mute);
+}
+
+/* ابزار فهرست */
+.ad-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.ad-search {
+  position: relative;
+  flex: 1 1 280px;
+  max-width: 420px;
+  display: block;
+}
+.ad-search > .ic {
+  position: absolute;
+  right: 14px;
+  top: 17px;
+  color: var(--mute);
+  pointer-events: none;
+}
+.ad-search .fld {
+  height: 46px;
+  padding-right: 40px;
+  padding-left: 40px;
+}
+.ad-search .kbd {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+}
+.ad-search .fld::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* جدول */
+.ad-table {
+  overflow: hidden;
+}
+.ad-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  min-height: 64px;
+}
+.ad-prow {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 1.3fr);
+}
+.stagger > .ad-row:last-child {
+  border-bottom: 0;
+}
+.ad-head {
+  min-height: 0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: var(--paper2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mute);
+}
+.skel-row {
+  min-height: 64px;
+}
+a.ad-row:focus-visible {
+  outline-offset: -2px;
+}
+.ad-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--mute);
+  text-align: center;
+}
+
+/* صفحهٔ دفتر */
+.ad-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  margin-bottom: 4px;
+  color: var(--mute) !important;
+  font-weight: 600;
+}
+.ad-back:hover {
+  color: var(--ink) !important;
+}
+.ad-facts-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+/* جداکننده نقطهٔ گرد، نه «·» که کنار رقم فارسی شبیه صفر است. */
+.ad-facts-line > * + *::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-inline: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+.ad-acts {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ad-danger {
+  color: var(--bad) !important;
+}
+.ad-btn-bad {
+  background: var(--bad);
+  color: var(--paper) !important;
+}
+.ad-btn-bad:hover {
+  filter: brightness(1.08);
+}
+.ad-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--warn-tint);
+  line-height: 1.8;
+}
+.ad-banner.bad {
+  background: var(--bad-tint);
+}
+.ad-banner.bad > .ic {
+  color: var(--bad);
+  margin-top: 3px;
+}
+.ad-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ad-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.ad-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ad-notebox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.ad-notebox .fld {
+  font-size: 15px;
+}
+.ad-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ad-timeline li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.ad-tl-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sunk);
+  color: var(--ink2);
+}
+.k-extend .ad-tl-ic,
+.k-resume .ad-tl-ic {
+  background: var(--pri-tint);
+  color: var(--pri-text);
+}
+.k-suspend .ad-tl-ic {
+  background: var(--bad-tint);
+  color: var(--bad);
+}
+.ad-note-body {
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ad-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ad-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.ad-list li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.ad-list .av {
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+}
+.ad-invite .av {
+  background: transparent;
+  border: 1px dashed var(--line2);
+  color: var(--mute);
+}
+
+/* پنجره‌ها */
+.ad-ov {
+  padding: 48px 16px;
+  overflow-y: auto;
+}
+.ad-dlg {
+  width: min(480px, 100%);
+  background: var(--paper);
+  border-radius: 22px;
+  box-shadow:
+    var(--sh-lg),
+    0 0 0 1px var(--line);
+}
+.ad-dlg.wide {
+  width: min(600px, 100%);
+}
+.ad-dlg:focus {
+  outline: none;
+}
+.ad-dlg-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 22px 8px;
+}
+.ad-dlg-bd {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 8px 22px 22px;
+}
+.ad-dlg-ft {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+.ad-fs {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ad-fs > legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.ad-plans {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.ad-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.2s;
+}
+.ad-plan:hover {
+  border-color: var(--line2);
+}
+.ad-plan.on {
+  border-color: var(--pri);
+  box-shadow: 0 0 0 1px var(--pri);
+  background: var(--sel);
+}
+.ad-plan:has(input:focus-visible) {
+  outline: 2px solid var(--pri-text);
+  outline-offset: 2px;
+}
+.ad-plan.off {
+  cursor: not-allowed;
+  background: var(--paper2);
+}
+.ad-plan.off > :not(.ad-warn) {
+  opacity: 0.55;
+}
+.ad-days {
+  width: 130px;
+}
+.ad-days .fld {
+  height: 44px;
+  font-size: 15px;
+}
+.ad-chk {
+  gap: 14px;
+  padding: 10px 14px;
+}
+.ad-sum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--paper2);
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 1180px) {
+  .ad-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1000px) {
+  .ad-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ad-row {
+    grid-template-columns: minmax(0, 2fr) auto minmax(0, 1.2fr) minmax(0, 1.2fr);
+  }
+  .ad-row > :nth-child(5),
+  .ad-row > :nth-child(6) {
+    display: none;
+  }
+  .ad-prow > :nth-child(5) {
+    display: flex;
+  }
+  .ad-prow {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto minmax(0, 1.2fr);
+  }
+  .ad-prow > :nth-child(2) {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .ad-shell {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+  .ad-shell .side {
+    position: static;
+    height: auto;
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 12px 12px 4px;
+    gap: 8px;
+  }
+  .ad-shell .side > .sp {
+    display: none;
+  }
+  .ad-nav {
+    order: 3;
+    flex-direction: row !important;
+    width: 100%;
+  }
+  .ad-nav .nav {
+    flex: 1;
+    justify-content: center;
+    height: 40px;
+  }
+  .ad-me {
+    margin-inline-start: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .ad-me > .av,
+  .ad-me > .col {
+    display: none;
+  }
+  .main {
+    margin: 8px;
+  }
+  .hd {
+    padding: 20px 16px 12px;
+  }
+  .bd {
+    padding: 4px 16px 32px;
+    gap: 20px;
+  }
+  .t1 {
+    font-size: 24px;
+  }
+  .ad-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .ad-money {
+    grid-column: 1 / -1;
+  }
+  .ad-stat-n {
+    font-size: 24px;
+  }
+  .ad-search {
+    max-width: none;
+  }
+  .ad-search .kbd {
+    display: none;
+  }
+  .ad-tools .seg {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    scrollbar-width: none;
+  }
+  .ad-head {
+    display: none;
+  }
+  .ad-row,
+  .ad-prow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 12px 14px;
+  }
+  .ad-row > :nth-child(n + 3) {
+    display: none;
+  }
+  .ad-row > :nth-child(4) {
+    display: flex;
+    grid-column: 1 / -1;
+    flex-direction: row;
+    gap: 8px;
+  }
+  .ad-prow > :nth-child(n + 2) {
+    display: none;
+  }
+  .ad-prow > :nth-child(3),
+  .ad-prow > :nth-child(4) {
+    display: block;
+  }
+  .ad-prow > :nth-child(4) {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+  .ad-prow > :nth-child(3) {
+    grid-column: 1;
+  }
+  .facts.ad-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .facts.ad-facts > div:nth-child(2) {
+    border-left: 0;
+  }
+  .facts.ad-facts > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+  .ad-ohd .ad-acts {
+    width: 100%;
+  }
+  .ad-ohd .ad-acts .btn {
+    flex: 1;
+  }
+  .ad-plans {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ad-ov {
+    padding: 16px 8px;
+  }
+}

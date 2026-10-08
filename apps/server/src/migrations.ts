@@ -175,6 +175,59 @@ export const migrations: readonly string[] = [
     using (office_id = kelid_office())
     with check (office_id = kelid_office());
   `,
+  // 9: پنل فروشنده (تیم کلید). حساب‌های مدیر فروشنده جدا از کاربران دفترهاست و با رمز + کد دومرحله‌ای وارد می‌شود.
+  // دسترسی فروشنده به همهٔ دفترها فقط در تراکنشی است که withVendor (db.ts) پرچم kelid.vendor را برایش روشن کرده؛
+  // سیاست‌های تازه کنار office_isolation می‌نشینند و جای آن را نمی‌گیرند. از جدول‌های دادهٔ دفتر (entities، عکس‌ها)
+  // چیزی به فروشنده نمی‌رسد. vendor_notes یادداشت‌های پشتیبانی و سابقهٔ تمدید و تعلیق هر دفتر است و دفترها آن را نمی‌بینند.
+  // totp_secret خام می‌ماند چون کد هر بار با آن ساخته می‌شود؛ totp_last_step جلوی استفادهٔ دوباره از همان کد را می‌گیرد.
+  `
+  create function kelid_vendor() returns boolean
+    language sql stable
+    as $$ select coalesce(current_setting('kelid.vendor', true), '') = 'on' $$;
+
+  alter table offices add column suspended_at timestamptz;
+  alter table offices add column suspend_reason text check (length(suspend_reason) between 1 and 500);
+  create policy vendor_access on offices
+    using (kelid_vendor())
+    with check (kelid_vendor());
+  create policy vendor_read on payments for select
+    using (kelid_vendor());
+
+  create table vendor_admins (
+    id uuid primary key,
+    phone text not null unique check (phone ~ '^09[0-9]{9}$'),
+    name text not null check (length(name) between 1 and 100),
+    password_hash text not null,
+    totp_secret text not null check (totp_secret ~ '^[A-Z2-7]{32}$'),
+    totp_last_step bigint not null default 0,
+    failed_logins int not null default 0,
+    locked_until timestamptz,
+    disabled_at timestamptz,
+    last_login_at timestamptz,
+    created_at timestamptz not null default now()
+  );
+  alter table vendor_admins enable row level security;
+  alter table vendor_admins force row level security;
+  create policy vendor_only on vendor_admins
+    using (kelid_vendor())
+    with check (kelid_vendor());
+
+  create table vendor_notes (
+    office_id uuid not null references offices (id),
+    id uuid not null,
+    admin_id uuid not null references vendor_admins (id),
+    kind text not null check (kind in ('note', 'extend', 'suspend', 'resume')),
+    body text not null check (length(body) between 1 and 2000),
+    created_at timestamptz not null default now(),
+    primary key (office_id, id)
+  );
+  create index vendor_notes_recent on vendor_notes (office_id, created_at desc);
+  alter table vendor_notes enable row level security;
+  alter table vendor_notes force row level security;
+  create policy vendor_only on vendor_notes
+    using (kelid_vendor())
+    with check (kelid_vendor());
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

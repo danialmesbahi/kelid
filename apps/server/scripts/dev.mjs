@@ -12,7 +12,8 @@ process.env.MIGRATION_DATABASE_URL ??= 'postgres://kelid_owner:kelid_owner@local
 process.env.LOG_LEVEL ??= 'debug';
 // فقط توسعه: کلید تازه در هر اجرا (توکن‌های کوتاه‌عمر باطل می‌شوند، ورود دستگاه‌ها می‌ماند).
 process.env.JWT_SECRET ??= randomBytes(48).toString('base64');
-process.env.CORS_ORIGINS ??= 'http://localhost:5173,http://127.0.0.1:5173,null';
+// ۵۱۷۴ = پنل فروشنده (apps/admin).
+process.env.CORS_ORIGINS ??= 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,null';
 
 let child;
 const start = () => {

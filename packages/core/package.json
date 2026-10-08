@@ -10,6 +10,7 @@
     "./node": "./src/sql/nodeDriver.ts",
     "./sync": "./src/sync/index.ts",
     "./plans": "./src/plans.ts",
-    "./format": "./src/format.ts"
+    "./format": "./src/format.ts",
+    "./persian": "./src/persian.ts"
   }
 }

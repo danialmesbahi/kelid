@@ -32,6 +32,17 @@ export async function withOffice<T>(pool: Pool, officeId: string, fn: (db: Db) =
   });
 }
 
+/**
+ * دسترسی پنل فروشنده به همهٔ دفترها (فهرست دفترها، اشتراک، پرداخت‌ها، یادداشت‌های پشتیبانی)؛ فقط admin/ صدایش می‌زند.
+ * مثل withOffice پرچم فقط برای همین تراکنش روشن است و دادهٔ دفترها (فایل، مشتری، عکس) با آن هم دیده نمی‌شود.
+ */
+export async function withVendor<T>(pool: Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+  return transaction(pool, async (db) => {
+    await db.query("select set_config('kelid.vendor', 'on', true)");
+    return fn(db);
+  });
+}
+
 /** یک تراکنش روی یک اتصال؛ اگر rollback هم شکست بخورد اتصال دور انداخته می‌شود، نه برگردانده به pool. */
 export async function transaction<T>(pool: Pool, fn: (db: Db) => Promise<T>): Promise<T> {
   const db = await pool.connect();

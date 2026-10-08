@@ -10,6 +10,9 @@ import { migrate, migrations } from './migrations';
 import { DEV_LICENSE_SEED, licenseKey, publicKeyOf, verifyLicense } from './billing/license';
 import { DevGateway } from './billing/gateway';
 import { decodeLicense, planById } from '@kelid/core/plans';
+import { hashPassword } from './auth/password';
+import { newTotpSecret, totpAt, totpStep } from './admin/totp';
+import { withVendor } from './db';
 
 const rootEnv = new URL('../../../.env', import.meta.url);
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
@@ -892,6 +895,155 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const b = (await get(a, '/billing', s.accessToken)).json();
       // تمام‌شده از امروز حساب می‌شود، نه از روز پایان.
       expect(Math.abs(Date.parse(b.expiresAt) - (Date.now() + 30 * DAY))).toBeLessThan(60_000);
+      await a.close();
+    });
+  });
+
+  describe('vendor panel', () => {
+    const key = licenseKey(DEV_LICENSE_SEED);
+    const vApp = () =>
+      buildApp({
+        db: app,
+        logLevel: 'silent',
+        auth: { pool: app, sms, jwtSecret: 's'.repeat(48) },
+        billing: { licenseKey: key, gateway: new DevGateway(), publicUrl: 'http://kelid.test' },
+      });
+    const get = (a: ReturnType<typeof newApp>, url: string, token?: string) => a.inject({ method: 'GET', url, headers: token ? { authorization: `Bearer ${token}` } : {} });
+
+    async function newAdmin() {
+      const phone = freshPhone().replace(/^0912/, '0935');
+      const secret = newTotpSecret();
+      await withVendor(app, async (db) =>
+        db.query('insert into vendor_admins (id, phone, name, password_hash, totp_secret) values ($1, $2, $3, $4, $5)', [
+          randomUUID(),
+          phone,
+          'پشتیبان کلید',
+          await hashPassword('vendor-pass-1'),
+          secret,
+        ]),
+      );
+      return { phone, secret };
+    }
+    // هر ورود موفق یک گام زمانی را مصرف می‌کند؛ ورود دوم در همان آزمون گام بعدی را می‌خواهد.
+    async function login(a: ReturnType<typeof newApp>, admin: { phone: string; secret: string }, step = totpStep()) {
+      const r = await post(a, '/admin/login', { phone: admin.phone, password: 'vendor-pass-1', code: totpAt(admin.secret, step) });
+      expect(r.statusCode).toBe(200);
+      return r.json().token as string;
+    }
+
+    it('keeps vendor tables away from offices and office data away from the vendor', async () => {
+      const a = vApp();
+      const s = await signUp(a, freshPhone());
+      const hlc = `${Date.now().toString(36).padStart(10, '0')}-00000-dev`;
+      await post(a, '/sync/push', { changes: [{ seq: 1, kind: 'todo', id: 't1', fields: { title: 'کار' }, hlc }] }, s.accessToken);
+      await newAdmin();
+      const asOffice = await withOffice(app, s.office.id, async (db) => ({
+        admins: (await db.query('select * from vendor_admins')).rowCount,
+        notes: (await db.query('select * from vendor_notes')).rowCount,
+        offices: (await db.query('select id from offices')).rowCount,
+      }));
+      expect(asOffice).toEqual({ admins: 0, notes: 0, offices: 1 });
+      const asVendor = await withVendor(app, async (db) => ({
+        offices: (await db.query('select id from offices')).rowCount!,
+        entities: (await db.query('select * from entities')).rowCount,
+      }));
+      expect(asVendor.offices).toBeGreaterThan(1);
+      expect(asVendor.entities).toBe(0);
+      // بیرون از withVendor پرچم نمی‌ماند.
+      expect((await app.query('select id from offices')).rowCount).toBe(0);
+      await a.close();
+    });
+
+    it('logs in with password and a one-time code, never reusing a code, and locks after five misses', async () => {
+      const a = vApp();
+      const admin = await newAdmin();
+      const code = totpAt(admin.secret, totpStep());
+      expect((await post(a, '/admin/login', { phone: admin.phone, password: 'wrong-pass', code })).statusCode).toBe(401);
+      expect((await post(a, '/admin/login', { phone: admin.phone, password: 'vendor-pass-1', code: '000000' })).statusCode).toBe(401);
+      const ok = await post(a, '/admin/login', { phone: admin.phone, password: 'vendor-pass-1', code });
+      expect(ok.statusCode).toBe(200);
+      const token = ok.json().token;
+      expect((await get(a, '/admin/me', token)).json().admin).toMatchObject({ phone: admin.phone, name: 'پشتیبان کلید' });
+      // همان کد دوباره پذیرفته نمی‌شود.
+      expect((await post(a, '/admin/login', { phone: admin.phone, password: 'vendor-pass-1', code })).statusCode).toBe(401);
+
+      // توکن دفتر در پنل و توکن پنل در برنامهٔ دفتر کار نمی‌کند.
+      const s = await signUp(a, freshPhone());
+      expect((await get(a, '/admin/offices', s.accessToken)).statusCode).toBe(401);
+      expect((await get(a, '/billing', token)).statusCode).toBe(401);
+      expect((await get(a, '/admin/offices')).statusCode).toBe(401);
+
+      // کد تکراری بالا یک خطا بود؛ چهار خطای دیگر = پنج و قفل.
+      for (let i = 0; i < 4; i++) await post(a, '/admin/login', { phone: admin.phone, password: 'nope-nope', code: '123456' });
+      const locked = await post(a, '/admin/login', { phone: admin.phone, password: 'vendor-pass-1', code: totpAt(admin.secret, totpStep() + 1) });
+      expect(locked.statusCode).toBe(429);
+      expect(locked.json().error).toBe('locked');
+
+      // حساب غیرفعال همان لحظه بیرون می‌افتد.
+      await withVendor(app, (db) => db.query('update vendor_admins set disabled_at = now() where phone = $1', [admin.phone]));
+      expect((await get(a, '/admin/me', token)).statusCode).toBe(401);
+      await a.close();
+    });
+
+    it('lists, extends, suspends and resumes an office, with its history', async () => {
+      const a = vApp();
+      const phone = freshPhone();
+      const s = await signUp(a, phone);
+      const token = await login(a, await newAdmin());
+
+      const list = (await get(a, `/admin/offices?q=${phone.slice(-7)}`, token)).json().offices;
+      expect(list).toHaveLength(1);
+      expect(list[0]).toMatchObject({ id: s.office.id, name: 'املاک پارسا', status: 'trial', members: 1, manager: { phone, name: 'علی رضایی' } });
+      expect((await get(a, '/admin/offices?q=%D9%BE%D8%A7%D8%B1%D8%B3%D8%A7', token)).json().offices.some((o: { id: string }) => o.id === s.office.id)).toBe(true);
+      expect((await get(a, '/admin/offices?status=suspended', token)).json().offices.some((o: { id: string }) => o.id === s.office.id)).toBe(false);
+      expect((await get(a, '/admin/stats', token)).json().offices).toBeGreaterThan(0);
+
+      const before = Date.parse(list[0].expiresAt);
+      const ext = await post(a, `/admin/offices/${s.office.id}/extend`, { days: 30, plan: 'pro', trial: false, note: 'کارت به کارت، رسید ۱۲۳' }, token);
+      expect(ext.statusCode).toBe(200);
+      const e = ext.json();
+      expect(e.office).toMatchObject({ plan: 'pro', seats: 15, trial: false, status: 'active' });
+      expect(Math.abs(Date.parse(e.office.expiresAt) - (before + 30 * 86_400_000))).toBeLessThan(60_000);
+      expect(e.notes[0]).toMatchObject({ kind: 'extend', admin: 'پشتیبان کلید' });
+      expect(e.notes[0].body).toContain('کارت به کارت');
+      expect(decodeLicense((await get(a, '/billing', s.accessToken)).json().license)!.payload).toMatchObject({ plan: 'pro', trial: false });
+
+      const sus = await post(a, `/admin/offices/${s.office.id}/suspend`, { reason: 'پرداخت برگشت خورد' }, token);
+      expect(sus.json().office).toMatchObject({ status: 'suspended', suspendReason: 'پرداخت برگشت خورد' });
+      expect((await post(a, `/admin/offices/${s.office.id}/suspend`, { reason: 'دوباره' }, token)).statusCode).toBe(409);
+      const b = (await get(a, '/billing', s.accessToken)).json();
+      expect(b.suspended).toBe(true);
+      expect(decodeLicense(b.license)!.payload.sus).toBe(true);
+      const hlc = `${Date.now().toString(36).padStart(10, '0')}-00000-dev`;
+      expect((await post(a, '/sync/push', { changes: [{ seq: 1, kind: 'todo', id: 't1', fields: { title: 'کار' }, hlc }] }, s.accessToken)).statusCode).toBe(402);
+      expect((await post(a, '/billing/checkout', { plan: 'office', period: 'month' }, s.accessToken)).statusCode).toBe(403);
+
+      const res = await post(a, `/admin/offices/${s.office.id}/resume`, {}, token);
+      expect(res.json().office.status).toBe('active');
+      expect((await post(a, '/sync/push', { changes: [{ seq: 1, kind: 'todo', id: 't1', fields: { title: 'کار' }, hlc }] }, s.accessToken)).statusCode).toBe(200);
+
+      const note = await post(a, `/admin/offices/${s.office.id}/notes`, { body: 'زنگ زدند، راهنمایی شد' }, token);
+      expect(note.json().notes.map((n: { kind: string }) => n.kind)).toEqual(['note', 'resume', 'suspend', 'extend']);
+
+      // دفتر دونفره پلن تک‌نفره نمی‌گیرد؛ شناسهٔ ناموجود ۴۰۴.
+      await post(a, '/team/invites', { phone: freshPhone(), name: 'سارا', role: 'agent' }, s.accessToken);
+      expect((await post(a, `/admin/offices/${s.office.id}/extend`, { days: 7, plan: 'solo', trial: false, note: 'x' }, token)).statusCode).toBe(409);
+      expect((await post(a, `/admin/offices/${randomUUID()}/extend`, { days: 7, plan: 'pro', trial: false, note: 'x' }, token)).statusCode).toBe(404);
+      expect((await get(a, `/admin/offices/not-a-uuid`, token)).statusCode).toBe(400);
+      await a.close();
+    });
+
+    it('lists payments across offices', async () => {
+      const a = vApp();
+      const s = await signUp(a, freshPhone());
+      const c = (await post(a, '/billing/checkout', { plan: 'office', period: 'month' }, s.accessToken)).json();
+      const token = await login(a, await newAdmin());
+      const all = (await get(a, '/admin/payments', token)).json().payments;
+      expect(all.find((p: { id: string }) => p.id === c.id)).toMatchObject({ status: 'pending', amount: planById('office')!.monthly, office: { id: s.office.id, name: 'املاک پارسا' } });
+      expect((await get(a, '/admin/payments?status=paid', token)).json().payments.some((p: { id: string }) => p.id === c.id)).toBe(false);
+      const detail = (await get(a, `/admin/offices/${s.office.id}`, token)).json();
+      expect(detail.payments).toHaveLength(1);
+      expect(detail.members).toHaveLength(1);
       await a.close();
     });
   });

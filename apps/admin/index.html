@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fa" dir="rtl" class="app">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#121412" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" href="./favicon.ico" sizes="16x16 24x24 32x32 48x48" />
+    <title>پنل کلید</title>
+    <script>
+      // پوسته را قبل از اولین نقاشی اعمال کن تا صفحه هیچ‌وقت سفید چشمک نزند.
+      try {
+        var t = JSON.parse(localStorage.getItem('kelid.theme') || '"auto"');
+        if (t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    </script>
+    <style>
+      html {
+        background: #efeeea;
+      }
+      html.dark {
+        background: #0b0c0b;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
