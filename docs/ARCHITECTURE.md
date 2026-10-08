@@ -71,6 +71,7 @@ Load this on demand (it is not auto-loaded like AGENTS.md). For "who calls what"
 | PWA | `apps/web/vite.config.ts` (`vite-plugin-pwa`), `main.tsx` | manifest (fa, rtl, emerald, 192/512/maskable), Workbox precache of shell + wasm + fonts; SW registered only in production web builds, never when `window.kelid` exists |
 | Phone layout | `app.css` (`@media (max-width: 767px)`), `layout/usePhone.ts`, `Shell` `.mtab` | sidebar hidden, bottom tab bar with new-file FAB; `usePhone` for behavior (Files: tap opens the file; Clients: list *or* profile). Keep the CSS breakpoint and `usePhone` in sync |
 | Desktop shell | `apps/desktop/src/main.ts` | window, single-instance lock, external links → browser, opens DB before window |
+| Auto-update | `apps/desktop/src/updater.ts`, `updateSignature.ts`, `scripts/release.mjs`, `apps/web/src/updates.tsx` | electron-updater (generic provider) against `build/update.json` (server URL + Ed25519 public key, packaged as `resources/update.json`; empty = off). Checks 20 s after launch, then every 4 h, and downloads in the background. A download is installed only if `latest.yml` carries our `kelidSignature` over `version + sha512`; electron-updater has already checked the file against that sha512. It is then installed silently when the app closes (`autoInstallOnAppQuit` turns on only after the check), so work is never interrupted. Settings shows a «نسخهٔ برنامه» card with progress, Persian release notes and an optional «همین حالا نصب». The first run after an update shows a toast once. Staged rollout uses `stagingPercentage`. |
 
 ## Routes (`apps/web/src/App.tsx`, hash router)
 
@@ -119,3 +120,9 @@ All routes sit under a pathless `layout/ScrollMemory` route: moving to another p
 ## Testing
 - `npm test` runs Vitest over every `*.test.ts` (today: `packages/core/src`). SQL tests open a real SQLCipher file in a temp dir (also checks wrong-key rejection).
 - UI is verified by running it: `npm run dev` (browser) or `npm run dev:desktop`. Check light/dark, keyboard, reduced motion, 375px width.
+
+## Releasing the Windows app
+1. Once per release machine: `npm run update-keys -w @kelid/desktop` writes the private key to `~/.kelid/update-private.pem` and the public key to `apps/desktop/build/update.json`. Back up the private key safely: without it, installed apps never update again. Then set `url` (https) in `update.json` and commit it.
+2. Bump `version` in `apps/desktop/package.json` and write Persian notes in `apps/desktop/build/release-notes.md` (one change per line).
+3. `npm run dist:win`, then `npm run release -w @kelid/desktop -- --staging 20`. This signs and writes `release/latest.yml`, and refuses to run if the key or `update.json` doesn't match the build.
+4. Upload `Kelid-Setup-<v>.exe`, its `.blockmap`, and `latest.yml` last. Keep older installers and blockmaps for differential downloads. To widen the rollout, re-run step 3 with a bigger `--staging` (or none, for everyone) and re-upload `latest.yml`.

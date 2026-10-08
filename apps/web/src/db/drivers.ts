@@ -1,4 +1,5 @@
 import type { SqlDriver, SqlParams, SqlStatement } from '@kelid/core';
+import type { UpdateBridge } from '../updates';
 
 interface DesktopBridge {
   platform: 'desktop';
@@ -13,6 +14,8 @@ interface DesktopBridge {
     set(value: string): Promise<void>;
     clear(): Promise<void>;
   };
+  /** به‌روزرسانی خودکار برنامهٔ ویندوز. */
+  updates?: UpdateBridge;
 }
 
 declare global {

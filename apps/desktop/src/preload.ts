@@ -18,4 +18,15 @@ contextBridge.exposeInMainWorld('kelid', {
     set: (value: string) => ipcRenderer.invoke('session:set', value),
     clear: () => ipcRenderer.invoke('session:clear'),
   },
+  updates: {
+    get: () => ipcRenderer.invoke('update:get'),
+    check: () => ipcRenderer.invoke('update:check'),
+    install: () => ipcRenderer.invoke('update:install'),
+    // فقط خود وضعیت به صفحه می‌رسد، نه رویداد IPC (که فرستنده را هم دارد).
+    onChange: (fn: (state: unknown) => void) => {
+      const listener = (_e: unknown, s: unknown) => fn(s);
+      ipcRenderer.on('update:state', listener);
+      return () => void ipcRenderer.removeListener('update:state', listener);
+    },
+  },
 });
