@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router';
 import { Icon, Skeleton } from '@kelid/ui';
 import { formatGrouped, toFaDigits } from '@kelid/core';
 import type { PaymentStatus } from '../api';
+import { useFlash } from '../live';
 import { dateText, errorText, payTag, planName, useLoad, useSlow } from '../ui';
 
 const FILTERS: Array<{ value: PaymentStatus | ''; label: string }> = [
@@ -18,6 +19,7 @@ export function Payments() {
   const status = (params.get('s') ?? '') as PaymentStatus | '';
   const list = useLoad(`payments:${status}`, (a, t) => a.payments(t, status || null));
   const slow = useSlow(!list.data && list.pending);
+  const flash = useFlash();
   const paid = list.data?.filter((p) => p.status === 'paid') ?? [];
 
   return (
@@ -89,7 +91,7 @@ export function Payments() {
             </div>
             <div className="stagger">
               {list.data.map((p) => (
-                <Link key={p.id} to={`/offices/${p.office.id}`} viewTransition className="ad-row ad-prow hov">
+                <Link key={p.id} to={`/offices/${p.office.id}`} viewTransition className={`ad-row ad-prow hov${flash.has(p.office.id) ? ' ad-flash' : ''}`}>
                   <span className="b ad-ell ad-cell-main">
                     {p.office.name}
                   </span>

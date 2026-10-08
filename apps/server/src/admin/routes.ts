@@ -6,7 +6,9 @@ import { withVendor, type Db, type Pool } from '../db';
 import { PASSWORD_MAX, verifyPassword } from '../auth/password';
 import { normalizePhone } from '../auth/phone';
 import { RateLimiter } from '../auth/rateLimit';
-import { deriveKey, readToken, signToken } from '../auth/tokens';
+import { accessExpiry, deriveKey, readToken, signToken } from '../auth/tokens';
+import { securityHeaders } from '../headers';
+import type { LiveHub } from '../sync/live';
 import { seatsUsed } from '../billing/routes';
 import { checkTotp } from './totp';
 
@@ -33,7 +35,11 @@ declare module 'fastify' {
 export interface AdminOptions {
   pool: Pool;
   jwtSecret: string;
+  hub: LiveHub;
 }
+
+// هر ۲۵ ثانیه یک خط خالی تا پراکسی‌ها اتصال را نبندند؛ همان لحظه غیرفعال بودن حساب هم دوباره بررسی می‌شود.
+const VENDOR_BEAT_MS = 25_000;
 
 export type OfficeStatus = 'trial' | 'active' | 'ending' | 'expired' | 'suspended';
 const STATUSES: OfficeStatus[] = ['trial', 'active', 'ending', 'expired', 'suspended'];
@@ -48,7 +54,7 @@ const UUID_PATTERN = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{
 const idParams = { params: { type: 'object', required: ['id'], properties: { id: { type: 'string', pattern: UUID_PATTERN } } } } as const;
 const body = (props: Record<string, object>, required: string[]) => ({ type: 'object', additionalProperties: false, required, properties: props }) as const;
 
-export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret }: AdminOptions) {
+export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }: AdminOptions) {
   const key = deriveKey(jwtSecret, 'vendor');
   const loginByIp = new RateLimiter(10, 10 * 60_000);
 
@@ -133,6 +139,48 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret }: Adm
   );
 
   app.get('/admin/me', { preHandler: requireVendor }, async (req) => ({ admin: req.vendor }));
+
+  /**
+   * اتصال زندهٔ پنل (Server-Sent Events): هر بار دفتری، عضوی، دعوتی، پرداختی یا یادداشتی عوض شد فقط شناسهٔ دفتر می‌آید
+   * و پنل همان صفحه‌ای را که باز است بی‌صدا تازه می‌کند. داده از این راه نمی‌آید؛ هر خواندن همچنان از مسیرهای پنل می‌گذرد.
+   * عمر اتصال از توکنش بیشتر نیست و حساب غیرفعال‌شده همان لحظه (یا حداکثر با ضربان بعدی) قطع می‌شود.
+   */
+  app.get('/admin/events', { preHandler: requireVendor }, async (req, reply) => {
+    const admin = req.vendor!.id;
+    if (!hub.hasVendorRoom(admin)) return reply.status(503).header('retry-after', '30').send({ error: 'busy' });
+    await hub.ready();
+    const ttl = accessExpiry(req.headers.authorization!.slice(7)) - Date.now();
+    if (ttl <= 0) return reply.status(401).send({ error: 'unauthorized' });
+
+    reply.hijack();
+    const res = reply.raw;
+    const head: Record<string, string> = { ...securityHeaders };
+    for (const [k, v] of Object.entries(reply.getHeaders())) if (typeof v === 'string') head[k] = v;
+    res.writeHead(200, { ...head, 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
+    res.write('retry: 2000\n: ready\n\n');
+
+    let open = true;
+    const close = () => {
+      if (!open) return;
+      open = false;
+      clearInterval(beat);
+      clearTimeout(expire);
+      remove();
+      res.end();
+    };
+    const beat = setInterval(() => {
+      if (!open) return;
+      res.write(': \n\n');
+      withVendor(pool, (db) => db.query('select 1 from vendor_admins where id = $1 and disabled_at is null', [admin])).then(
+        (r) => r.rowCount || close(),
+        () => {},
+      );
+    }, VENDOR_BEAT_MS);
+    const expire = setTimeout(close, ttl);
+    const remove = hub.addVendor({ admin, changed: (ids) => open && res.write(`data: ${JSON.stringify({ o: ids })}\n\n`), close });
+    req.raw.on('close', close);
+    res.on('error', close);
+  });
 
   app.get('/admin/stats', { preHandler: requireVendor }, async () =>
     withVendor(pool, async (db) => {

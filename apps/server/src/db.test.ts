@@ -13,6 +13,7 @@ import { decodeLicense, planById } from '@kelid/core/plans';
 import { hashPassword } from './auth/password';
 import { newTotpSecret, totpAt, totpStep } from './admin/totp';
 import { withVendor } from './db';
+import { kickVendor } from './sync/live';
 
 const rootEnv = new URL('../../../.env', import.meta.url);
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
@@ -1030,6 +1031,67 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await post(a, `/admin/offices/${s.office.id}/extend`, { days: 7, plan: 'solo', trial: false, note: 'x' }, token)).statusCode).toBe(409);
       expect((await post(a, `/admin/offices/${randomUUID()}/extend`, { days: 7, plan: 'pro', trial: false, note: 'x' }, token)).statusCode).toBe(404);
       expect((await get(a, `/admin/offices/not-a-uuid`, token)).statusCode).toBe(400);
+      await a.close();
+    });
+
+    it('streams office changes to the panel and billing changes to the office, live', async () => {
+      const a = vApp();
+      await a.listen({ port: 0, host: '127.0.0.1' });
+      const base = `http://127.0.0.1:${(a.server.address() as AddressInfo).port}`;
+      const open = async (path: string, token: string) => {
+        const ctl = new AbortController();
+        const res = await fetch(base + path, { headers: { authorization: `Bearer ${token}` }, signal: ctl.signal });
+        const state = { text: '', ended: false };
+        void (async () => {
+          const reader = res.body!.getReader();
+          const dec = new TextDecoder();
+          try {
+            for (;;) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              state.text += dec.decode(value);
+            }
+          } catch {
+            // بستن از سمت تست
+          }
+          state.ended = true;
+        })();
+        return { res, state, stop: () => ctl.abort() };
+      };
+      const until = async (ok: () => boolean) => {
+        for (let i = 0; i < 150 && !ok(); i++) await new Promise((r) => setTimeout(r, 20));
+        return ok();
+      };
+      const admin = await newAdmin();
+      const token = await login(a, admin);
+      const panel = await open('/admin/events', token);
+      expect(panel.res.status).toBe(200);
+      expect(panel.res.headers.get('content-type')).toMatch(/^text\/event-stream/);
+
+      // ثبت‌نام دفتر تازه همان لحظه در پنل
+      const s = await signUp(a, freshPhone());
+      const other = await signUp(a, freshPhone());
+      expect(await until(() => panel.state.text.includes(s.office.id))).toBe(true);
+
+      // تمدید از پنل ⇒ دستگاه‌های همان دفتر خبر اشتراک می‌گیرند، دفتر دیگر نه
+      const dev = await open('/sync/events', s.accessToken);
+      const devOther = await open('/sync/events', other.accessToken);
+      await until(() => dev.state.text.includes(': ready') && devOther.state.text.includes(': ready'));
+      expect((await post(a, `/admin/offices/${s.office.id}/extend`, { days: 30, plan: 'office', trial: false, note: 'کارت به کارت' }, token)).statusCode).toBe(200);
+      expect(await until(() => dev.state.text.includes('event: billing'))).toBe(true);
+      await new Promise((r) => setTimeout(r, 150));
+      expect(devOther.state.text).not.toContain('event: billing');
+      // تغییر داده‌های دفتر (فایل‌ها) هیچ‌وقت به پنل نمی‌رسد؛ فقط شناسهٔ دفتر برای اشتراک، اعضا و پرداخت‌ها
+      expect(panel.state.text).not.toMatch(/"fields"|"title"/);
+
+      // توکن دفتر به پنل راه ندارد؛ حساب غیرفعال‌شده همان لحظه قطع می‌شود
+      expect((await fetch(`${base}/admin/events`, { headers: { authorization: `Bearer ${s.accessToken}` } })).status).toBe(401);
+      await withVendor(app, async (db) => {
+        const r = await db.query<{ id: string }>('update vendor_admins set disabled_at = now() where phone = $1 returning id', [admin.phone]);
+        await kickVendor(db, r.rows[0]!.id);
+      });
+      expect(await until(() => panel.state.ended)).toBe(true);
+      for (const e of [dev, devOther]) e.stop();
       await a.close();
     });
 

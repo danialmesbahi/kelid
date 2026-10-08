@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { authRoutes, type AuthOptions } from './auth/routes';
 import { syncRoutes } from './sync/routes';
+import { LiveHub } from './sync/live';
 import { pageCsp, securityHeaders } from './headers';
 import { billingRoutes, type BillingOptions } from './billing/routes';
 import { adminRoutes } from './admin/routes';
@@ -79,10 +80,13 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
   app.decorateRequest('member', null);
   app.decorateRequest('vendor', null);
   if (auth) {
+    // یک LISTEN برای همهٔ اتصال‌های زندهٔ این نمونه (دستگاه‌های دفترها و پنل فروشنده).
+    const hub = new LiveHub(auth.pool, app.log);
+    app.addHook('preClose', async () => hub.close());
     void app.register(authRoutes, { ...auth, licenseKey: billing?.licenseKey });
     if (billing) void app.register(billingRoutes, { ...billing, pool: auth.pool, jwtSecret: auth.jwtSecret });
-    void app.register(adminRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret });
-    void app.register(syncRoutes, { ...auth, photos: new PhotoBlobs(s3 ? new S3(s3) : null) });
+    void app.register(adminRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, hub });
+    void app.register(syncRoutes, { ...auth, hub, photos: new PhotoBlobs(s3 ? new S3(s3) : null) });
   }
 
   return app;

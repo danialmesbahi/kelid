@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatDate, planById, toFaDigits, type LicenseInfo, type LicensePhase } from '@kelid/core';
 import { ApiError, type Billing } from '../auth/api';
 import { useAuth } from '../auth/AuthContext';
+import { onLiveBilling } from '../sync/state';
 import { adoptLicense } from './license';
+
+// اشتراک تازه‌ای که اتصال زنده آورد، به همهٔ صفحه‌های باز (اشتراک، پلن‌ها) هم می‌رسد؛ یک درخواست برای همه.
+const fresh = new Set<(b: Billing) => void>();
 
 /** اشتراک دفتر از سرور، با مجوز تازه. بی اینترنت failed می‌شود و صفحه از مجوز روی دستگاه نشان می‌دهد. */
 export function useBilling(): { billing: Billing | null; failed: boolean; reload: () => void } {
@@ -23,7 +27,43 @@ export function useBilling(): { billing: Billing | null; failed: boolean; reload
     );
   }, [api, withToken, office]);
   useEffect(reload, [reload]);
+  useEffect(() => {
+    fresh.add(setBilling);
+    return () => void fresh.delete(setBilling);
+  }, []);
   return { billing, failed, reload };
+}
+
+/**
+ * تمدید، تعلیق یا پرداخت (روی دستگاه دیگر یا از پنل کلید) ⇒ سرور همان لحظه خبر می‌دهد و این دستگاه بی‌آن‌که کسی
+ * کاری بکند مجوز تازه می‌گیرد؛ قفل خواندنی همان لحظه باز یا بسته می‌شود.
+ */
+export function useLiveLicense() {
+  const { api, withToken, session } = useAuth();
+  const office = session?.office.id;
+  useEffect(() => {
+    if (!api || !office) return;
+    let busy = false;
+    let again = false;
+    const pull = () => {
+      if (busy) return void (again = true);
+      busy = true;
+      withToken((t) => api.billing(t))
+        .then(async (b) => {
+          await adoptLicense(b.license, office);
+          fresh.forEach((f) => f(b));
+        })
+        .catch(() => {})
+        .finally(() => {
+          busy = false;
+          if (again) {
+            again = false;
+            pull();
+          }
+        });
+    };
+    return onLiveBilling(pull);
+  }, [api, office, withToken]);
 }
 
 /**

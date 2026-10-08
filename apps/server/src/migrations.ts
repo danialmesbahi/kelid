@@ -228,6 +228,40 @@ export const migrations: readonly string[] = [
     using (kelid_vendor())
     with check (kelid_vendor());
   `,
+  // 10: خبر زنده از خود دیتابیس، تا هیچ راه نوشتنی (مسیر، خط فرمان، دست مدیر) جا نماند.
+  // kelid_vendor: «دفتر X عوض شد» برای پنل فروشنده (فقط شناسه؛ داده همچنان از مسیرهای پنل و RLS می‌آید).
+  // kelid_live با k=billing: دستگاه‌های همان دفتر همان لحظه مجوز تازه می‌گیرند (تمدید، تعلیق، پرداخت، تغییر پلن).
+  // last_seen دستگاه‌ها عمداً خبر نمی‌دهد؛ با هر تمدید توکن عوض می‌شود و پنل را بی‌دلیل شلوغ می‌کرد.
+  `
+  create function kelid_vendor_notify() returns trigger
+    language plpgsql
+    as $$
+    declare
+      r jsonb := case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end;
+    begin
+      perform pg_notify('kelid_vendor', r ->> case when tg_table_name = 'offices' then 'id' else 'office_id' end);
+      return null;
+    end $$;
+
+  create trigger vendor_notify after insert or update or delete on offices for each row execute function kelid_vendor_notify();
+  create trigger vendor_notify after insert or update or delete on users for each row execute function kelid_vendor_notify();
+  create trigger vendor_notify after insert or update or delete on invites for each row execute function kelid_vendor_notify();
+  create trigger vendor_notify after insert or update or delete on payments for each row execute function kelid_vendor_notify();
+  create trigger vendor_notify after insert or update or delete on vendor_notes for each row execute function kelid_vendor_notify();
+
+  create function kelid_billing_notify() returns trigger
+    language plpgsql
+    as $$
+    begin
+      perform pg_notify('kelid_live', json_build_object('o', new.id, 'k', 'billing')::text);
+      return null;
+    end $$;
+
+  create trigger billing_notify after update on offices for each row
+    when ((old.plan, old.trial, old.expires_at, old.seats, old.suspended_at, old.suspend_reason)
+      is distinct from (new.plan, new.trial, new.expires_at, new.seats, new.suspended_at, new.suspend_reason))
+    execute function kelid_billing_notify();
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

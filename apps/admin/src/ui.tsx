@@ -4,6 +4,7 @@ import { Icon } from '@kelid/ui';
 import { formatDate, formatGrouped, planById, toFaDigits } from '@kelid/core';
 import { ApiError, type OfficeStatus, type PaymentStatus } from './api';
 import { useAuth } from './auth';
+import { onLiveChange } from './live';
 import type { AdminApi } from './api';
 
 export const statusTag: Record<OfficeStatus, { label: string; tone: '' | 'ok' | 'warn' | 'bad' }> = {
@@ -92,7 +93,11 @@ export function useSlow(pending: boolean, ms = 120): boolean {
 // داده‌ای که یک بار آمده، با برگشتن به همان صفحه بی‌درنگ دیده می‌شود و پشت صحنه تازه می‌شود.
 const cache = new Map<string, unknown>();
 
-export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Promise<T>) {
+/**
+ * watch: با خبر زندهٔ کدام دفتر بی‌صدا تازه شود؛ نداده = هر تغییری (فهرست‌ها و آمار)، رشته = فقط همان دفتر.
+ * چند خبر پشت هم فقط یک درخواست می‌سازند: تا جواب قبلی نیامده، درخواست تازه نمی‌رود.
+ */
+export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Promise<T>, watch?: string) {
   const { call } = useAuth();
   const [state, setState] = useState<{ key: string; data: T | undefined; error: unknown; pending: boolean }>(() => ({
     key,
@@ -103,19 +108,48 @@ export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Pr
   const fnRef = useRef(fn);
   fnRef.current = fn;
   const seq = useRef(0);
+  const live = useRef({ busy: false, again: false });
 
   const load = useCallback(() => {
     const n = ++seq.current;
     setState((s) => ({ key, data: s.key === key ? s.data : (cache.get(key) as T | undefined), error: null, pending: true }));
-    call((a, t) => fnRef.current(a, t)).then(
+    return call((a, t) => fnRef.current(a, t)).then(
       (data) => {
         cache.set(key, data);
         if (n === seq.current) setState({ key, data, error: null, pending: false });
       },
-      (error: unknown) => n === seq.current && setState((s) => ({ ...s, error, pending: false })),
+      (error: unknown) => void (n === seq.current && setState((s) => ({ ...s, error, pending: false }))),
     );
   }, [key, call]);
-  useEffect(load, [load]);
+  useEffect(() => void load(), [load]);
+
+  useEffect(() => {
+    const l = live.current;
+    const quiet = () => {
+      if (l.busy) return void (l.again = true);
+      l.busy = true;
+      const n = ++seq.current;
+      // تازه کردن بی‌صدا: داده‌ای که دیده می‌شود سر جایش می‌ماند تا دادهٔ تازه برسد.
+      void call((a, t) => fnRef.current(a, t))
+        .then(
+          (data) => {
+            cache.set(key, data);
+            if (n === seq.current) setState({ key, data, error: null, pending: false });
+          },
+          () => {},
+        )
+        .finally(() => {
+          l.busy = false;
+          if (l.again) {
+            l.again = false;
+            quiet();
+          }
+        });
+    };
+    return onLiveChange((ids) => {
+      if (watch === undefined || !ids.length || ids.includes(watch)) quiet();
+    });
+  }, [key, call, watch]);
 
   const set = useCallback(
     (data: T) => {
@@ -125,7 +159,8 @@ export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Pr
     [key],
   );
   const data = state.key === key ? state.data : (cache.get(key) as T | undefined);
-  return { data, error: state.error, pending: state.pending, reload: load, set };
+  const reload = useCallback(() => void load(), [load]);
+  return { data, error: state.error, pending: state.pending, reload, set };
 }
 
 /** پنجرهٔ روی صفحه: Esc و کلیک بیرون می‌بندند، فوکوس داخلش می‌ماند و بعد از بستن برمی‌گردد. */

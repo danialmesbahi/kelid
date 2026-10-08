@@ -28,6 +28,8 @@ export type PhotoPart = 'thumb' | 'full';
 export interface LiveEvents {
   open(): void;
   change(): void;
+  /** اشتراک دفتر عوض شد (تمدید، تعلیق، پرداخت روی دستگاه دیگر): مجوز تازه بگیر. */
+  billing?(): void;
 }
 
 // سرور هر ۲۵ ثانیه یک خط خالی می‌فرستد؛ سکوت طولانی‌تر یعنی اتصال بی‌صدا مرده (وای‌فای عوض شد، پراکسی بست).
@@ -99,7 +101,9 @@ export function httpSyncApi(base: string): SyncApi {
             alive();
             buf += value;
             for (let i = buf.indexOf('\n\n'); i >= 0; i = buf.indexOf('\n\n')) {
-              if (/^data:/m.test(buf.slice(0, i))) on.change();
+              const block = buf.slice(0, i);
+              if (/^event: billing$/m.test(block)) on.billing?.();
+              else if (/^data:/m.test(block)) on.change();
               buf = buf.slice(i + 2);
             }
             if (buf.length > 4096) buf = '';

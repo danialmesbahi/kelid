@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import { Icon, Skeleton } from '@kelid/ui';
 import { formatGrouped, toFaDigits } from '@kelid/core';
 import type { OfficeStatus, Stats } from '../api';
+import { useFlash } from '../live';
 import { ago, dateText, errorText, leftText, Phone, planName, statusTag, useLoad, useSlow } from '../ui';
 
 const FILTERS: Array<{ value: OfficeStatus | ''; label: string }> = [
@@ -45,6 +46,7 @@ export function Offices() {
   const stats = useLoad('stats', (a, t) => a.stats(t));
   const list = useLoad(`offices:${status}:${q.trim()}`, (a, t) => a.offices(t, q, status || null));
   const slow = useSlow(!list.data && list.pending);
+  const flash = useFlash();
   const setStatus = (s: OfficeStatus | '') => setParams((p) => (s ? p.set('s', s) : p.delete('s'), p), { replace: true });
 
   return (
@@ -125,7 +127,7 @@ export function Offices() {
                 {list.data.map((o) => {
                   const tag = statusTag[o.status];
                   return (
-                    <Link key={o.id} to={`/offices/${o.id}`} viewTransition className="ad-row hov">
+                    <Link key={o.id} to={`/offices/${o.id}`} viewTransition className={`ad-row hov${flash.has(o.id) ? ' ad-flash' : ''}`}>
                       <span className="col ad-cell-main">
                         <span className="b ad-ell">{o.name}</span>
                         <span className="xs mute ad-ell">

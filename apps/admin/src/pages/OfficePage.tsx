@@ -18,7 +18,7 @@ export function OfficePage() {
   const { id = '' } = useParams();
   const { call } = useAuth();
   const toast = useToast();
-  const d = useLoad(`office:${id}`, (a, t) => a.office(t, id));
+  const d = useLoad(`office:${id}`, (a, t) => a.office(t, id), id);
   const slow = useSlow(!d.data && d.pending);
   const [dialog, setDialog] = useState<'extend' | 'suspend' | null>(null);
   const [busy, setBusy] = useState(false);

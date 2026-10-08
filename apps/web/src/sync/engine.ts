@@ -32,6 +32,7 @@ const LIVE_RETRY_MS = [1_000, 3_000, 10_000, 30_000];
 export class SyncEngine {
   private status: SyncStatus = { phase: 'idle', pending: 0, lastSync: null };
   private listeners = new Set<() => void>();
+  private billingListeners = new Set<() => void>();
   private running: Promise<void> | null = null;
   private again = false;
   private applying = false;
@@ -85,7 +86,14 @@ export class SyncEngine {
     clearTimeout(this.timer);
     for (const c of this.cleanup.splice(0)) c();
     this.listeners.clear();
+    this.billingListeners.clear();
   }
+
+  /** خبر زندهٔ «اشتراک دفتر عوض شد». */
+  onBilling = (fn: () => void) => {
+    this.billingListeners.add(fn);
+    return () => void this.billingListeners.delete(fn);
+  };
 
   /**
    * اتصال زنده به سرور تا وقتی موتور روشن است: هر خبر یعنی یک pull کوتاه. قطع شد ⇒ با فاصلهٔ کم دوباره وصل
@@ -112,6 +120,11 @@ export class SyncEngine {
                 first = false;
               },
               change: () => this.schedule(LIVE_MS),
+              billing: () => {
+                for (const l of this.billingListeners) l();
+                // تمدید شد ⇒ صفی که منتظر مانده بود همین حالا می‌رود.
+                this.schedule(LIVE_MS);
+              },
             },
             this.live.signal,
           ),

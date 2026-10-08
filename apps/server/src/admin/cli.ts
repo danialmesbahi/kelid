@@ -3,6 +3,7 @@ import { createPool, withVendor } from '../db';
 import { hashPassword } from '../auth/password';
 import { normalizePhone } from '../auth/phone';
 import { newTotpSecret, totpUri } from './totp';
+import { kickVendor } from '../sync/live';
 
 // حساب‌های پنل فروشنده فقط از همین خط فرمان ساخته می‌شوند؛ هیچ مسیر ثبت‌نامی روی اینترنت ندارند.
 //   npm run admin -w @kelid/server -- add --phone 09121234567 --name "مهدی"
@@ -96,7 +97,12 @@ async function main() {
     if (cmd === 'disable') {
       const done = await withVendor(
         pool,
-        async (db) => (await db.query('update vendor_admins set disabled_at = now() where phone = $1', [phone])).rowCount === 1,
+        async (db) => {
+          const r = await db.query<{ id: string }>('update vendor_admins set disabled_at = now() where phone = $1 returning id', [phone]);
+          // پنجره‌های باز پنل همان لحظه بسته می‌شوند.
+          if (r.rows[0]) await kickVendor(db, r.rows[0].id);
+          return r.rowCount === 1;
+        },
       );
       if (!done) fail('حسابی با این شماره نیست');
       console.log('حساب غیرفعال شد؛ ورودهای باز همان لحظه بیرون می‌افتند.');

@@ -28,6 +28,54 @@
   width: 36px;
   height: 36px;
 }
+.ad-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ad-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex: none;
+}
+.ad-live.live i {
+  background: var(--ok);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent);
+  animation: ad-pulse 2.4s ease-out infinite;
+}
+.ad-live.offline i {
+  background: var(--bad);
+}
+@keyframes ad-pulse {
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ad-live.live i {
+    animation: none;
+  }
+}
+.ad-flash {
+  animation: ad-flash 1.8s ease-out;
+}
+@keyframes ad-flash {
+  0%,
+  30% {
+    background: var(--pri-tint);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ad-flash {
+    animation: none;
+    background: var(--pri-tint);
+  }
+}
 .ad-ell {
   overflow: hidden;
   text-overflow: ellipsis;

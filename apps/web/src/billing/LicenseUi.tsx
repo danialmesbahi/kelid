@@ -6,7 +6,7 @@ import { useAuth, useMember } from '../auth/AuthContext';
 import { useToast } from '../layout/Toasts';
 import { useLicense } from './license';
 import { onBlockedWrite } from './readOnly';
-import { daysLeftText, planName, untilText, useLicenseWatch } from './useBilling';
+import { daysLeftText, planName, untilText, useLicenseWatch, useLiveLicense } from './useBilling';
 import './billing.css';
 
 /** چرا ثبت بسته است، به زبان کاربر. */
@@ -36,6 +36,7 @@ export function LicenseBar() {
     }
   });
   useLicenseWatch(!!lic?.readOnly);
+  useLiveLicense();
   if (!lic) return null;
 
   if (lic.readOnly) {

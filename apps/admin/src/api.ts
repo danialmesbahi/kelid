@@ -104,7 +104,15 @@ export interface AdminApi {
   resume(token: string, id: string, note: string): Promise<OfficeDetail>;
   addNote(token: string, id: string, body: string): Promise<OfficeDetail>;
   payments(token: string, status: PaymentStatus | null): Promise<Array<Payment & { office: { id: string; name: string } }>>;
+  /**
+   * اتصال زنده: changed با شناسهٔ دفترهایی که عوض شدند (فهرست خالی = همه‌چیز را تازه کن). تا بسته شدن اتصال
+   * باز می‌ماند؛ قطع شدنش با ApiError می‌آید تا دوباره وصل شود.
+   */
+  listen(token: string, on: { open(): void; changed(offices: string[]): void }, signal: AbortSignal): Promise<void>;
 }
+
+// سرور هر ۲۵ ثانیه یک خط خالی می‌فرستد؛ سکوت طولانی‌تر یعنی اتصال بی‌صدا مرده (وای‌فای عوض شد، پراکسی بست).
+const LIVE_SILENCE_MS = 70_000;
 
 const URL_ = (import.meta.env.VITE_ADMIN_API_URL as string | undefined) || (import.meta.env.DEV ? 'http://localhost:3000' : '');
 export const DEMO = URL_ === 'demo';
@@ -117,6 +125,8 @@ function httpApi(base: string): AdminApi {
         method,
         headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
         body: body ? JSON.stringify(body) : undefined,
+        credentials: 'omit',
+        cache: 'no-store',
       });
     } catch {
       throw new ApiError('offline');
@@ -144,6 +154,63 @@ function httpApi(base: string): AdminApi {
     addNote: (t, id, body) => call('POST', `/admin/offices/${id}/notes`, t, { body }),
     payments: async (t, status) =>
       (await call<{ payments: Array<Payment & { office: { id: string; name: string } }> }>('GET', `/admin/payments${qs({ status })}`, t)).payments,
+    listen: async (token, on, signal) => {
+      // fetch به‌جای EventSource: توکن در هدر می‌رود، نه در آدرس (که در لاگ‌ها می‌ماند).
+      const ctl = new AbortController();
+      const abort = () => ctl.abort();
+      signal.addEventListener('abort', abort);
+      let quiet: ReturnType<typeof setTimeout> | undefined;
+      const alive = () => {
+        clearTimeout(quiet);
+        quiet = setTimeout(abort, LIVE_SILENCE_MS);
+      };
+      try {
+        alive();
+        let res: Response;
+        try {
+          res = await fetch(`${base}/admin/events`, {
+            headers: { authorization: `Bearer ${token}`, accept: 'text/event-stream' },
+            signal: ctl.signal,
+            credentials: 'omit',
+            cache: 'no-store',
+          });
+        } catch {
+          if (signal.aborted) return;
+          throw new ApiError('offline');
+        }
+        if (res.status === 401) throw new ApiError('unauthorized');
+        if (!res.ok || !res.body) throw new ApiError('server');
+        on.open();
+        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buf = '';
+        try {
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            alive();
+            buf += value;
+            for (let i = buf.indexOf('\n\n'); i >= 0; i = buf.indexOf('\n\n')) {
+              const line = /^data: (.*)$/m.exec(buf.slice(0, i))?.[1];
+              buf = buf.slice(i + 2);
+              if (!line) continue;
+              try {
+                const o = (JSON.parse(line) as { o?: unknown }).o;
+                if (Array.isArray(o)) on.changed(o.filter((x): x is string => typeof x === 'string'));
+              } catch {
+                on.changed([]);
+              }
+            }
+            if (buf.length > 65_536) buf = '';
+          }
+        } catch {
+          if (!signal.aborted) throw new ApiError('offline');
+        }
+        if (!signal.aborted) throw new ApiError('offline');
+      } finally {
+        clearTimeout(quiet);
+        signal.removeEventListener('abort', abort);
+      }
+    },
   };
 }
 
@@ -306,6 +373,12 @@ function demoApi(): AdminApi {
         return { token: 'demo', expiresIn: 8 * 3600, admin: me };
       }, 500),
     me: () => wait(() => me, 60),
+    // پیش‌نمایش سروری ندارد؛ اتصال «زنده» همیشه باز است و کار خود همین صفحه بی‌واسطه دیده می‌شود.
+    listen: (_t, on, signal) =>
+      new Promise((done) => {
+        on.open();
+        signal.addEventListener('abort', () => done());
+      }),
     stats: () =>
       wait(() => {
         const all = offices.map((d) => status(d.office));
