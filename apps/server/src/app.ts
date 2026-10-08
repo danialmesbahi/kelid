@@ -70,6 +70,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
   });
 
   app.decorateRequest('auth', null);
+  app.decorateRequest('member', null);
   if (auth) {
     void app.register(authRoutes, auth);
     void app.register(syncRoutes, { ...auth, photos: new PhotoBlobs(s3 ? new S3(s3) : null) });

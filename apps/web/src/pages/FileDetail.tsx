@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Icon, Plaque, Segmented } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits } from '@kelid/core';
+import { useMember } from '../auth/AuthContext';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
@@ -13,6 +14,7 @@ import { cachedListing } from '../queries';
 export function FileDetailPage() {
   const { id = '' } = useParams();
   const [showPhone, setShowPhone] = useState(false);
+  const { ownerPhones } = useMember();
   const [visitOpen, setVisitOpen] = useState(false);
   const store = useStore();
   const toast = useToast();
@@ -129,12 +131,19 @@ export function FileDetailPage() {
               <span className="rw xs" style={{ gap: 6, color: 'var(--brass)' }}><Icon name="lock" size="s" />فقط برای دفتر</span>
             </div>
             <span style={{ fontSize: 18, fontWeight: 700 }}>{l.owner.name}</span>
-            <div className="rw" style={{ gap: 8 }}>
-              <a className="btn sp" href={`tel:${l.owner.phone}`} style={{ background: 'var(--deep-ink)', color: 'var(--deep)' }}><Icon name="phone" size="s" />تماس</a>
-              <button type="button" className="btn sp" onClick={() => setShowPhone((v) => !v)} style={{ borderColor: 'var(--deep-line)', background: 'transparent', color: 'var(--deep-ink)', direction: 'ltr' }}>
-                {showPhone ? toFaDigits(l.owner.phone) : 'نمایش شماره'}
-              </button>
-            </div>
+            {l.owner.phone ? (
+              <div className="rw" style={{ gap: 8 }}>
+                <a className="btn sp" href={`tel:${l.owner.phone}`} style={{ background: 'var(--deep-ink)', color: 'var(--deep)' }}><Icon name="phone" size="s" />تماس</a>
+                <button type="button" className="btn sp" onClick={() => setShowPhone((v) => !v)} style={{ borderColor: 'var(--deep-line)', background: 'transparent', color: 'var(--deep-ink)', direction: 'ltr' }}>
+                  {showPhone ? toFaDigits(l.owner.phone) : 'نمایش شماره'}
+                </button>
+              </div>
+            ) : (
+              <span className="rw sm" style={{ gap: 8, color: 'var(--deep-mute)', lineHeight: 1.8 }}>
+                <Icon name={ownerPhones ? 'phone' : 'lock'} size="s" />
+                {ownerPhones ? 'شماره‌ای ثبت نشده است.' : 'شمارهٔ مالک را مدیر دفتر دارد؛ برای تماس با او هماهنگ کنید.'}
+              </span>
+            )}
           </section>
 
           {matches.length > 0 && (

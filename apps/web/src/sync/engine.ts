@@ -53,6 +53,14 @@ export class SyncEngine {
     private officeId: string,
   ) {
     this.store = target.store;
+    // توکن همیشه مال یک دفتر است. اگر کاربر دفترش را عوض کرد (پیوستن به دفتر دیگر)، تمدید توکن دفتر تازه را می‌دهد؛
+    // هیچ داده‌ای از این دیتابیس نباید با آن توکن برود، حتی در فاصلهٔ کوتاه تا خاموش شدن این موتور.
+    this.withToken = (fn) =>
+      withToken((t) => {
+        const office = tokenOffice(t);
+        if (office && office !== officeId) throw new ApiError('office_changed');
+        return fn(t);
+      });
   }
 
   start() {
@@ -197,6 +205,7 @@ export class SyncEngine {
       const offline = e instanceof ApiError && e.code === 'offline';
       this.set({ phase: offline ? 'offline' : 'error', pending: (await this.store.syncInfo()).pending });
       if (e instanceof ApiError && e.code === 'unauthorized') return; // صفحهٔ ورود برمی‌گردد
+      if (e instanceof ApiError && e.code === 'office_changed') return this.set({ phase: 'blocked' });
       this.schedule(RETRY_MS[Math.min(this.retry++, RETRY_MS.length - 1)]!);
     }
   }
@@ -220,6 +229,21 @@ export class SyncEngine {
       if (this.stopped) break;
       const { cursor } = await this.store.syncInfo();
       const page = await this.withToken((t) => this.api.pull(t, cursor, PULL_BATCH));
+      // موتور وسط دریافت خاموش شد (خروج، تعویض دفتر): این صفحه دیگر نباید روی دیتابیس بنشیند.
+      if (this.stopped) break;
+      if (page.ownerPhones !== undefined) {
+        this.applying = true;
+        let again: boolean;
+        try {
+          again = await this.store.setOwnerPhoneAccess(page.ownerPhones);
+        } finally {
+          this.applying = false;
+        }
+        if (again) {
+          got = true;
+          continue;
+        }
+      }
       if (page.entities.length) {
         this.applying = true;
         try {
@@ -321,5 +345,18 @@ export class SyncEngine {
     } finally {
       this.applying = false;
     }
+  }
+}
+
+/** دفتر توکن دسترسی (ادعای off در JWT). برای توکنی که JWT نیست (پیش‌نمایش) null. امضا را سرور بررسی می‌کند. */
+export function tokenOffice(token: string): string | null {
+  const part = token.split('.')[1];
+  if (!part) return null;
+  try {
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    const off = (JSON.parse(json) as { off?: unknown }).off;
+    return typeof off === 'string' ? off : null;
+  } catch {
+    return null;
   }
 }

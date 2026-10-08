@@ -41,6 +41,11 @@ export interface Syncable {
   savePhotoFull(id: string, mime: string, bytes: Uint8Array): Promise<void>;
   /** همهٔ دادهٔ دفتر از این دستگاه پاک می‌شود (ورود دفتر دیگر، یا خروج روی کامپیوتر مشترک). */
   resetLocalData(): Promise<void>;
+  /**
+   * اجازهٔ دیدن شمارهٔ مالک‌ها که سرور با هر pull می‌گوید. گرفته شد ⇒ شماره‌های روی این دستگاه پاک می‌شوند.
+   * داده شد ⇒ نشانگر دریافت صفر می‌شود و true برمی‌گردد تا همه چیز، این بار با شماره‌ها، دوباره گرفته شود.
+   */
+  setOwnerPhoneAccess(visible: boolean): Promise<boolean>;
 }
 
 /** بایت‌های یک عکس، جدا از مشخصاتش که با بقیهٔ تغییرها می‌رود. */

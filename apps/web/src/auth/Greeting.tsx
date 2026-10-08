@@ -9,7 +9,7 @@ const SHOW_MS = 5200;
  * لحظهٔ خوش‌آمد بعد از ورود یا ثبت‌نام: یک کارت کوتاه بالای صفحهٔ امروز، با همان شب و پلاک صحنهٔ ورود.
  * خودش کنار می‌رود (با نگه داشتن نشانگر روی آن صبر می‌کند)؛ Esc یا ضربدر هم می‌بندد. هیچ انیمیشن بی‌پایانی ندارد.
  */
-export function Greeting({ kind, name, office, onClose, onStart }: { kind: 'back' | 'new'; name: string; office: string; onClose: () => void; onStart: () => void }) {
+export function Greeting({ kind, name, office, onClose, onStart }: { kind: 'back' | 'new' | 'joined'; name: string; office: string; onClose: () => void; onStart: () => void }) {
   const [leaving, setLeaving] = useState(false);
   const [paused, setPaused] = useState(false);
   const left = useRef(SHOW_MS);
@@ -58,11 +58,13 @@ export function Greeting({ kind, name, office, onClose, onStart }: { kind: 'back
           <span className="gr-sky" />
         </div>
         <div className="gr-txt">
-          <span className="gr-eb">{kind === 'new' ? 'دفترتان آماده است' : 'ورود موفق'}</span>
-          <b className="gr-h">{kind === 'new' ? `خوش آمدید${who ? `، ${who}` : ''}!` : `${who ? `${who}، ` : ''}خوش برگشتید`}</b>
+          <span className="gr-eb">{kind === 'new' ? 'دفترتان آماده است' : kind === 'joined' ? 'به دفتر پیوستید' : 'ورود موفق'}</span>
+          <b className="gr-h">{kind === 'back' ? `${who ? `${who}، ` : ''}خوش برگشتید` : `خوش آمدید${who ? `، ${who}` : ''}!`}</b>
           <span className="gr-sub">
             {kind === 'new' ? (
               <>«{office}» در کلید ساخته شد. با ثبت اولین فایل شروع کنید.</>
+            ) : kind === 'joined' ? (
+              <>حالا عضو «{office}» هستید؛ فایل‌ها و مشتری‌های دفتر چند لحظهٔ دیگر روی همین دستگاه می‌رسند.</>
             ) : (
               <>همه‌چیز «{office}» سر جایش است؛ از همین‌جا ادامه دهید.</>
             )}

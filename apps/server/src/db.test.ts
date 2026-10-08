@@ -17,7 +17,7 @@ if (process.env.KELID_REQUIRE_TEST_DB && !(appUrl && ownerUrl)) {
 }
 
 // جدول‌هایی که عمداً مال هیچ دفتری نیستند؛ هر جدول دیگری بدون RLS اجباری خطاست.
-const SHARED_TABLES = ['schema_migrations', 'users', 'devices', 'otp_codes', 'signup_tickets'];
+const SHARED_TABLES = ['schema_migrations', 'users', 'devices', 'otp_codes', 'signup_tickets', 'invites'];
 
 describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
   let owner: Pool;
@@ -590,6 +590,167 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'x', fields: { 'bad key': 1 }, hlc: hlc(t0) }])).statusCode).toBe(400);
       expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'x', fields: {}, hlc: 'yesterday' }])).statusCode).toBe(400);
       expect((await pull(a, s.accessToken, "1;drop")).statusCode).toBe(400);
+      await a.close();
+    });
+  });
+
+  describe('team', () => {
+    const get = (a: ReturnType<typeof newApp>, url: string, token: string) => a.inject({ method: 'GET', url, headers: { authorization: `Bearer ${token}` } });
+    const del = (a: ReturnType<typeof newApp>, url: string, token: string) => a.inject({ method: 'DELETE', url, headers: { authorization: `Bearer ${token}` } });
+    const hlc = (wall: number, node = 'dev') => `${wall.toString(36).padStart(10, '0')}-00000-${node}`;
+    const t0 = Date.now() - 60_000;
+
+    /** شمارهٔ دعوت‌شده با کد وارد می‌شود و به دفتر می‌پیوندد. */
+    async function join(a: ReturnType<typeof newApp>, phone: string, name = 'سارا مشاور') {
+      await post(a, '/auth/otp', { phone });
+      const v = (await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'گوشی' })).json();
+      expect(v.signupToken).toBeTruthy();
+      const r = await post(a, '/auth/join', { signupToken: v.signupToken, name, password: 'agent-1404', deviceName: 'گوشی' });
+      expect(r.statusCode).toBe(200);
+      return { invite: v.invite, session: r.json() };
+    }
+
+    it('invites a colleague by phone, who joins with a code and a password', async () => {
+      const a = newApp();
+      const m = await signUp(a, freshPhone());
+      expect(m.user).toMatchObject({ role: 'manager', seeOwnerPhones: true });
+      const phone = freshPhone();
+      expect((await post(a, '/team/invites', { phone: phone.replace(/^0/, '+98'), name: 'سارا', role: 'agent' }, m.accessToken)).statusCode).toBe(204);
+      const { invite, session } = await join(a, phone);
+      expect(invite).toEqual({ officeName: 'املاک پارسا', invitedBy: 'علی رضایی', name: 'سارا', role: 'agent' });
+      expect(session.office.id).toBe(m.office.id);
+      expect(session.user).toMatchObject({ name: 'سارا مشاور', role: 'agent', seeOwnerPhones: false });
+      // ورود بعدی با رمز خودش
+      expect((await post(a, '/auth/login', { phone, password: 'agent-1404', deviceName: 'x' })).json().office.id).toBe(m.office.id);
+
+      const team = (await get(a, '/team', session.accessToken)).json();
+      expect(team.seats).toBe(5);
+      expect(team.members.map((x: { name: string; role: string }) => [x.name, x.role])).toEqual([['علی رضایی', 'manager'], ['سارا مشاور', 'agent']]);
+      expect(team.invites).toEqual([]);
+      // عضو فعلی را دوباره نمی‌شود دعوت کرد
+      expect((await post(a, '/team/invites', { phone, name: 'سارا', role: 'agent' }, m.accessToken)).json().error).toBe('member');
+      await a.close();
+    });
+
+    it('lets only managers change the team or the office name', async () => {
+      const a = newApp();
+      const m = await signUp(a, freshPhone());
+      const phone = freshPhone();
+      await post(a, '/team/invites', { phone, name: 'سارا', role: 'agent' }, m.accessToken);
+      const { session: s } = await join(a, phone);
+      expect((await post(a, '/team/invites', { phone: freshPhone(), name: 'x', role: 'agent' }, s.accessToken)).statusCode).toBe(403);
+      expect((await post(a, `/team/members/${m.user.id}`, { role: 'agent' }, s.accessToken)).statusCode).toBe(403);
+      expect((await del(a, `/team/members/${m.user.id}`, s.accessToken)).statusCode).toBe(403);
+      expect((await post(a, '/auth/profile', { officeName: 'هک' }, s.accessToken)).statusCode).toBe(403);
+      expect((await post(a, '/auth/profile', { name: 'سارا احمدی' }, s.accessToken)).statusCode).toBe(200);
+      // مشاوری که مدیر شد، بی‌درنگ (بی‌تمدید توکن) دسترسی دارد
+      expect((await post(a, `/team/members/${s.user.id}`, { role: 'manager' }, m.accessToken)).statusCode).toBe(204);
+      expect((await post(a, '/auth/profile', { officeName: 'املاک پارسا' }, s.accessToken)).statusCode).toBe(200);
+      await a.close();
+    });
+
+    it('caps members plus open invites at the office seats', async () => {
+      const a = newApp();
+      const m = await signUp(a, freshPhone());
+      await withOffice(owner, m.office.id, (db) => db.query('update offices set seats = 2 where id = $1', [m.office.id]));
+      const p1 = freshPhone();
+      const p2 = freshPhone();
+      expect((await post(a, '/team/invites', { phone: p1, name: 'یک', role: 'agent' }, m.accessToken)).statusCode).toBe(204);
+      // دعوت دوباره به همان شماره جای تازه نمی‌گیرد
+      expect((await post(a, '/team/invites', { phone: p1, name: 'یک', role: 'manager' }, m.accessToken)).statusCode).toBe(204);
+      expect((await post(a, '/team/invites', { phone: p2, name: 'دو', role: 'agent' }, m.accessToken)).json().error).toBe('no_seat');
+      expect((await del(a, `/team/invites/${p1}`, m.accessToken)).statusCode).toBe(204);
+      expect((await post(a, '/team/invites', { phone: p2, name: 'دو', role: 'agent' }, m.accessToken)).statusCode).toBe(204);
+      const { session } = await join(a, p2);
+      expect(session.user.role).toBe('agent');
+      expect((await post(a, '/team/invites', { phone: p1, name: 'یک', role: 'agent' }, m.accessToken)).json().error).toBe('no_seat');
+      await a.close();
+    });
+
+    it('never sends owner phones to an agent without permission, and the agent cannot change them', async () => {
+      const a = newApp();
+      const m = await signUp(a, freshPhone());
+      const phone = freshPhone();
+      await post(a, '/team/invites', { phone, name: 'سارا', role: 'agent' }, m.accessToken);
+      const { session: s } = await join(a, phone);
+      const id = randomUUID();
+      const base = { deal: 'sale', status: 'active', kind: 'apartment', neighborhood: 'ونک', area: 90, createdAt: '2026-10-07T10:00:00Z' };
+      await post(a, '/sync/push', { changes: [{ seq: 1, kind: 'listing', id, fields: { ...base, owner: { name: 'آقای کریمی', phone: '09121112233' } }, hlc: hlc(t0) }] }, m.accessToken);
+
+      const seen = (await get(a, '/sync/pull?cursor=0', s.accessToken)).json();
+      expect(seen.ownerPhones).toBe(false);
+      expect(seen.entities[0].fields.owner).toEqual({ name: 'آقای کریمی', phone: '' });
+      // ویرایش نام مالک روی دستگاه مشاور شمارهٔ خالی می‌فرستد؛ شماره سر جایش می‌ماند
+      await post(a, '/sync/push', { changes: [{ seq: 1, kind: 'listing', id, fields: { owner: { name: 'آقای کریمی‌پور', phone: '' } }, hlc: hlc(t0 + 10, 'b') }] }, s.accessToken);
+      await post(a, '/sync/push', { changes: [{ seq: 2, kind: 'listing', id, fields: { owner: null }, hlc: hlc(t0 + 20, 'b') }] }, s.accessToken);
+      const mine = (await get(a, '/sync/pull?cursor=0', m.accessToken)).json();
+      expect(mine.ownerPhones).toBe(true);
+      expect(mine.entities[0].fields.owner).toEqual({ name: 'آقای کریمی‌پور', phone: '09121112233' });
+      // فایلی که خود مشاور ثبت می‌کند شماره‌اش را نگه می‌دارد
+      const own = randomUUID();
+      await post(a, '/sync/push', { changes: [{ seq: 3, kind: 'listing', id: own, fields: { ...base, owner: { name: 'خانم نوری', phone: '09124445566' } }, hlc: hlc(t0 + 30, 'b') }] }, s.accessToken);
+      const after = (await get(a, '/sync/pull?cursor=0', m.accessToken)).json();
+      expect(after.entities.find((e: { id: string }) => e.id === own).fields.owner.phone).toBe('09124445566');
+
+      // مدیر اجازه می‌دهد: همان لحظه
+      expect((await post(a, `/team/members/${s.user.id}`, { seeOwnerPhones: true }, m.accessToken)).statusCode).toBe(204);
+      const now = (await get(a, '/sync/pull?cursor=0', s.accessToken)).json();
+      expect(now.ownerPhones).toBe(true);
+      expect(now.entities.find((e: { id: string }) => e.id === id).fields.owner.phone).toBe('09121112233');
+      await a.close();
+    });
+
+    it('removes a member at once and keeps at least one manager', async () => {
+      const a = newApp();
+      const m = await signUp(a, freshPhone());
+      expect((await post(a, `/team/members/${m.user.id}`, { role: 'agent' }, m.accessToken)).json().error).toBe('last_manager');
+      expect((await del(a, `/team/members/${m.user.id}`, m.accessToken)).json().error).toBe('self');
+      const phone = freshPhone();
+      await post(a, '/team/invites', { phone, name: 'سارا', role: 'agent' }, m.accessToken);
+      const { session: s } = await join(a, phone);
+      expect((await del(a, `/team/members/${s.user.id}`, m.accessToken)).statusCode).toBe(204);
+      expect((await get(a, '/team', s.accessToken)).statusCode).toBe(401);
+      expect((await post(a, '/auth/refresh', { refreshToken: s.refreshToken })).statusCode).toBe(401);
+      expect((await post(a, '/auth/login', { phone, password: 'agent-1404', deviceName: 'x' })).json().error).toBe('wrong');
+      // دفتر دیگر نمی‌تواند عضو این دفتر را بردارد یا عوض کند
+      const other = await signUp(a, freshPhone());
+      expect((await del(a, `/team/members/${m.user.id}`, other.accessToken)).statusCode).toBe(404);
+      // شمارهٔ برداشته‌شده می‌تواند دفتر خودش را بسازد
+      await allowResend(phone);
+      const own = await signUp(a, phone);
+      expect(own.office.id).not.toBe(m.office.id);
+      expect(own.user).toMatchObject({ id: s.user.id, role: 'manager' });
+      await a.close();
+    });
+
+    it('moves someone who has their own office, only when they are alone there', async () => {
+      const a = newApp();
+      const m = await signUp(a, freshPhone());
+      const phone = freshPhone();
+      const solo = await signUp(a, phone);
+      await post(a, '/team/invites', { phone, name: 'رضا', role: 'agent' }, m.accessToken);
+      const s = (await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'x' })).json();
+      expect(s.invite).toMatchObject({ officeName: 'املاک پارسا', role: 'agent' });
+      expect(s.office.id).toBe(solo.office.id);
+
+      const moved = await post(a, '/auth/invite/accept', {}, s.accessToken);
+      expect(moved.statusCode).toBe(200);
+      expect(moved.json()).toMatchObject({ office: { id: m.office.id }, user: { id: solo.user.id, role: 'agent', seeOwnerPhones: false }, invite: null });
+      // توکن دفتر قبلی دیگر کار نمی‌کند؛ دستگاه دیگرش با تمدید به دفتر تازه می‌رود
+      expect((await get(a, '/team', solo.accessToken)).statusCode).toBe(401);
+      expect((await post(a, '/auth/refresh', { refreshToken: solo.refreshToken })).json().office.id).toBe(m.office.id);
+
+      // مدیری که همکار دارد نمی‌تواند دفترش را رها کند؛ رد کردن دعوت آن را پاک می‌کند
+      const busy = await signUp(a, freshPhone());
+      const mate = freshPhone();
+      await post(a, '/team/invites', { phone: mate, name: 'همکار', role: 'agent' }, busy.accessToken);
+      await join(a, mate);
+      await post(a, '/team/invites', { phone: busy.user.phone, name: 'مدیر', role: 'manager' }, m.accessToken);
+      const b = (await post(a, '/auth/refresh', { refreshToken: busy.refreshToken })).json();
+      expect(b.invite).not.toBeNull();
+      expect((await post(a, '/auth/invite/accept', {}, b.accessToken)).json().error).toBe('not_alone');
+      expect((await post(a, '/auth/invite/decline', {}, b.accessToken)).statusCode).toBe(204);
+      expect((await post(a, '/auth/refresh', { refreshToken: b.refreshToken })).json().invite).toBeNull();
       await a.close();
     });
   });

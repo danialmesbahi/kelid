@@ -730,6 +730,29 @@ export class SqlStore implements KelidStore, Syncable {
     this.emit();
   }
 
+  async setOwnerPhoneAccess(visible: boolean) {
+    const [r] = await this.db.all<{ value: string }>("SELECT value FROM meta WHERE key = 'owner_phones'");
+    const was = r?.value;
+    if (visible) {
+      if (was === '1') return false;
+      // اجازه تازه داده شد: شماره‌هایی که قبلاً نیامده بودند فقط با دریافت دوباره از اول می‌رسند.
+      const regain = was === '0';
+      await this.db.transaction([
+        { sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('owner_phones', '1')" },
+        ...(regain ? [{ sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('sync_cursor', '0')" }] : []),
+      ]);
+      return regain;
+    }
+    if (was === '0') return false;
+    // این تغییر مال همگام‌سازی نیست (صف ارسال ندارد): فقط نسخهٔ این دستگاه از شماره‌ها پاک می‌شود و روی سرور می‌ماند.
+    await this.db.transaction([
+      { sql: "UPDATE listings SET owner_phone = '' WHERE owner_phone <> ''" },
+      { sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('owner_phones', '0')" },
+    ]);
+    this.emit();
+    return false;
+  }
+
   /** ردیف محلی از وضعیت سرور؛ همان ستون‌ها و همان متن جستجو که نوشتن‌های عادی می‌سازند. */
   private remoteRow(kind: Exclude<SyncKind, 'photo'>, id: string, row: Row | undefined, f: Record<string, unknown>, deleted: number, plaque: unknown): SqlStatement[] {
     const now = nowIso();
