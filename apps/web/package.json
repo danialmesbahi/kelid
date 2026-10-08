@@ -12,6 +12,7 @@
     "@kelid/core": "*",
     "@kelid/ui": "*",
     "@sqlite.org/sqlite-wasm": "^3.53.4-build2",
+    "maplibre-gl": "^6.13.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router": "^7.9.0",

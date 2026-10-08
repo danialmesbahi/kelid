@@ -15,6 +15,12 @@ export interface Price {
   monthlyRent?: number;
 }
 
+/** نقطه روی نقشه (درجه، WGS84). */
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
+
 /** یک «فایل» ملک. */
 export interface Listing {
   id: string;
@@ -27,6 +33,8 @@ export interface Listing {
   street: string;
   /** نشانی کامل؛ فقط برای دفتر. */
   address?: string;
+  /** جای دقیق ملک روی نقشه؛ مثل نشانی فقط برای دفتر است. */
+  location?: GeoPoint;
   area: number;
   bedrooms: number;
   floor?: number;

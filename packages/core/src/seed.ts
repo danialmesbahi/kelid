@@ -24,8 +24,27 @@ function at(hhmm: string, dayOffset = 0): string {
 
 type L = Partial<Listing> & Pick<Listing, 'plaque' | 'deal' | 'neighborhood' | 'street' | 'area' | 'bedrooms' | 'price' | 'cover'>;
 
+// مرکز تقریبی محله‌های نمونه؛ هر فایل با فاصلهٔ کوچکی (از روی پلاکش) کنار آن می‌نشیند تا روی هم نیفتند.
+const CENTERS: Record<string, [number, number]> = {
+  'سعادت‌آباد': [35.7795, 51.3765],
+  ونک: [35.7588, 51.4098],
+  پونک: [35.7626, 51.3318],
+  'شهرک غرب': [35.7572, 51.3716],
+  تهرانپارس: [35.7381, 51.5318],
+  'یوسف‌آباد': [35.7272, 51.4062],
+  'جنت‌آباد': [35.7509, 51.3048],
+};
+
+function near(neighborhood: string, plaque: number | null): Listing['location'] {
+  const c = CENTERS[neighborhood];
+  if (!c) return undefined;
+  const k = plaque ?? 0;
+  return { lat: c[0] + (((k * 37) % 17) - 8) * 0.0007, lng: c[1] + (((k * 53) % 19) - 9) * 0.0008 };
+}
+
 function listing(id: string, l: L, ageDays: number): Listing {
   return {
+    location: near(l.neighborhood, l.plaque),
     id,
     status: 'active',
     kind: 'apartment',

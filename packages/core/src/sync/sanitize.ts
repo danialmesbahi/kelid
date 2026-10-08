@@ -24,6 +24,7 @@ const SPECS: Record<SyncKind, Record<string, Check>> = {
     neighborhood: str,
     street: str,
     address: optStr,
+    location: (v) => v === null || (obj({ lat: num, lng: num })(v) && Math.abs((v as { lat: number }).lat) <= 90 && Math.abs((v as { lng: number }).lng) <= 180),
     area: num,
     bedrooms: num,
     floor: optNum,

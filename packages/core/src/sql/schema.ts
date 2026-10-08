@@ -143,6 +143,10 @@ export const migrations: string[] = [
   ALTER TABLE photos ADD COLUMN blob_state INTEGER NOT NULL DEFAULT 0;
   CREATE INDEX IF NOT EXISTS photos_blob ON photos(blob_state) WHERE blob_state <> 1;
   `,
+  /* 7: جای ملک روی نقشه (درجه)؛ هر دو با هم پر یا خالی‌اند */ `
+  ALTER TABLE listings ADD COLUMN lat REAL;
+  ALTER TABLE listings ADD COLUMN lng REAL;
+  `,
 ];
 
 export async function migrate(db: SqlDriver): Promise<void> {

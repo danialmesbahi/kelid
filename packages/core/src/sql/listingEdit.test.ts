@@ -75,6 +75,29 @@ describe('editing a listing on SqlStore', () => {
     db.close();
   });
 
+  it('keeps a map location, sends it with the sync log and clears it', async () => {
+    const db = openEncrypted(Database as never, tempFile(), 'k');
+    const store = await SqlStore.open(nodeSqliteDriver(db), seed);
+    const [l, other] = [(await store.listListings({ query: '۰۲۷' }))[0]!, (await store.listListings({ query: '۰۵۲' }))[0]!];
+    expect(l.location).toBeDefined();
+    const at = { lat: 35.7512, lng: 51.4103 };
+    expect((await store.updateListing(l.id, { location: at })).location).toEqual(at);
+    const payload = () => JSON.parse((db.prepare('SELECT payload FROM outbox WHERE entity_id = ? ORDER BY seq DESC LIMIT 1').get(l.id) as { payload: string }).payload) as unknown;
+    expect(payload()).toEqual({ location: at });
+    await store.updateListing(l.id, { location: undefined });
+    expect(payload()).toEqual({ location: null });
+    expect((await store.getListing(l.id))!.location).toBeUndefined();
+
+    // از دستگاه دیگر: نقطهٔ معتبر می‌نشیند، نقطهٔ بیرون از کرهٔ زمین نادیده گرفته می‌شود
+    await store.applyRemote([{ kind: 'listing', id: other.id, fields: { location: { lat: 35.7, lng: 51.3 } } }], '1', null);
+    expect((await store.getListing(other.id))!.location).toEqual({ lat: 35.7, lng: 51.3 });
+    await store.applyRemote([{ kind: 'listing', id: other.id, fields: { location: { lat: 135, lng: 51.3 } } }], '2', null);
+    expect((await store.getListing(other.id))!.location).toEqual({ lat: 35.7, lng: 51.3 });
+    await store.applyRemote([{ kind: 'listing', id: other.id, fields: { location: null } }], '3', null);
+    expect((await store.getListing(other.id))!.location).toBeUndefined();
+    db.close();
+  });
+
   it('persists edits after reopening', async () => {
     const file = tempFile();
     let db = openEncrypted(Database as never, file, 'k');
@@ -92,6 +115,13 @@ describe('editing a listing on SqlStore', () => {
 describe('editing a listing on MemoryStore', () => {
   it('behaves like SqlStore', async () => {
     await editScenario(new MemoryStore(seed));
+  });
+
+  it('keeps and clears a map location', async () => {
+    const store = new MemoryStore(seed);
+    const l = (await store.listListings({ query: '۰۲۷' }))[0]!;
+    expect((await store.updateListing(l.id, { location: { lat: 35.75, lng: 51.41 } })).location).toEqual({ lat: 35.75, lng: 51.41 });
+    expect((await store.updateListing(l.id, { location: undefined })).location).toBeUndefined();
   });
 });
 

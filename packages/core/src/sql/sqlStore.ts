@@ -29,6 +29,7 @@ function rowToListing(r: Row): Listing {
     neighborhood: s(r.neighborhood),
     street: s(r.street),
     address: opt(r.address),
+    location: r.lat === null || r.lat === undefined || r.lng === null || r.lng === undefined ? undefined : { lat: Number(r.lat), lng: Number(r.lng) },
     area: Number(r.area),
     bedrooms: Number(r.bedrooms),
     floor: n(r.floor),
@@ -52,12 +53,12 @@ function listingValues(l: Listing): SqlValue[] {
     l.floor ?? null, l.floorsTotal ?? null, l.yearBuilt ?? null, JSON.stringify(l.features),
     l.price.total ?? null, l.price.deposit ?? null, l.price.monthlyRent ?? null, l.negotiable ? 1 : 0,
     l.description ?? null, l.owner.name, l.owner.phone, l.owner.bestTime ?? null, l.cover, l.photoCount,
-    searchText(l), l.createdAt, l.updatedAt,
+    searchText(l), l.createdAt, l.updatedAt, l.location?.lat ?? null, l.location?.lng ?? null,
   ];
 }
 
 const LISTING_COLS =
-  'id, plaque, deal, status, kind, neighborhood, street, address, area, bedrooms, floor, floors_total, year_built, features, price_total, price_deposit, price_rent, negotiable, description, owner_name, owner_phone, owner_best_time, cover, photo_count, search, created_at, updated_at';
+  'id, plaque, deal, status, kind, neighborhood, street, address, area, bedrooms, floor, floors_total, year_built, features, price_total, price_deposit, price_rent, negotiable, description, owner_name, owner_phone, owner_best_time, cover, photo_count, search, created_at, updated_at, lat, lng';
 const LISTING_PH = LISTING_COLS.split(',').map(() => '?').join(', ');
 // ویرایش به شمار عکس‌ها دست نمی‌زند؛ آن را فقط کارهای عکس عوض می‌کنند و ممکن است هم‌زمان اجرا شوند.
 const LISTING_KEEP = new Set(['id', 'plaque', 'photo_count', 'created_at']);
@@ -770,6 +771,7 @@ export class SqlStore implements KelidStore, Syncable {
           neighborhood: v('neighborhood', cur?.neighborhood ?? ''),
           street: v('street', cur?.street ?? '') ?? '',
           address: v('address', cur?.address),
+          location: v('location', cur?.location),
           area: v('area', cur?.area ?? 0),
           bedrooms: v('bedrooms', cur?.bedrooms ?? 0) ?? 0,
           floor: v('floor', cur?.floor),
