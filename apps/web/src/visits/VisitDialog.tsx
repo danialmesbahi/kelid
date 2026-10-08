@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckBox, Icon, Plaque, Segmented } from '@kelid/ui';
+import { CheckBox, Icon, Plaque, Segmented, Switch } from '@kelid/ui';
 import {
   addDays, formatJalaliDay, formatPlaque, listingTitle, tehranDayKey, tehranIso, tehranTimeOf, toEnDigits, toFaDigits,
   type Client, type Listing, type Visit, type VisitKind,
@@ -11,6 +11,7 @@ import { usePhone } from '../layout/usePhone';
 import { JalaliPicker } from './JalaliPicker';
 import { TimePicker } from './TimePicker';
 import { Select } from '../layout/Select';
+import { useSyncStatus } from '../sync/state';
 
 const KINDS: Array<{ value: VisitKind; label: string }> = [
   { value: 'visit', label: 'بازدید' },
@@ -61,6 +62,9 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
   const [listingId, setListingId] = useState(visit?.listingId ?? preset?.listingId ?? '');
   const [clientId, setClientId] = useState(visit?.clientId ?? preset?.clientId ?? '');
   const [done, setDone] = useState(visit?.done ?? false);
+  const [remind, setRemind] = useState(visit?.remind ?? false);
+  // پیامک را سرور می‌فرستد؛ پس فقط وقتی دفتر به سرور وصل است و مشتری شماره دارد.
+  const synced = useSyncStatus() !== null;
   const [error, setError] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const phone = usePhone();
@@ -72,6 +76,7 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
   const listing = data?.listings.find((l) => l.id === listingId);
   const client = data?.clients.find((c) => c.id === clientId);
   const suggested = autoTitle(kind, client, listing);
+  const canRemind = synced && !!client?.phone.trim();
   const today = tehranDayKey();
   // ثابت می‌ماند تا تقویم داخل پنجره با هر حرف عنوان دوباره ساخته نشود
   const pickDay = useCallback((k: string) => {
@@ -124,6 +129,8 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
     const input = {
       kind, title: finalTitle, startsAt, endsAt: new Date(Date.parse(startsAt) + duration * 60_000).toISOString(),
       listingId: listingId || undefined, clientId: clientId || undefined, done,
+      // بی سرور این دستگاه نمی‌داند؛ همان که بود می‌ماند.
+      remind: canRemind ? remind : synced ? false : (visit?.remind ?? false),
     };
     saving.current = true;
     try {
@@ -216,6 +223,17 @@ export function VisitDialog({ visit, preset, onClose }: { visit?: Visit; preset?
                 <Segmented<number> label="مدت قرار" value={duration} onChange={setDuration} options={DURATIONS.map((d) => ({ value: d, label: d < 60 ? `${toFaDigits(d)} دقیقه` : `${toFaDigits(d / 60).replace('.', '٫')} ساعت` }))} />
               </div>
             </div>
+
+            {canRemind && (
+              <div className="vd-remind rw">
+                <Icon name="bell" size="s" />
+                <span className="sm sp">
+                  یادآوری پیامکی به مشتری
+                  <span className="hint">۲ ساعت پیش از قرار به {toFaDigits(client!.phone)}</span>
+                </span>
+                <Switch checked={remind} onChange={setRemind} label="یادآوری پیامکی به مشتری" />
+              </div>
+            )}
 
             {visit && (
               <label className="rw sm" style={{ gap: 10 }}>

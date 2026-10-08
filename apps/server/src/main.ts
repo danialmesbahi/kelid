@@ -5,6 +5,7 @@ import { migrate } from './migrations';
 import { ConsoleSms, KavenegarSms } from './auth/sms';
 import { licenseKey } from './billing/license';
 import { DevGateway, ZarinpalGateway } from './billing/gateway';
+import { ReminderJob } from './reminders/job';
 
 async function main() {
   const config = loadConfig();
@@ -15,7 +16,7 @@ async function main() {
   const pool = createPool(config.databaseUrl);
   const { ownsTables } = await assertSafeRole(pool);
 
-  const sms = config.sms.provider === 'kavenegar' ? new KavenegarSms(config.sms.apiKey, config.sms.template) : new ConsoleSms();
+  const sms = config.sms.provider === 'kavenegar' ? new KavenegarSms(config.sms.apiKey, config.sms.template, fetch, config.sms.reminderTemplate) : new ConsoleSms();
   const b = config.billing;
   const gateway =
     b.gateway?.provider === 'zarinpal'
@@ -39,8 +40,12 @@ async function main() {
   if (ownsTables) app.log.warn('DATABASE_URL owns the tables; use a separate MIGRATION_DATABASE_URL role in production');
 
   await app.listen({ port: config.port, host: config.host });
+  // یادآوری پیامکی قرارها؛ با چند نمونهٔ سرور هم هر پیامک یک بار می‌رود.
+  const reminders = new ReminderJob(pool, sms, (e) => app.log.error(e, 'reminder sms failed'));
+  reminders.start();
 
   const stop = async () => {
+    await reminders.stop();
     await app.close();
     await pool.end();
     process.exit(0);

@@ -32,6 +32,14 @@ export async function withOffice<T>(pool: Pool, officeId: string, fn: (db: Db) =
   });
 }
 
+/** کارهای زمان‌بندی‌شدهٔ سرور (مثل فرستادن یادآوری‌ها): فقط سیاست‌های kelid_job() باز می‌شوند. */
+export async function withJob<T>(pool: Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+  return transaction(pool, async (db) => {
+    await db.query("select set_config('kelid.job', 'on', true)");
+    return fn(db);
+  });
+}
+
 /**
  * دسترسی پنل فروشنده به همهٔ دفترها (فهرست دفترها، اشتراک، پرداخت‌ها، یادداشت‌های پشتیبانی)؛ فقط admin/ صدایش می‌زند.
  * مثل withOffice پرچم فقط برای همین تراکنش روشن است و دادهٔ دفترها (فایل، مشتری، عکس) با آن هم دیده نمی‌شود.

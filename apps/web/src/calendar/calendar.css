@@ -41,6 +41,7 @@
 .cal-main:hover { background: var(--sunk); }
 .cal-title { font-size: 16.5px; line-height: 1.5; }
 .cal-kind { display: inline-flex; align-items: center; gap: 4px; color: var(--pri-text); font-weight: 600; }
+.cal-remind { display: inline-flex; align-items: center; gap: 4px; color: var(--ink2); }
 .cal-now { display: flex; align-items: center; gap: 12px; padding: 4px 0; color: var(--brass-text); }
 .cal-now span:first-child { width: 58px; }
 .cal-now i { width: 9px; height: 9px; border-radius: 50%; background: var(--brass); }

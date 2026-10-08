@@ -14,7 +14,7 @@ export interface Config {
   trustProxy: boolean;
   /** امضای توکن‌های ورود و هش کدهای پیامکی؛ حداقل ۳۲ نویسهٔ تصادفی. */
   jwtSecret: string;
-  sms: { provider: 'console' } | { provider: 'kavenegar'; apiKey: string; template: string };
+  sms: { provider: 'console' } | { provider: 'kavenegar'; apiKey: string; template: string; reminderTemplate: string };
   /** مبدأهایی که برنامهٔ وب/دسکتاپ از آن‌ها API را صدا می‌زند («null» = برنامهٔ ویندوز که از file:// باز می‌شود؛
    *  امن است چون ورود با توکن Bearer است نه کوکی). */
   corsOrigins: string[];
@@ -63,7 +63,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   let sms: Config['sms'] = { provider: 'console' };
   if (provider === 'kavenegar') {
     if (!env.KAVENEGAR_API_KEY || !env.KAVENEGAR_TEMPLATE) problems.push('KAVENEGAR_API_KEY و KAVENEGAR_TEMPLATE لازم‌اند');
-    sms = { provider: 'kavenegar', apiKey: env.KAVENEGAR_API_KEY ?? '', template: env.KAVENEGAR_TEMPLATE ?? '' };
+    // قالب یادآوری اختیاری است؛ بی آن یادآوری‌ها در صف می‌مانند و لاگ هشدار می‌دهد.
+    sms = { provider: 'kavenegar', apiKey: env.KAVENEGAR_API_KEY ?? '', template: env.KAVENEGAR_TEMPLATE ?? '', reminderTemplate: env.KAVENEGAR_REMINDER_TEMPLATE ?? '' };
   } else if (provider !== 'console') {
     problems.push('SMS_PROVIDER باید kavenegar باشد (console فقط برای توسعه است)');
   } else if (production) {

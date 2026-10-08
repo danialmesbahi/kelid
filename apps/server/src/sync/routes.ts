@@ -6,6 +6,7 @@ import { withOffice } from '../db';
 import { securityHeaders } from '../headers';
 import { announce, type LiveHub } from './live';
 import { requireActive } from '../billing/subscription';
+import { syncReminders } from '../reminders/schedule';
 import { PhotoBlobs, sniffImage, type ImageMime, type PhotoPart } from '../storage/photos';
 
 export const PUSH_MAX = 500;
@@ -168,6 +169,8 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, hub, p
          on conflict (office_id, kind, id) do update set fields = excluded.fields, clocks = excluded.clocks, version = nextval('entity_version')`,
         [JSON.stringify(records)],
       );
+      // یادآوری پیامکی با همان تراکنش: قرار یا شمارهٔ مشتری که عوض شد، صف هم همان لحظه درست می‌شود.
+      await syncReminders(db, records);
       await announce(db, office, req.auth!.dev);
     });
     return { ok: true, hlc: maxHlc };

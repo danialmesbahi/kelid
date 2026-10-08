@@ -51,7 +51,7 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'console' })).toThrow(/production/);
     expect(() => loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar' })).toThrow(/KAVENEGAR/);
     const ok = loadConfig({ ...base, ...prodBilling, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar', KAVENEGAR_API_KEY: 'k', KAVENEGAR_TEMPLATE: 't' });
-    expect(ok.sms).toEqual({ provider: 'kavenegar', apiKey: 'k', template: 't' });
+    expect(ok.sms).toEqual({ provider: 'kavenegar', apiKey: 'k', template: 't', reminderTemplate: '' });
   });
 
   it('takes photo storage only when fully and safely configured', () => {

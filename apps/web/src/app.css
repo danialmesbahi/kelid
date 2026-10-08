@@ -116,6 +116,8 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
 .vd-chip:hover { background: var(--sunk); }
 .vd-chip[aria-pressed="true"] { background: var(--pri-tint); border-color: transparent; color: var(--pri-text); }
 .vd-when { gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.vd-remind { gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--sunk); color: var(--ink2); }
+.vd-remind > .sm { display: flex; flex-direction: column; gap: 2px; color: var(--ink); }
 
 /* ── گوشی (زیر ۷۶۸ پیکسل؛ همان مرز usePhone) ─────────────────── */
 .mtab, .mbrand { display: none; }

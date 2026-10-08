@@ -4,7 +4,8 @@ import { existsSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
-import type { SmsSender } from './auth/sms';
+import type { ReminderSms, SmsSender } from './auth/sms';
+import { ReminderJob } from './reminders/job';
 import { assertSafeRole, createPool, withOffice, type Pool, type Queryable } from './db';
 import { migrate, migrations } from './migrations';
 import { DEV_LICENSE_SEED, licenseKey, publicKeyOf, verifyLicense } from './billing/license';
@@ -132,7 +133,8 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
   });
 
   const codes = new Map<string, string>();
-  const sms: SmsSender = { sendOtp: async (phone, code) => void codes.set(phone, code) };
+  const sent: Array<{ phone: string; r: ReminderSms }> = [];
+  const sms: SmsSender = { sendOtp: async (phone, code) => void codes.set(phone, code), sendReminder: async (phone, r) => void sent.push({ phone, r }) };
   const newApp = () => buildApp({ db: app, logLevel: 'silent', auth: { pool: app, sms, jwtSecret: 's'.repeat(48) } });
   let n = 0;
   const freshPhone = () => `0912${String(Date.now() % 10_000_000).padStart(7, '0').slice(0, 5)}${String(n++ % 100).padStart(2, '0')}`;
@@ -597,6 +599,70 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'x', fields: { 'bad key': 1 }, hlc: hlc(t0) }])).statusCode).toBe(400);
       expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'x', fields: {}, hlc: 'yesterday' }])).statusCode).toBe(400);
       expect((await pull(a, s.accessToken, "1;drop")).statusCode).toBe(400);
+      await a.close();
+    });
+
+    it('queues an SMS reminder two hours before a visit, sends it once, and follows changes', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      const other = await signUp(a, freshPhone());
+      const phone = freshPhone();
+      const starts = Date.now() + 5 * 3_600_000;
+      const visit = (extra: object = {}) => ({ kind: 'visit', title: 'بازدید ونک', startsAt: new Date(starts).toISOString(), endsAt: new Date(starts + 3_600_000).toISOString(), listingId: 'rl1', clientId: 'rc1', done: false, remind: true, deleted: false, ...extra });
+      const mine = () => withOffice(app, s.office.id, async (db) => (await db.query('select phone, status, send_at, place, attempts from reminders')).rows);
+      expect(
+        (
+          await push(a, s.accessToken, [
+            { seq: 1, kind: 'listing', id: 'rl1', fields: listing({ neighborhood: 'ونک' }), hlc: hlc(t0) },
+            { seq: 2, kind: 'client', id: 'rc1', fields: { name: 'آقای نادری', phone: phone.replace(/^0/, '+98'), deleted: false }, hlc: hlc(t0) },
+            { seq: 3, kind: 'visit', id: 'rv1', fields: visit(), hlc: hlc(t0) },
+          ])
+        ).statusCode,
+      ).toBe(200);
+      const [q] = await mine();
+      expect(q).toMatchObject({ phone, status: 'pending', place: 'ونک' });
+      expect(q.send_at.getTime()).toBe(starts - 2 * 3_600_000);
+      // دفتر دیگر صف این دفتر را نمی‌بیند
+      expect(await withOffice(app, other.office.id, async (db) => (await db.query('select 1 from reminders')).rowCount)).toBe(0);
+
+      const job = new ReminderJob(app, sms);
+      const mineSent = () => sent.filter((x) => x.phone === phone);
+      await job.runOnce(new Date());
+      expect(mineSent()).toEqual([]);
+      const due = new Date(starts - 2 * 3_600_000 + 1_000);
+      await job.runOnce(due);
+      expect(mineSent().map((x) => x.r)).toEqual([{ office: 'املاک پارسا', day: expect.any(String), time: expect.stringMatching(/^[۰-۹]{2}:[۰-۹]{2}$/), place: 'ونک' }]);
+      await job.runOnce(due);
+      expect(mineSent()).toHaveLength(1);
+      expect((await mine())[0].status).toBe('sent');
+
+      // ساعت قرار عوض شد ⇒ یادآوری تازه؛ یادآوری خاموش شد ⇒ لغو
+      await push(a, s.accessToken, [{ seq: 4, kind: 'visit', id: 'rv1', fields: { startsAt: new Date(starts + 3_600_000).toISOString() }, hlc: hlc(t0 + 10) }]);
+      expect((await mine())[0]).toMatchObject({ status: 'pending', attempts: 0 });
+      await push(a, s.accessToken, [{ seq: 5, kind: 'visit', id: 'rv1', fields: { remind: false }, hlc: hlc(t0 + 20) }]);
+      expect((await mine())[0].status).toBe('canceled');
+
+      // شمارهٔ مشتری عوض شد ⇒ قرار یادآوری‌دار با شمارهٔ تازه
+      await push(a, s.accessToken, [{ seq: 6, kind: 'visit', id: 'rv1', fields: { remind: true }, hlc: hlc(t0 + 30) }]);
+      const phone2 = freshPhone();
+      await push(a, s.accessToken, [{ seq: 7, kind: 'client', id: 'rc1', fields: { phone: phone2 }, hlc: hlc(t0 + 40) }]);
+      expect((await mine())[0]).toMatchObject({ phone: phone2, status: 'pending' });
+
+      // پیامک نرفت ⇒ دو دقیقه بعد دوباره، تا سه بار
+      const broken = new ReminderJob(app, { ...sms, sendReminder: async () => Promise.reject(new Error('down')) });
+      const later = new Date(starts + 3_600_000 - 2 * 3_600_000 + 1_000);
+      await broken.runOnce(later);
+      expect((await mine())[0]).toMatchObject({ status: 'pending', attempts: 1 });
+      await broken.runOnce(new Date(later.getTime() + 2 * 60_000));
+      await broken.runOnce(new Date(later.getTime() + 4 * 60_000));
+      expect((await mine())[0]).toMatchObject({ status: 'failed', attempts: 3 });
+
+      // دفتری که اشتراکش تمام شده پیامک نمی‌گیرد
+      await push(a, s.accessToken, [{ seq: 8, kind: 'visit', id: 'rv1', fields: { startsAt: new Date(starts).toISOString() }, hlc: hlc(t0 + 50) }]);
+      await withOffice(owner, s.office.id, (db) => db.query("update offices set expires_at = now() - interval '1 day' where id = $1", [s.office.id]));
+      await job.runOnce(due);
+      expect((await mine())[0].status).toBe('canceled');
+      expect(sent.filter((x) => x.phone === phone2)).toEqual([]);
       await a.close();
     });
   });

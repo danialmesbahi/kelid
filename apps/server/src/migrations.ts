@@ -262,6 +262,40 @@ export const migrations: readonly string[] = [
       is distinct from (new.plan, new.trial, new.expires_at, new.seats, new.suspended_at, new.suspend_reason))
     execute function kelid_billing_notify();
   `,
+  // 11: پیامک یادآوری قرار به مشتری. ردیف را push همگام‌سازی (داخل withOffice) از روی قرار و شمارهٔ مشتری می‌سازد؛
+  // فرستادن کار ReminderJob است که با پرچم kelid.job (فقط withJob در db.ts) صف همهٔ دفترها را می‌بیند.
+  // کار فقط به همین جدول و نام و وضعیت اشتراک دفترها دسترسی دارد، نه به فایل‌ها و مشتری‌ها.
+  `
+  create function kelid_job() returns boolean
+    language sql stable
+    as $$ select coalesce(current_setting('kelid.job', true), '') = 'on' $$;
+
+  create table reminders (
+    office_id uuid not null default kelid_office() references offices (id),
+    visit_id text not null check (length(visit_id) between 1 and 64),
+    phone text not null check (phone ~ '^09[0-9]{9}$'),
+    starts_at timestamptz not null,
+    send_at timestamptz not null,
+    place text not null default '' check (length(place) <= 60),
+    status text not null default 'pending' check (status in ('pending', 'sending', 'sent', 'failed', 'canceled')),
+    attempts int not null default 0,
+    claimed_at timestamptz,
+    sent_at timestamptz,
+    updated_at timestamptz not null default now(),
+    primary key (office_id, visit_id)
+  );
+  create index reminders_due on reminders (send_at) where status in ('pending', 'sending');
+  alter table reminders enable row level security;
+  alter table reminders force row level security;
+  create policy office_isolation on reminders
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  create policy job_access on reminders
+    using (kelid_job())
+    with check (kelid_job());
+  create policy job_read on offices for select
+    using (kelid_job());
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

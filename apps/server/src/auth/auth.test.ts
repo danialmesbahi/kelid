@@ -3,6 +3,7 @@ import { hashPassword, verifyPassword } from './password';
 import { normalizePhone } from './phone';
 import { RateLimiter } from './rateLimit';
 import { KavenegarSms } from './sms';
+import { reminderDay } from '../reminders/job';
 import { deriveKey, otpCode, signAccess, verifyAccess } from './tokens';
 
 describe('normalizePhone', () => {
@@ -73,6 +74,24 @@ describe('KavenegarSms', () => {
     const failing = new KavenegarSms('SECRET', 't', (async () => new Response('', { status: 403 })) as unknown as typeof fetch);
     await expect(failing.sendOtp('09121234567', '1')).rejects.toThrow('kavenegar: HTTP 403');
     await failing.sendOtp('09121234567', '1').catch((e: Error) => expect(e.message).not.toContain('SECRET'));
+  });
+
+  it('sends reminders through their own template, with no spaces where Kavenegar forbids them', async () => {
+    const fetchFn = vi.fn(async () => new Response('{}', { status: 200 }));
+    const k = new KavenegarSms('K', 'otp', fetchFn as unknown as typeof fetch, 'kelid-remind');
+    await k.sendReminder('09121234567', { office: 'املاک پارسا', day: '۱۲ مهر', time: '۱۰:۳۰', place: '' });
+    const body = new URLSearchParams(String((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(Object.fromEntries(body)).toEqual({ receptor: '09121234567', template: 'kelid-remind', token: '۱۰:۳۰', token2: '۱۲-مهر', token10: '-', token20: 'املاک پارسا' });
+    await expect(new KavenegarSms('K', 'otp', fetchFn as unknown as typeof fetch).sendReminder('09121234567', { office: 'x', day: 'امروز', time: '۱', place: '' })).rejects.toThrow('no reminder template');
+  });
+});
+
+describe('reminderDay', () => {
+  it('says today or tomorrow in Tehran time', () => {
+    const now = new Date('2026-10-08T19:00:00Z'); // ۲۲:۳۰ تهران
+    expect(reminderDay(new Date('2026-10-08T20:00:00Z'), now)).toBe('امروز');
+    expect(reminderDay(new Date('2026-10-08T21:00:00Z'), now)).toBe('فردا'); // ۰۰:۳۰ تهران
+    expect(reminderDay(new Date('2026-10-12T08:00:00Z'), now)).toMatch(/مهر/);
   });
 });
 

@@ -67,6 +67,27 @@ describe('visits and todos on SqlStore', () => {
     db.close();
   });
 
+  it('keeps the SMS reminder flag, sends it with the sync log and takes it from other devices', async () => {
+    const db = openEncrypted(Database as never, tempFile(), 'k');
+    const store = await SqlStore.open(nodeSqliteDriver(db), seed);
+    const day = '2026-10-05';
+    const v = await store.addVisit({ kind: 'visit', title: 'بازدید', startsAt: tehranIso(day, '16:30'), endsAt: tehranIso(day, '17:30'), clientId: 'c-1', done: false, remind: true });
+    expect((await store.getVisit(v.id))?.remind).toBe(true);
+    const last = () => JSON.parse((db.prepare('SELECT payload FROM outbox WHERE entity_id = ? ORDER BY seq DESC LIMIT 1').get(v.id) as { payload: string }).payload) as Record<string, unknown>;
+    expect(last().remind).toBe(true);
+    await store.updateVisit(v.id, { remind: false });
+    expect(last()).toEqual({ remind: false });
+    expect((await store.getVisit(v.id))?.remind).toBeUndefined();
+
+    const other = await store.addVisit({ kind: 'visit', title: 'دیگری', startsAt: tehranIso(day, '10:00'), endsAt: tehranIso(day, '11:00'), done: false });
+    db.prepare("DELETE FROM outbox WHERE entity_id = ?").run(other.id);
+    await store.applyRemote([{ kind: 'visit', id: other.id, fields: { remind: true } }], '1', null);
+    expect((await store.getVisit(other.id))?.remind).toBe(true);
+    await store.applyRemote([{ kind: 'visit', id: other.id, fields: { remind: 'yes' } }], '2', null);
+    expect((await store.getVisit(other.id))?.remind).toBe(true);
+    db.close();
+  });
+
   it('keeps visits and todos after reopening', async () => {
     const file = tempFile();
     let db = openEncrypted(Database as never, file, 'k');

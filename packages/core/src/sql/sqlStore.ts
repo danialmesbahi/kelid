@@ -91,6 +91,7 @@ function rowToVisit(r: Row): Visit {
     listingId: opt(r.listing_id),
     clientId: opt(r.client_id),
     done: b(r.done),
+    ...(b(r.remind) ? { remind: true } : {}),
   };
 }
 
@@ -212,7 +213,7 @@ export class SqlStore implements KelidStore, Syncable {
       });
     }
     for (const v of sample.visits) {
-      st.push({ sql: 'INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, sample, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)', params: [v.id, v.kind, v.title, v.startsAt, v.endsAt, v.listingId ?? null, v.clientId ?? null, v.done ? 1 : 0, nowIso()] });
+      st.push({ sql: 'INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, remind, sample, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)', params: [v.id, v.kind, v.title, v.startsAt, v.endsAt, v.listingId ?? null, v.clientId ?? null, v.done ? 1 : 0, v.remind ? 1 : 0, nowIso()] });
     }
     sample.todos.forEach((t, i) => {
       st.push({ sql: 'INSERT INTO todos (id, title, detail, action, done, position, sample, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)', params: [t.id, t.title, t.detail, t.action ?? '', t.done ? 1 : 0, i, nowIso()] });
@@ -355,7 +356,7 @@ export class SqlStore implements KelidStore, Syncable {
   async addVisit(input: NewVisit) {
     const v: Visit = { ...input, id: newId() };
     await this.db.transaction([
-      { sql: 'INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', params: [v.id, v.kind, v.title, v.startsAt, v.endsAt, v.listingId ?? null, v.clientId ?? null, v.done ? 1 : 0, nowIso()] },
+      { sql: 'INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, remind, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', params: [v.id, v.kind, v.title, v.startsAt, v.endsAt, v.listingId ?? null, v.clientId ?? null, v.done ? 1 : 0, v.remind ? 1 : 0, nowIso()] },
       this.outbox('visit', v.id, 'upsert', v),
     ]);
     this.emit();
@@ -369,7 +370,7 @@ export class SqlStore implements KelidStore, Syncable {
     const changed = Object.fromEntries(Object.entries(next).filter(([k, v]) => k !== 'id' && v !== cur[k as keyof Visit]));
     if (Object.keys(changed).length === 0) return cur;
     await this.db.transaction([
-      { sql: 'UPDATE visits SET kind = ?, title = ?, starts_at = ?, ends_at = ?, listing_id = ?, client_id = ?, done = ?, updated_at = ? WHERE id = ?', params: [next.kind, next.title, next.startsAt, next.endsAt, next.listingId ?? null, next.clientId ?? null, next.done ? 1 : 0, nowIso(), id] },
+      { sql: 'UPDATE visits SET kind = ?, title = ?, starts_at = ?, ends_at = ?, listing_id = ?, client_id = ?, done = ?, remind = ?, updated_at = ? WHERE id = ?', params: [next.kind, next.title, next.startsAt, next.endsAt, next.listingId ?? null, next.clientId ?? null, next.done ? 1 : 0, next.remind ? 1 : 0, nowIso(), id] },
       this.outbox('visit', id, 'upsert', changed),
     ]);
     this.emit();
@@ -830,13 +831,14 @@ export class SqlStore implements KelidStore, Syncable {
           listingId: v('listingId', cur?.listingId),
           clientId: v('clientId', cur?.clientId),
           done: v('done', cur?.done ?? false) ?? false,
+          remind: v('remind', cur?.remind ?? false) ?? false,
         };
         return [
           {
-            sql: `INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, updated_at, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            sql: `INSERT INTO visits (id, kind, title, starts_at, ends_at, listing_id, client_id, done, remind, updated_at, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, title = excluded.title, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
-                  listing_id = excluded.listing_id, client_id = excluded.client_id, done = excluded.done, updated_at = excluded.updated_at, deleted = excluded.deleted`,
-            params: [x.id, x.kind, x.title, x.startsAt, x.endsAt, x.listingId ?? null, x.clientId ?? null, x.done ? 1 : 0, now, deleted],
+                  listing_id = excluded.listing_id, client_id = excluded.client_id, done = excluded.done, remind = excluded.remind, updated_at = excluded.updated_at, deleted = excluded.deleted`,
+            params: [x.id, x.kind, x.title, x.startsAt, x.endsAt, x.listingId ?? null, x.clientId ?? null, x.done ? 1 : 0, x.remind ? 1 : 0, now, deleted],
           },
         ];
       }

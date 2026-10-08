@@ -68,6 +68,7 @@ const SPECS: Record<SyncKind, Record<string, Check>> = {
     listingId: optStr,
     clientId: optStr,
     done: bool,
+    remind: (v) => v === null || bool(v),
     deleted: bool,
   },
   todo: {

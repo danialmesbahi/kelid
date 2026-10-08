@@ -172,6 +172,7 @@ export function CalendarPage() {
                         {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
                         {l ? `${l.neighborhood}، ${l.street}` : c ? c.name : ''}
                         {v.done && <span>· انجام شد</span>}
+                        {v.remind && !v.done && <span className="cal-remind"><Icon name="bell" size="s" />یادآوری پیامکی</span>}
                       </span>
                     </button>
                     {c?.phone && (

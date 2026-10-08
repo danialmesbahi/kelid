@@ -94,6 +94,8 @@ export interface Visit {
   listingId?: string;
   clientId?: string;
   done: boolean;
+  /** پیامک یادآوری به مشتری پیش از قرار (سرور می‌فرستد؛ فقط با حساب و شمارهٔ مشتری). */
+  remind?: boolean;
 }
 
 export interface Todo {
