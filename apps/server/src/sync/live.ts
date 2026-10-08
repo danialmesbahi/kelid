@@ -4,13 +4,17 @@ import type { Queryable } from '../db';
 
 /** یک کانال برای همهٔ دفترها؛ پیام فقط شناسه‌هاست، هیچ داده‌ای از دفتر در آن نیست. */
 export const LIVE_CHANNEL = 'kelid_live';
+/** پنل فروشنده: «دفتر X عوض شد» (تریگرهای migration 10) یا «kick:<شناسهٔ مدیر>». */
+export const VENDOR_CHANNEL = 'kelid_vendor';
 // سقف‌ها تا یک دستگاه یا دفتر نتواند با اتصال‌های باز، حافظهٔ سرور را پر کند.
-export const LIVE_MAX = { total: 20_000, office: 200, device: 3 } as const;
+export const LIVE_MAX = { total: 20_000, office: 200, device: 3, vendor: 100, admin: 6 } as const;
+// چند تغییر پشت هم (مثلاً پرداخت + تمدید + یادداشت) یک خبر می‌شوند؛ کمتر از آن‌که چشم فرقش را ببیند.
+const VENDOR_BATCH_MS = 50;
 
 interface Message {
   o?: string; // دفتری که داده‌اش عوض شد
   d?: string; // دستگاهی که عوضش کرد (یا باید بیرون بیفتد)
-  k?: 'kick';
+  k?: 'kick' | 'billing';
 }
 
 /**
@@ -19,6 +23,11 @@ interface Message {
  */
 export async function announce(db: Queryable, office: string, device: string): Promise<void> {
   await db.query('select pg_notify($1, $2)', [LIVE_CHANNEL, JSON.stringify({ o: office, d: device } satisfies Message)]);
+}
+
+/** مدیر پنلی که غیرفعال شد، اتصال زنده‌اش همان لحظه بسته می‌شود. */
+export async function kickVendor(db: Queryable, admin: string): Promise<void> {
+  await db.query('select pg_notify($1, $2)', [VENDOR_CHANNEL, `kick:${admin}`]);
 }
 
 /** دستگاهی که بیرون شد، اتصال زنده‌اش هم همان لحظه بسته می‌شود. */
@@ -31,6 +40,15 @@ export interface LiveListener {
   device: string;
   /** «برو تازه‌ها را بگیر». */
   ping(): void;
+  /** اشتراک دفتر عوض شد: مجوز تازه بگیر. */
+  billing(): void;
+  close(): void;
+}
+
+export interface VendorListener {
+  admin: string;
+  /** شناسهٔ دفترهایی که عوض شدند. */
+  changed(offices: string[]): void;
   close(): void;
 }
 
@@ -42,6 +60,9 @@ export class LiveHub {
   private offices = new Map<string, Set<LiveListener>>();
   private devices = new Map<string, Set<LiveListener>>();
   private count = 0;
+  private vendors = new Set<VendorListener>();
+  private vendorQueue = new Set<string>();
+  private vendorTimer: ReturnType<typeof setTimeout> | undefined;
   private client: PoolClient | null = null;
   private connecting: Promise<void> | null = null;
   private retry: ReturnType<typeof setTimeout> | undefined;
@@ -56,6 +77,19 @@ export class LiveHub {
   /** آیا جای اتصال تازه هست؟ برای دستگاه، قدیمی‌ترین اتصالش جا باز می‌کند. */
   hasRoom(office: string): boolean {
     return !this.closed && this.count < LIVE_MAX.total && (this.offices.get(office)?.size ?? 0) < LIVE_MAX.office;
+  }
+
+  hasVendorRoom(admin: string): boolean {
+    if (this.closed || this.vendors.size >= LIVE_MAX.vendor) return false;
+    const mine = [...this.vendors].filter((v) => v.admin === admin);
+    // پنجرهٔ ششم همان مدیر جای قدیمی‌ترین را می‌گیرد، نه این‌که رد شود.
+    if (mine.length >= LIVE_MAX.admin) mine[0]!.close();
+    return true;
+  }
+
+  addVendor(l: VendorListener): () => void {
+    this.vendors.add(l);
+    return () => void this.vendors.delete(l);
   }
 
   /** فقط با اولین اتصال زنده LISTEN می‌شود؛ سروری که کسی به آن وصل نیست اتصال دیتابیس اضافه نگه نمی‌دارد. */
@@ -83,7 +117,9 @@ export class LiveHub {
   close() {
     this.closed = true;
     clearTimeout(this.retry);
+    clearTimeout(this.vendorTimer);
     for (const set of [...this.offices.values()]) for (const l of [...set]) l.close();
+    for (const v of [...this.vendors]) v.close();
     const c = this.client;
     this.client = null;
     c?.release(true);
@@ -107,11 +143,11 @@ export class LiveHub {
     try {
       c = await this.pool.connect();
       const client = c;
-      client.on('notification', (n) => n.channel === LIVE_CHANNEL && this.dispatch(n.payload));
+      client.on('notification', (n) => (n.channel === LIVE_CHANNEL ? this.dispatch(n.payload) : n.channel === VENDOR_CHANNEL && this.vendor(n.payload)));
       // اتصال افتاد ⇒ دوباره وصل می‌شود؛ برنامهٔ سرور هرگز به‌خاطر آن نمی‌خوابد.
       client.on('error', (e) => this.lost(client, e));
       client.on('end', () => this.lost(client));
-      await client.query(`listen ${LIVE_CHANNEL}`);
+      await client.query(`listen ${LIVE_CHANNEL}; listen ${VENDOR_CHANNEL}`);
       if (this.closed) return void client.release(true);
       this.client = client;
       // پیام‌هایی که بین قطع و وصل جا ماندند: همه یک بار سر می‌زنند.
@@ -133,7 +169,7 @@ export class LiveHub {
   }
 
   private later() {
-    if (this.closed || !this.count) return;
+    if (this.closed || (!this.count && !this.vendors.size)) return;
     clearTimeout(this.retry);
     this.retry = setTimeout(() => void this.ready(), 2_000);
   }
@@ -150,10 +186,32 @@ export class LiveHub {
       return;
     }
     if (typeof m.o !== 'string') return;
+    if (m.k === 'billing') {
+      for (const l of this.offices.get(m.o) ?? []) l.billing();
+      return;
+    }
     for (const l of this.offices.get(m.o) ?? []) if (l.device !== m.d) l.ping();
+  }
+
+  private vendor(payload: string | undefined) {
+    if (!payload || !this.vendors.size) return;
+    if (payload.startsWith('kick:')) {
+      const admin = payload.slice(5);
+      for (const v of [...this.vendors]) if (v.admin === admin) v.close();
+      return;
+    }
+    this.vendorQueue.add(payload);
+    this.vendorTimer ??= setTimeout(() => {
+      this.vendorTimer = undefined;
+      const ids = [...this.vendorQueue];
+      this.vendorQueue.clear();
+      for (const v of this.vendors) v.changed(ids);
+    }, VENDOR_BATCH_MS);
   }
 
   private pingAll() {
     for (const set of this.offices.values()) for (const l of set) l.ping();
+    // پنل هم بعد از قطع و وصل یک بار همه‌چیز را تازه می‌کند (فهرست خالی = همه).
+    for (const v of this.vendors) v.changed([]);
   }
 }

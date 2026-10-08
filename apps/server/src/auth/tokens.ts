@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 /** کلیدهای جدا برای هر کاربرد، همه از یک JWT_SECRET؛ لو رفتن یکی دیگری را لو نمی‌دهد. */
-export function deriveKey(secret: string, purpose: 'access' | 'otp'): Buffer {
+export function deriveKey(secret: string, purpose: 'access' | 'otp' | 'vendor'): Buffer {
   return createHmac('sha256', secret).update(`kelid:${purpose}`).digest();
 }
 
@@ -25,13 +25,25 @@ export interface AccessClaims {
 const HEADER = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
 
 export function signAccess(key: Buffer, claims: AccessClaims, ttlSec: number, now = Date.now()): string {
+  return signToken(key, { ...claims }, ttlSec, now);
+}
+
+export function verifyAccess(key: Buffer, token: string, now = Date.now()): AccessClaims | null {
+  const p = readToken(key, token, now);
+  if (!p || typeof p.sub !== 'string' || typeof p.off !== 'string' || typeof p.dev !== 'string') return null;
+  return { sub: p.sub, off: p.off, dev: p.dev };
+}
+
+/** JWT با HS256؛ هر کاربرد کلید جدای خودش را دارد (deriveKey)، پس توکن یکی جای دیگری پذیرفته نمی‌شود. */
+export function signToken(key: Buffer, claims: Record<string, string>, ttlSec: number, now = Date.now()): string {
   const iat = Math.floor(now / 1000);
   const body = Buffer.from(JSON.stringify({ ...claims, iat, exp: iat + ttlSec })).toString('base64url');
   const sig = createHmac('sha256', key).update(`${HEADER}.${body}`).digest('base64url');
   return `${HEADER}.${body}.${sig}`;
 }
 
-export function verifyAccess(key: Buffer, token: string, now = Date.now()): AccessClaims | null {
+/** محتوای توکنی که امضا و عمرش درست است؛ وگرنه null. */
+export function readToken(key: Buffer, token: string, now = Date.now()): Record<string, unknown> | null {
   if (token.length > 2048) return null;
   const [header, body, sig, extra] = token.split('.');
   if (header !== HEADER || !body || !sig || extra !== undefined) return null;
@@ -40,8 +52,7 @@ export function verifyAccess(key: Buffer, token: string, now = Date.now()): Acce
   try {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Record<string, unknown>;
     if (typeof p.exp !== 'number' || p.exp * 1000 <= now) return null;
-    if (typeof p.sub !== 'string' || typeof p.off !== 'string' || typeof p.dev !== 'string') return null;
-    return { sub: p.sub, off: p.off, dev: p.dev };
+    return p;
   } catch {
     return null;
   }

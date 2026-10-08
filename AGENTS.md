@@ -23,6 +23,7 @@ If `graphify` is installed (`uv tool install graphifyy`), prefer it over broad f
 ## Layout
 ```
 apps/web        React 19 + Vite 8 UI (shared by web, PWA and desktop). Pages in src/pages, chrome in src/layout, DB drivers in src/db
+apps/admin      Vendor panel (our staff only): offices, subscriptions, extend/suspend, payments. React + Vite, port 5174
 apps/desktop    Electron 44 shell: main.ts (window, single-instance), database.ts (encrypted SQLite + IPC), preload.ts (window.kelid)
 apps/server     Phase 2 API: Fastify 5 + PostgreSQL 16 with row-level security per office (app.ts routes, db.ts withOffice, migrations.ts)
 packages/core   Pure TS domain: model, Persian text/number utils, formatting, client↔listing matching, KelidStore + SqlStore + schema
@@ -43,6 +44,8 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 | end-to-end smoke test (Playwright on the web build) | `npm run e2e` (first time: `npx playwright install chromium`) |
 | format with Prettier | `npm run format` (not enforced on existing files — see Code style) |
 | Windows installer → `apps/desktop/release/` | `npm run dist:win` |
+| vendor panel dev (http://localhost:5174; `VITE_ADMIN_API_URL=demo` for sample data) | `npm run dev:admin` |
+| create / reset / disable a vendor admin | `npm run admin -w @kelid/server -- add --phone 09xxxxxxxxx --name "…"` |
 | regenerate app icons / installer images | `npm run icons` |
 
 **Definition of done:** `npm run lint`, `npm run typecheck` and `npm test` pass (CI also runs `npm run e2e`); UI changes were looked at in the running app (light + dark, and at 375px for pages used on phones); no console errors.
@@ -58,6 +61,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 **Server**
 - Office data is read and written only inside `withOffice(pool, officeId, db => …)` (`apps/server/src/db.ts`); every table gets `enable` + `force row level security` and a policy on `kelid_office()` (a test fails otherwise).
+- Vendor (admin panel) access goes only through `withVendor` and the `kelid_vendor()` policies; never give the vendor office data tables.
 - Auth tables (`users`, `devices`, `otp_codes`, `signup_tickets`, `invites`) are global on purpose (no office before login) and only `auth/` (`routes.ts`, `team.ts`) touches them, always filtered by the caller's own `office_id`; codes and tokens are stored as hashes only, passwords as scrypt hashes (`auth/password.ts`). SMS goes through `SmsSender` (`auth/sms.ts`).
 - The runtime DB role is never superuser/BYPASSRLS and doesn't own the tables; migrations run with the owner role. 5xx responses never include internal error text.
 
@@ -105,4 +109,4 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 ## Status (update when a phase item lands)
 - Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, app icon, lint + e2e in CI, phone layout + PWA, listing photos, listing editing, clients, visits/to-dos done.
-- Phase 2 🟡 server scaffold (Fastify + Postgres RLS), phone + password login (SMS code as the second way), offline-first sync (HLC per-field merge, photo bytes, per-office device guard), office team (invites, manager/agent roles, owner-phone permission, seats), photo object storage (S3-compatible, thumbnails first) done; deploy · Phase 3 🟡 subscription plans, Zarinpal payment, signed offline license + read-only mode done; admin · Phase 4 🟡 calendar, deals, Windows auto-update done; map · Phase 5 beta.
+- Phase 2 🟡 server scaffold (Fastify + Postgres RLS), phone + password login (SMS code as the second way), offline-first sync (HLC per-field merge, photo bytes, per-office device guard), office team (invites, manager/agent roles, owner-phone permission, seats), photo object storage (S3-compatible, thumbnails first) done; deploy · Phase 3 🟡 subscription plans, Zarinpal payment, signed offline license + read-only mode, vendor admin panel done · Phase 4 🟡 calendar, deals, Windows auto-update done; map · Phase 5 beta.

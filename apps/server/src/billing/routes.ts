@@ -77,6 +77,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       trial: r.sub.trial,
       expiresAt: r.sub.expiresAt.toISOString(),
       seats: r.sub.seats,
+      suspended: r.sub.suspended,
       used: r.used,
       plans: PLANS,
       canPay: !!gateway,
@@ -109,6 +110,8 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       const amount = priceOf(plan, body.period) * 10;
       const id = randomUUID();
       const made = await withOffice(pool, off, async (db) => {
+        // دفتر معلق تا تصمیم پشتیبانی پرداختی نمی‌کند.
+        if ((await readSubscription(db, off))?.suspended) return 'suspended' as const;
         // پلنی که جای همکاران فعلی را ندارد خریدنی نیست؛ اول باید کسی برداشته شود.
         if (plan.seats < (await seatsUsed(db, off))) return null;
         await db.query('insert into payments (id, plan, period, amount, gateway, created_by) values ($1, $2, $3, $4, $5, $6)', [
@@ -122,6 +125,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
         const u = await db.query<{ phone: string }>('select phone from users where id = $1', [sub]);
         return { phone: u.rows[0]?.phone };
       });
+      if (made === 'suspended') return reply.status(403).send({ error: 'suspended' });
       if (!made) return reply.status(409).send({ error: 'too_small' });
 
       // درخواست به درگاه بیرون از تراکنش؛ درگاه کند نباید اتصال دیتابیس را نگه دارد.

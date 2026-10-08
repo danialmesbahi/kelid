@@ -4,7 +4,7 @@ import { authGuard, type AuthOptions } from '../auth/routes';
 import { accessExpiry } from '../auth/tokens';
 import { withOffice } from '../db';
 import { securityHeaders } from '../headers';
-import { announce, LiveHub } from './live';
+import { announce, type LiveHub } from './live';
 import { requireActive } from '../billing/subscription';
 import { PhotoBlobs, sniffImage, type ImageMime, type PhotoPart } from '../storage/photos';
 
@@ -108,13 +108,11 @@ const pullSchema = {
  * همگام‌سازی دفتر: push صف تغییرهای یک دستگاه را ادغام می‌کند، pull هر چه بعد از نشانگر دستگاه عوض شده برمی‌گرداند.
  * همه‌چیز داخل withOffice است؛ RLS نمی‌گذارد دستگاهی حتی با شناسهٔ ساختگی به رکورد دفتر دیگری برسد.
  */
-export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, photos = new PhotoBlobs(null) }: AuthOptions & { photos?: PhotoBlobs }) {
+export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, hub, photos = new PhotoBlobs(null) }: AuthOptions & { hub: LiveHub; photos?: PhotoBlobs }) {
   const requireAuth = authGuard(pool, jwtSecret);
   // بعد از پایان اشتراک فقط خواندن: تغییرهای دستگاه در صفش می‌ماند تا تمدید، چیزی گم نمی‌شود.
   const writable = [requireAuth, requireActive(pool)];
   const serverClock = new Hlc('srv');
-  const hub = new LiveHub(pool, app.log);
-  app.addHook('preClose', async () => hub.close());
 
   app.post('/sync/push', { preHandler: writable, bodyLimit: 8 * 1024 * 1024, schema: pushSchema }, async (req) => {
     const changes = (req.body as { changes: Change[] }).changes;
@@ -221,7 +219,13 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, photos
     const beat = setInterval(() => res.write(': \n\n'), HEARTBEAT_MS);
     // توکن تمام شد ⇒ اتصال بسته می‌شود و دستگاه با توکن تازه (و بررسی دوبارهٔ دستگاه) برمی‌گردد.
     const expire = setTimeout(close, ttl);
-    const remove = hub.add({ office: off, device: dev, ping: () => open && res.write('data: change\n\n'), close });
+    const remove = hub.add({
+      office: off,
+      device: dev,
+      ping: () => open && res.write('data: change\n\n'),
+      billing: () => open && res.write('event: billing\ndata: 1\n\n'),
+      close,
+    });
     req.raw.on('close', close);
     res.on('error', close);
   });

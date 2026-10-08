@@ -9,13 +9,18 @@ let engine: SyncEngine | null = null;
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());
 let unwatch: (() => void) | null = null;
+const billingSubs = new Set<() => void>();
 const api = syncApiFromEnv();
 
 function setEngine(next: SyncEngine | null) {
   unwatch?.();
   engine?.stop();
   engine = next;
-  unwatch = next ? next.onStatus(changed) : null;
+  if (next) {
+    const a = next.onStatus(changed);
+    const b = next.onBilling(() => billingSubs.forEach((f) => f()));
+    unwatch = () => (a(), b());
+  } else unwatch = null;
   changed();
 }
 
@@ -34,6 +39,12 @@ export function startSync(target: SyncTarget, withToken: <T>(fn: (token: string)
   return () => {
     if (engine === e) setEngine(null);
   };
+}
+
+/** خبر زندهٔ سرور که اشتراک این دفتر عوض شد. */
+export function onLiveBilling(fn: () => void): () => void {
+  billingSubs.add(fn);
+  return () => void billingSubs.delete(fn);
 }
 
 /** null یعنی همگام‌سازی روشن نیست (بدون سرور، بدون ورود، یا حافظهٔ موقت). */
