@@ -9,21 +9,34 @@ import { WelcomeHero } from './WelcomeHero';
 import './welcome.css';
 
 const STEPS = ['خوش آمدید', 'آشنایی', 'راحتی چشم', 'شروع'] as const;
-// بعد از ثبت‌نام، خوش‌آمد و نام و دفتر را صفحهٔ ثبت‌نام گرفته؛ آشنایی همان مسیر را با همان نقطه‌ها ادامه می‌دهد.
+// بعد از ثبت‌نام نام و دفتر را صفحهٔ ثبت‌نام گرفته؛ آشنایی همان مسیر را با همان نقطه‌ها ادامه می‌دهد:
+// خوش‌آمد با «مسیر پیش رو»، راحتی چشم، شروع. قدم «آشنایی» (نام‌ها) جا می‌افتد.
 const LOGIN_STEPS = ['دفتر و شماره', 'کد پیامکی'] as const;
-const AFTER_LOGIN = 2;
+const SIGNUP_STEPS = [0, 2, 3];
 
 /**
  * آشنایی بار اول: چهار قدم کوتاه با نوشتهٔ درشت و دکمه‌های بزرگ، برای کسی که اولین بار برنامه را باز می‌کند.
  * هر تغییری (اندازهٔ نوشته، پوسته) همان لحظه روی خود برنامه دیده می‌شود. همه‌جا «بعداً» هست.
  */
-export function Welcome({ continued = false, signedUp = false }: { /** همین الان از صفحهٔ ثبت‌نام آمده؛ صحنه دوباره بازی نمی‌شود. */ continued?: boolean; /** دفتر با ثبت‌نام ساخته شده؛ خوش‌آمد و نام و دفتر دیگر پرسیده نمی‌شوند، حتی بعد از تازه کردن صفحه. */ signedUp?: boolean }) {
+export function Welcome({
+  continued = false,
+  signedUp = false,
+  onStart,
+}: {
+  /** همین الان از صفحهٔ ثبت‌نام آمده؛ صحنه دوباره بازی نمی‌شود. */
+  continued?: boolean;
+  /** دفتر با ثبت‌نام ساخته شده؛ نام و دفتر دیگر پرسیده نمی‌شوند و به جای نمونه‌ها، مسیر پیش رو نشان داده می‌شود. */
+  signedUp?: boolean;
+  /** آخر آشنایی: کجا برود (ثبت اولین فایل یا صفحهٔ امروز). */
+  onStart?: (to: '/' | '/add') => void;
+}) {
   const prefs = usePrefsContext();
   const store = useStore();
   const phone = usePhone();
   const hasSample = useQuery('has-sample', (s) => s.hasSampleData());
-  const first = signedUp ? AFTER_LOGIN : 0;
-  const [step, setStep] = useState(first);
+  const order = signedUp ? SIGNUP_STEPS : [0, 1, 2, 3];
+  const [step, setStep] = useState(0);
+  const [startTo, setStartTo] = useState<'/' | '/add'>('/add');
   const [dir, setDir] = useState(1);
   const [name, setName] = useState(prefs.userName);
   const [office, setOffice] = useState(prefs.officeName);
@@ -51,12 +64,16 @@ export function Welcome({ continued = false, signedUp = false }: { /** همین 
     if (hasSample && !keepSample) await store.clearSampleData();
     setLeaving(true);
     // انیمیشن کنار رفتن تمام شود، بعد برداشته شود
-    setTimeout(() => prefs.setWelcomed(true), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 520);
+    setTimeout(() => {
+      prefs.setWelcomed(true);
+      if (signedUp) onStart?.(startTo);
+    }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 520);
   };
 
+  const at = order.indexOf(step);
   const next = (e?: FormEvent) => {
     e?.preventDefault();
-    if (step < STEPS.length - 1) go(step + 1);
+    if (at < order.length - 1) go(order[at + 1]!);
     else void finish();
   };
 
@@ -84,9 +101,9 @@ export function Welcome({ continued = false, signedUp = false }: { /** همین 
           <header className="wl-top">
             <span className="plq lg-brand">کلید</span>
             <span className="sp" />
-            <ol className="wl-dots" aria-label={`قدم ${toFaDigits(LOGIN_STEPS.length + step - first + 1)} از ${toFaDigits(LOGIN_STEPS.length + STEPS.length - first)}`}>
+            <ol className="wl-dots" aria-label={`قدم ${toFaDigits(LOGIN_STEPS.length + at + 1)} از ${toFaDigits(LOGIN_STEPS.length + order.length)}`}>
               {LOGIN_STEPS.map((s) => <li key={s} className="past"><span className="visually-hidden">{s}</span></li>)}
-              {STEPS.slice(first).map((s, i) => <li key={s} className={i + first === step ? 'on' : i + first < step ? 'past' : ''} aria-current={i + first === step ? 'step' : undefined}><span className="visually-hidden">{s}</span></li>)}
+              {order.map((n, i) => <li key={n} className={i === at ? 'on' : i < at ? 'past' : ''} aria-current={i === at ? 'step' : undefined}><span className="visually-hidden">{STEPS[n]}</span></li>)}
             </ol>
           </header>
         ) : (
@@ -100,7 +117,27 @@ export function Welcome({ continued = false, signedUp = false }: { /** همین 
         )}
 
         <div ref={bodyRef} key={step} className={`wl-body ${dir > 0 ? 'fwd' : 'back'}`}>
-          {step === 0 && (
+          {step === 0 && signedUp && (
+            <>
+              <span className="eb">دفترتان ساخته شد</span>
+              <h1 id="wl-title" className="wl-h">{who ? `${who}، به کلید خوش آمدید` : 'به کلید خوش آمدید'}</h1>
+              <p className="wl-lead">
+                دفتر <b>«{office.trim() || 'شما'}»</b> آماده است. این مسیری است که پیش رو دارید:
+              </p>
+              <ol className="wl-path">
+                <PathStep n={1} icon="files" title="فایل‌ها را ثبت کنید" text="فروش، اجاره یا رهن کامل؛ با عکس و مشخصات. هر فایل پلاک خودش را می‌گیرد." />
+                <PathStep n={2} icon="users" title="مشتری‌ها و نیازشان" text="کلید خودش فایل‌های جور را برای هر مشتری پیدا می‌کند." />
+                <PathStep n={3} icon="cal" title="بازدیدها و کارهای روز" text="قرارها در تقویم و صفحهٔ «امروز» یادتان می‌مانند." />
+                <PathStep n={4} icon="mobile" title="روی هر دستگاهی" text="با همین شماره و رمز روی گوشی یا کامپیوتر دیگر وارد شوید؛ همه‌چیز همگام است." />
+              </ol>
+              <p className="wl-safe">
+                <Icon name="shield" size="s" />
+                <span>اطلاعات روی همین دستگاه رمزگذاری‌شده ذخیره می‌شود و هر وقت اینترنت باشد با سرور کلید همگام می‌شود. بی‌اینترنت هم کار کنید؛ چیزی گم نمی‌شود.</span>
+              </p>
+            </>
+          )}
+
+          {step === 0 && !signedUp && (
             <>
               <span className="eb">آشنایی کوتاه · کمتر از یک دقیقه</span>
               <h1 id="wl-title" className="wl-h">به کلید خوش آمدید</h1>
@@ -134,7 +171,7 @@ export function Welcome({ continued = false, signedUp = false }: { /** همین 
 
           {step === 2 && (
             <>
-              <span className="eb">{signedUp ? (continued ? 'دفترتان ساخته شد · یک تنظیم کوچک' : 'یک تنظیم کوچک') : 'قدم ۳'}</span>
+              <span className="eb">{signedUp ? 'یک تنظیم کوچک' : 'قدم ۳'}</span>
               <h1 id="wl-title" className="wl-h">نوشته‌ها راحت خوانده می‌شوند؟</h1>
               {!phone && <p className="wl-lead">اندازه‌ای را بزنید که بدون عینک هم راحت بخوانید. همین حالا روی کل برنامه اعمال می‌شود.</p>}
               <div className="wl-choices" role="radiogroup" aria-label="اندازهٔ نوشته">
@@ -158,7 +195,19 @@ export function Welcome({ continued = false, signedUp = false }: { /** همین 
             <>
               <span className="eb">آماده‌اید</span>
               <h1 id="wl-title" className="wl-h">{who ? `${who}، از کجا شروع کنیم؟` : 'از کجا شروع کنیم؟'}</h1>
-              {hasSample ? (
+              {signedUp ? (
+                <>
+                  <p className="wl-lead">دفترتان خالی و آماده است. هر چه ثبت کنید همان لحظه ذخیره می‌شود.</p>
+                  <div className="wl-choices two" role="radiogroup" aria-label="شروع">
+                    <Choice on={startTo === '/add'} onClick={() => setStartTo('/add')} label="ثبت اولین فایل" hint="کمتر از یک دقیقه؛ بقیه را بعداً کامل کنید.">
+                      <Icon name="plus" size="l" />
+                    </Choice>
+                    <Choice on={startTo === '/'} onClick={() => setStartTo('/')} label="اول نگاهی به برنامه" hint="صفحهٔ «امروز» و منوها را ببینید.">
+                      <Icon name="today" size="l" />
+                    </Choice>
+                  </div>
+                </>
+              ) : hasSample ? (
                 <>
                   <p className="wl-lead">چند فایل و مشتری نمونه گذاشته‌ایم تا برنامه را بی‌دغدغه امتحان کنید.</p>
                   <div className="wl-choices two" role="radiogroup" aria-label="دادهٔ نمونه">
@@ -185,19 +234,31 @@ export function Welcome({ continued = false, signedUp = false }: { /** همین 
         </div>
 
         <footer className="wl-ft">
-          {step > first ? (
-            <button type="button" className="btn btn-g btn-lg" onClick={() => go(step - 1)}>قبلی</button>
+          {at > 0 ? (
+            <button type="button" className="btn btn-g btn-lg" onClick={() => go(order[at - 1]!)}>قبلی</button>
           ) : (
             signedUp && <button type="button" className="btn btn-g btn-lg" onClick={skip}>بعداً</button>
           )}
           <span className="sp" />
           <button type="submit" className="btn btn-p btn-lg wl-primary">
-            {step === 0 ? 'شروع آشنایی' : step === STEPS.length - 1 ? 'ورود به کلید' : 'ادامه'}
+            {step === 0 && !signedUp ? 'شروع آشنایی' : at === order.length - 1 ? (signedUp && startTo === '/add' ? 'ثبت اولین فایل' : 'ورود به کلید') : 'ادامه'}
             <Icon name="chl" size="s" />
           </button>
         </footer>
       </form>
     </div>
+  );
+}
+
+function PathStep({ n, icon, title, text }: { n: number; icon: IconName; title: string; text: string }) {
+  return (
+    <li>
+      <span className="wl-pn" aria-hidden="true">{toFaDigits(n)}</span>
+      <span className="col" style={{ minWidth: 0 }}>
+        <b><Icon name={icon} size="s" />{title}</b>
+        <span className="mute">{text}</span>
+      </span>
+    </li>
   );
 }
 

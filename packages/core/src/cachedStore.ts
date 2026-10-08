@@ -63,6 +63,11 @@ export class CachedStore implements KelidStore {
     inner.subscribe(() => this.invalidate());
   }
 
+  /** همه‌چیز کهنه است؛ همگام‌سازی پیش از خبر دادن صدا می‌زند تا نوشتنِ هم‌زمانِ محلی دامنه را کوچک نکند. */
+  dropAll() {
+    this.memo.clear();
+  }
+
   private invalidate() {
     // تغییری که از نوشتن‌های همین لایه نیامده (مثلاً همگام‌سازی آینده) همه‌چیز را کهنه می‌کند.
     const scope = new Set(this.writing.length ? this.writing.flat() : ALL);

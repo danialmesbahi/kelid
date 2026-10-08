@@ -1,6 +1,7 @@
 // تست روی PostgreSQL واقعی. محلی: npm run db:up و دو متغیر زیر (‎.env.example‎)؛ در CI کار server آن‌ها را می‌دهد.
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
 import type { SmsSender } from './auth/sms';
@@ -29,6 +30,9 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
     await owner.query(`do $$ declare r record; begin
       for r in select tablename from pg_tables where schemaname = 'public' loop
         execute format('drop table if exists %I cascade', r.tablename);
+      end loop;
+      for r in select sequencename from pg_sequences where schemaname = 'public' loop
+        execute format('drop sequence if exists %I cascade', r.sequencename);
       end loop;
       for r in select p.oid::regprocedure as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' loop
         execute format('drop function if exists %s cascade', r.f);
@@ -120,25 +124,25 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
     await expect(assertSafeRole(fake({ rolsuper: false, rolbypassrls: true, owns: false }))).rejects.toThrow(/BYPASSRLS/);
   });
 
+  const codes = new Map<string, string>();
+  const sms: SmsSender = { sendOtp: async (phone, code) => void codes.set(phone, code) };
+  const newApp = () => buildApp({ db: app, logLevel: 'silent', auth: { pool: app, sms, jwtSecret: 's'.repeat(48) } });
+  let n = 0;
+  const freshPhone = () => `0912${String(Date.now() % 10_000_000).padStart(7, '0').slice(0, 5)}${String(n++ % 100).padStart(2, '0')}`;
+  const post = (a: ReturnType<typeof newApp>, url: string, payload: object, token?: string) =>
+    a.inject({ method: 'POST', url, payload, headers: token ? { authorization: `Bearer ${token}` } : {} });
+  const allowResend = (phone: string) => owner.query("update otp_codes set last_sent_at = now() - interval '2 minutes' where phone = $1", [phone]);
+
+  async function signUp(a: ReturnType<typeof newApp>, phone: string) {
+    expect((await post(a, '/auth/otp', { phone })).statusCode).toBe(200);
+    const v = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'لپ‌تاپ' });
+    expect(v.statusCode).toBe(200);
+    const s = await post(a, '/auth/signup', { signupToken: v.json().signupToken, name: 'علی رضایی', officeName: 'املاک پارسا', deviceName: 'لپ‌تاپ', password: 'parsa-1404' });
+    expect(s.statusCode).toBe(200);
+    return s.json();
+  }
+
   describe('phone login', () => {
-    const codes = new Map<string, string>();
-    const sms: SmsSender = { sendOtp: async (phone, code) => void codes.set(phone, code) };
-    const newApp = () => buildApp({ db: app, logLevel: 'silent', auth: { pool: app, sms, jwtSecret: 's'.repeat(48) } });
-    let n = 0;
-    const freshPhone = () => `0912${String(Date.now() % 10_000_000).padStart(7, '0').slice(0, 5)}${String(n++ % 100).padStart(2, '0')}`;
-    const post = (a: ReturnType<typeof newApp>, url: string, payload: object, token?: string) =>
-      a.inject({ method: 'POST', url, payload, headers: token ? { authorization: `Bearer ${token}` } : {} });
-    const allowResend = (phone: string) => owner.query("update otp_codes set last_sent_at = now() - interval '2 minutes' where phone = $1", [phone]);
-
-    async function signUp(a: ReturnType<typeof newApp>, phone: string) {
-      expect((await post(a, '/auth/otp', { phone })).statusCode).toBe(200);
-      const v = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'لپ‌تاپ' });
-      expect(v.statusCode).toBe(200);
-      const s = await post(a, '/auth/signup', { signupToken: v.json().signupToken, name: 'علی رضایی', officeName: 'املاک پارسا', deviceName: 'لپ‌تاپ', password: 'parsa-1404' });
-      expect(s.statusCode).toBe(200);
-      return s.json();
-    }
-
     it('signs up a new office, then logs the same phone straight in', async () => {
       const a = newApp();
       const phone = freshPhone();
@@ -311,6 +315,29 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       await a.close();
     });
 
+    it('updates the name and the office name for every device of the office', async () => {
+      const a = newApp();
+      const phone = freshPhone();
+      const s = await signUp(a, phone);
+      const r = await post(a, '/auth/profile', { name: ' مریم احمدی ', officeName: 'املاک آفتاب' }, s.accessToken);
+      expect(r.json()).toEqual({ name: 'مریم احمدی', officeName: 'املاک آفتاب' });
+      const again = (await post(a, '/auth/refresh', { refreshToken: s.refreshToken })).json();
+      expect([again.user.name, again.office.name]).toEqual(['مریم احمدی', 'املاک آفتاب']);
+      expect((await post(a, '/auth/profile', { officeName: '  ' }, s.accessToken)).json().error).toBe('bad_name');
+      expect((await post(a, '/auth/profile', { name: 'x' })).statusCode).toBe(401);
+      await a.close();
+    });
+
+    it('returns the code only when the dev console SMS is on', async () => {
+      const dev = buildApp({ db: app, logLevel: 'silent', auth: { pool: app, sms, jwtSecret: 's'.repeat(48), devCodes: true } });
+      const phone = freshPhone();
+      expect((await post(dev, '/auth/otp', { phone })).json().devCode).toBe(codes.get(phone));
+      await dev.close();
+      const prod = newApp();
+      expect((await post(prod, '/auth/otp', { phone: freshPhone() })).json().devCode).toBeUndefined();
+      await prod.close();
+    });
+
     it('validates input', async () => {
       const a = newApp();
       expect((await post(a, '/auth/otp', { phone: '123' })).json().error).toBe('bad_phone');
@@ -319,6 +346,183 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await post(a, '/auth/login', { phone: '09121234567', password: 'x'.repeat(129), deviceName: 'x' })).statusCode).toBe(400);
       expect((await a.inject({ method: 'GET', url: '/auth/devices' })).statusCode).toBe(401);
       expect((await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: 'Bearer nope' } })).statusCode).toBe(401);
+      await a.close();
+    });
+  });
+
+  describe('sync', () => {
+    const hlc = (wall: number, count = 0, node = 'dev') => `${wall.toString(36).padStart(10, '0')}-${count.toString(36).padStart(5, '0')}-${node}`;
+    const t0 = Date.now() - 60_000;
+    const listing = (extra: object = {}) => ({ deal: 'sale', status: 'active', kind: 'apartment', neighborhood: 'ونک', area: 90, createdAt: '2026-10-07T10:00:00Z', ...extra });
+    const push = (a: ReturnType<typeof newApp>, token: string, changes: object[]) => post(a, '/sync/push', { changes }, token);
+    const pull = (a: ReturnType<typeof newApp>, token: string, cursor = '0', limit?: number) =>
+      a.inject({ method: 'GET', url: `/sync/pull?cursor=${cursor}${limit ? `&limit=${limit}` : ''}`, headers: { authorization: `Bearer ${token}` } });
+
+    it('stores photo bytes per office: real images only, never readable by another office', async () => {
+      const a = newApp();
+      const s1 = await signUp(a, freshPhone());
+      const s2 = await signUp(a, freshPhone());
+      const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP'), Buffer.from([1, 2, 3])]).toString('base64');
+      const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 9]).toString('base64');
+      const put = (t: string, id: string, body: object) => post(a, `/sync/photos/${id}`, body, t);
+      const get = (t: string, id: string) => a.inject({ method: 'GET', url: `/sync/photos/${id}`, headers: { authorization: `Bearer ${t}` } });
+      expect((await put(s1.accessToken, 'p1', { mime: 'image/webp', bytes: webp, thumb: jpeg })).statusCode).toBe(204);
+      // دوباره فرستادن بی‌اثر است و عکس را عوض نمی‌کند
+      expect((await put(s1.accessToken, 'p1', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(204);
+      expect((await get(s1.accessToken, 'p1')).json()).toEqual({ mime: 'image/webp', bytes: webp, thumb: jpeg });
+      expect((await get(s2.accessToken, 'p1')).statusCode).toBe(404);
+      expect((await get(s1.accessToken, 'nope')).statusCode).toBe(404);
+      // فایلی که خودش را عکس جا زده
+      const html = Buffer.from('<script>alert(1)</script>').toString('base64');
+      expect((await put(s1.accessToken, 'p2', { mime: 'image/jpeg', bytes: html, thumb: jpeg })).json().error).toBe('bad_photo');
+      expect((await put(s1.accessToken, 'p2', { mime: 'text/html', bytes: html, thumb: jpeg })).statusCode).toBe(400);
+      expect((await put(s1.accessToken, 'a.b', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(400);
+      expect((await post(a, '/sync/photos/p3', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(401);
+      await a.close();
+    });
+
+    it('tells the other devices of the office, live, that something changed', async () => {
+      const a = newApp();
+      await a.listen({ port: 0, host: '127.0.0.1' });
+      const base = `http://127.0.0.1:${(a.server.address() as AddressInfo).port}`;
+      const phone = freshPhone();
+      const s1 = await signUp(a, phone);
+      const s2 = (await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'گوشی' })).json();
+      const other = await signUp(a, freshPhone());
+      const open = async (token: string) => {
+        const ctl = new AbortController();
+        const res = await fetch(`${base}/sync/events`, { headers: { authorization: `Bearer ${token}` }, signal: ctl.signal });
+        const state = { text: '', ended: false };
+        void (async () => {
+          const reader = res.body!.getReader();
+          const dec = new TextDecoder();
+          try {
+            for (;;) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              state.text += dec.decode(value);
+            }
+          } catch {
+            // بستن از سمت تست
+          }
+          state.ended = true;
+        })();
+        return { res, state, stop: () => ctl.abort() };
+      };
+      const until = async (ok: () => boolean) => {
+        for (let i = 0; i < 100 && !ok(); i++) await new Promise((r) => setTimeout(r, 20));
+        return ok();
+      };
+      const e1 = await open(s1.accessToken);
+      const e2 = await open(s2.accessToken);
+      const eo = await open(other.accessToken);
+      expect(e1.res.status).toBe(200);
+      expect(e1.res.headers.get('content-type')).toMatch(/^text\/event-stream/);
+      expect(e1.res.headers.get('x-content-type-options')).toBe('nosniff');
+
+      await push(a, s1.accessToken, [{ seq: 1, kind: 'listing', id: randomUUID(), fields: listing(), hlc: hlc(t0) }]);
+      expect(await until(() => e2.state.text.includes('data: change'))).toBe(true);
+      await new Promise((r) => setTimeout(r, 150));
+      // فرستنده خودش خبر نمی‌گیرد و دفتر دیگر هیچ‌چیز نمی‌شنود
+      expect(e1.state.text).not.toContain('data: change');
+      expect(eo.state.text).not.toContain('data: change');
+
+      // دستگاهِ بیرون‌شده همان لحظه قطع می‌شود
+      expect((await a.inject({ method: 'DELETE', url: `/auth/devices/${s2.deviceId}`, headers: { authorization: `Bearer ${s1.accessToken}` } })).statusCode).toBe(204);
+      expect(await until(() => e2.state.ended)).toBe(true);
+      // یک دستگاه بیش از سه اتصال باز نگه نمی‌دارد؛ قدیمی‌ترین بسته می‌شود
+      const more = [await open(s1.accessToken), await open(s1.accessToken), await open(s1.accessToken)];
+      expect(await until(() => e1.state.ended)).toBe(true);
+      expect(more.some((m) => m.state.ended)).toBe(false);
+      expect((await fetch(`${base}/sync/events`)).status).toBe(401);
+      for (const e of [eo, ...more]) e.stop();
+      await a.close();
+    });
+
+    it('merges per field by HLC and replays are harmless', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      const id = randomUUID();
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'listing', id, fields: listing({ plaque: 7 }), hlc: hlc(t0) }])).statusCode).toBe(200);
+      // دستگاه دیگر: یکی جدیدتر برای area، یکی قدیمی‌تر برای neighborhood
+      await push(a, s.accessToken, [
+        { seq: 1, kind: 'listing', id, fields: { area: 120 }, hlc: hlc(t0 + 10, 0, 'b') },
+        { seq: 2, kind: 'listing', id, fields: { neighborhood: 'قدیمی' }, hlc: hlc(t0 - 10, 0, 'b') },
+      ]);
+      // همان دسته دوباره رسید (پاسخ گم شده بود)
+      await push(a, s.accessToken, [{ seq: 1, kind: 'listing', id, fields: listing({ plaque: 7 }), hlc: hlc(t0) }]);
+      const r = (await pull(a, s.accessToken)).json();
+      expect(r.entities).toHaveLength(1);
+      expect(r.entities[0].fields).toMatchObject({ area: 120, neighborhood: 'ونک', plaque: 7 });
+      expect(r.more).toBe(false);
+      // بعد از نشانگر، چیزی تازه نیست
+      expect((await pull(a, s.accessToken, r.cursor)).json().entities).toEqual([]);
+      await a.close();
+    });
+
+    it('gives each listing a unique plaque in the office, keeping a free proposed one', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      const [x, y, z] = [randomUUID(), randomUUID(), randomUUID()];
+      await push(a, s.accessToken, [{ seq: 1, kind: 'listing', id: x, fields: listing({ plaque: 3 }), hlc: hlc(t0) }]);
+      await push(a, s.accessToken, [
+        { seq: 1, kind: 'listing', id: y, fields: listing({ plaque: 3 }), hlc: hlc(t0, 0, 'b') },
+        { seq: 2, kind: 'listing', id: z, fields: listing(), hlc: hlc(t0, 1, 'b') },
+        // پلاک بعداً از دستگاه عوض نمی‌شود
+        { seq: 3, kind: 'listing', id: x, fields: { plaque: 99 }, hlc: hlc(t0 + 5, 0, 'b') },
+      ]);
+      const byId = Object.fromEntries((await pull(a, s.accessToken)).json().entities.map((e: { id: string; fields: { plaque: number } }) => [e.id, e.fields.plaque]));
+      expect(byId).toEqual({ [x]: 3, [y]: 4, [z]: 5 });
+      await a.close();
+    });
+
+    it('keeps offices apart even with the same record id', async () => {
+      const a = newApp();
+      const s1 = await signUp(a, freshPhone());
+      const s2 = await signUp(a, freshPhone());
+      const id = randomUUID();
+      await push(a, s1.accessToken, [{ seq: 1, kind: 'client', id, fields: { name: 'مشتری الف', need: {}, createdAt: 'x' }, hlc: hlc(t0) }]);
+      expect((await pull(a, s2.accessToken)).json().entities).toEqual([]);
+      await push(a, s2.accessToken, [{ seq: 1, kind: 'client', id, fields: { name: 'جعلی' }, hlc: hlc(t0 + 99) }]);
+      expect((await pull(a, s1.accessToken)).json().entities[0].fields.name).toBe('مشتری الف');
+      await a.close();
+    });
+
+    it('pages through changes in order', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      const changes = Array.from({ length: 7 }, (_, i) => ({ seq: i + 1, kind: 'todo', id: `t${i}`, fields: { title: `کار ${i}` }, hlc: hlc(t0, i) }));
+      await push(a, s.accessToken, changes);
+      const seen: string[] = [];
+      let cursor = '0';
+      for (;;) {
+        const page = (await pull(a, s.accessToken, cursor, 3)).json();
+        seen.push(...page.entities.map((e: { id: string }) => e.id));
+        cursor = page.cursor;
+        if (!page.more) break;
+      }
+      expect(seen).toEqual(changes.map((c) => c.id));
+      await a.close();
+    });
+
+    it('does not let a device with a clock in the future win forever', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'clock', fields: { title: 'آینده' }, hlc: hlc(Date.now() + 365 * 864e5) }]);
+      await push(a, s.accessToken, [{ seq: 2, kind: 'todo', id: 'clock', fields: { title: 'اکنون' }, hlc: hlc(Date.now() + 5_000, 0, 'b') }]);
+      expect((await pull(a, s.accessToken)).json().entities[0].fields.title).toBe('اکنون');
+      await a.close();
+    });
+
+    it('rejects bad input and missing auth', async () => {
+      const a = newApp();
+      const s = await signUp(a, freshPhone());
+      expect((await push(a, '', [])).statusCode).toBe(401);
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'secret', id: 'x', fields: {}, hlc: hlc(t0) }])).statusCode).toBe(400);
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: '../x', fields: {}, hlc: hlc(t0) }])).statusCode).toBe(400);
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'x', fields: { 'bad key': 1 }, hlc: hlc(t0) }])).statusCode).toBe(400);
+      expect((await push(a, s.accessToken, [{ seq: 1, kind: 'todo', id: 'x', fields: {}, hlc: 'yesterday' }])).statusCode).toBe(400);
+      expect((await pull(a, s.accessToken, "1;drop")).statusCode).toBe(400);
       await a.close();
     });
   });

@@ -1,5 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { authRoutes, type AuthOptions } from './auth/routes';
+import { syncRoutes } from './sync/routes';
+import { securityHeaders } from './headers';
 import type { Queryable } from './db';
 
 export interface AppOptions {
@@ -10,16 +12,6 @@ export interface AppOptions {
   auth?: AuthOptions;
   corsOrigins?: string[];
 }
-
-// پاسخ‌های API فقط JSON‌اند؛ هیچ مرورگری نباید آن‌ها را اجرا، قاب یا ذخیره کند.
-const securityHeaders = {
-  'x-content-type-options': 'nosniff',
-  'x-frame-options': 'DENY',
-  'referrer-policy': 'no-referrer',
-  'content-security-policy': "default-src 'none'; frame-ancestors 'none'",
-  'strict-transport-security': 'max-age=31536000; includeSubDomains',
-  'cache-control': 'no-store',
-};
 
 export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [] }: AppOptions): FastifyInstance {
   const app = Fastify({
@@ -73,7 +65,11 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
     }
   });
 
-  if (auth) void app.register(authRoutes, auth);
+  app.decorateRequest('auth', null);
+  if (auth) {
+    void app.register(authRoutes, auth);
+    void app.register(syncRoutes, auth);
+  }
 
   return app;
 }

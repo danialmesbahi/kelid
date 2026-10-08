@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { transaction as tx, type Db, type Pool } from '../db';
+import { transaction as tx, withOffice, type Db, type Pool } from '../db';
 import { hashPassword, passwordOk, verifyPassword, PASSWORD_MAX } from './password';
 import { normalizePhone } from './phone';
 import { RateLimiter } from './rateLimit';
 import type { SmsSender } from './sms';
+import { kickDevice } from '../sync/live';
 import { deriveKey, otpCode, otpHash, randomToken, safeEqual, sha256, signAccess, verifyAccess, type AccessClaims } from './tokens';
 
 export const ACCESS_TTL = 15 * 60;
@@ -23,6 +24,8 @@ export interface AuthOptions {
   pool: Pool;
   sms: SmsSender;
   jwtSecret: string;
+  /** فقط توسعه با پیامک console: کد در پاسخ هم می‌آید تا پیش‌نمایش بی‌پیامک کار کند. config در production اجازه نمی‌دهد. */
+  devCodes?: boolean;
 }
 
 export interface Session {
@@ -44,7 +47,21 @@ const deviceName = { type: 'string', minLength: 1, maxLength: 100 } as const;
 const password = { type: 'string', maxLength: PASSWORD_MAX } as const;
 const bodySchema = (props: Record<string, object>, required: string[]) => ({ body: { type: 'object', additionalProperties: false, required, properties: props } });
 
-export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }: AuthOptions) {
+/** درخواست بدون توکن معتبر یا از دستگاهِ بیرون‌شده، 401 می‌گیرد. req.auth در app.ts تعریف شده است. */
+export function authGuard(pool: Pool, jwtSecret: string) {
+  const accessKey = deriveKey(jwtSecret, 'access');
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    const h = req.headers.authorization;
+    const claims = h?.startsWith('Bearer ') ? verifyAccess(accessKey, h.slice(7)) : null;
+    if (!claims) return reply.status(401).send({ error: 'unauthorized' });
+    // دستگاهی که از فهرست حذف شد همان لحظه بیرون می‌افتد، نه بعد از پایان عمر توکن.
+    const { rowCount } = await pool.query('select 1 from devices where id = $1 and user_id = $2 and revoked_at is null', [claims.dev, claims.sub]);
+    if (!rowCount) return reply.status(401).send({ error: 'unauthorized' });
+    req.auth = claims;
+  };
+}
+
+export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, devCodes = false }: AuthOptions) {
   const accessKey = deriveKey(jwtSecret, 'access');
   const otpKey = deriveKey(jwtSecret, 'otp');
   const otpByIp = new RateLimiter(10, 10 * 60_000);
@@ -54,18 +71,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
   const limited = (reply: FastifyReply, retryAfter: number) =>
     reply.status(429).header('retry-after', String(retryAfter)).send({ error: 'too_many', retryAfter });
 
-  app.decorateRequest('auth', null);
-
-  /** درخواست بدون توکن معتبر یا از دستگاهِ بیرون‌شده، 401 می‌گیرد. */
-  const requireAuth = async (req: FastifyRequest, reply: FastifyReply) => {
-    const h = req.headers.authorization;
-    const claims = h?.startsWith('Bearer ') ? verifyAccess(accessKey, h.slice(7)) : null;
-    if (!claims) return reply.status(401).send({ error: 'unauthorized' });
-    // دستگاهی که از فهرست حذف شد همان لحظه بیرون می‌افتد، نه بعد از پایان عمر توکن.
-    const { rowCount } = await pool.query('select 1 from devices where id = $1 and user_id = $2 and revoked_at is null', [claims.dev, claims.sub]);
-    if (!rowCount) return reply.status(401).send({ error: 'unauthorized' });
-    req.auth = claims;
-  };
+  const requireAuth = authGuard(pool, jwtSecret);
 
   app.post('/auth/otp', { schema: bodySchema({ phone: { type: 'string', maxLength: 30 } }, ['phone']) }, async (req, reply) => {
     const phone = normalizePhone((req.body as { phone: string }).phone);
@@ -107,7 +113,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
       return reply.status(503).send({ error: 'sms_failed' });
     }
     // پاسخ برای شمارهٔ تازه و قدیمی یکی است تا نشود فهمید چه کسی کاربر کلید است.
-    return { retryAfter: RESEND_AFTER, expiresIn: OTP_TTL };
+    return { retryAfter: RESEND_AFTER, expiresIn: OTP_TTL, ...(devCodes ? { devCode: code } : {}) };
   });
 
   app.post(
@@ -234,6 +240,25 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
     return reply.status(204).send();
   });
 
+  /** نام شما و نام دفتر؛ روی همهٔ دستگاه‌های دفتر با تمدید بعدی ورود دیده می‌شود. */
+  app.post(
+    '/auth/profile',
+    { preHandler: requireAuth, schema: bodySchema({ name: { type: 'string', maxLength: 100 }, officeName: { type: 'string', maxLength: 200 } }, []) },
+    async (req, reply) => {
+      const body = req.body as { name?: string; officeName?: string };
+      const name = body.name?.trim();
+      const officeName = body.officeName?.trim();
+      if (name === '' || officeName === '') return reply.status(400).send({ error: 'bad_name' });
+      const { sub, off } = req.auth!;
+      if (name !== undefined) await pool.query('update users set name = $2 where id = $1', [sub, name]);
+      // جدول دفترها پشت RLS است؛ فقط دفتر خود کاربر.
+      if (officeName !== undefined) await withOffice(pool, off, (db) => db.query('update offices set name = $2 where id = $1', [off, officeName]));
+      const u = await pool.query<{ name: string }>('select name from users where id = $1', [sub]);
+      const o = await withOffice(pool, off, (db) => db.query<{ name: string }>('select name from offices where id = $1', [off]));
+      return { name: u.rows[0]?.name ?? '', officeName: o.rows[0]?.name ?? '' };
+    },
+  );
+
   app.post('/auth/refresh', { schema: bodySchema({ refreshToken: { type: 'string', maxLength: 100 } }, ['refreshToken']) }, async (req, reply) => {
     const hash = sha256((req.body as { refreshToken: string }).refreshToken);
     const session = await tx(pool, async (db) => {
@@ -251,6 +276,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
       // توکن قدیمیِ چرخیده دوباره آمد و پاسخ گم‌شده هم نیست ⇒ احتمالاً دزدیده شده؛ دستگاه بیرون می‌افتد.
       if ((d.is_prev && !d.in_grace) || d.idle) {
         await db.query('update devices set revoked_at = now() where id = $1', [d.id]);
+        await kickDevice(db, d.id);
         if (d.is_prev) req.log.warn({ device: d.id }, 'refresh token reuse; device revoked');
         return null;
       }
@@ -262,6 +288,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
 
   app.post('/auth/logout', { preHandler: requireAuth }, async (req, reply) => {
     await pool.query('update devices set revoked_at = now() where id = $1', [req.auth!.dev]);
+    await kickDevice(pool, req.auth!.dev);
     return reply.status(204).send();
   });
 
@@ -278,6 +305,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret }:
     { preHandler: requireAuth, schema: { params: { type: 'object', properties: { id: { type: 'string', format: 'uuid' } }, required: ['id'] } } },
     async (req, reply) => {
       const { rowCount } = await pool.query('update devices set revoked_at = now() where id = $1 and user_id = $2 and revoked_at is null', [req.params.id, req.auth!.sub]);
+      if (rowCount) await kickDevice(pool, req.params.id);
       return reply.status(rowCount ? 204 : 404).send();
     },
   );

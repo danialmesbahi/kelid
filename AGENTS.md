@@ -51,7 +51,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 **Data**
 - UI never runs SQL. Pages read through `useQuery(key, s => s.method())` and write through `useStore()` methods (`apps/web/src/data.tsx`).
 - `KelidStore` (`packages/core/src/store.ts`) is the contract. A new method must be implemented in **both** `SqlStore` and `MemoryStore`, with a test.
-- Every mutation in `SqlStore` = one `driver.transaction([...])` containing the row change **and** an `outbox` insert, then `this.emit()`. The outbox is the future sync log — never skip it.
+- Every mutation in `SqlStore` = one `driver.transaction([...])` containing the row change **and** an `outbox` insert, then `this.emit()`. The outbox is the sync log (each row gets an HLC via `this.outbox()`) — never skip it.
 - Deletes are soft (`deleted = 1`) so they can be undone and synced.
 - Schema changes: **append** a new entry to `migrations` in `packages/core/src/sql/schema.ts`. Never edit a shipped migration.
 - Text that users search goes through `normalizeForSearch` (Arabic ي/ك, ZWNJ, digits, diacritics).
@@ -104,4 +104,4 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 ## Status (update when a phase item lands)
 - Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, app icon, lint + e2e in CI, phone layout + PWA, listing photos, listing editing, clients, visits/to-dos done.
-- Phase 2 🟡 server scaffold (Fastify + Postgres RLS), phone + SMS login done; sync · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals done; map, auto-update · Phase 5 beta.
+- Phase 2 🟡 server scaffold (Fastify + Postgres RLS), phone + password login (SMS code as the second way), offline-first sync (HLC per-field merge, photo bytes, per-office device guard) done; deploy · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals done; map, auto-update · Phase 5 beta.

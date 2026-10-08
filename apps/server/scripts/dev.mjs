@@ -36,7 +36,8 @@ const ctx = await context({
   bundle: true,
   platform: 'node',
   format: 'esm',
-  packages: 'external',
+  // کتابخانه‌های npm بیرون می‌مانند؛ @kelid/core (TypeScript خام) داخل بسته می‌آید.
+  external: ['fastify', 'pg'],
   sourcemap: true,
   outfile: 'dist/main.js',
   logLevel: 'info',

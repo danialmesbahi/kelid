@@ -6,6 +6,8 @@ import { useToast } from '../layout/Toasts';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import type { TextSize, ThemePref } from '../prefs';
 import { AccountSection } from '../auth/AccountSection';
+import { useAuth } from '../auth/AuthContext';
+import { flushProfile, queueProfile } from '../auth/profile';
 
 const whereText = {
   desktop: { title: 'روی همین کامپیوتر، رمزگذاری‌شده', detail: 'دیتابیس با AES-256 رمز شده و کلیدش را خود ویندوز برای حساب کاربری شما نگه می‌دارد.' },
@@ -13,6 +15,7 @@ const whereText = {
   memory: { title: 'موقت', detail: 'این مرورگر حافظهٔ ماندگار ندارد؛ با بستن صفحه داده‌ها پاک می‌شوند. از Chrome یا Edge به‌روز استفاده کنید.' },
   locked: { title: 'موقت (تب دیگری باز است)', detail: 'کلید در یک تب یا پنجرهٔ دیگر همین مرورگر باز است. آن را ببندید و این صفحه را دوباره باز کنید تا به اطلاعات اصلی وصل شوید.' },
 } as const;
+const syncedTemp = 'اطلاعات از سرور دفتر می‌آید و هر تغییر همان لحظه فرستاده می‌شود؛ فقط بدون اینترنت چیزی روی این مرورگر نگه داشته نمی‌شود.';
 
 export function SettingsPage() {
   const { theme, setTheme, textSize, setTextSize, userName, setUserName, officeName, setOfficeName, setWelcomed } = usePrefsContext();
@@ -22,6 +25,16 @@ export function SettingsPage() {
   const first = useFirstVisit('settings');
   const hasSample = useQuery('has-sample', (s) => s.hasSampleData());
   const [confirming, setConfirming] = useState(false);
+  const { status, api, withToken, setNames } = useAuth();
+
+  // با حساب کلید، نام‌ها روی سرور هم عوض می‌شوند تا دستگاه‌های دیگر دفتر ببینند؛ بی‌اینترنت در صف می‌مانند.
+  const saveName = (key: 'name' | 'officeName', value: string) => {
+    if (key === 'name') setUserName(value);
+    else setOfficeName(value);
+    if (status !== 'signedIn' || !api || !value) return;
+    queueProfile({ [key]: value });
+    void flushProfile(api, withToken, (r) => void setNames(r.name, r.officeName));
+  };
 
   return (
     <div className={first ? 'bd enter' : 'bd'} style={{ paddingTop: 26, maxWidth: 900 }}>
@@ -30,8 +43,8 @@ export function SettingsPage() {
       <section aria-labelledby="me" className="col" style={{ gap: 14 }}>
         <h2 id="me" className="t2">شما و دفتر</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, maxWidth: 620 }}>
-          <label className="lbl">نام شما<input className="fld" defaultValue={userName} onBlur={(e) => setUserName(e.target.value.trim())} placeholder="مثلاً علی رضایی" /></label>
-          <label className="lbl">نام دفتر<input className="fld" defaultValue={officeName} onBlur={(e) => setOfficeName(e.target.value.trim())} placeholder="مثلاً املاک پارسا" /></label>
+          <label className="lbl">نام شما<input className="fld" defaultValue={userName} onBlur={(e) => e.target.value.trim() !== userName && saveName('name', e.target.value.trim())} placeholder="مثلاً علی رضایی" /></label>
+          <label className="lbl">نام دفتر<input className="fld" defaultValue={officeName} onBlur={(e) => e.target.value.trim() !== officeName && saveName('officeName', e.target.value.trim())} placeholder="مثلاً املاک پارسا" /></label>
         </div>
         <button type="button" className="lnk sm" style={{ alignSelf: 'flex-start', border: 0, background: 'none', padding: '4px 0', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setWelcomed(false)}>
           <Icon name="spark" size="s" />
@@ -69,7 +82,9 @@ export function SettingsPage() {
           </span>
           <div className="col sp" style={{ gap: 2 }}>
             <h2 id="data" className="t2">محل ذخیرهٔ اطلاعات: {whereText[storage.where].title}</h2>
-            <span className="mute sm" style={{ lineHeight: 1.8 }}>{whereText[storage.where].detail}</span>
+            <span className="mute sm" style={{ lineHeight: 1.8 }}>
+              {status === 'signedIn' && !storage.persistent ? syncedTemp : whereText[storage.where].detail}
+            </span>
           </div>
         </div>
         {hasSample && (

@@ -1,12 +1,27 @@
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { CachedStore, MemoryStore, SqlStore, seed, type KelidStore } from '@kelid/core';
+import { CachedStore, MemoryStore, SqlStore, seed, type KelidStore, type Syncable } from '@kelid/core';
+import { API_URL } from './auth/api';
 import { openDriver } from './db/drivers';
 import { Splash } from './layout/Splash';
 
 export type StorageInfo = { persistent: boolean; where: 'desktop' | 'browser' | 'memory' | 'locked' };
 
+export interface SyncTarget {
+  store: Syncable;
+  /** فقط نوشتن‌های واقعی؛ اعمال آرام همگام‌سازی خبری نمی‌دهد. */
+  subscribe(fn: () => void): () => void;
+  /** حافظهٔ خواندن‌ها دور ریخته و صفحه‌ها تازه می‌شوند. */
+  refresh(): void;
+}
+
 // SqlStore هم مثل درایور فقط یک بار ساخته می‌شود.
 let opening: Promise<{ store: KelidStore; storage: StorageInfo }> | null = null;
+let syncTarget: SyncTarget | null = null;
+
+/** دیتابیس ماندگار برای همگام‌سازی؛ حافظهٔ موقت (تب قفل، مرورگر بی‌حافظه) هیچ‌وقت چیزی نمی‌فرستد. */
+export function getSyncTarget(): SyncTarget | null {
+  return syncTarget;
+}
 
 /**
  * دیتابیس را باز می‌کند. main.tsx آن را پیش از اولین رندر صدا می‌زند تا Worker و wasm
@@ -16,11 +31,24 @@ export function openStore(): Promise<{ store: KelidStore; storage: StorageInfo }
   opening ??= (async () => {
     try {
       const { driver, persistent, where } = await openDriver();
-      return { store: new CachedStore(await SqlStore.open(driver, seed)), storage: { persistent, where } };
+      // با حساب کلید فقط دادهٔ واقعی دفتر؛ نمونه‌ها مال حالت بی‌سرور (فقط همین دستگاه) است.
+      const sql = await SqlStore.open(driver, API_URL ? undefined : seed);
+      const cached = new CachedStore(sql);
+      // حافظهٔ موقت (مرورگر بی‌OPFS، یا تب دوم) هم همگام می‌شود: داده از سرور دفتر می‌آید و تغییرها همان لحظه می‌روند.
+      // وگرنه کاربرِ واردشده دفتری خالی می‌دید و هر چه ثبت می‌کرد با بستن صفحه گم می‌شد.
+      syncTarget = {
+        store: sql,
+        subscribe: (fn) => sql.subscribe(fn),
+        refresh: () => {
+          cached.dropAll();
+          sql.notifyChanged();
+        },
+      };
+      return { store: cached, storage: { persistent, where } };
     } catch (err) {
       console.error(err);
       // آخرین راه: برنامه با دادهٔ موقت باز شود تا کاربر قفل نشود.
-      return { store: new CachedStore(new MemoryStore(seed)), storage: { persistent: false, where: 'memory' as const } };
+      return { store: new CachedStore(new MemoryStore(API_URL ? { listings: [], clients: [], visits: [], todos: [], deals: [] } : seed)), storage: { persistent: false, where: 'memory' as const } };
     }
   })();
   return opening;

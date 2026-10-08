@@ -19,7 +19,8 @@ async function main() {
     logLevel: config.logLevel,
     trustProxy: config.trustProxy,
     corsOrigins: config.corsOrigins,
-    auth: { pool, sms, jwtSecret: config.jwtSecret },
+    // پیامک console فقط در توسعه ممکن است (config در production ردش می‌کند)؛ کد در پاسخ هم می‌آید تا پیش‌نمایش بی‌پیامک کار کند.
+    auth: { pool, sms, jwtSecret: config.jwtSecret, devCodes: config.sms.provider === 'console' && process.env.NODE_ENV !== 'production' },
   });
   if (applied) app.log.info(`${applied} migration(s) applied`);
   if (ownsTables) app.log.warn('DATABASE_URL owns the tables; use a separate MIGRATION_DATABASE_URL role in production');

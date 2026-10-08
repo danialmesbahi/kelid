@@ -1,0 +1,281 @@
+import { ApiError } from '../auth/api';
+import type { SyncTarget } from '../data';
+import type { SyncApi } from './api';
+
+export type SyncPhase = 'idle' | 'syncing' | 'offline' | 'error' | 'blocked';
+export interface SyncStatus {
+  phase: SyncPhase;
+  pending: number;
+  lastSync: number | null;
+}
+
+const PUSH_BATCH = 200;
+const PHOTO_BATCH = 8;
+const PULL_BATCH = 500;
+// کوتاه تا تغییر تقریباً همان لحظه روی بقیهٔ دستگاه‌ها باشد، ولی چند ذخیرهٔ پشت هم یک‌جا بروند.
+const DEBOUNCE_MS = 300;
+// خبر زنده از سرور ⇒ کمی صبر تا چند خبر پشت هم یک pull شوند.
+const LIVE_MS = 120;
+// اتصال زنده هست؛ این فقط تور ایمنی است اگر جایی خبری گم شود.
+const PERIODIC_MS = 60_000;
+const RETRY_MS = [5_000, 15_000, 60_000, 180_000];
+const LIVE_RETRY_MS = [1_000, 3_000, 10_000, 30_000];
+
+/**
+ * همگام‌سازی پشت صحنه: اول صف تغییرهای این دستگاه فرستاده می‌شود، بعد تغییرهای بقیه گرفته می‌شود.
+ * هیچ‌وقت جلوی کار کاربر را نمی‌گیرد: نوشتن‌ها همیشه محلی‌اند و این فقط وقتی اینترنت هست کارش را می‌کند.
+ * هر قدم قابل تکرار است؛ اگر برنامه وسط کار بسته شود، دفعهٔ بعد از همان‌جا ادامه می‌دهد و چیزی گم نمی‌شود.
+ */
+export class SyncEngine {
+  private status: SyncStatus = { phase: 'idle', pending: 0, lastSync: null };
+  private listeners = new Set<() => void>();
+  private running: Promise<void> | null = null;
+  private again = false;
+  private applying = false;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private retry = 0;
+  private stopped = false;
+  private cleanup: Array<() => void> = [];
+  private live = new AbortController();
+
+  private store: SyncTarget['store'];
+
+  constructor(
+    private target: SyncTarget,
+    private api: SyncApi,
+    private withToken: <T>(fn: (token: string) => Promise<T>) => Promise<T>,
+    private officeId: string,
+  ) {
+    this.store = target.store;
+  }
+
+  start() {
+    // نوشتن محلی ⇒ کمی صبر تا چند تغییر پشت هم یک‌جا بروند.
+    this.cleanup.push(this.target.subscribe(() => !this.applying && this.schedule(DEBOUNCE_MS)));
+    const now = () => this.schedule(0);
+    const visible = () => document.visibilityState === 'visible' && this.schedule(0);
+    addEventListener('online', now);
+    document.addEventListener('visibilitychange', visible);
+    // هر دقیقه یک سر زدن کوچک، فقط وقتی برنامه جلوی چشم است؛ پس‌زمینه هیچ پردازشی ندارد.
+    const id = setInterval(() => document.visibilityState === 'visible' && navigator.onLine !== false && this.schedule(0), PERIODIC_MS);
+    this.cleanup.push(() => removeEventListener('online', now), () => document.removeEventListener('visibilitychange', visible), () => clearInterval(id));
+    this.schedule(0);
+    void this.listen();
+  }
+
+  stop() {
+    this.stopped = true;
+    this.live.abort();
+    clearTimeout(this.timer);
+    for (const c of this.cleanup.splice(0)) c();
+    this.listeners.clear();
+  }
+
+  /**
+   * اتصال زنده به سرور تا وقتی موتور روشن است: هر خبر یعنی یک pull کوتاه. قطع شد ⇒ با فاصلهٔ کم دوباره وصل
+   * می‌شود و بعد از وصل شدن یک بار سر می‌زند تا چیزی که وسط قطعی آمده جا نماند.
+   */
+  async listen() {
+    const listen = this.api.listen;
+    if (!listen) return;
+    let fails = 0;
+    let first = true;
+    while (!this.stopped) {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await this.until('online');
+        continue;
+      }
+      const began = Date.now();
+      try {
+        await this.withToken((t) =>
+          listen(
+            t,
+            {
+              open: () => {
+                if (!first) this.schedule(0);
+                first = false;
+              },
+              change: () => this.schedule(LIVE_MS),
+            },
+            this.live.signal,
+          ),
+        );
+        if (this.stopped) return;
+        // اتصالی که زود بسته شد هم شکست حساب می‌شود؛ وگرنه حلقه‌ای بی‌وقفه به سرور فشار می‌آورد.
+        fails = Date.now() - began < 5_000 ? fails + 1 : 0;
+      } catch (e) {
+        // بیرون شده یا سرور قدیمی: همگام‌سازی معمول ادامه دارد.
+        if (e instanceof ApiError && (e.code === 'unauthorized' || e.code === 'not_found')) return;
+        fails++;
+      }
+      if (fails) await this.until('online', LIVE_RETRY_MS[Math.min(fails - 1, LIVE_RETRY_MS.length - 1)]!);
+    }
+  }
+
+  /** صبر تا رویداد یا زمان، یا خاموش شدن موتور. */
+  private until(event: 'online', ms?: number): Promise<void> {
+    return new Promise((done) => {
+      if (this.live.signal.aborted) return done();
+      const finish = () => {
+        clearTimeout(t);
+        if (typeof removeEventListener === 'function') removeEventListener(event, finish);
+        this.live.signal.removeEventListener('abort', finish);
+        done();
+      };
+      const t = ms === undefined ? undefined : setTimeout(finish, ms);
+      // برگشت اینترنت ⇒ همان لحظه دوباره وصل شو، نه بعد از پایان فاصله.
+      if (typeof addEventListener === 'function') addEventListener(event, finish);
+      this.live.signal.addEventListener('abort', finish);
+    });
+  }
+
+  getStatus = () => this.status;
+  onStatus = (fn: () => void) => {
+    this.listeners.add(fn);
+    return () => void this.listeners.delete(fn);
+  };
+
+  private set(patch: Partial<SyncStatus>) {
+    const next = { ...this.status, ...patch };
+    if (next.phase === this.status.phase && next.pending === this.status.pending && next.lastSync === this.status.lastSync) return;
+    this.status = next;
+    for (const l of this.listeners) l();
+  }
+
+  private schedule(ms: number) {
+    if (this.stopped) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => void this.run(), ms);
+  }
+
+  /** یک دور کامل؛ اگر وسطش تغییر تازه‌ای آمد، بلافاصله یک دور دیگر. */
+  run(): Promise<void> {
+    if (this.running) {
+      this.again = true;
+      return this.running;
+    }
+    // بعد از خاموش شدن (خروج، تعویض دفتر) خطای دوری که هنوز در راه بود دیگر مهم نیست.
+    this.running = this.cycle()
+      .catch((e: unknown) => {
+        if (!this.stopped) throw e;
+      })
+      .finally(() => {
+        this.running = null;
+        if (this.again && !this.stopped) {
+          this.again = false;
+          this.schedule(0);
+        }
+      });
+    return this.running;
+  }
+
+  private async cycle() {
+    if (this.stopped) return;
+    const info = await this.store.syncInfo();
+    this.set({ pending: info.pending });
+    if (info.office && info.office !== this.officeId) return this.set({ phase: 'blocked' });
+    if (navigator.onLine === false) return this.set({ phase: 'offline' });
+    this.set({ phase: 'syncing' });
+    try {
+      await this.store.bindOffice(this.officeId);
+      await this.pushAll();
+      await this.pullAll();
+      // عکس‌ها بعد از مشخصاتشان؛ سنگین‌ترند و نباید جلوی رسیدن فایل‌ها و مشتری‌ها را بگیرند.
+      await this.photosUp();
+      await this.photosDown();
+      this.retry = 0;
+      this.set({ phase: 'idle', pending: (await this.store.syncInfo()).pending, lastSync: Date.now() });
+    } catch (e) {
+      const offline = e instanceof ApiError && e.code === 'offline';
+      this.set({ phase: offline ? 'offline' : 'error', pending: (await this.store.syncInfo()).pending });
+      if (e instanceof ApiError && e.code === 'unauthorized') return; // صفحهٔ ورود برمی‌گردد
+      this.schedule(RETRY_MS[Math.min(this.retry++, RETRY_MS.length - 1)]!);
+    }
+  }
+
+  private async pushAll() {
+    for (;;) {
+      if (this.stopped) return;
+      const { changes, lastSeq } = await this.store.pendingChanges(PUSH_BATCH);
+      if (!lastSeq) return;
+      if (changes.length) await this.withToken((t) => this.api.push(t, changes));
+      // فقط بعد از تأیید سرور پاک می‌شود؛ پاسخ گم‌شده یعنی ارسال دوباره، که سرور بی‌اثر می‌پذیرد.
+      await this.store.ackChanges(lastSeq);
+      this.set({ pending: Math.max(0, this.status.pending - changes.length) });
+    }
+  }
+
+  private async pullAll() {
+    let pages = 0;
+    let got = false;
+    for (;;) {
+      if (this.stopped) break;
+      const { cursor } = await this.store.syncInfo();
+      const page = await this.withToken((t) => this.api.pull(t, cursor, PULL_BATCH));
+      if (page.entities.length) {
+        this.applying = true;
+        try {
+          await this.store.applyRemote(page.entities, page.cursor, page.hlc, { quiet: true });
+        } finally {
+          this.applying = false;
+        }
+        got = true;
+        // اولین همگام‌سازی با هزاران فایل: صفحه‌ها هر چند دسته یک بار تازه می‌شوند و بین دسته‌ها نفس می‌کشند.
+        if (++pages % 6 === 0) this.notify();
+        await new Promise((r) => setTimeout(r, 0));
+      } else if (page.cursor !== cursor) {
+        await this.store.applyRemote([], page.cursor, page.hlc, { quiet: true });
+      }
+      if (!page.more) break;
+    }
+    if (got) this.notify();
+  }
+
+  private async photosUp() {
+    for (;;) {
+      if (this.stopped) return;
+      const batch = await this.store.photosToUpload(PHOTO_BATCH);
+      if (!batch.length) return;
+      const done: string[] = [];
+      for (const p of batch) {
+        try {
+          await this.withToken((t) => this.api.uploadPhoto(t, p));
+        } catch (e) {
+          // عکسی که سرور نمی‌پذیرد (خراب یا بیش از اندازه) هر دور دوباره فرستاده نمی‌شود؛ روی همین دستگاه می‌ماند.
+          if (!(e instanceof ApiError && e.code === 'bad_photo')) throw e;
+        }
+        done.push(p.id);
+      }
+      await this.store.markPhotosUploaded(done);
+    }
+  }
+
+  private async photosDown() {
+    // عکسی که هنوز روی سرور نیست (دستگاه صاحبش آفلاین است) در همین دور دوباره پرسیده نمی‌شود.
+    const tried = new Set<string>();
+    let got = 0;
+    for (;;) {
+      if (this.stopped) break;
+      const ids = (await this.store.photosToDownload(tried.size + PHOTO_BATCH)).filter((id) => !tried.has(id));
+      if (!ids.length) break;
+      for (const id of ids) {
+        tried.add(id);
+        const blob = await this.withToken((t) => this.api.downloadPhoto(t, id));
+        if (!blob) continue;
+        await this.store.savePhotoBlob(blob);
+        // هر چند عکس یک بار صفحه تازه شود، نه با هر عکس.
+        if (++got % PHOTO_BATCH === 0) this.notify();
+      }
+    }
+    if (got % PHOTO_BATCH) this.notify();
+  }
+
+  private notify() {
+    this.applying = true;
+    try {
+      this.target.refresh();
+    } finally {
+      this.applying = false;
+    }
+  }
+}

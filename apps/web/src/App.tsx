@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createHashRouter, RouterProvider } from 'react-router';
-import { StoreProvider } from './data';
+import { getSyncTarget, StoreProvider } from './data';
 import { usePrefs } from './prefs';
 import { Shell } from './layout/Shell';
 import { ScrollMemory } from './layout/ScrollMemory';
@@ -19,8 +19,10 @@ import { ToastProvider } from './layout/Toasts';
 import { UpdateNotice } from './pwa';
 import { Welcome } from './welcome/Welcome';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { SyncRunner } from './sync/SyncRunner';
 import { Greeting } from './auth/Greeting';
 import { Login } from './auth/Login';
+import { OfficeSwitch } from './auth/OfficeSwitch';
 
 type Prefs = ReturnType<typeof usePrefs>;
 const PrefsContext = createContext<Prefs | null>(null);
@@ -74,9 +76,34 @@ export function App() {
   );
 }
 
+type OfficeCheck = { office: string; state: 'ok' } | { office: string; state: 'other'; pending: number };
+
+/**
+ * دیتابیس این دستگاه مال همین دفتر است؟ تا جواب نیامده (چند میلی‌ثانیه) برنامه باز نمی‌شود،
+ * تا اطلاعات دفتر دیگری حتی یک لحظه در این حساب دیده نشود.
+ */
+function useOfficeCheck(office: string | undefined): [OfficeCheck | null, () => void] {
+  const [check, setCheck] = useState<OfficeCheck | null>(null);
+  const [round, setRound] = useState(0);
+  useEffect(() => {
+    const target = getSyncTarget();
+    if (!office) return;
+    if (!target) return setCheck({ office, state: 'ok' });
+    let live = true;
+    void target.store.syncInfo().then((i) => {
+      if (live) setCheck(i.office && i.office !== office ? { office, state: 'other', pending: i.pending } : { office, state: 'ok' });
+    });
+    return () => {
+      live = false;
+    };
+  }, [office, round]);
+  return [check && check.office === office ? check : null, () => setRound((r) => r + 1)];
+}
+
 /** بدون سرور (VITE_KELID_API_URL) مثل قبل؛ با سرور، تا ورود نشده خود برنامه ساخته نمی‌شود. */
 function Gate({ welcomed }: { welcomed: boolean }) {
-  const { status } = useAuth();
+  const { status, session } = useAuth();
+  const [check, recheck] = useOfficeCheck(status === 'signedIn' ? session?.office.id : undefined);
   // صفحهٔ ورود بعد از ورود موفق تا پایان انیمیشن کنار رفتنش می‌ماند.
   const [loginOpen, setLoginOpen] = useState(false);
   const [afterLogin, setAfterLogin] = useState(false);
@@ -86,10 +113,12 @@ function Gate({ welcomed }: { welcomed: boolean }) {
     if (status === 'signedOut') setLoginOpen(true);
   }, [status]);
   const showLogin = status === 'signedOut' || loginOpen;
-  const ready = status === 'off' || status === 'signedIn';
+  const ready = status === 'off' || (status === 'signedIn' && check?.state === 'ok');
   return (
     <>
       {ready && <RouterProvider router={router} />}
+      {ready && status === 'signedIn' && <SyncRunner />}
+      {status === 'signedIn' && check?.state === 'other' && !showLogin && <OfficeSwitch pending={check.pending} onCleared={recheck} />}
       {showLogin && (
         <Login
           onDone={(mode) => {
@@ -97,12 +126,15 @@ function Gate({ welcomed }: { welcomed: boolean }) {
             setAfterLogin(true);
             // بعد از ورود همیشه صفحهٔ امروز، نه صفحه‌ای که از آن خارج شده بود (مثلاً تنظیمات).
             void router.navigate('/', { replace: true });
-            setGreet(mode === 'login' ? 'back' : 'new');
+            // دفتر تازه آشنایی کامل خودش را دارد؛ کارت خوش‌آمد فقط برای ورود دوباره.
+            setGreet(mode === 'login' ? 'back' : null);
           }}
         />
       )}
-      {ready && !showLogin && !welcomed && <Welcome continued={afterLogin} signedUp={status === 'signedIn'} />}
-      {greet && status === 'signedIn' && !showLogin && welcomed && (
+      {ready && !showLogin && !welcomed && (
+        <Welcome continued={afterLogin} signedUp={status === 'signedIn'} onStart={(to) => void router.navigate(to, { viewTransition: true })} />
+      )}
+      {greet && ready && status === 'signedIn' && !showLogin && welcomed && (
         <Greeting
           kind={greet}
           name={prefs.userName}

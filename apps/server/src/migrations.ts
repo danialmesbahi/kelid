@@ -72,6 +72,44 @@ export const migrations: readonly string[] = [
   alter table users add column locked_until timestamptz;
   alter table devices add column otp_at timestamptz;
   `,
+  // 4: همگام‌سازی. هر رکورد دفتر (فایل، مشتری، قرار، کار، معامله، مشخصات عکس) یک ردیف با مقدار و زمان HLC هر فیلد.
+  // version از یک دنباله می‌آید و ارسال‌های هر دفتر پشت یک قفل‌اند، پس «همه چیز بعد از نسخهٔ N» هیچ‌وقت چیزی جا نمی‌اندازد.
+  `
+  create sequence entity_version;
+  create table entities (
+    office_id uuid not null default kelid_office() references offices (id),
+    kind text not null check (kind in ('listing', 'client', 'visit', 'todo', 'deal', 'photo')),
+    id text not null check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
+    fields jsonb not null,
+    clocks jsonb not null,
+    version bigint not null default nextval('entity_version'),
+    primary key (office_id, kind, id)
+  );
+  create index entities_pull on entities (office_id, version);
+  create unique index entities_plaque on entities (office_id, ((fields ->> 'plaque')::int)) where kind = 'listing' and fields ? 'plaque';
+  alter table entities enable row level security;
+  alter table entities force row level security;
+  create policy office_isolation on entities
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  `,
+  // 5: بایت عکس فایل‌ها؛ مشخصات عکس مثل بقیه در entities است. هر عکس یک بار نوشته می‌شود و دیگر عوض نمی‌شود.
+  `
+  create table photo_blobs (
+    office_id uuid not null default kelid_office() references offices (id),
+    id text not null check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
+    mime text not null check (mime in ('image/webp', 'image/jpeg', 'image/png')),
+    bytes bytea not null check (octet_length(bytes) <= 2097152),
+    thumb bytea not null check (octet_length(thumb) <= 262144),
+    created_at timestamptz not null default now(),
+    primary key (office_id, id)
+  );
+  alter table photo_blobs enable row level security;
+  alter table photo_blobs force row level security;
+  create policy office_isolation on photo_blobs
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */
