@@ -12,6 +12,9 @@ export interface SyncStatus {
 const PUSH_BATCH = 200;
 const PHOTO_BATCH = 8;
 const PULL_BATCH = 500;
+// عکس کامل سنگین است: هر دور چند تا، تا ارسال تغییرهای تازه پشت صف عکس‌ها نماند؛ بقیه در دورهای بعد.
+const FULL_PER_CYCLE = 12;
+const FULL_PAUSE_MS = 400;
 // کوتاه تا تغییر تقریباً همان لحظه روی بقیهٔ دستگاه‌ها باشد، ولی چند ذخیرهٔ پشت هم یک‌جا بروند.
 const DEBOUNCE_MS = 300;
 // خبر زنده از سرور ⇒ کمی صبر تا چند خبر پشت هم یک pull شوند.
@@ -37,6 +40,9 @@ export class SyncEngine {
   private stopped = false;
   private cleanup: Array<() => void> = [];
   private live = new AbortController();
+  private fulls = new Map<string, Promise<boolean>>();
+  // عکس کاملی که سرور ندارد، تا خاموش شدن موتور دوباره پرسیده نمی‌شود.
+  private missing = new Set<string>();
 
   private store: SyncTarget['store'];
 
@@ -190,9 +196,11 @@ export class SyncEngine {
       await this.pullAll();
       // عکس‌ها بعد از مشخصاتشان؛ سنگین‌ترند و نباید جلوی رسیدن فایل‌ها و مشتری‌ها را بگیرند.
       await this.photosUp();
-      await this.photosDown();
+      await this.thumbsDown();
+      const more = await this.fullsDown();
       this.retry = 0;
       this.set({ phase: 'idle', pending: (await this.store.syncInfo()).pending, lastSync: Date.now() });
+      if (more) this.schedule(FULL_PAUSE_MS);
     } catch (e) {
       const offline = e instanceof ApiError && e.code === 'offline';
       this.set({ phase: offline ? 'offline' : 'error', pending: (await this.store.syncInfo()).pending });
@@ -274,7 +282,8 @@ export class SyncEngine {
     }
   }
 
-  private async photosDown() {
+  /** اول بندانگشتی همهٔ عکس‌ها: سبک است و فهرست‌ها و کارت‌ها را زود پر می‌کند. */
+  private async thumbsDown() {
     // عکسی که هنوز روی سرور نیست (دستگاه صاحبش آفلاین است) در همین دور دوباره پرسیده نمی‌شود.
     const tried = new Set<string>();
     let got = 0;
@@ -284,14 +293,49 @@ export class SyncEngine {
       if (!ids.length) break;
       for (const id of ids) {
         tried.add(id);
-        const blob = await this.withToken((t) => this.api.downloadPhoto(t, id));
-        if (!blob) continue;
-        await this.store.savePhotoBlob(blob);
+        const thumb = await this.withToken((t) => this.api.downloadPhoto(t, id, 'thumb'));
+        if (!thumb) continue;
+        await this.store.savePhotoThumb(id, thumb.bytes);
         // هر چند عکس یک بار صفحه تازه شود، نه با هر عکس.
         if (++got % PHOTO_BATCH === 0) this.notify();
       }
     }
     if (got % PHOTO_BATCH) this.notify();
+  }
+
+  /** چند عکس کامل در پس‌زمینه تا دستگاه بی‌اینترنت هم همه را داشته باشد. true = هنوز مانده. */
+  private async fullsDown(): Promise<boolean> {
+    const ids = (await this.store.fullPhotosToDownload(this.missing.size + FULL_PER_CYCLE)).filter((id) => !this.missing.has(id)).slice(0, FULL_PER_CYCLE);
+    for (const id of ids) {
+      if (this.stopped) return false;
+      await this.full(id);
+    }
+    return ids.length === FULL_PER_CYCLE;
+  }
+
+  /** یک عکس کامل؛ درخواست هم‌زمان برای همان عکس (پس‌زمینه و نمایشگر) یکی می‌شود. true = حالا روی دستگاه است. */
+  private full(id: string): Promise<boolean> {
+    let p = this.fulls.get(id);
+    if (!p) {
+      p = this.withToken((t) => this.api.downloadPhoto(t, id, 'full'))
+        .then(async (r) => {
+          if (!r) {
+            this.missing.add(id);
+            return false;
+          }
+          await this.store.savePhotoFull(id, r.mime, r.bytes);
+          return true;
+        })
+        .finally(() => this.fulls.delete(id));
+      this.fulls.set(id, p);
+    }
+    return p;
+  }
+
+  /** کسی همین حالا عکسی را باز کرد که عکس کاملش هنوز نرسیده؛ تا آن وقت بندانگشتی مات دیده می‌شود. */
+  fetchFull(id: string): Promise<boolean> {
+    if (this.stopped) return Promise.resolve(false);
+    return this.full(id).catch(() => false);
   }
 
   private notify() {

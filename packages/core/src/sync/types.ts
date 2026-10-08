@@ -32,9 +32,13 @@ export interface Syncable {
   /** عکس‌هایی که بایتشان هنوز به سرور نرفته (عکس‌های دادهٔ نمونه هرگز). */
   photosToUpload(limit: number): Promise<PhotoBlob[]>;
   markPhotosUploaded(ids: string[]): Promise<void>;
-  /** عکس‌هایی که مشخصاتشان از سرور آمده و بایتشان هنوز نه. */
+  /** عکس‌هایی که مشخصاتشان از سرور آمده و هنوز بندانگشتی هم ندارند. */
   photosToDownload(limit: number): Promise<string[]>;
-  savePhotoBlob(blob: PhotoBlob): Promise<void>;
+  /** بندانگشتی رسید: عکس از این لحظه در فهرست‌ها دیده و شمرده می‌شود. */
+  savePhotoThumb(id: string, thumb: Uint8Array): Promise<void>;
+  /** عکس‌هایی که بندانگشتی‌شان هست و عکس کاملشان هنوز نه. */
+  fullPhotosToDownload(limit: number): Promise<string[]>;
+  savePhotoFull(id: string, mime: string, bytes: Uint8Array): Promise<void>;
   /** همهٔ دادهٔ دفتر از این دستگاه پاک می‌شود (ورود دفتر دیگر، یا خروج روی کامپیوتر مشترک). */
   resetLocalData(): Promise<void>;
   /**

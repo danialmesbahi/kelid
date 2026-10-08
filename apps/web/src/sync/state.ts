@@ -45,6 +45,11 @@ export function syncNow() {
   void engine?.run();
 }
 
+/** عکس کاملی که روی این دستگاه نیست، همین حالا از سرور؛ true = حالا هست. بی همگام‌سازی همیشه false. */
+export function fetchFullPhoto(id: string): Promise<boolean> {
+  return engine?.fetchFull(id) ?? Promise.resolve(false);
+}
+
 export function syncText(s: SyncStatus): { label: string; tone: 'ok' | 'busy' | 'warn' | 'bad' } {
   const queued = s.pending ? ` · ${toFaDigits(s.pending)} تغییر در صف` : '';
   switch (s.phase) {
