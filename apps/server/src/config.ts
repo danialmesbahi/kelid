@@ -1,3 +1,5 @@
+import type { S3Config } from './storage/s3';
+
 // تنظیمات سرور فقط از متغیرهای محیطی (‎.env‎ در توسعه). مقدار اشتباه = توقف با پیام روشن.
 export interface Config {
   port: number;
@@ -15,6 +17,8 @@ export interface Config {
   /** مبدأهایی که برنامهٔ وب/دسکتاپ از آن‌ها API را صدا می‌زند («null» = برنامهٔ ویندوز که از file:// باز می‌شود؛
    *  امن است چون ورود با توکن Bearer است نه کوکی). */
   corsOrigins: string[];
+  /** فضای ذخیره‌سازی عکس‌ها (آروان، لیارا، MinIO)؛ null = بایت عکس‌ها در خود دیتابیس. */
+  s3: S3Config | null;
 }
 
 const levels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
@@ -59,8 +63,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const corsOrigins = (env.CORS_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
   if (corsOrigins.some((o) => o !== 'null' && !/^[a-z][a-z0-9+.-]*:\/\/[^/\s]+$/i.test(o))) problems.push('CORS_ORIGINS باید فهرست مبدأهای کامل باشد (مثلاً https://app.kelid.ir)، نه *');
 
+  // نیمه‌تنظیم خطرناک‌تر از تنظیم‌نکردن است: عکس‌ها بی‌صدا جای اشتباه می‌روند.
+  const s3Vars = ['S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
+  const s3Set = s3Vars.filter((k) => env[k]);
+  let s3: S3Config | null = null;
+  if (s3Set.length && s3Set.length < s3Vars.length) {
+    problems.push(`برای فضای ذخیره‌سازی عکس هر چهار متغیر ${s3Vars.join('، ')} لازم‌اند`);
+  } else if (s3Set.length) {
+    const endpoint = env.S3_ENDPOINT!.replace(/\/+$/, '');
+    const u = URL.canParse(endpoint) ? new URL(endpoint) : null;
+    const ok = !!u && (u.protocol === 'https:' || (!production && u.protocol === 'http:')) && !u.search && !u.username;
+    if (!ok) problems.push(production ? 'S3_ENDPOINT باید آدرس https:// باشد' : 'S3_ENDPOINT باید آدرس http(s):// باشد');
+    if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(env.S3_BUCKET!)) problems.push('S3_BUCKET نام سطل معتبر نیست');
+    s3 = { endpoint, region: env.S3_REGION || 'us-east-1', bucket: env.S3_BUCKET!, accessKeyId: env.S3_ACCESS_KEY_ID!, secretAccessKey: env.S3_SECRET_ACCESS_KEY! };
+  }
+
   if (problems.length) throw new ConfigError(`تنظیمات سرور ناقص است:\n- ${problems.join('\n- ')}`);
-  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins };
+  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3 };
 }
 
 function isPostgresUrl(url: string): boolean {

@@ -213,9 +213,22 @@ describe('sync between two offline devices', () => {
     expect((await b.getListing(l.id))?.photoCount).toBe(0);
     const want = await b.photosToDownload(10);
     expect(want.sort()).toEqual([p1!.id, p2!.id].sort());
-    for (const id of want) await b.savePhotoBlob(blobs.get(id)!);
+    for (const id of want) await b.savePhotoThumb(id, blobs.get(id)!.thumb);
+    // بندانگشتی رسید: عکس در فهرست هست و شمرده می‌شود، ولی عکس کامل هنوز نه.
     expect((await b.listPhotos(l.id)).map((p) => [p.id, [...p.thumb]])).toEqual([[p1!.id, [1, 9]], [p2!.id, [2, 9]]]);
+    expect((await b.getListing(l.id))?.photoCount).toBe(2);
+    expect(await b.photosToDownload(10)).toEqual([]);
+    expect(await b.getPhoto(p2!.id)).toBeUndefined();
+    expect((await b.fullPhotosToDownload(10)).sort()).toEqual([p1!.id, p2!.id].sort());
+    await b.savePhotoFull(p2!.id, 'image/webp', blobs.get(p2!.id)!.bytes);
     expect([...((await b.getPhoto(p2!.id))?.bytes ?? [])]).toEqual([2, 1, 2, 3]);
+    expect([...((await b.listPhotos(l.id))[1]?.thumb ?? [])]).toEqual([2, 9]);
+    expect(await b.fullPhotosToDownload(10)).toEqual([p1!.id]);
+    // عکس کامل تکراری یا عکسی که بندانگشتی‌اش نرسیده چیزی را عوض نمی‌کند
+    await b.savePhotoFull(p2!.id, 'image/webp', new Uint8Array([0]));
+    expect([...((await b.getPhoto(p2!.id))?.bytes ?? [])]).toEqual([2, 1, 2, 3]);
+    await b.savePhotoFull(p1!.id, 'image/webp', blobs.get(p1!.id)!.bytes);
+    expect(await b.fullPhotosToDownload(10)).toEqual([]);
     expect((await b.getListing(l.id))?.photoCount).toBe(2);
     expect(await b.photosToUpload(10)).toEqual([]); // از سرور آمده؛ دوباره فرستاده نمی‌شود
 

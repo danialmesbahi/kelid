@@ -62,7 +62,9 @@ describe('SyncEngine', () => {
     const [p] = await a.sql.addPhotos(l.id, [{ mime: 'image/webp', width: 4, height: 3, bytes: new Uint8Array([7, 7, 7]), thumb: new Uint8Array([7]) }]);
     // a فقط مشخصات را فرستاد و پیش از بالا رفتن عکس افتاد
     const noPhotos: SyncApi = { ...api, uploadPhoto: () => Promise.reject(new ApiError('offline')) };
-    await new SyncEngine(a.target, noPhotos, token, 'o1').run();
+    const dropped = new SyncEngine(a.target, noPhotos, token, 'o1');
+    await dropped.run();
+    dropped.stop(); // دور دوبارهٔ زمان‌بندی‌شده بعد از بسته شدن دیتابیس اجرا نشود
     const eb = new SyncEngine(b.target, api, token, 'o1');
     await eb.run();
     expect(eb.getStatus().phase).toBe('idle');
@@ -73,6 +75,51 @@ describe('SyncEngine', () => {
     await eb.run();
     expect([...((await b.sql.getPhoto(p!.id))?.bytes ?? [])]).toEqual([7, 7, 7]);
     expect((await b.sql.getListing(l.id))?.photoCount).toBe(1);
+  });
+
+  it('brings every thumbnail first, then full photos a few per round or right away when one is opened', async () => {
+    const api = demoSyncApi();
+    const a = await device();
+    const b = await device();
+    const l = await a.sql.addListing(listing);
+    const img = (n: number) => ({ mime: 'image/webp', width: 4, height: 3, bytes: new Uint8Array([n, n, n]), thumb: new Uint8Array([n]) });
+    const added = await a.sql.addPhotos(l.id, Array.from({ length: 14 }, (_, i) => img(i + 1)));
+    await new SyncEngine(a.target, api, token, 'o1').run();
+    const asked: string[] = [];
+    // بی تأخیر ساختگی سرور نمایشی، تا آزمون کند نشود
+    const thumbs = new Map((await a.sql.listPhotos(l.id)).map((x) => [x.id, x.thumb]));
+    const counting: SyncApi = {
+      ...api,
+      downloadPhoto: async (_t, id, part) => {
+        asked.push(`${part}:${id}`);
+        const full = await a.sql.getPhoto(id);
+        return full ? { mime: full.mime, bytes: part === 'full' ? full.bytes : thumbs.get(id)! } : null;
+      },
+    };
+    const eb = new SyncEngine(b.target, counting, token, 'o1');
+    await eb.run();
+    eb.stop();
+    // همهٔ بندانگشتی‌ها پیش از هر عکس کامل
+    expect(asked.slice(0, 14).every((x) => x.startsWith('thumb:'))).toBe(true);
+    expect(asked.filter((x) => x.startsWith('full:'))).toHaveLength(12);
+    expect(await b.sql.listPhotos(l.id)).toHaveLength(14);
+    const left = await b.sql.fullPhotosToDownload(10);
+    expect(left).toHaveLength(2);
+    expect(await b.sql.getPhoto(left[0]!)).toBeUndefined();
+
+    // نمایشگر عکس همان را خواست؛ دو درخواست هم‌زمان یک دریافت‌اند
+    const live = new SyncEngine(b.target, counting, token, 'o1');
+    asked.length = 0;
+    expect(await Promise.all([live.fetchFull(left[0]!), live.fetchFull(left[0]!)])).toEqual([true, true]);
+    expect(asked).toEqual([`full:${left[0]}`]);
+    const n = added.findIndex((x) => x.id === left[0]) + 1;
+    expect([...((await b.sql.getPhoto(left[0]!))?.bytes ?? [])]).toEqual([n, n, n]);
+    // عکسی که سرور ندارد، یا خطای شبکه، فقط false است
+    expect(await live.fetchFull('nope')).toBe(false);
+    const offline = new SyncEngine(b.target, { ...api, downloadPhoto: () => Promise.reject(new ApiError('offline')) }, token, 'o1');
+    expect(await offline.fetchFull(left[1]!)).toBe(false);
+    live.stop();
+    expect(await live.fetchFull(left[1]!)).toBe(false);
   });
 
   it('stops for a database that belongs to another office', async () => {

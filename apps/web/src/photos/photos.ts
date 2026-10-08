@@ -3,6 +3,7 @@ import { toFaDigits, type CoverThumbs, type KelidStore, type NewPhoto } from '@k
 import { useQuery, useStore } from '../data';
 import { coverThumbsQuery } from '../queries';
 import { useToast } from '../layout/Toasts';
+import { fetchFullPhoto } from '../sync/state';
 
 type WorkerReply = { id: number; ok: true; mime: string; width: number; height: number; bytes: ArrayBuffer; thumb: ArrayBuffer } | { id: number; ok: false; error: string };
 
@@ -119,8 +120,8 @@ export function useFullPhotoUrl(photoId: string | undefined): string | undefined
     setUrl(hit);
     if (hit) return;
     let alive = true;
-    void store.getPhoto(photoId).then((p) => {
-      if (alive && p) setUrl(photoUrl(photoId, 'full', p.bytes, p.mime));
+    void loadFull(store, photoId).then((u) => {
+      if (alive && u) setUrl(u);
     });
     return () => {
       alive = false;
@@ -132,9 +133,13 @@ export function useFullPhotoUrl(photoId: string | undefined): string | undefined
 /** عکس بعدی را از قبل آماده می‌کند تا ورق زدن مکث نداشته باشد. */
 export function prefetchFullPhoto(store: KelidStore, photoId: string | undefined) {
   if (!photoId || fullUrls.has(photoId)) return;
-  void store.getPhoto(photoId).then((p) => {
-    if (p) photoUrl(photoId, 'full', p.bytes, p.mime);
-  });
+  void loadFull(store, photoId);
+}
+
+/** از دیتابیس محلی؛ اگر فقط بندانگشتی از دستگاه دیگر رسیده، عکس کامل همان لحظه از سرور. */
+async function loadFull(store: KelidStore, photoId: string): Promise<string | undefined> {
+  const p = (await store.getPhoto(photoId)) ?? ((await fetchFullPhoto(photoId)) ? await store.getPhoto(photoId) : undefined);
+  return p && photoUrl(photoId, 'full', p.bytes, p.mime);
 }
 
 /** تصویر کوچک کاور همهٔ فایل‌ها؛ برای فهرست‌ها و کارت‌ها. */

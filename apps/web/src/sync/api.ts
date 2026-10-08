@@ -12,14 +12,16 @@ export interface SyncApi {
   push(token: string, changes: OutgoingChange[]): Promise<{ hlc: string | null }>;
   pull(token: string, cursor: string, limit: number): Promise<PullPage>;
   uploadPhoto(token: string, photo: PhotoBlob): Promise<void>;
-  /** null = هنوز بالا نیامده (دستگاه صاحبش آفلاین است). */
-  downloadPhoto(token: string, id: string): Promise<PhotoBlob | null>;
+  /** بایت خام بندانگشتی یا عکس کامل؛ null = هنوز بالا نیامده (دستگاه صاحبش آفلاین است). */
+  downloadPhoto(token: string, id: string, part: PhotoPart): Promise<{ mime: string; bytes: Uint8Array } | null>;
   /**
    * اتصال زنده: با هر «دستگاه دیگری چیزی فرستاد» change صدا زده می‌شود. تا بسته شدن اتصال باز می‌ماند؛
    * سرور قدیمی که آن را ندارد not_found می‌دهد و همگام‌سازی دوره‌ای کافی است.
    */
   listen?(token: string, on: LiveEvents, signal: AbortSignal): Promise<void>;
 }
+
+export type PhotoPart = 'thumb' | 'full';
 
 export interface LiveEvents {
   open(): void;
@@ -35,11 +37,25 @@ function toB64(b: Uint8Array): string {
   for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
   return btoa(s);
 }
-function fromB64(s: string): Uint8Array {
-  const bin = atob(s);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+
+const IMAGE_TYPES = ['image/webp', 'image/jpeg', 'image/png'];
+
+/** دریافت بایت خام (بی JSON و base64، یک‌سوم سبک‌تر). */
+async function download(url: string, token: string): Promise<{ mime: string; bytes: Uint8Array } | null> {
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(60_000), credentials: 'omit', cache: 'no-store' });
+    if (res.status === 404) return null;
+    if (res.status === 401) throw new ApiError('unauthorized');
+    // فقط نوع تصویری که سرور هم می‌پذیرد؛ نوع دیگر (مثلاً صفحهٔ خطای یک پراکسی) هرگز به جای عکس ذخیره نمی‌شود.
+    const mime = res.headers.get('content-type')?.split(';')[0]?.trim() ?? '';
+    if (!res.ok || !IMAGE_TYPES.includes(mime)) throw new ApiError('server');
+    return { mime, bytes: new Uint8Array(await res.arrayBuffer()) };
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    // قطع شدن وسط دریافت هم مثل نبودن اینترنت است: دور بعد دوباره.
+    throw new ApiError('offline');
+  }
 }
 
 export function httpSyncApi(base: string): SyncApi {
@@ -49,15 +65,7 @@ export function httpSyncApi(base: string): SyncApi {
     push: (token, changes) => request(root, 'POST', '/sync/push', { changes }, token, 45_000),
     pull: (token, cursor, limit) => request(root, 'GET', `/sync/pull?cursor=${encodeURIComponent(cursor)}&limit=${limit}`, undefined, token, 45_000),
     uploadPhoto: (token, p) => request(root, 'POST', `/sync/photos/${encodeURIComponent(p.id)}`, { mime: p.mime, bytes: toB64(p.bytes), thumb: toB64(p.thumb) }, token, 60_000),
-    downloadPhoto: async (token, id) => {
-      try {
-        const r = await request<{ mime: string; bytes: string; thumb: string }>(root, 'GET', `/sync/photos/${encodeURIComponent(id)}`, undefined, token, 60_000);
-        return { id, mime: r.mime, bytes: fromB64(r.bytes), thumb: fromB64(r.thumb) };
-      } catch (e) {
-        if (e instanceof ApiError && e.code === 'not_found') return null;
-        throw e;
-      }
-    },
+    downloadPhoto: (token, id, part) => download(`${root}/sync/photos/${encodeURIComponent(id)}/${part}`, token),
     listen: async (token, on, signal) => {
       // fetch به‌جای EventSource: توکن در هدر می‌رود، نه در آدرس (که در لاگ‌ها می‌ماند).
       const ctl = new AbortController();
@@ -121,9 +129,10 @@ export function demoSyncApi(): SyncApi {
       await new Promise((r) => setTimeout(r, 120));
       if (!photos.has(p.id)) photos.set(p.id, { ...p });
     },
-    async downloadPhoto(_t, id) {
+    async downloadPhoto(_t, id, part) {
       await new Promise((r) => setTimeout(r, 120));
-      return photos.get(id) ?? null;
+      const p = photos.get(id);
+      return p ? { mime: p.mime, bytes: part === 'full' ? p.bytes : p.thumb } : null;
     },
     async push(_t, changes) {
       await new Promise((r) => setTimeout(r, 300));

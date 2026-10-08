@@ -365,13 +365,20 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP'), Buffer.from([1, 2, 3])]).toString('base64');
       const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 9]).toString('base64');
       const put = (t: string, id: string, body: object) => post(a, `/sync/photos/${id}`, body, t);
-      const get = (t: string, id: string) => a.inject({ method: 'GET', url: `/sync/photos/${id}`, headers: { authorization: `Bearer ${t}` } });
+      const get = (t: string, id: string, part = 'full') => a.inject({ method: 'GET', url: `/sync/photos/${id}/${part}`, headers: { authorization: `Bearer ${t}` } });
       expect((await put(s1.accessToken, 'p1', { mime: 'image/webp', bytes: webp, thumb: jpeg })).statusCode).toBe(204);
       // دوباره فرستادن بی‌اثر است و عکس را عوض نمی‌کند
       expect((await put(s1.accessToken, 'p1', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(204);
-      expect((await get(s1.accessToken, 'p1')).json()).toEqual({ mime: 'image/webp', bytes: webp, thumb: jpeg });
+      const full = await get(s1.accessToken, 'p1');
+      expect(full.headers['content-type']).toBe('image/webp');
+      expect(full.headers['x-content-type-options']).toBe('nosniff');
+      expect(full.rawPayload.toString('base64')).toBe(webp);
+      const thumb = await get(s1.accessToken, 'p1', 'thumb');
+      expect(thumb.headers['content-type']).toBe('image/jpeg');
+      expect(thumb.rawPayload.toString('base64')).toBe(jpeg);
       expect((await get(s2.accessToken, 'p1')).statusCode).toBe(404);
       expect((await get(s1.accessToken, 'nope')).statusCode).toBe(404);
+      expect((await get(s1.accessToken, 'p1', 'meta')).statusCode).toBe(400);
       // فایلی که خودش را عکس جا زده
       const html = Buffer.from('<script>alert(1)</script>').toString('base64');
       expect((await put(s1.accessToken, 'p2', { mime: 'image/jpeg', bytes: html, thumb: jpeg })).json().error).toBe('bad_photo');
@@ -379,6 +386,66 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await put(s1.accessToken, 'a.b', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(400);
       expect((await post(a, '/sync/photos/p3', { mime: 'image/jpeg', bytes: jpeg, thumb: jpeg })).statusCode).toBe(401);
       await a.close();
+    });
+
+    it('keeps photo bytes in object storage, under the office id, and only behind the office row', async () => {
+      const objects = new Map<string, { body: Buffer; type: string | null }>();
+      let failPuts = false;
+      const realFetch = globalThis.fetch;
+      // یک S3 ساختگی در حافظه؛ فقط درخواست‌های امضاشده را می‌پذیرد.
+      globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        if (!url.startsWith('https://s3.test/')) return realFetch(input, init);
+        const h = init?.headers as Record<string, string>;
+        if (!h.authorization?.startsWith('AWS4-HMAC-SHA256 Credential=AK/')) return new Response(null, { status: 403 });
+        const key = decodeURIComponent(new URL(url).pathname);
+        if (init?.method === 'PUT') {
+          if (failPuts) return new Response('<Error>SlowDown</Error>', { status: 503 });
+          objects.set(key, { body: Buffer.from(init.body as Uint8Array), type: h['content-type'] ?? null });
+          return new Response(null, { status: 200 });
+        }
+        const o = objects.get(key);
+        return o ? new Response(new Uint8Array(o.body), { status: 200 }) : new Response(null, { status: 404 });
+      }) as typeof fetch;
+      const a = buildApp({ db: app, logLevel: 'silent', auth: { pool: app, sms, jwtSecret: 's'.repeat(48) }, s3: { endpoint: 'https://s3.test', region: 'r', bucket: 'b', accessKeyId: 'AK', secretAccessKey: 'SK' } });
+      try {
+        const s1 = await signUp(a, freshPhone());
+        const s2 = await signUp(a, freshPhone());
+        const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP'), Buffer.from([7, 7])]);
+        const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 3]);
+        const body = { mime: 'image/webp', bytes: webp.toString('base64'), thumb: jpeg.toString('base64') };
+        const get = (t: string, id: string, part: string) => a.inject({ method: 'GET', url: `/sync/photos/${id}/${part}`, headers: { authorization: `Bearer ${t}` } });
+
+        expect((await post(a, '/sync/photos/s1', body, s1.accessToken)).statusCode).toBe(204);
+        const row = await withOffice(app, s1.office.id, async (db) => (await db.query('select stored, bytes, thumb, size, thumb_mime, object_key from photo_blobs where id = $1', ['s1'])).rows[0]);
+        expect(row).toMatchObject({ stored: 's3', bytes: null, thumb: null, size: webp.length, thumb_mime: 'image/jpeg' });
+        expect(row.object_key).toMatch(new RegExp(`^${s1.office.id}/s1/[0-9a-f]{32}$`));
+        expect(objects.get(`/b/${row.object_key}/full`)).toEqual({ body: webp, type: 'image/webp' });
+        expect(objects.get(`/b/${row.object_key}/thumb`)).toEqual({ body: jpeg, type: 'image/jpeg' });
+        // ارسال دوباره (حتی با بایت دیگر) نه چیزی بالا می‌برد نه عکس ثبت‌شده را عوض می‌کند.
+        expect((await post(a, '/sync/photos/s1', { ...body, bytes: Buffer.concat([webp, Buffer.from([9])]).toString('base64') }, s1.accessToken)).statusCode).toBe(204);
+        expect(objects.size).toBe(2);
+
+        expect((await get(s1.accessToken, 's1', 'full')).rawPayload).toEqual(webp);
+        expect((await get(s1.accessToken, 's1', 'thumb')).rawPayload).toEqual(jpeg);
+        // دفتر دیگر ردیفی ندارد، پس هرگز به S3 نمی‌رسد؛ همان شناسه برای او جای دیگری است.
+        expect((await get(s2.accessToken, 's1', 'full')).statusCode).toBe(404);
+        expect((await post(a, '/sync/photos/s1', body, s2.accessToken)).statusCode).toBe(204);
+        expect([...objects.keys()].filter((k) => k.startsWith(`/b/${s2.office.id}/s1/`))).toHaveLength(2);
+
+        // اگر S3 خطا بدهد ردیفی نمی‌ماند و متن خطای S3 به کاربر نمی‌رسد؛ دستگاه بعداً دوباره می‌فرستد.
+        failPuts = true;
+        const bad = await post(a, '/sync/photos/s2', body, s1.accessToken);
+        expect(bad.statusCode).toBe(500);
+        expect(bad.body).not.toContain('SlowDown');
+        expect((await get(s1.accessToken, 's2', 'thumb')).statusCode).toBe(404);
+        failPuts = false;
+        expect((await post(a, '/sync/photos/s2', body, s1.accessToken)).statusCode).toBe(204);
+        expect((await get(s1.accessToken, 's2', 'thumb')).rawPayload).toEqual(jpeg);
+      } finally {
+        globalThis.fetch = realFetch;
+        await a.close();
+      }
     });
 
     it('tells the other devices of the office, live, that something changed', async () => {
