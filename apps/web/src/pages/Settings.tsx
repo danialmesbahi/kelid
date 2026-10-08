@@ -5,6 +5,7 @@ import { useQuery, useStorageInfo, useStore } from '../data';
 import { useToast } from '../layout/Toasts';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import type { TextSize, ThemePref } from '../prefs';
+import { AccountSection } from '../auth/AccountSection';
 
 const whereText = {
   desktop: { title: 'روی همین کامپیوتر، رمزگذاری‌شده', detail: 'دیتابیس با AES-256 رمز شده و کلیدش را خود ویندوز برای حساب کاربری شما نگه می‌دارد.' },
@@ -37,6 +38,8 @@ export function SettingsPage() {
           نمایش دوبارهٔ آشنایی با کلید
         </button>
       </section>
+
+      <AccountSection />
 
       <section aria-labelledby="look" className="col" style={{ gap: 14 }}>
         <h2 id="look" className="t2">ظاهر</h2>

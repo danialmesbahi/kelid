@@ -9,6 +9,12 @@ export interface Config {
   logLevel: LogLevel;
   /** پشت پراکسی (nginx، لیارا…) تا IP واقعی کاربر برای محدودیت درخواست دیده شود. */
   trustProxy: boolean;
+  /** امضای توکن‌های ورود و هش کدهای پیامکی؛ حداقل ۳۲ نویسهٔ تصادفی. */
+  jwtSecret: string;
+  sms: { provider: 'console' } | { provider: 'kavenegar'; apiKey: string; template: string };
+  /** مبدأهایی که برنامهٔ وب/دسکتاپ از آن‌ها API را صدا می‌زند («null» = برنامهٔ ویندوز که از file:// باز می‌شود؛
+   *  امن است چون ورود با توکن Bearer است نه کوکی). */
+  corsOrigins: string[];
 }
 
 const levels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
@@ -34,8 +40,27 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const trust = env.TRUST_PROXY ?? 'false';
   if (trust !== 'true' && trust !== 'false') problems.push('TRUST_PROXY باید true یا false باشد');
 
+  const jwtSecret = env.JWT_SECRET ?? '';
+  if (jwtSecret.length < 32) problems.push('JWT_SECRET باید دست‌کم ۳۲ نویسه باشد (مثلاً openssl rand -base64 48)');
+
+  const production = env.NODE_ENV === 'production';
+  const provider = env.SMS_PROVIDER ?? (production ? '' : 'console');
+  let sms: Config['sms'] = { provider: 'console' };
+  if (provider === 'kavenegar') {
+    if (!env.KAVENEGAR_API_KEY || !env.KAVENEGAR_TEMPLATE) problems.push('KAVENEGAR_API_KEY و KAVENEGAR_TEMPLATE لازم‌اند');
+    sms = { provider: 'kavenegar', apiKey: env.KAVENEGAR_API_KEY ?? '', template: env.KAVENEGAR_TEMPLATE ?? '' };
+  } else if (provider !== 'console') {
+    problems.push('SMS_PROVIDER باید kavenegar باشد (console فقط برای توسعه است)');
+  } else if (production) {
+    // کد ورود در لاگ = هرکس به لاگ دسترسی دارد وارد هر حسابی می‌شود.
+    problems.push('SMS_PROVIDER=console در production مجاز نیست');
+  }
+
+  const corsOrigins = (env.CORS_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+  if (corsOrigins.some((o) => o !== 'null' && !/^[a-z][a-z0-9+.-]*:\/\/[^/\s]+$/i.test(o))) problems.push('CORS_ORIGINS باید فهرست مبدأهای کامل باشد (مثلاً https://app.kelid.ir)، نه *');
+
   if (problems.length) throw new ConfigError(`تنظیمات سرور ناقص است:\n- ${problems.join('\n- ')}`);
-  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true' };
+  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins };
 }
 
 function isPostgresUrl(url: string): boolean {

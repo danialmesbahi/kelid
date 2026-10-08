@@ -2,6 +2,7 @@ import { buildApp } from './app';
 import { ConfigError, loadConfig } from './config';
 import { assertSafeRole, createPool } from './db';
 import { migrate } from './migrations';
+import { ConsoleSms, KavenegarSms } from './auth/sms';
 
 async function main() {
   const config = loadConfig();
@@ -12,7 +13,14 @@ async function main() {
   const pool = createPool(config.databaseUrl);
   const { ownsTables } = await assertSafeRole(pool);
 
-  const app = buildApp({ db: pool, logLevel: config.logLevel, trustProxy: config.trustProxy });
+  const sms = config.sms.provider === 'kavenegar' ? new KavenegarSms(config.sms.apiKey, config.sms.template) : new ConsoleSms();
+  const app = buildApp({
+    db: pool,
+    logLevel: config.logLevel,
+    trustProxy: config.trustProxy,
+    corsOrigins: config.corsOrigins,
+    auth: { pool, sms, jwtSecret: config.jwtSecret },
+  });
   if (applied) app.log.info(`${applied} migration(s) applied`);
   if (ownsTables) app.log.warn('DATABASE_URL owns the tables; use a separate MIGRATION_DATABASE_URL role in production');
 

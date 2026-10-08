@@ -1,0 +1,26 @@
+/* حساب و دستگاه‌ها در تنظیمات؛ روی گوشی دکمه‌ها و تأییدها زیر نوشته می‌روند تا نام‌ها له نشوند. */
+.acc-head, .acc-dev { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 14px; row-gap: 10px; }
+.acc-dev { padding: 10px 14px; border-radius: 14px; }
+.acc-dev > .ic { color: var(--mute); }
+.acc-sub { display: flex; flex-wrap: wrap; gap: 0 6px; }
+.acc-sub > * { white-space: nowrap; }
+.acc-ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.acc-ask > .xs { flex-basis: 100%; text-align: end; }
+.acc-pass { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; border-radius: 14px; }
+.acc-pwform { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; align-items: end; }
+.acc-pwform > .acc-show, .acc-pwform > .acc-err, .acc-pwform > .acc-ask { grid-column: 1 / -1; }
+.acc-show { display: inline-flex; align-items: center; gap: 8px; justify-self: start; color: var(--mute); cursor: pointer; }
+.acc-show input { width: 18px; height: 18px; accent-color: var(--pri); }
+.acc-err { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--bad); font-weight: 600; }
+.acc-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+@media (max-width: 767px) {
+  .acc-head { grid-template-columns: auto minmax(0, 1fr); }
+  .acc-head > :last-child { grid-column: 1 / -1; }
+  .acc-head > .btn { justify-self: start; }
+  .acc-ask { justify-content: flex-start; }
+  .acc-ask > .xs { text-align: start; }
+  .acc-dev .acc-ask { grid-column: 1 / -1; }
+  .acc-pass .acc-dev { grid-template-columns: auto minmax(0, 1fr); }
+  .acc-pass .acc-dev > .btn { grid-column: 1 / -1; justify-self: start; }
+  .acc-pwform { grid-template-columns: minmax(0, 1fr); }
+}

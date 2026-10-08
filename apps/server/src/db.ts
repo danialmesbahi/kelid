@@ -25,12 +25,19 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export async function withOffice<T>(pool: Pool, officeId: string, fn: (db: Db) => Promise<T>): Promise<T> {
   if (!UUID.test(officeId)) throw new Error('شناسهٔ دفتر نامعتبر است');
+  return transaction(pool, async (db) => {
+    // true = محلی برای همین تراکنش؛ بعد از commit/rollback به اتصال بعدی در pool نشت نمی‌کند.
+    await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
+    return fn(db);
+  });
+}
+
+/** یک تراکنش روی یک اتصال؛ اگر rollback هم شکست بخورد اتصال دور انداخته می‌شود، نه برگردانده به pool. */
+export async function transaction<T>(pool: Pool, fn: (db: Db) => Promise<T>): Promise<T> {
   const db = await pool.connect();
   let broken: Error | undefined;
   try {
     await db.query('begin');
-    // true = محلی برای همین تراکنش؛ بعد از commit/rollback به اتصال بعدی در pool نشت نمی‌کند.
-    await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
     const out = await fn(db);
     await db.query('commit');
     return out;

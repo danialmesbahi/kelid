@@ -4,27 +4,26 @@ import { toFaDigits } from '@kelid/core';
 import { usePrefsContext } from '../App';
 import { useQuery, useStore } from '../data';
 import { usePhone } from '../layout/usePhone';
-import { callName, type TextSize, type ThemePref } from '../prefs';
+import { callName, greetingNow, type TextSize, type ThemePref } from '../prefs';
 import { WelcomeHero } from './WelcomeHero';
 import './welcome.css';
 
 const STEPS = ['خوش آمدید', 'آشنایی', 'راحتی چشم', 'شروع'] as const;
-
-function greetingNow(): string {
-  const h = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date()));
-  return h < 12 ? 'صبح بخیر' : h < 17 ? 'روز بخیر' : 'عصر بخیر';
-}
+// بعد از ثبت‌نام، خوش‌آمد و نام و دفتر را صفحهٔ ثبت‌نام گرفته؛ آشنایی همان مسیر را با همان نقطه‌ها ادامه می‌دهد.
+const LOGIN_STEPS = ['دفتر و شماره', 'کد پیامکی'] as const;
+const AFTER_LOGIN = 2;
 
 /**
  * آشنایی بار اول: چهار قدم کوتاه با نوشتهٔ درشت و دکمه‌های بزرگ، برای کسی که اولین بار برنامه را باز می‌کند.
  * هر تغییری (اندازهٔ نوشته، پوسته) همان لحظه روی خود برنامه دیده می‌شود. همه‌جا «بعداً» هست.
  */
-export function Welcome() {
+export function Welcome({ continued = false, signedUp = false }: { /** همین الان از صفحهٔ ثبت‌نام آمده؛ صحنه دوباره بازی نمی‌شود. */ continued?: boolean; /** دفتر با ثبت‌نام ساخته شده؛ خوش‌آمد و نام و دفتر دیگر پرسیده نمی‌شوند، حتی بعد از تازه کردن صفحه. */ signedUp?: boolean }) {
   const prefs = usePrefsContext();
   const store = useStore();
   const phone = usePhone();
   const hasSample = useQuery('has-sample', (s) => s.hasSampleData());
-  const [step, setStep] = useState(0);
+  const first = signedUp ? AFTER_LOGIN : 0;
+  const [step, setStep] = useState(first);
   const [dir, setDir] = useState(1);
   const [name, setName] = useState(prefs.userName);
   const [office, setOffice] = useState(prefs.officeName);
@@ -77,17 +76,28 @@ export function Welcome() {
   };
 
   return (
-    <div ref={rootRef} className={`wl${leaving ? ' out' : ''}`} role="dialog" aria-modal="true" aria-labelledby="wl-title">
+    <div ref={rootRef} className={`wl${continued ? ' cont' : ''}${leaving ? ' out' : ''}`} role="dialog" aria-modal="true" aria-labelledby="wl-title">
       <WelcomeHero office={office} />
 
       <form className="wl-main" onSubmit={next}>
-        <header className="wl-top">
-          <ol className="wl-dots" aria-label={`قدم ${toFaDigits(step + 1)} از ${toFaDigits(STEPS.length)}`}>
-            {STEPS.map((s, i) => <li key={s} className={i === step ? 'on' : i < step ? 'past' : ''} aria-current={i === step ? 'step' : undefined}><span className="visually-hidden">{s}</span></li>)}
-          </ol>
-          <span className="sp" />
-          <button type="button" className="btn btn-g" onClick={skip}>بعداً</button>
-        </header>
+        {signedUp ? (
+          <header className="wl-top">
+            <span className="plq lg-brand">کلید</span>
+            <span className="sp" />
+            <ol className="wl-dots" aria-label={`قدم ${toFaDigits(LOGIN_STEPS.length + step - first + 1)} از ${toFaDigits(LOGIN_STEPS.length + STEPS.length - first)}`}>
+              {LOGIN_STEPS.map((s) => <li key={s} className="past"><span className="visually-hidden">{s}</span></li>)}
+              {STEPS.slice(first).map((s, i) => <li key={s} className={i + first === step ? 'on' : i + first < step ? 'past' : ''} aria-current={i + first === step ? 'step' : undefined}><span className="visually-hidden">{s}</span></li>)}
+            </ol>
+          </header>
+        ) : (
+          <header className="wl-top">
+            <ol className="wl-dots" aria-label={`قدم ${toFaDigits(step + 1)} از ${toFaDigits(STEPS.length)}`}>
+              {STEPS.map((s, i) => <li key={s} className={i === step ? 'on' : i < step ? 'past' : ''} aria-current={i === step ? 'step' : undefined}><span className="visually-hidden">{s}</span></li>)}
+            </ol>
+            <span className="sp" />
+            <button type="button" className="btn btn-g" onClick={skip}>بعداً</button>
+          </header>
+        )}
 
         <div ref={bodyRef} key={step} className={`wl-body ${dir > 0 ? 'fwd' : 'back'}`}>
           {step === 0 && (
@@ -124,7 +134,7 @@ export function Welcome() {
 
           {step === 2 && (
             <>
-              <span className="eb">قدم ۳</span>
+              <span className="eb">{signedUp ? (continued ? 'دفترتان ساخته شد · یک تنظیم کوچک' : 'یک تنظیم کوچک') : 'قدم ۳'}</span>
               <h1 id="wl-title" className="wl-h">نوشته‌ها راحت خوانده می‌شوند؟</h1>
               {!phone && <p className="wl-lead">اندازه‌ای را بزنید که بدون عینک هم راحت بخوانید. همین حالا روی کل برنامه اعمال می‌شود.</p>}
               <div className="wl-choices" role="radiogroup" aria-label="اندازهٔ نوشته">
@@ -175,7 +185,11 @@ export function Welcome() {
         </div>
 
         <footer className="wl-ft">
-          {step > 0 && <button type="button" className="btn btn-g btn-lg" onClick={() => go(step - 1)}>قبلی</button>}
+          {step > first ? (
+            <button type="button" className="btn btn-g btn-lg" onClick={() => go(step - 1)}>قبلی</button>
+          ) : (
+            signedUp && <button type="button" className="btn btn-g btn-lg" onClick={skip}>بعداً</button>
+          )}
           <span className="sp" />
           <button type="submit" className="btn btn-p btn-lg wl-primary">
             {step === 0 ? 'شروع آشنایی' : step === STEPS.length - 1 ? 'ورود به کلید' : 'ادامه'}

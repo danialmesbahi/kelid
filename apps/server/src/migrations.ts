@@ -22,6 +22,56 @@ export const migrations: readonly string[] = [
     using (id = kelid_office())
     with check (id = kelid_office());
   `,
+  // 2: ورود با موبایل. این جدول‌ها عمداً مال هیچ دفتری نیستند (پیش از ورود، دفتری معلوم نیست)
+  // و فقط auth/routes.ts به آن‌ها دست می‌زند؛ کدها و توکن‌ها فقط به شکل هش ذخیره می‌شوند.
+  `
+  create table users (
+    id uuid primary key,
+    office_id uuid not null references offices (id),
+    phone text not null unique check (phone ~ '^09[0-9]{9}$'),
+    name text not null check (length(name) between 1 and 100),
+    created_at timestamptz not null default now()
+  );
+  create index users_office on users (office_id);
+
+  create table devices (
+    id uuid primary key,
+    user_id uuid not null references users (id),
+    name text not null check (length(name) between 1 and 100),
+    refresh_hash bytea not null unique,
+    prev_refresh_hash bytea,
+    rotated_at timestamptz not null default now(),
+    created_at timestamptz not null default now(),
+    last_seen_at timestamptz not null default now(),
+    revoked_at timestamptz
+  );
+  create index devices_user on devices (user_id) where revoked_at is null;
+  create index devices_prev on devices (prev_refresh_hash) where prev_refresh_hash is not null;
+
+  create table otp_codes (
+    phone text primary key,
+    code_hash bytea,
+    expires_at timestamptz not null,
+    attempts int not null default 0,
+    sent_count int not null default 0,
+    window_start timestamptz not null default now(),
+    last_sent_at timestamptz not null default now()
+  );
+
+  create table signup_tickets (
+    hash bytea primary key,
+    phone text not null,
+    expires_at timestamptz not null
+  );
+  `,
+  // 3: ورود با رمز عبور (کد پیامکی گزینهٔ دوم است). بعد از پنج رمز اشتباه، شماره ربع ساعت قفل می‌شود.
+  // otp_at: این دستگاه کی با کد پیامکی وارد شد؛ فقط تا چند دقیقه بعدش می‌شود بدون رمز قبلی رمز تازه گذاشت (فراموشی رمز).
+  `
+  alter table users add column password_hash text;
+  alter table users add column failed_logins int not null default 0;
+  alter table users add column locked_until timestamptz;
+  alter table devices add column otp_at timestamptz;
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, Menu, screen, shell } from 'electron';
 import path from 'node:path';
 import { closeDatabase, openDatabase } from './database';
+import { registerSessionStore } from './session';
 
 const DEV_URL = process.env.KELID_DEV_URL;
 
@@ -74,6 +75,7 @@ ${err instanceof Error ? err.message : String(err)}`);
       app.quit();
       return;
     }
+    registerSessionStore();
     createWindow();
   });
 

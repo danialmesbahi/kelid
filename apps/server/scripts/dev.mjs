@@ -1,6 +1,7 @@
 // سرور در حالت توسعه: با هر ذخیرهٔ فایل دوباره ساخته و راه‌اندازی می‌شود.
 // پیش‌فرض‌ها به PostgreSQL محلی compose.yaml وصل می‌شوند (npm run db:up)؛ ‎.env‎ ریشه آن‌ها را عوض می‌کند.
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { context } from 'esbuild';
 
@@ -9,6 +10,9 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 process.env.DATABASE_URL ??= 'postgres://kelid_app:kelid_app@localhost:5433/kelid';
 process.env.MIGRATION_DATABASE_URL ??= 'postgres://kelid_owner:kelid_owner@localhost:5433/kelid';
 process.env.LOG_LEVEL ??= 'debug';
+// فقط توسعه: کلید تازه در هر اجرا (توکن‌های کوتاه‌عمر باطل می‌شوند، ورود دستگاه‌ها می‌ماند).
+process.env.JWT_SECRET ??= randomBytes(48).toString('base64');
+process.env.CORS_ORIGINS ??= 'http://localhost:5173,http://127.0.0.1:5173,null';
 
 let child;
 const start = () => {

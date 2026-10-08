@@ -13,4 +13,9 @@ contextBridge.exposeInMainWorld('kelid', {
     transaction: (statements: Array<{ sql: string; params?: Params }>) => ipcRenderer.invoke('db:tx', statements),
     execScript: (sql: string) => ipcRenderer.invoke('db:exec', sql),
   },
+  session: {
+    get: () => ipcRenderer.invoke('session:get'),
+    set: (value: string) => ipcRenderer.invoke('session:set', value),
+    clear: () => ipcRenderer.invoke('session:clear'),
+  },
 });

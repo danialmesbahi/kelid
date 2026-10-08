@@ -2,22 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig } from './config';
 
 const url = 'postgres://kelid_app:secret@localhost:5432/kelid';
+const base = { DATABASE_URL: url, JWT_SECRET: 'j'.repeat(40) };
 
 describe('loadConfig', () => {
   it('fills safe defaults', () => {
-    expect(loadConfig({ DATABASE_URL: url })).toEqual({
+    expect(loadConfig(base)).toEqual({
       port: 3000,
       host: '127.0.0.1',
       databaseUrl: url,
       migrationDatabaseUrl: url,
       logLevel: 'info',
       trustProxy: false,
+      jwtSecret: 'j'.repeat(40),
+      sms: { provider: 'console' },
+      corsOrigins: [],
     });
   });
 
   it('uses a separate migration role when given', () => {
     const owner = 'postgresql://kelid_owner:x@db/kelid';
-    expect(loadConfig({ DATABASE_URL: url, MIGRATION_DATABASE_URL: owner }).migrationDatabaseUrl).toBe(owner);
+    expect(loadConfig({ ...base, MIGRATION_DATABASE_URL: owner }).migrationDatabaseUrl).toBe(owner);
   });
 
   it('lists every problem and never echoes the database password', () => {
@@ -32,7 +36,22 @@ describe('loadConfig', () => {
     }
   });
 
-  it('requires DATABASE_URL', () => {
+  it('requires DATABASE_URL and a long JWT_SECRET', () => {
     expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
+    expect(() => loadConfig({ DATABASE_URL: url, JWT_SECRET: 'short' })).toThrow(/JWT_SECRET/);
+  });
+
+  it('never allows the console SMS adapter in production', () => {
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production' })).toThrow(/SMS_PROVIDER/);
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'console' })).toThrow(/production/);
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar' })).toThrow(/KAVENEGAR/);
+    const ok = loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar', KAVENEGAR_API_KEY: 'k', KAVENEGAR_TEMPLATE: 't' });
+    expect(ok.sms).toEqual({ provider: 'kavenegar', apiKey: 'k', template: 't' });
+  });
+
+  it('accepts explicit CORS origins only', () => {
+    expect(loadConfig({ ...base, CORS_ORIGINS: 'https://app.kelid.ir, null' }).corsOrigins).toEqual(['https://app.kelid.ir', 'null']);
+    expect(() => loadConfig({ ...base, CORS_ORIGINS: '*' })).toThrow(/CORS_ORIGINS/);
+    expect(() => loadConfig({ ...base, CORS_ORIGINS: 'https://a.ir/path' })).toThrow(/CORS_ORIGINS/);
   });
 });

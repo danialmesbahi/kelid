@@ -48,6 +48,7 @@ export const iconPaths = {
   "chart": "<path d=\"M4 20V11M10 20V5M16 20v-7M22 20H2\"></path>",
   "key": "<circle cx=\"8\" cy=\"15\" r=\"4.5\"></circle><path d=\"m11.2 11.8 8.3-8.3M16.5 6.5l2.5 2.5M14 9l2 2\"></path>",
   "eye": "<path d=\"M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>",
+  "eyeOff": "<path d=\"M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-2.9 3.8M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18\"></path>",
   "play": "<path d=\"M8 5.5v13l10-6.5z\"></path>",
   "more": "<path d=\"M5 12h.01M12 12h.01M19 12h.01\"></path>",
   "nav": "<path d=\"M3 11 21 3l-8 18-2-8z\"></path>",
