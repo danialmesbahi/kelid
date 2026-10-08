@@ -154,17 +154,23 @@ export class SyncEngine {
       this.again = true;
       return this.running;
     }
-    this.running = this.cycle().finally(() => {
-      this.running = null;
-      if (this.again && !this.stopped) {
-        this.again = false;
-        this.schedule(0);
-      }
-    });
+    // بعد از خاموش شدن (خروج، تعویض دفتر) خطای دوری که هنوز در راه بود دیگر مهم نیست.
+    this.running = this.cycle()
+      .catch((e: unknown) => {
+        if (!this.stopped) throw e;
+      })
+      .finally(() => {
+        this.running = null;
+        if (this.again && !this.stopped) {
+          this.again = false;
+          this.schedule(0);
+        }
+      });
     return this.running;
   }
 
   private async cycle() {
+    if (this.stopped) return;
     const info = await this.store.syncInfo();
     this.set({ pending: info.pending });
     if (info.office && info.office !== this.officeId) return this.set({ phase: 'blocked' });

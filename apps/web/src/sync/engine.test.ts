@@ -109,5 +109,7 @@ describe('SyncEngine', () => {
     for (let i = 0; i < 100 && !(await b.sql.getListing(made.id)); i++) await new Promise((r) => setTimeout(r, 20));
     expect((await b.sql.getListing(made.id))?.neighborhood).toBe('ونک');
     eb.stop();
+    // دوری که هنوز در راه است پیش از بسته شدن دیتابیس تمام شود
+    await eb.run();
   });
 });
