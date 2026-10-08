@@ -162,7 +162,7 @@ export function PlansPage() {
 
   if (flow.step === 'waiting') {
     return (
-      <div className="bd pl-page">
+      <div className="pl-center">
         <section className="pl-result card enter" aria-live="polite">
           <span className="pl-mark pl-wait" aria-hidden="true">
             <Icon name="card" size="l" />
@@ -199,7 +199,7 @@ export function PlansPage() {
   if (flow.step === 'paid') {
     const r = flow.receipt;
     return (
-      <div className="bd pl-page">
+      <div className="pl-center">
         <section className="pl-result card enter" aria-live="polite">
           <span className="pl-mark stamp" aria-hidden="true">
             <Icon name="check" size="l" thick />
@@ -229,7 +229,7 @@ export function PlansPage() {
 
   if (flow.step === 'failed') {
     return (
-      <div className="bd pl-page">
+      <div className="pl-center">
         <section className="pl-result card enter" aria-live="polite">
           <span className="pl-mark pl-bad" aria-hidden="true">
             <Icon name="x" size="l" thick />

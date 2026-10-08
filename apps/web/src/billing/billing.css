@@ -160,9 +160,16 @@
   color: var(--ink2);
 }
 
+/* وضعیت پرداخت (در انتظار، موفق، ناموفق): وسط فضای خالی صفحه، هم افقی هم عمودی */
+.pl-center {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px 28px 40px;
+}
 .pl-result {
+  width: 100%;
   max-width: 500px;
-  margin: 48px auto 0;
   padding: 36px 28px;
   display: flex;
   flex-direction: column;
@@ -361,8 +368,10 @@
   .pl-period .seg button {
     justify-content: center;
   }
+  .pl-center {
+    padding: 16px;
+  }
   .pl-result {
-    margin-top: 16px;
     padding: 28px 20px;
   }
   .lic-bar {
