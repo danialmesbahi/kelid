@@ -9,7 +9,7 @@ import { useAuth } from './AuthContext';
 import { formatPhone } from './phone';
 import './account.css';
 
-function seen(iso: string): string {
+export function seen(iso: string): string {
   const min = Math.round((Date.now() - Date.parse(iso)) / 60_000);
   if (min < 2) return 'همین حالا';
   if (min < 60) return `${toFaDigits(min)} دقیقه پیش`;

@@ -125,7 +125,10 @@ function rowToPhoto(r: Row): Photo {
   return { id: s(r.id), listingId: s(r.listing_id), ord: Number(r.ord), mime: s(r.mime), width: Number(r.w), height: Number(r.h), createdAt: s(r.created_at) };
 }
 
-/** عکسی که دستگاه دیگری گذاشته: اول فقط مشخصات (بی‌بایت، blob_state = ۲)، بایت‌ها بعد با savePhotoBlob می‌رسند. */
+/**
+ * عکسی که دستگاه دیگری گذاشته: اول فقط مشخصات (بی‌بایت، blob_state = ۲)، بعد بندانگشتی (۳) تا فهرست‌ها زود پر شوند،
+ * و عکس کامل آخر از همه یا همان وقتی کسی بازش کرد (۱).
+ */
 function remotePhoto(id: string, row: Row | undefined, f: Record<string, unknown>, deleted: number): SqlStatement {
   const now = nowIso();
   if (row) {
@@ -433,7 +436,8 @@ export class SqlStore implements KelidStore, Syncable {
   }
 
   async getPhoto(id: string) {
-    const [r] = await this.db.all<Row>('SELECT mime, bytes FROM photos WHERE id = ? AND deleted = 0 AND blob_state <> 2', [id]);
+    // ۳ = فقط بندانگشتی رسیده؛ undefined تا نمایشگر عکس کامل را از سرور بخواهد.
+    const [r] = await this.db.all<Row>('SELECT mime, bytes FROM photos WHERE id = ? AND deleted = 0 AND blob_state IN (0, 1)', [id]);
     return r ? { mime: s(r.mime), bytes: blob(r.bytes) } : undefined;
   }
 
@@ -695,13 +699,26 @@ export class SqlStore implements KelidStore, Syncable {
     return rows.map((r) => r.id);
   }
 
-  async savePhotoBlob(b: PhotoBlob) {
-    const [r] = await this.db.all<Row>('SELECT listing_id FROM photos WHERE id = ? AND blob_state = 2', [b.id]);
+  async savePhotoThumb(id: string, thumb: Uint8Array) {
+    const [r] = await this.db.all<Row>('SELECT listing_id FROM photos WHERE id = ? AND blob_state = 2', [id]);
     if (!r) return;
     await this.db.transaction([
-      { sql: 'UPDATE photos SET mime = ?, bytes = ?, thumb = ?, blob_state = 1 WHERE id = ? AND blob_state = 2', params: [b.mime, b.bytes, b.thumb, b.id] },
+      { sql: 'UPDATE photos SET thumb = ?, blob_state = 3 WHERE id = ? AND blob_state = 2', params: [thumb, id] },
       photoCount(s(r.listing_id)),
     ]);
+  }
+
+  async fullPhotosToDownload(limit: number) {
+    const rows = await this.db.all<{ id: string }>(
+      'SELECT p.id FROM photos p JOIN listings l ON l.id = p.listing_id WHERE p.blob_state = 3 AND p.deleted = 0 ORDER BY p.ord, p.id LIMIT ?',
+      [limit],
+    );
+    return rows.map((r) => r.id);
+  }
+
+  async savePhotoFull(id: string, mime: string, bytes: Uint8Array) {
+    // شمار عکس‌ها عوض نمی‌شود (بندانگشتی از قبل شمرده شده)؛ فقط بایت کامل جای خالی را پر می‌کند.
+    await this.db.transaction([{ sql: 'UPDATE photos SET mime = ?, bytes = ?, blob_state = 1 WHERE id = ? AND blob_state = 3', params: [mime, bytes, id] }]);
   }
 
   async resetLocalData() {
@@ -711,6 +728,29 @@ export class SqlStore implements KelidStore, Syncable {
       { sql: "DELETE FROM meta WHERE key IN ('sync_office', 'sync_cursor')" },
     ]);
     this.emit();
+  }
+
+  async setOwnerPhoneAccess(visible: boolean) {
+    const [r] = await this.db.all<{ value: string }>("SELECT value FROM meta WHERE key = 'owner_phones'");
+    const was = r?.value;
+    if (visible) {
+      if (was === '1') return false;
+      // اجازه تازه داده شد: شماره‌هایی که قبلاً نیامده بودند فقط با دریافت دوباره از اول می‌رسند.
+      const regain = was === '0';
+      await this.db.transaction([
+        { sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('owner_phones', '1')" },
+        ...(regain ? [{ sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('sync_cursor', '0')" }] : []),
+      ]);
+      return regain;
+    }
+    if (was === '0') return false;
+    // این تغییر مال همگام‌سازی نیست (صف ارسال ندارد): فقط نسخهٔ این دستگاه از شماره‌ها پاک می‌شود و روی سرور می‌ماند.
+    await this.db.transaction([
+      { sql: "UPDATE listings SET owner_phone = '' WHERE owner_phone <> ''" },
+      { sql: "INSERT OR REPLACE INTO meta (key, value) VALUES ('owner_phones', '0')" },
+    ]);
+    this.emit();
+    return false;
   }
 
   /** ردیف محلی از وضعیت سرور؛ همان ستون‌ها و همان متن جستجو که نوشتن‌های عادی می‌سازند. */

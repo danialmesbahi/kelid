@@ -110,6 +110,39 @@ export const migrations: readonly string[] = [
     using (office_id = kelid_office())
     with check (office_id = kelid_office());
   `,
+  // 6: همکاران دفتر. نقش مدیر/مشاور؛ مشاور فقط با اجازهٔ مدیر شمارهٔ مالک‌ها را می‌بیند. کسی که از دفتر برداشته شد
+  // ردیفش می‌ماند (removed_at) تا شماره‌اش بعداً بتواند دفتر تازه بسازد یا به دفتر دیگری بپیوندد.
+  // دعوت‌ها مثل users مال هیچ دفتری نیستند: پیش از ورود، با شمارهٔ دعوت‌شده پیدا می‌شوند. فقط auth/ به آن‌ها دست می‌زند.
+  `
+  alter table users add column role text not null default 'manager' check (role in ('manager', 'agent'));
+  alter table users add column see_owner_phones boolean not null default true;
+  alter table users add column removed_at timestamptz;
+  alter table offices add column seats int not null default 5 check (seats between 1 and 500);
+
+  create table invites (
+    office_id uuid not null references offices (id),
+    phone text not null check (phone ~ '^09[0-9]{9}$'),
+    name text not null check (length(name) between 1 and 100),
+    role text not null check (role in ('manager', 'agent')),
+    see_owner_phones boolean not null default false,
+    invited_by uuid not null references users (id),
+    created_at timestamptz not null default now(),
+    primary key (office_id, phone)
+  );
+  create index invites_phone on invites (phone);
+  `,
+  // 7: بایت عکس‌ها می‌تواند در فضای ذخیره‌سازی S3 (آروان، لیارا) باشد؛ آن‌وقت این جدول فقط مشخصات را دارد و
+  // دسترسی همچنان از همین ردیف (پشت RLS) می‌گذرد. object_key: پیشوند یکتای همان بارِ بالا رفتن، تا هیچ ارسالی
+  // شیء عکسی را که قبلاً ثبت شده بازنویسی نکند. thumb_mime: نوع بندانگشتی که با خود عکس فرق دارد.
+  `
+  alter table photo_blobs alter column bytes drop not null;
+  alter table photo_blobs alter column thumb drop not null;
+  alter table photo_blobs add column stored text not null default 'db' check (stored in ('db', 's3'));
+  alter table photo_blobs add column object_key text check (object_key ~ '^[0-9a-f-]{36}/[A-Za-z0-9_-]{1,64}/[0-9a-f]{32}$');
+  alter table photo_blobs add column size int;
+  alter table photo_blobs add column thumb_mime text check (thumb_mime in ('image/webp', 'image/jpeg', 'image/png'));
+  alter table photo_blobs add constraint photo_blobs_bytes check (case when stored = 's3' then object_key is not null else bytes is not null and thumb is not null end);
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

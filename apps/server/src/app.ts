@@ -3,6 +3,8 @@ import { authRoutes, type AuthOptions } from './auth/routes';
 import { syncRoutes } from './sync/routes';
 import { securityHeaders } from './headers';
 import type { Queryable } from './db';
+import { PhotoBlobs } from './storage/photos';
+import { S3, type S3Config } from './storage/s3';
 
 export interface AppOptions {
   db: Queryable;
@@ -11,9 +13,11 @@ export interface AppOptions {
   /** بدون آن مسیرهای ورود ثبت نمی‌شوند (تست‌های بدون دیتابیس). */
   auth?: AuthOptions;
   corsOrigins?: string[];
+  /** فضای ذخیره‌سازی عکس‌ها؛ بی آن، بایت عکس‌ها در خود دیتابیس می‌مانند (توسعه و تست). */
+  s3?: S3Config | null;
 }
 
-export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [] }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [], s3 = null }: AppOptions): FastifyInstance {
   const app = Fastify({
     trustProxy,
     bodyLimit: 1_048_576,
@@ -66,9 +70,10 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
   });
 
   app.decorateRequest('auth', null);
+  app.decorateRequest('member', null);
   if (auth) {
     void app.register(authRoutes, auth);
-    void app.register(syncRoutes, auth);
+    void app.register(syncRoutes, { ...auth, photos: new PhotoBlobs(s3 ? new S3(s3) : null) });
   }
 
   return app;

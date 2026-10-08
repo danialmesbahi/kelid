@@ -62,7 +62,9 @@ describe('SyncEngine', () => {
     const [p] = await a.sql.addPhotos(l.id, [{ mime: 'image/webp', width: 4, height: 3, bytes: new Uint8Array([7, 7, 7]), thumb: new Uint8Array([7]) }]);
     // a فقط مشخصات را فرستاد و پیش از بالا رفتن عکس افتاد
     const noPhotos: SyncApi = { ...api, uploadPhoto: () => Promise.reject(new ApiError('offline')) };
-    await new SyncEngine(a.target, noPhotos, token, 'o1').run();
+    const dropped = new SyncEngine(a.target, noPhotos, token, 'o1');
+    await dropped.run();
+    dropped.stop(); // دور دوبارهٔ زمان‌بندی‌شده بعد از بسته شدن دیتابیس اجرا نشود
     const eb = new SyncEngine(b.target, api, token, 'o1');
     await eb.run();
     expect(eb.getStatus().phase).toBe('idle');
@@ -73,6 +75,51 @@ describe('SyncEngine', () => {
     await eb.run();
     expect([...((await b.sql.getPhoto(p!.id))?.bytes ?? [])]).toEqual([7, 7, 7]);
     expect((await b.sql.getListing(l.id))?.photoCount).toBe(1);
+  });
+
+  it('brings every thumbnail first, then full photos a few per round or right away when one is opened', async () => {
+    const api = demoSyncApi();
+    const a = await device();
+    const b = await device();
+    const l = await a.sql.addListing(listing);
+    const img = (n: number) => ({ mime: 'image/webp', width: 4, height: 3, bytes: new Uint8Array([n, n, n]), thumb: new Uint8Array([n]) });
+    const added = await a.sql.addPhotos(l.id, Array.from({ length: 14 }, (_, i) => img(i + 1)));
+    await new SyncEngine(a.target, api, token, 'o1').run();
+    const asked: string[] = [];
+    // بی تأخیر ساختگی سرور نمایشی، تا آزمون کند نشود
+    const thumbs = new Map((await a.sql.listPhotos(l.id)).map((x) => [x.id, x.thumb]));
+    const counting: SyncApi = {
+      ...api,
+      downloadPhoto: async (_t, id, part) => {
+        asked.push(`${part}:${id}`);
+        const full = await a.sql.getPhoto(id);
+        return full ? { mime: full.mime, bytes: part === 'full' ? full.bytes : thumbs.get(id)! } : null;
+      },
+    };
+    const eb = new SyncEngine(b.target, counting, token, 'o1');
+    await eb.run();
+    eb.stop();
+    // همهٔ بندانگشتی‌ها پیش از هر عکس کامل
+    expect(asked.slice(0, 14).every((x) => x.startsWith('thumb:'))).toBe(true);
+    expect(asked.filter((x) => x.startsWith('full:'))).toHaveLength(12);
+    expect(await b.sql.listPhotos(l.id)).toHaveLength(14);
+    const left = await b.sql.fullPhotosToDownload(10);
+    expect(left).toHaveLength(2);
+    expect(await b.sql.getPhoto(left[0]!)).toBeUndefined();
+
+    // نمایشگر عکس همان را خواست؛ دو درخواست هم‌زمان یک دریافت‌اند
+    const live = new SyncEngine(b.target, counting, token, 'o1');
+    asked.length = 0;
+    expect(await Promise.all([live.fetchFull(left[0]!), live.fetchFull(left[0]!)])).toEqual([true, true]);
+    expect(asked).toEqual([`full:${left[0]}`]);
+    const n = added.findIndex((x) => x.id === left[0]) + 1;
+    expect([...((await b.sql.getPhoto(left[0]!))?.bytes ?? [])]).toEqual([n, n, n]);
+    // عکسی که سرور ندارد، یا خطای شبکه، فقط false است
+    expect(await live.fetchFull('nope')).toBe(false);
+    const offline = new SyncEngine(b.target, { ...api, downloadPhoto: () => Promise.reject(new ApiError('offline')) }, token, 'o1');
+    expect(await offline.fetchFull(left[1]!)).toBe(false);
+    live.stop();
+    expect(await live.fetchFull(left[1]!)).toBe(false);
   });
 
   it('stops for a database that belongs to another office', async () => {
@@ -111,5 +158,45 @@ describe('SyncEngine', () => {
     eb.stop();
     // دوری که هنوز در راه است پیش از بسته شدن دیتابیس تمام شود
     await eb.run();
+  });
+
+  it('drops owner phones when the permission is taken away, and gets them back when it is given', async () => {
+    const base = demoSyncApi();
+    let phones = true;
+    const api: SyncApi = {
+      ...base,
+      pull: async (t, cursor, limit) => {
+        const page = await base.pull(t, cursor, limit);
+        const hide = (f: Record<string, unknown>) => ({ ...f, owner: { ...(f.owner as object), phone: '' } });
+        return { ...page, entities: page.entities.map((e) => (phones || e.kind !== 'listing' ? e : { ...e, fields: hide(e.fields) })), ownerPhones: phones };
+      },
+    };
+    const a = await device();
+    const b = await device();
+    const made = await a.sql.addListing(listing);
+    await new SyncEngine(a.target, api, token, 'o1').run();
+    const eb = new SyncEngine(b.target, api, token, 'o1');
+    await eb.run();
+    expect((await b.sql.getListing(made.id))?.owner.phone).toBe('0912');
+
+    phones = false;
+    await eb.run();
+    expect((await b.sql.getListing(made.id))?.owner).toEqual({ name: 'مالک', phone: '' });
+
+    phones = true;
+    await eb.run();
+    expect((await b.sql.getListing(made.id))?.owner.phone).toBe('0912');
+  });
+
+  it('sends nothing with a token of another office', async () => {
+    const a = await device();
+    await a.sql.addListing(listing);
+    let pushed = 0;
+    const api: SyncApi = { ...demoSyncApi(), push: async () => (pushed++, { hlc: null }) };
+    const jwt = `h.${btoa(JSON.stringify({ sub: 'u', off: 'o2', dev: 'd' })).replace(/=+$/, '')}.s`;
+    const e = new SyncEngine(a.target, api, (fn) => fn(jwt), 'o1');
+    await e.run();
+    expect(e.getStatus().phase).toBe('blocked');
+    expect(pushed).toBe(0);
   });
 });

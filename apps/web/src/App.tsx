@@ -23,6 +23,7 @@ import { SyncRunner } from './sync/SyncRunner';
 import { Greeting } from './auth/Greeting';
 import { Login } from './auth/Login';
 import { OfficeSwitch } from './auth/OfficeSwitch';
+import { takeJoining } from './auth/storage';
 
 type Prefs = ReturnType<typeof usePrefs>;
 const PrefsContext = createContext<Prefs | null>(null);
@@ -90,8 +91,14 @@ function useOfficeCheck(office: string | undefined): [OfficeCheck | null, () => 
     if (!office) return;
     if (!target) return setCheck({ office, state: 'ok' });
     let live = true;
-    void target.store.syncInfo().then((i) => {
-      if (live) setCheck(i.office && i.office !== office ? { office, state: 'other', pending: i.pending } : { office, state: 'ok' });
+    void target.store.syncInfo().then(async (i) => {
+      let other = !!i.office && i.office !== office;
+      if (other && !i.pending && takeJoining(office)) {
+        await target.store.resetLocalData();
+        target.refresh();
+        other = false;
+      }
+      if (live) setCheck(other ? { office, state: 'other', pending: i.pending } : { office, state: 'ok' });
     });
     return () => {
       live = false;
@@ -107,7 +114,7 @@ function Gate({ welcomed }: { welcomed: boolean }) {
   // صفحهٔ ورود بعد از ورود موفق تا پایان انیمیشن کنار رفتنش می‌ماند.
   const [loginOpen, setLoginOpen] = useState(false);
   const [afterLogin, setAfterLogin] = useState(false);
-  const [greet, setGreet] = useState<'back' | 'new' | null>(null);
+  const [greet, setGreet] = useState<'back' | 'new' | 'joined' | null>(null);
   const prefs = usePrefsContext();
   useEffect(() => {
     if (status === 'signedOut') setLoginOpen(true);
@@ -127,7 +134,7 @@ function Gate({ welcomed }: { welcomed: boolean }) {
             // بعد از ورود همیشه صفحهٔ امروز، نه صفحه‌ای که از آن خارج شده بود (مثلاً تنظیمات).
             void router.navigate('/', { replace: true });
             // دفتر تازه آشنایی کامل خودش را دارد؛ کارت خوش‌آمد فقط برای ورود دوباره.
-            setGreet(mode === 'login' ? 'back' : null);
+            setGreet(mode === 'login' ? 'back' : mode === 'join' ? 'joined' : null);
           }}
         />
       )}

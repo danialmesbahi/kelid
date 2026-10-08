@@ -9,6 +9,8 @@ import { clientsQuery, coverThumbsQuery, filesQuery, navCountsQuery, paletteQuer
 import { CommandPalette } from './CommandPalette';
 import { usePrefsContext } from '../App';
 import { useUpdatedToast } from '../updates';
+import { useAuth } from '../auth/AuthContext';
+import { useToast } from './Toasts';
 
 const NAV: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
@@ -35,6 +37,9 @@ function activeIndex(pathname: string): number {
 
 const storageLabel = { desktop: 'ذخیرهٔ رمزگذاری‌شده روی این سیستم', browser: 'ذخیره روی همین مرورگر', memory: 'این مرورگر حافظهٔ ماندگار ندارد', locked: 'کلید در تب دیگری باز است' } as const;
 
+// هر دعوت یک بار در هر اجرای برنامه خبر داده می‌شود؛ خود دعوت در تنظیمات می‌ماند.
+let toldInvite = '';
+
 export function Shell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [more, setMore] = useState(false);
@@ -58,6 +63,16 @@ export function Shell() {
     return () => clearTimeout(t);
   }, [store]);
   const idx = activeIndex(pathname);
+
+  // دفتر دیگری شما را دعوت کرده: یک خبر کوچک، تصمیم در تنظیمات.
+  const toast = useToast();
+  const invite = useAuth().session?.invite;
+  useEffect(() => {
+    const key = invite ? `${invite.officeName}|${invite.role}` : '';
+    if (!invite || toldInvite === key) return;
+    toldInvite = key;
+    toast(`«${invite.officeName}» شما را به دفترش دعوت کرده است`, { label: 'دیدن', run: () => void navigate('/settings', { viewTransition: true }) });
+  }, [invite, toast, navigate]);
 
   // میانبرهای سراسری: Ctrl+K جستجو، Ctrl+N فایل جدید.
   useEffect(() => {

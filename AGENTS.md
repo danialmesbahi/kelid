@@ -58,7 +58,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 **Server**
 - Office data is read and written only inside `withOffice(pool, officeId, db => …)` (`apps/server/src/db.ts`); every table gets `enable` + `force row level security` and a policy on `kelid_office()` (a test fails otherwise).
-- Auth tables (`users`, `devices`, `otp_codes`, `signup_tickets`) are global on purpose (no office before login) and only `auth/routes.ts` touches them; codes and tokens are stored as hashes only, passwords as scrypt hashes (`auth/password.ts`). SMS goes through `SmsSender` (`auth/sms.ts`).
+- Auth tables (`users`, `devices`, `otp_codes`, `signup_tickets`, `invites`) are global on purpose (no office before login) and only `auth/` (`routes.ts`, `team.ts`) touches them, always filtered by the caller's own `office_id`; codes and tokens are stored as hashes only, passwords as scrypt hashes (`auth/password.ts`). SMS goes through `SmsSender` (`auth/sms.ts`).
 - The runtime DB role is never superuser/BYPASSRLS and doesn't own the tables; migrations run with the owner role. 5xx responses never include internal error text.
 
 **UI / UX**
@@ -105,4 +105,4 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
 
 ## Status (update when a phase item lands)
 - Phase 0 ✅ setup · Phase 1 🟡 offline single device: encrypted desktop DB, OPFS web DB, all main pages, motion, installer, app icon, lint + e2e in CI, phone layout + PWA, listing photos, listing editing, clients, visits/to-dos done.
-- Phase 2 🟡 server scaffold (Fastify + Postgres RLS), phone + password login (SMS code as the second way), offline-first sync (HLC per-field merge, photo bytes, per-office device guard) done; deploy · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals, Windows auto-update done; map · Phase 5 beta.
+- Phase 2 🟡 server scaffold (Fastify + Postgres RLS), phone + password login (SMS code as the second way), offline-first sync (HLC per-field merge, photo bytes, per-office device guard), office team (invites, manager/agent roles, owner-phone permission, seats), photo object storage (S3-compatible, thumbnails first) done; deploy · Phase 3 subscription/payments/admin · Phase 4 🟡 calendar, deals, Windows auto-update done; map · Phase 5 beta.

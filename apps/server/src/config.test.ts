@@ -16,6 +16,7 @@ describe('loadConfig', () => {
       jwtSecret: 'j'.repeat(40),
       sms: { provider: 'console' },
       corsOrigins: [],
+      s3: null,
     });
   });
 
@@ -47,6 +48,27 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar' })).toThrow(/KAVENEGAR/);
     const ok = loadConfig({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar', KAVENEGAR_API_KEY: 'k', KAVENEGAR_TEMPLATE: 't' });
     expect(ok.sms).toEqual({ provider: 'kavenegar', apiKey: 'k', template: 't' });
+  });
+
+  it('takes photo storage only when fully and safely configured', () => {
+    const s3 = { S3_ENDPOINT: 'https://s3.ir-thr-at1.arvanstorage.ir/', S3_BUCKET: 'kelid-photos', S3_ACCESS_KEY_ID: 'a', S3_SECRET_ACCESS_KEY: 'topsecret' };
+    expect(loadConfig({ ...base, ...s3, S3_REGION: 'ir-thr-at1' }).s3).toEqual({
+      endpoint: 'https://s3.ir-thr-at1.arvanstorage.ir',
+      region: 'ir-thr-at1',
+      bucket: 'kelid-photos',
+      accessKeyId: 'a',
+      secretAccessKey: 'topsecret',
+    });
+    expect(() => loadConfig({ ...base, S3_ENDPOINT: s3.S3_ENDPOINT })).toThrow(/S3_SECRET_ACCESS_KEY/);
+    expect(() => loadConfig({ ...base, ...s3, S3_BUCKET: 'Bad_Bucket' })).toThrow(/S3_BUCKET/);
+    expect(loadConfig({ ...base, ...s3, S3_ENDPOINT: 'http://localhost:9000' }).s3?.endpoint).toBe('http://localhost:9000');
+    const prod = { ...base, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar', KAVENEGAR_API_KEY: 'k', KAVENEGAR_TEMPLATE: 't' };
+    expect(() => loadConfig({ ...prod, ...s3, S3_ENDPOINT: 'http://minio:9000' })).toThrow(/https/);
+    try {
+      loadConfig({ ...base, ...s3, S3_ENDPOINT: 'nope' });
+    } catch (e) {
+      expect((e as Error).message).not.toContain('topsecret');
+    }
   });
 
   it('accepts explicit CORS origins only', () => {

@@ -5,6 +5,7 @@ import { accessExpiry } from '../auth/tokens';
 import { withOffice } from '../db';
 import { securityHeaders } from '../headers';
 import { announce, LiveHub } from './live';
+import { PhotoBlobs, sniffImage, type ImageMime, type PhotoPart } from '../storage/photos';
 
 export const PUSH_MAX = 500;
 const PHOTO_MAX = 2 * 1024 * 1024;
@@ -21,17 +22,39 @@ const photoSchema = {
   },
 } as const;
 
-/** فقط تصویر واقعی پذیرفته می‌شود: امضای چند بایت اول باید با نوعش بخواند. */
-function looksLike(mime: string, b: Buffer): boolean {
-  if (mime === 'image/jpeg') return b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
-  if (mime === 'image/png') return b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  return b.length > 12 && b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP';
+const partParam = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['id', 'part'],
+  properties: { id: idParam.properties.id, part: { type: 'string', enum: ['full', 'thumb'] } },
+} as const;
+
+/**
+ * مشاوری که اجازهٔ دیدن شمارهٔ مالک‌ها را ندارد: شماره هرگز به دستگاهش نمی‌رسد. نام مالک و بقیهٔ فایل می‌رسد.
+ */
+export function hideOwnerPhone(fields: Record<string, unknown>): Record<string, unknown> {
+  const o = fields.owner;
+  if (!o || typeof o !== 'object' || Array.isArray(o) || !(o as { phone?: unknown }).phone) return fields;
+  return { ...fields, owner: { ...o, phone: '' } };
 }
 
-/** نوع بندانگشتی را از خود بایت‌ها؛ برنامه همیشه webp یا jpeg می‌سازد. */
-function thumbOk(b: Buffer): boolean {
-  return looksLike('image/webp', b) || looksLike('image/jpeg', b) || looksLike('image/png', b);
+/**
+ * و چون شماره را ندیده، نمی‌تواند عوضش کند یا پاکش کند (ویرایش نام مالک روی دستگاهش شمارهٔ خالی می‌فرستد).
+ * شمارهٔ خالی را می‌تواند پر کند: فایلی که خودش ثبت می‌کند.
+ */
+export function keepOwnerPhone(incoming: Record<string, unknown>, current: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!('owner' in incoming)) return incoming;
+  const cur = current?.owner as { phone?: unknown } | undefined;
+  const phone = cur && typeof cur === 'object' && typeof cur.phone === 'string' ? cur.phone : '';
+  if (!phone) return incoming;
+  const o = incoming.owner;
+  if (!o || typeof o !== 'object' || Array.isArray(o)) {
+    const { owner: _drop, ...rest } = incoming;
+    return rest;
+  }
+  return { ...incoming, owner: { ...o, phone } };
 }
+
 export const PULL_MAX = 500;
 // پراکسی‌ها و NATها اتصال بی‌صدا را می‌بندند؛ یک خط خالی هر چند ثانیه بازش نگه می‌دارد.
 const HEARTBEAT_MS = 25_000;
@@ -84,7 +107,7 @@ const pullSchema = {
  * همگام‌سازی دفتر: push صف تغییرهای یک دستگاه را ادغام می‌کند، pull هر چه بعد از نشانگر دستگاه عوض شده برمی‌گرداند.
  * همه‌چیز داخل withOffice است؛ RLS نمی‌گذارد دستگاهی حتی با شناسهٔ ساختگی به رکورد دفتر دیگری برسد.
  */
-export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: AuthOptions) {
+export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, photos = new PhotoBlobs(null) }: AuthOptions & { photos?: PhotoBlobs }) {
   const requireAuth = authGuard(pool, jwtSecret);
   const serverClock = new Hlc('srv');
   const hub = new LiveHub(pool, app.log);
@@ -93,6 +116,7 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
   app.post('/sync/push', { preHandler: requireAuth, bodyLimit: 8 * 1024 * 1024, schema: pushSchema }, async (req) => {
     const changes = (req.body as { changes: Change[] }).changes;
     const office = req.auth!.off;
+    const phones = req.member!.ownerPhones;
     let maxHlc: string | null = null;
     await withOffice(pool, office, async (db) => {
       // ارسال‌های هم‌زمان یک دفتر پشت هم؛ هم ترتیب نسخه‌ها درست می‌ماند هم پلاک تکراری داده نمی‌شود.
@@ -119,7 +143,8 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
         const cur = states.get(key);
         // پلاک‌های گرفته‌شده فقط وقتی خوانده می‌شوند که فایل تازه‌ای آمده باشد.
         const plaques = c.kind === 'listing' && typeof cur?.fields.plaque !== 'number' ? await assignPlaque() : null;
-        const { state, changed } = applyServerChange(cur, { kind: c.kind, fields: c.fields, hlc }, (proposed) => {
+        const fields = !phones && c.kind === 'listing' ? keepOwnerPhone(c.fields, cur?.fields) : c.fields;
+        const { state, changed } = applyServerChange(cur, { kind: c.kind, fields, hlc }, (proposed) => {
           const p = proposed !== null && !plaques!.has(proposed) ? proposed : Math.max(0, ...plaques!) + 1;
           plaques!.add(p);
           return p;
@@ -153,12 +178,12 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
     const body = req.body as { mime: string; bytes: string; thumb: string };
     const bytes = Buffer.from(body.bytes, 'base64');
     const thumb = Buffer.from(body.thumb, 'base64');
-    if (bytes.length > PHOTO_MAX || thumb.length > THUMB_MAX || !looksLike(body.mime, bytes) || !thumbOk(thumb)) return reply.status(400).send({ error: 'bad_photo' });
-    await withOffice(pool, req.auth!.off, async (db) => {
-      const r = await db.query('insert into photo_blobs (id, mime, bytes, thumb) values ($1, $2, $3, $4) on conflict (office_id, id) do nothing', [id, body.mime, bytes, thumb]);
-      // دستگاه‌هایی که مشخصات عکس را دارند ولی بایتش را نه، همین حالا می‌گیرندش.
-      if (r.rowCount) await announce(db, req.auth!.off, req.auth!.dev);
-    });
+    // فقط تصویر واقعی پذیرفته می‌شود: امضای چند بایت اول باید با نوعش بخواند.
+    const thumbMime = sniffImage(thumb);
+    if (bytes.length > PHOTO_MAX || thumb.length > THUMB_MAX || sniffImage(bytes) !== body.mime || !thumbMime) return reply.status(400).send({ error: 'bad_photo' });
+    const office = req.auth!.off;
+    // دستگاه‌هایی که مشخصات عکس را دارند ولی بایتش را نه، همین حالا می‌گیرندش.
+    await photos.put(pool, office, id, { mime: body.mime as ImageMime, bytes, thumb, thumbMime }, (db) => announce(db, office, req.auth!.dev));
     return reply.status(204).send();
   });
 
@@ -198,13 +223,22 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
     res.on('error', close);
   });
 
-  app.get('/sync/photos/:id', { preHandler: requireAuth, schema: { params: idParam } }, async (req, reply) => {
-    const { id } = req.params as { id: string };
-    const r = await withOffice(pool, req.auth!.off, (db) => db.query<{ mime: string; bytes: Buffer; thumb: Buffer }>('select mime, bytes, thumb from photo_blobs where id = $1', [id]));
-    const row = r.rows[0];
+  /**
+   * بایت خام عکس (بی base64، یک‌سوم سبک‌تر). دستگاه‌ها اول بندانگشتی همه را می‌گیرند تا فهرست‌ها پر شوند و
+   * عکس کامل را بعداً، کم‌کم یا همان لحظه که کسی بازش کرد. دستگاه عکس را در دیتابیس خودش نگه می‌دارد، پس no-store می‌ماند.
+   */
+  app.get('/sync/photos/:id/:part', { preHandler: requireAuth, schema: { params: partParam } }, async (req, reply) => {
+    const { id, part } = req.params as { id: string; part: PhotoPart };
+    const office = req.auth!.off;
+    const ref = await withOffice(pool, office, (db) => photos.ref(db, id, part));
     // هنوز بالا نیامده (دستگاه صاحبش آفلاین است)؛ دستگاه دفعهٔ بعد دوباره می‌پرسد.
-    if (!row) return reply.status(404).send({ error: 'not_found' });
-    return { mime: row.mime, bytes: row.bytes.toString('base64'), thumb: row.thumb.toString('base64') };
+    if (!ref) return reply.status(404).send({ error: 'not_found' });
+    const bytes = await photos.bytes(ref);
+    if (!bytes) {
+      req.log.error({ photo: id, part }, 'photo object missing from storage');
+      return reply.status(404).send({ error: 'not_found' });
+    }
+    return reply.header('content-type', ref.mime).send(bytes);
   });
 
   app.get('/sync/pull', { preHandler: requireAuth, schema: pullSchema }, async (req) => {
@@ -219,8 +253,11 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
     });
     let hlc: string | null = null;
     for (const r of rows) for (const h of Object.values(r.clocks)) if (!hlc || h > hlc) hlc = h;
+    const phones = req.member!.ownerPhones;
     return {
-      entities: rows.map((r) => ({ kind: r.kind, id: r.id, fields: r.fields })),
+      entities: rows.map((r) => ({ kind: r.kind, id: r.id, fields: phones || r.kind !== 'listing' ? r.fields : hideOwnerPhone(r.fields) })),
+      // دستگاه از این می‌فهمد اجازه‌اش عوض شده: گرفته شد ⇒ شماره‌های محلی پاک، داده شد ⇒ دریافت دوباره از اول.
+      ownerPhones: phones,
       cursor: rows.at(-1)?.version ?? q.cursor ?? '0',
       more: rows.length === limit,
       hlc,
