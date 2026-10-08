@@ -62,7 +62,9 @@ describe('SyncEngine', () => {
     const [p] = await a.sql.addPhotos(l.id, [{ mime: 'image/webp', width: 4, height: 3, bytes: new Uint8Array([7, 7, 7]), thumb: new Uint8Array([7]) }]);
     // a فقط مشخصات را فرستاد و پیش از بالا رفتن عکس افتاد
     const noPhotos: SyncApi = { ...api, uploadPhoto: () => Promise.reject(new ApiError('offline')) };
-    await new SyncEngine(a.target, noPhotos, token, 'o1').run();
+    const dropped = new SyncEngine(a.target, noPhotos, token, 'o1');
+    await dropped.run();
+    dropped.stop(); // دور دوبارهٔ زمان‌بندی‌شده بعد از بسته شدن دیتابیس اجرا نشود
     const eb = new SyncEngine(b.target, api, token, 'o1');
     await eb.run();
     expect(eb.getStatus().phase).toBe('idle');
