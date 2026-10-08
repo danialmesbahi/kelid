@@ -1,14 +1,58 @@
+import { phoneDigits } from './phone';
+
 // ارتباط با سرور ورود (apps/server/src/auth/routes.ts). نشانی سرور در زمان ساخت: VITE_KELID_API_URL.
 // بدون آن، برنامه مثل قبل فقط روی همین دستگاه کار می‌کند و صفحهٔ ورود نمی‌آید.
+
+export type Role = 'manager' | 'agent';
+
+/** دفتری که این شماره را دعوت کرده؛ فقط بعد از کد درست یا ورود دیده می‌شود. */
+export interface InviteInfo {
+  officeName: string;
+  invitedBy: string;
+  name: string;
+  role: Role;
+}
 
 export interface Session {
   accessToken: string;
   accessExpiresIn: number;
   refreshToken: string;
   deviceId: string;
-  // نشست‌های ذخیره‌شده از پیش از رمز عبور این را ندارند.
-  user: { id: string; name: string; phone: string; hasPassword?: boolean };
+  // نشست‌های ذخیره‌شده از پیش از رمز عبور و همکاران این‌ها را ندارند؛ آن موقع هر حساب مدیر دفتر خودش بود.
+  user: { id: string; name: string; phone: string; hasPassword?: boolean; role?: Role; seeOwnerPhones?: boolean };
   office: { id: string; name: string };
+  invite?: InviteInfo | null;
+}
+
+export interface Member {
+  id: string;
+  name: string;
+  phone: string;
+  role: Role;
+  seeOwnerPhones: boolean;
+  lastSeenAt: string | null;
+}
+
+export interface Invite {
+  phone: string;
+  name: string;
+  role: Role;
+  seeOwnerPhones: boolean;
+  invitedBy: string;
+  createdAt: string;
+}
+
+export interface Team {
+  seats: number;
+  members: Member[];
+  invites: Invite[];
+}
+
+export interface NewInvite {
+  phone: string;
+  name: string;
+  role: Role;
+  seeOwnerPhones: boolean;
 }
 
 export interface Device {
@@ -19,7 +63,12 @@ export interface Device {
   current: boolean;
 }
 
-export type ApiErrorCode = 'bad_phone' | 'bad_code' | 'bad_name' | 'bad_password' | 'wrong' | 'expired' | 'too_many' | 'sms_failed' | 'unauthorized' | 'not_found' | 'bad_photo' | 'offline' | 'server';
+export type ApiErrorCode =
+  | 'bad_phone' | 'bad_code' | 'bad_name' | 'bad_password' | 'wrong' | 'expired' | 'too_many' | 'sms_failed' | 'unauthorized' | 'not_found' | 'bad_photo'
+  | 'forbidden' | 'no_seat' | 'member' | 'last_manager' | 'self' | 'not_alone'
+  // فقط سمت برنامه: توکن مال دفتر دیگری است (کاربر دفترش را عوض کرد)؛ همگام‌سازی دفتر قبلی همان‌جا می‌ایستد.
+  | 'office_changed'
+  | 'offline' | 'server';
 
 export class ApiError extends Error {
   constructor(
@@ -31,7 +80,7 @@ export class ApiError extends Error {
   }
 }
 
-export type VerifyResult = { session: Session } | { signupToken: string };
+export type VerifyResult = { session: Session } | { signupToken: string; invite: InviteInfo | null };
 
 export interface AuthApi {
   /** فقط پیش‌نمایش: کد آزمایشی که روی صفحه نشان داده می‌شود. */
@@ -50,9 +99,22 @@ export interface AuthApi {
   removeDevice(accessToken: string, id: string): Promise<void>;
   /** نام شما و نام دفتر روی سرور، تا دستگاه‌های دیگر دفتر هم ببینند. */
   updateProfile(accessToken: string, p: { name?: string; officeName?: string }): Promise<{ name: string; officeName: string }>;
+  /** شمارهٔ دعوت‌شده بعد از کد درست: نام و رمز، و عضو دفتر می‌شود. */
+  join(signupToken: string, name: string, password: string, deviceName: string): Promise<Session>;
+  /** کسی که دفتر خودش را دارد به دفتر دعوت‌کننده می‌رود (فقط اگر در دفتر فعلی‌اش تنهاست). */
+  acceptInvite(accessToken: string): Promise<Session>;
+  declineInvite(accessToken: string): Promise<void>;
+  team(accessToken: string): Promise<Team>;
+  invite(accessToken: string, i: NewInvite): Promise<void>;
+  cancelInvite(accessToken: string, phone: string): Promise<void>;
+  updateMember(accessToken: string, id: string, p: { role?: Role; seeOwnerPhones?: boolean }): Promise<void>;
+  removeMember(accessToken: string, id: string): Promise<void>;
 }
 
-const CODES: readonly string[] = ['bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo'];
+const CODES: readonly string[] = [
+  'bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo',
+  'forbidden', 'no_seat', 'member', 'last_manager', 'self', 'not_alone',
+];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
 export async function request<T>(root: string, method: 'GET' | 'POST' | 'DELETE', path: string, body?: object, token?: string, timeoutMs = 12_000): Promise<T> {
@@ -86,8 +148,8 @@ export function httpApi(base: string): AuthApi {
     login: (phone, password, deviceName) => call('POST', '/auth/login', { phone, password, deviceName }),
     requestOtp: (phone) => call('POST', '/auth/otp', { phone }),
     verify: async (phone, code, deviceName) => {
-      const r = await call<Session | { signupToken: string }>('POST', '/auth/verify', { phone, code, deviceName });
-      return 'signupToken' in r ? r : { session: r };
+      const r = await call<Session | { signupToken: string; invite?: InviteInfo | null }>('POST', '/auth/verify', { phone, code, deviceName });
+      return 'signupToken' in r ? { signupToken: r.signupToken, invite: r.invite ?? null } : { session: r };
     },
     signup: (signupToken, name, officeName, password, deviceName) => call('POST', '/auth/signup', { signupToken, name, officeName, password, deviceName }),
     setPassword: (token, password, current) => call('POST', '/auth/password', { password, ...(current ? { current } : {}) }, token),
@@ -96,6 +158,14 @@ export function httpApi(base: string): AuthApi {
     devices: (token) => call('GET', '/auth/devices', undefined, token),
     removeDevice: (token, id) => call('DELETE', `/auth/devices/${encodeURIComponent(id)}`, undefined, token),
     updateProfile: (token, p) => call('POST', '/auth/profile', p, token),
+    join: (signupToken, name, password, deviceName) => call('POST', '/auth/join', { signupToken, name, password, deviceName }),
+    acceptInvite: (token) => call('POST', '/auth/invite/accept', {}, token),
+    declineInvite: (token) => call('POST', '/auth/invite/decline', {}, token),
+    team: (token) => call('GET', '/team', undefined, token),
+    invite: (token, i) => call('POST', '/team/invites', i, token),
+    cancelInvite: (token, phone) => call('DELETE', `/team/invites/${encodeURIComponent(phone)}`, undefined, token),
+    updateMember: (token, id, p) => call('POST', `/team/members/${encodeURIComponent(id)}`, p, token),
+    removeMember: (token, id) => call('DELETE', `/team/members/${encodeURIComponent(id)}`, undefined, token),
   };
 }
 
@@ -109,7 +179,8 @@ export function demoApi(): AuthApi {
   let pwdFails = 0;
   // حساب‌های پیش‌نمایش در همین مرورگر می‌مانند تا «ثبت‌نام، خروج، ورود دوباره» مثل سرور واقعی کار کند.
   // فقط پیش‌نمایش: رمز ساده در حافظهٔ مرورگر می‌ماند؛ سرور واقعی فقط هش scrypt نگه می‌دارد.
-  type Account = { name: string; office: string; password?: string };
+  // officeId/role فقط برای همکارِ دعوت‌شده؛ بقیه مدیر دفتر خودشان‌اند.
+  type Account = { name: string; office: string; password?: string; officeId?: string; role?: Role; seeOwnerPhones?: boolean };
   const KEY = 'kelid.demo.accounts';
   const SEED: Account = { name: 'علی رضایی', office: 'املاک پارسا', password: '12345678' };
   const accounts = (): Record<string, Account> => {
@@ -131,6 +202,41 @@ export function demoApi(): AuthApi {
   const devices: Device[] = [
     { id: 'd-phone', name: 'گوشی اندروید', createdAt: new Date(Date.now() - 864e5 * 12).toISOString(), lastSeenAt: new Date(Date.now() - 36e5 * 3).toISOString(), current: false },
   ];
+  const officeOf = (phone: string) => accounts()[phone]?.officeId ?? (phone === '09120000000' ? 'o1' : `o${phone}`);
+  const phoneOf = (token: string) => (token.startsWith('demo:') ? token.slice('demo:'.length) : '');
+  // همکاران دفتر نمونه؛ فقط تا بستن صفحه. شمارهٔ ۰۹۱۳۰۰۰۰۰۰۰ دعوت شده و با کد پیامکی به دفتر می‌پیوندد.
+  const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString();
+  const teams: Record<string, Team> = {
+    o1: {
+      seats: 5,
+      members: [
+        { id: 'u09120000000', name: 'علی رضایی', phone: '09120000000', role: 'manager', seeOwnerPhones: true, lastSeenAt: ago(0) },
+        { id: 'u09121234567', name: 'مریم احمدی', phone: '09121234567', role: 'agent', seeOwnerPhones: true, lastSeenAt: ago(2) },
+        { id: 'u09351112233', name: 'رضا کاظمی', phone: '09351112233', role: 'agent', seeOwnerPhones: false, lastSeenAt: ago(75) },
+      ],
+      invites: [{ phone: '09130000000', name: 'سارا نوری', role: 'agent', seeOwnerPhones: false, invitedBy: 'علی رضایی', createdAt: ago(20) }],
+    },
+  };
+  const teamOf = (phone: string): Team => {
+    const office = officeOf(phone);
+    const a = accounts()[phone];
+    teams[office] ??= { seats: 5, members: [{ id: `u${phone}`, name: a?.name ?? '', phone, role: 'manager', seeOwnerPhones: true, lastSeenAt: ago(0) }], invites: [] };
+    return teams[office]!;
+  };
+  const managerTeam = (token: string): Team => {
+    const phone = phoneOf(token);
+    if (!accounts()[phone]) throw new ApiError('unauthorized');
+    const t = teamOf(phone);
+    if (t.members.find((m) => m.phone === phone)?.role !== 'manager') throw new ApiError('forbidden');
+    return t;
+  };
+  const inviteFor = (phone: string): { office: string; invite: Invite } | null => {
+    for (const [office, t] of Object.entries(teams)) {
+      const invite = t.invites.find((i) => i.phone === phone);
+      if (invite) return { office, invite };
+    }
+    return null;
+  };
   const session = (phone: string): Session => {
     const a = accounts()[phone] ?? { name: '', office: '' };
     if (!devices.some((d) => d.current)) devices.unshift({ id: 'd-this', name: deviceLabel(), createdAt: new Date().toISOString(), lastSeenAt: new Date().toISOString(), current: true });
@@ -139,9 +245,10 @@ export function demoApi(): AuthApi {
       accessExpiresIn: 900,
       refreshToken: `demo-refresh:${phone}`,
       deviceId: 'd-this',
-      user: { id: `u${phone}`, name: a.name, phone, hasPassword: !!a.password },
+      user: { id: `u${phone}`, name: a.name, phone, hasPassword: !!a.password, role: a.role ?? 'manager', seeOwnerPhones: (a.role ?? 'manager') === 'manager' || !!a.seeOwnerPhones },
       // هر حساب دفتر خودش را دارد، مثل سرور واقعی.
-      office: { id: phone === '09120000000' ? 'o1' : `o${phone}`, name: a.office },
+      office: { id: officeOf(phone), name: a.office },
+      invite: null,
     };
   };
   return {
@@ -172,7 +279,10 @@ export function demoApi(): AuthApi {
         throw new ApiError('wrong', undefined, 5 - tries);
       }
       verified = phone;
-      return accounts()[phone] ? { session: session(phone) } : { signupToken: 'demo-ticket' };
+      if (accounts()[phone]) return { session: session(phone) };
+      const found = inviteFor(phone);
+      const office = found ? (found.office === 'o1' ? 'املاک پارسا' : (Object.values(accounts()).find((a) => a.officeId === found.office)?.office ?? '')) : '';
+      return { signupToken: 'demo-ticket', invite: found ? { officeName: office, invitedBy: found.invite.invitedBy, name: found.invite.name, role: found.invite.role } : null };
     },
     async signup(_t, name, officeName, password) {
       await wait(500);
@@ -207,6 +317,66 @@ export function demoApi(): AuthApi {
     async removeDevice(_t, id) {
       await wait(250);
       devices.splice(devices.findIndex((d) => d.id === id), 1);
+    },
+    async join(_t, name, password) {
+      await wait(500);
+      const found = verified ? inviteFor(verified) : null;
+      if (!found) throw new ApiError('not_found');
+      if (password.length < 8) throw new ApiError('bad_password');
+      const { office, invite } = found;
+      const t = teams[office]!;
+      remember(verified, { name, office: office === 'o1' ? 'املاک پارسا' : '', password, officeId: office, role: invite.role, seeOwnerPhones: invite.seeOwnerPhones });
+      t.invites = t.invites.filter((i) => i.phone !== verified);
+      t.members.push({ id: `u${verified}`, name, phone: verified, role: invite.role, seeOwnerPhones: invite.seeOwnerPhones, lastSeenAt: new Date().toISOString() });
+      return session(verified);
+    },
+    async acceptInvite() {
+      await wait(400);
+      throw new ApiError('not_found');
+    },
+    async declineInvite() {
+      await wait(250);
+    },
+    async team(token) {
+      await wait(300);
+      const phone = phoneOf(token);
+      if (!accounts()[phone]) throw new ApiError('unauthorized');
+      return structuredClone(teamOf(phone));
+    },
+    async invite(token, i) {
+      await wait(450);
+      const t = managerTeam(token);
+      const phone = phoneDigits(i.phone);
+      if (!/^09\d{9}$/.test(phone)) throw new ApiError('bad_phone');
+      if (!i.name.trim()) throw new ApiError('bad_name');
+      if (t.members.some((m) => m.phone === phone)) throw new ApiError('member');
+      const others = t.invites.filter((x) => x.phone !== phone);
+      if (t.members.length + others.length >= t.seats) throw new ApiError('no_seat');
+      t.invites = [...others, { phone, name: i.name.trim(), role: i.role, seeOwnerPhones: i.role === 'manager' || i.seeOwnerPhones, invitedBy: t.members.find((m) => m.phone === phoneOf(token))?.name ?? '', createdAt: new Date().toISOString() }];
+    },
+    async cancelInvite(token, phone) {
+      await wait(250);
+      const t = managerTeam(token);
+      t.invites = t.invites.filter((x) => x.phone !== phone);
+    },
+    async updateMember(token, id, p) {
+      await wait(300);
+      const t = managerTeam(token);
+      const m = t.members.find((x) => x.id === id);
+      if (!m) throw new ApiError('not_found');
+      if (m.role === 'manager' && p.role === 'agent' && t.members.filter((x) => x.role === 'manager').length <= 1) throw new ApiError('last_manager');
+      if (p.role) m.role = p.role;
+      if (p.seeOwnerPhones !== undefined) m.seeOwnerPhones = p.seeOwnerPhones;
+      if (m.role === 'manager') m.seeOwnerPhones = true;
+    },
+    async removeMember(token, id) {
+      await wait(300);
+      const t = managerTeam(token);
+      const m = t.members.find((x) => x.id === id);
+      if (!m) throw new ApiError('not_found');
+      if (m.phone === phoneOf(token)) throw new ApiError('self');
+      if (m.role === 'manager' && t.members.filter((x) => x.role === 'manager').length <= 1) throw new ApiError('last_manager');
+      t.members = t.members.filter((x) => x.id !== id);
     },
     async updateProfile(token, p) {
       await wait(300);

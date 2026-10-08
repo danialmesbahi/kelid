@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ApiError, apiFromEnv, type AuthApi, type Session } from './api';
 import { clearProfileQueue } from './profile';
-import { clearSession, loadSession, saveSession, type SavedSession } from './storage';
+import { clearSession, loadSession, markJoining, saveSession, type SavedSession } from './storage';
 
 export type AuthStatus = 'off' | 'loading' | 'signedOut' | 'signedIn';
 
@@ -15,6 +15,10 @@ interface AuthValue {
   markPassword(): Promise<void>;
   /** نام‌ها همان که سرور دارد (بعد از ویرایش در تنظیمات). */
   setNames(name: string, officeName: string): Promise<void>;
+  /** دعوت دفتر دیگر رد شد؛ تا تمدید بعدی هم دیگر نشان داده نمی‌شود. */
+  dropInvite(): Promise<void>;
+  /** پیوستن به دفتری که دعوت کرده؛ نشست تازه (دفتر تازه) جای قبلی را می‌گیرد. */
+  acceptInvite(): Promise<void>;
   /** کاری که توکن دسترسی می‌خواهد؛ توکن کهنه خودکار تمدید و یک بار دوباره امتحان می‌شود. */
   withToken<T>(fn: (token: string) => Promise<T>): Promise<T>;
 }
@@ -26,6 +30,16 @@ export function useAuth(): AuthValue {
   const v = useContext(AuthContext);
   if (!v) throw new Error('AuthProvider missing');
   return v;
+}
+
+/**
+ * نقش شما در دفتر. بدون حساب (برنامهٔ تک‌دستگاهی) و در نشست‌های قدیمی همه‌کاره‌اید.
+ * ownerPhones فقط رابط را راهنمایی می‌کند؛ خود شماره‌ها را سرور به دستگاه مشاورِ بی‌اجازه نمی‌فرستد.
+ */
+export function useMember(): { manager: boolean; ownerPhones: boolean } {
+  const { session } = useAuth();
+  const manager = (session?.user.role ?? 'manager') === 'manager';
+  return { manager, ownerPhones: manager || session?.user.seeOwnerPhones !== false };
 }
 
 /**
@@ -41,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const adopt = useCallback(async (s: Session) => {
     // توکن تمدید یک‌بارمصرف است: اول ذخیره، بعد استفاده؛ وگرنه بستن برنامه وسط کار یعنی ورود دوباره.
-    const keep: SavedSession = { refreshToken: s.refreshToken, deviceId: s.deviceId, user: s.user, office: s.office };
+    const keep: SavedSession = { refreshToken: s.refreshToken, deviceId: s.deviceId, user: s.user, office: s.office, invite: s.invite ?? null };
     await saveSession(keep);
     saved.current = keep;
     access.current = { token: s.accessToken, exp: Date.now() + s.accessExpiresIn * 1000 };
@@ -114,6 +128,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cur = saved.current;
         if (!cur) return;
         const keep = { ...cur, user: { ...cur.user, hasPassword: true } };
+        await saveSession(keep);
+        saved.current = keep;
+        setSession(keep);
+      },
+      acceptInvite: async () => {
+        if (!API) throw new ApiError('server');
+        // تمدیدی که در راه است اول تمام شود؛ بعد خود پیوستن جای «تمدید در راه» می‌نشیند تا درخواست دیگری
+        // (مثلاً همگام‌سازی که با توکن قدیمی ۴۰۱ گرفته) توکن تمدید را هم‌زمان نچرخاند و دستگاه بیرون نیفتد.
+        await inflight.current?.catch(() => {});
+        const a = access.current;
+        const token = a && a.exp - 30_000 > Date.now() ? a.token : await refresh();
+        const run = (async () => {
+          const s = await API.acceptInvite(token);
+          markJoining(s.office.id);
+          await adopt(s);
+          return s.accessToken;
+        })();
+        const wrapped: Promise<string> = run.finally(() => {
+          if (inflight.current === wrapped) inflight.current = null;
+        });
+        inflight.current = wrapped;
+        await wrapped;
+      },
+      dropInvite: async () => {
+        const cur = saved.current;
+        if (!cur) return;
+        const keep = { ...cur, invite: null };
         await saveSession(keep);
         saved.current = keep;
         setSession(keep);

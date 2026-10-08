@@ -6,6 +6,8 @@ export interface PullPage {
   cursor: string;
   more: boolean;
   hlc: string | null;
+  /** اجازهٔ دیدن شمارهٔ مالک‌ها؛ سرور قدیمی ندارد. */
+  ownerPhones?: boolean;
 }
 
 export interface SyncApi {

@@ -110,6 +110,27 @@ export const migrations: readonly string[] = [
     using (office_id = kelid_office())
     with check (office_id = kelid_office());
   `,
+  // 6: همکاران دفتر. نقش مدیر/مشاور؛ مشاور فقط با اجازهٔ مدیر شمارهٔ مالک‌ها را می‌بیند. کسی که از دفتر برداشته شد
+  // ردیفش می‌ماند (removed_at) تا شماره‌اش بعداً بتواند دفتر تازه بسازد یا به دفتر دیگری بپیوندد.
+  // دعوت‌ها مثل users مال هیچ دفتری نیستند: پیش از ورود، با شمارهٔ دعوت‌شده پیدا می‌شوند. فقط auth/ به آن‌ها دست می‌زند.
+  `
+  alter table users add column role text not null default 'manager' check (role in ('manager', 'agent'));
+  alter table users add column see_owner_phones boolean not null default true;
+  alter table users add column removed_at timestamptz;
+  alter table offices add column seats int not null default 5 check (seats between 1 and 500);
+
+  create table invites (
+    office_id uuid not null references offices (id),
+    phone text not null check (phone ~ '^09[0-9]{9}$'),
+    name text not null check (length(name) between 1 and 100),
+    role text not null check (role in ('manager', 'agent')),
+    see_owner_phones boolean not null default false,
+    invited_by uuid not null references users (id),
+    created_at timestamptz not null default now(),
+    primary key (office_id, phone)
+  );
+  create index invites_phone on invites (phone);
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

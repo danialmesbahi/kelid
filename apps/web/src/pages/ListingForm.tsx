@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useBlocker } from 'react-router';
+import { useMember } from '../auth/AuthContext';
 import { Cover, Icon, Segmented } from '@kelid/ui';
 import { dealLabel, formatGrouped, formatPlaque, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 
@@ -117,6 +118,9 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
   onSubmit: (fields: ListingFields, edited: Partial<ListingFields>) => Promise<void>;
 }) {
   const [f, setF] = useState(() => toState(listing));
+  // مشاورِ بی‌اجازه شمارهٔ مالکِ فایل ثبت‌شده را ندارد که ببیند یا عوض کند؛ در فایل تازه می‌نویسدش.
+  const { ownerPhones } = useMember();
+  const phoneLocked = !ownerPhones && !!listing;
   const [start] = useState(() => toFields(toState(listing)));
   const [initial] = useState(() => JSON.stringify(toState(listing)));
   const [error, setError] = useState('');
@@ -280,7 +284,19 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             <span className="xs rw" style={{ gap: 6, color: 'var(--brass-text)' }}><Icon name="lock" size="s" />در حالت نمایش و برگهٔ چاپی دیده نمی‌شود</span>
             <div style={grid(200)}>
               <label className="lbl">نام مالک<input className="fld" value={f.ownerName} onChange={(e) => set('ownerName')(e.target.value)} /></label>
-              <label className="lbl">شمارهٔ مالک<input className="fld num" inputMode="tel" value={f.ownerPhone} onChange={(e) => set('ownerPhone')(e.target.value)} style={{ direction: 'ltr', textAlign: 'right' }} /></label>
+              {phoneLocked ? (
+                <label className="lbl">
+                  شمارهٔ مالک
+                  <input className="fld" value="" readOnly placeholder="فقط مدیر دفتر می‌بیند" aria-describedby="phone-locked" />
+                  <span id="phone-locked" className="xs mute">شماره روی سرور دفتر محفوظ است و با ویرایش شما عوض نمی‌شود.</span>
+                </label>
+              ) : (
+                <label className="lbl">
+                  شمارهٔ مالک
+                  <input className="fld num" inputMode="tel" value={f.ownerPhone} onChange={(e) => set('ownerPhone')(e.target.value)} style={{ direction: 'ltr', textAlign: 'right' }} aria-describedby={ownerPhones ? undefined : 'phone-hidden'} />
+                  {!ownerPhones && <span id="phone-hidden" className="xs mute">بعد از ثبت، شماره فقط برای مدیر دفتر دیده می‌شود.</span>}
+                </label>
+              )}
               <label className="lbl">بهترین زمان تماس<input className="fld" value={f.ownerBestTime} onChange={(e) => set('ownerBestTime')(e.target.value)} placeholder="مثلاً عصرها" /></label>
             </div>
           </Section>

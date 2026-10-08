@@ -32,6 +32,32 @@ function looksLike(mime: string, b: Buffer): boolean {
 function thumbOk(b: Buffer): boolean {
   return looksLike('image/webp', b) || looksLike('image/jpeg', b) || looksLike('image/png', b);
 }
+/**
+ * مشاوری که اجازهٔ دیدن شمارهٔ مالک‌ها را ندارد: شماره هرگز به دستگاهش نمی‌رسد. نام مالک و بقیهٔ فایل می‌رسد.
+ */
+export function hideOwnerPhone(fields: Record<string, unknown>): Record<string, unknown> {
+  const o = fields.owner;
+  if (!o || typeof o !== 'object' || Array.isArray(o) || !(o as { phone?: unknown }).phone) return fields;
+  return { ...fields, owner: { ...o, phone: '' } };
+}
+
+/**
+ * و چون شماره را ندیده، نمی‌تواند عوضش کند یا پاکش کند (ویرایش نام مالک روی دستگاهش شمارهٔ خالی می‌فرستد).
+ * شمارهٔ خالی را می‌تواند پر کند: فایلی که خودش ثبت می‌کند.
+ */
+export function keepOwnerPhone(incoming: Record<string, unknown>, current: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!('owner' in incoming)) return incoming;
+  const cur = current?.owner as { phone?: unknown } | undefined;
+  const phone = cur && typeof cur === 'object' && typeof cur.phone === 'string' ? cur.phone : '';
+  if (!phone) return incoming;
+  const o = incoming.owner;
+  if (!o || typeof o !== 'object' || Array.isArray(o)) {
+    const { owner: _drop, ...rest } = incoming;
+    return rest;
+  }
+  return { ...incoming, owner: { ...o, phone } };
+}
+
 export const PULL_MAX = 500;
 // پراکسی‌ها و NATها اتصال بی‌صدا را می‌بندند؛ یک خط خالی هر چند ثانیه بازش نگه می‌دارد.
 const HEARTBEAT_MS = 25_000;
@@ -93,6 +119,7 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
   app.post('/sync/push', { preHandler: requireAuth, bodyLimit: 8 * 1024 * 1024, schema: pushSchema }, async (req) => {
     const changes = (req.body as { changes: Change[] }).changes;
     const office = req.auth!.off;
+    const phones = req.member!.ownerPhones;
     let maxHlc: string | null = null;
     await withOffice(pool, office, async (db) => {
       // ارسال‌های هم‌زمان یک دفتر پشت هم؛ هم ترتیب نسخه‌ها درست می‌ماند هم پلاک تکراری داده نمی‌شود.
@@ -119,7 +146,8 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
         const cur = states.get(key);
         // پلاک‌های گرفته‌شده فقط وقتی خوانده می‌شوند که فایل تازه‌ای آمده باشد.
         const plaques = c.kind === 'listing' && typeof cur?.fields.plaque !== 'number' ? await assignPlaque() : null;
-        const { state, changed } = applyServerChange(cur, { kind: c.kind, fields: c.fields, hlc }, (proposed) => {
+        const fields = !phones && c.kind === 'listing' ? keepOwnerPhone(c.fields, cur?.fields) : c.fields;
+        const { state, changed } = applyServerChange(cur, { kind: c.kind, fields, hlc }, (proposed) => {
           const p = proposed !== null && !plaques!.has(proposed) ? proposed : Math.max(0, ...plaques!) + 1;
           plaques!.add(p);
           return p;
@@ -219,8 +247,11 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret }: Auth
     });
     let hlc: string | null = null;
     for (const r of rows) for (const h of Object.values(r.clocks)) if (!hlc || h > hlc) hlc = h;
+    const phones = req.member!.ownerPhones;
     return {
-      entities: rows.map((r) => ({ kind: r.kind, id: r.id, fields: r.fields })),
+      entities: rows.map((r) => ({ kind: r.kind, id: r.id, fields: phones || r.kind !== 'listing' ? r.fields : hideOwnerPhone(r.fields) })),
+      // دستگاه از این می‌فهمد اجازه‌اش عوض شده: گرفته شد ⇒ شماره‌های محلی پاک، داده شد ⇒ دریافت دوباره از اول.
+      ownerPhones: phones,
       cursor: rows.at(-1)?.version ?? q.cursor ?? '0',
       more: rows.length === limit,
       hlc,
