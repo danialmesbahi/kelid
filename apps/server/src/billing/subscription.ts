@@ -1,0 +1,42 @@
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { KeyObject } from 'node:crypto';
+import { planById, TRIAL_PLAN, type PlanId } from '@kelid/core/plans';
+import { withOffice, type Db, type Pool } from '../db';
+import { signLicense } from './license';
+
+export interface Subscription {
+  plan: PlanId;
+  trial: boolean;
+  expiresAt: Date;
+  seats: number;
+  active: boolean;
+}
+
+/** اشتراک دفتر؛ دفتر تراکنش باید از قبل همین دفتر باشد (withOffice یا set_config). */
+export async function readSubscription(db: Db, officeId: string): Promise<Subscription | null> {
+  const { rows } = await db.query<{ plan: string; trial: boolean; expires_at: Date; seats: number; active: boolean }>(
+    'select plan, trial, expires_at, seats, expires_at > now() as active from offices where id = $1',
+    [officeId],
+  );
+  const r = rows[0];
+  if (!r) return null;
+  // پلنی که از فهرست برداشته شده، تا خرید بعدی مثل پلن آزمایشی دیده می‌شود.
+  const plan = planById(r.plan)?.id ?? TRIAL_PLAN;
+  return { plan, trial: r.trial, expiresAt: r.expires_at, seats: r.seats, active: r.active };
+}
+
+export function licenseOf(key: KeyObject, officeId: string, s: Subscription): string {
+  return signLicense(key, { office: officeId, plan: s.plan, seats: s.seats, trial: s.trial, expiresAt: s.expiresAt });
+}
+
+/**
+ * نوشتن داده (ارسال تغییرها، عکس، دعوت همکار) فقط با اشتراک فعال. خواندن همیشه باز است:
+ * دفتری که اشتراکش تمام شده هم اطلاعاتش را می‌بیند و چیزی از دستش نمی‌رود.
+ */
+export function requireActive(pool: Pool) {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    const off = req.auth!.off;
+    const s = await withOffice(pool, off, (db) => readSubscription(db, off));
+    if (!s?.active) return reply.status(402).send({ error: 'subscription' });
+  };
+}

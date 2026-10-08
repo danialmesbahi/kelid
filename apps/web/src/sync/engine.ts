@@ -2,7 +2,7 @@ import { ApiError } from '../auth/api';
 import type { SyncTarget } from '../data';
 import type { SyncApi } from './api';
 
-export type SyncPhase = 'idle' | 'syncing' | 'offline' | 'error' | 'blocked';
+export type SyncPhase = 'idle' | 'syncing' | 'offline' | 'error' | 'blocked' | 'held';
 export interface SyncStatus {
   phase: SyncPhase;
   pending: number;
@@ -43,6 +43,8 @@ export class SyncEngine {
   private fulls = new Map<string, Promise<boolean>>();
   // عکس کاملی که سرور ندارد، تا خاموش شدن موتور دوباره پرسیده نمی‌شود.
   private missing = new Set<string>();
+  // سرور تغییر تازه نمی‌پذیرد (اشتراک تمام شده): صف روی دستگاه می‌ماند و گرفتن تغییرهای بقیه ادامه دارد.
+  private held = false;
 
   private store: SyncTarget['store'];
 
@@ -192,6 +194,7 @@ export class SyncEngine {
     this.set({ phase: 'syncing' });
     try {
       await this.store.bindOffice(this.officeId);
+      this.held = false;
       await this.pushAll();
       await this.pullAll();
       // عکس‌ها بعد از مشخصاتشان؛ سنگین‌ترند و نباید جلوی رسیدن فایل‌ها و مشتری‌ها را بگیرند.
@@ -199,7 +202,8 @@ export class SyncEngine {
       await this.thumbsDown();
       const more = await this.fullsDown();
       this.retry = 0;
-      this.set({ phase: 'idle', pending: (await this.store.syncInfo()).pending, lastSync: Date.now() });
+      const pending = (await this.store.syncInfo()).pending;
+      this.set({ phase: this.held && pending ? 'held' : 'idle', pending, lastSync: Date.now() });
       if (more) this.schedule(FULL_PAUSE_MS);
     } catch (e) {
       const offline = e instanceof ApiError && e.code === 'offline';
@@ -215,7 +219,15 @@ export class SyncEngine {
       if (this.stopped) return;
       const { changes, lastSeq } = await this.store.pendingChanges(PUSH_BATCH);
       if (!lastSeq) return;
-      if (changes.length) await this.withToken((t) => this.api.push(t, changes));
+      if (changes.length) {
+        try {
+          await this.withToken((t) => this.api.push(t, changes));
+        } catch (e) {
+          if (!(e instanceof ApiError && e.code === 'subscription')) throw e;
+          this.held = true;
+          return;
+        }
+      }
       // فقط بعد از تأیید سرور پاک می‌شود؛ پاسخ گم‌شده یعنی ارسال دوباره، که سرور بی‌اثر می‌پذیرد.
       await this.store.ackChanges(lastSeq);
       this.set({ pending: Math.max(0, this.status.pending - changes.length) });
@@ -270,9 +282,14 @@ export class SyncEngine {
       if (!batch.length) return;
       const done: string[] = [];
       for (const p of batch) {
+        if (this.held) return;
         try {
           await this.withToken((t) => this.api.uploadPhoto(t, p));
         } catch (e) {
+          if (e instanceof ApiError && e.code === 'subscription') {
+            this.held = true;
+            break;
+          }
           // عکسی که سرور نمی‌پذیرد (خراب یا بیش از اندازه) هر دور دوباره فرستاده نمی‌شود؛ روی همین دستگاه می‌ماند.
           if (!(e instanceof ApiError && e.code === 'bad_photo')) throw e;
         }

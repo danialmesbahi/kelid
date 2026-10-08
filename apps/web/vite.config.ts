@@ -1,8 +1,20 @@
-import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+import { defineConfig, loadEnv, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+export default defineConfig(({ command, mode }) => {
+  // نسخه‌ای که به سرور واقعی وصل است بی کلید عمومی مجوز، همهٔ دفترها را فقط‌خواندنی می‌کند؛ ساختنش را همین‌جا می‌بندیم.
+  const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_');
+  const api = env.VITE_KELID_API_URL ?? '';
+  const remote = api !== '' && api !== 'demo' && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(api);
+  if (command === 'build' && remote && !env.VITE_KELID_LICENSE_KEY) {
+    throw new Error('VITE_KELID_LICENSE_KEY is required when VITE_KELID_API_URL points to a real server (see .env.example).');
+  }
+  return config;
+});
+
+const config = {
   plugins: [
     react(),
     // نصب روی گوشی و کار بدون اینترنت. Service Worker را خود برنامه فقط در وب ثبت می‌کند (main.tsx)، نه در ویندوز.
@@ -45,4 +57,4 @@ export default defineConfig({
   optimizeDeps: { exclude: ['@sqlite.org/sqlite-wasm'] },
   worker: { format: 'es' },
   build: { outDir: 'dist', emptyOutDir: true },
-});
+} satisfies UserConfig;

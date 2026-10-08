@@ -5,6 +5,7 @@ import { accessExpiry } from '../auth/tokens';
 import { withOffice } from '../db';
 import { securityHeaders } from '../headers';
 import { announce, LiveHub } from './live';
+import { requireActive } from '../billing/subscription';
 import { PhotoBlobs, sniffImage, type ImageMime, type PhotoPart } from '../storage/photos';
 
 export const PUSH_MAX = 500;
@@ -109,11 +110,13 @@ const pullSchema = {
  */
 export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, photos = new PhotoBlobs(null) }: AuthOptions & { photos?: PhotoBlobs }) {
   const requireAuth = authGuard(pool, jwtSecret);
+  // بعد از پایان اشتراک فقط خواندن: تغییرهای دستگاه در صفش می‌ماند تا تمدید، چیزی گم نمی‌شود.
+  const writable = [requireAuth, requireActive(pool)];
   const serverClock = new Hlc('srv');
   const hub = new LiveHub(pool, app.log);
   app.addHook('preClose', async () => hub.close());
 
-  app.post('/sync/push', { preHandler: requireAuth, bodyLimit: 8 * 1024 * 1024, schema: pushSchema }, async (req) => {
+  app.post('/sync/push', { preHandler: writable, bodyLimit: 8 * 1024 * 1024, schema: pushSchema }, async (req) => {
     const changes = (req.body as { changes: Change[] }).changes;
     const office = req.auth!.off;
     const phones = req.member!.ownerPhones;
@@ -173,7 +176,7 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, photos
   });
 
   // بایت عکس‌ها جدا از تغییرها: هر عکس یک بار بالا می‌رود و هر دستگاه یک بار پایین می‌آوردش.
-  app.post('/sync/photos/:id', { preHandler: requireAuth, bodyLimit: 4 * 1024 * 1024, schema: photoSchema }, async (req, reply) => {
+  app.post('/sync/photos/:id', { preHandler: writable, bodyLimit: 4 * 1024 * 1024, schema: photoSchema }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const body = req.body as { mime: string; bytes: string; thumb: string };
     const bytes = Buffer.from(body.bytes, 'base64');

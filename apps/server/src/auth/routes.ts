@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, type KeyObject } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { transaction as tx, withOffice, type Db, type Pool } from '../db';
 import { hashPassword, passwordOk, verifyPassword, PASSWORD_MAX } from './password';
@@ -7,6 +7,7 @@ import { RateLimiter } from './rateLimit';
 import { lockTeam, pendingInvite, placeUser, seatsLeft, teamRoutes, type InviteInfo, type Role } from './team';
 import type { SmsSender } from './sms';
 import { kickDevice } from '../sync/live';
+import { licenseOf, readSubscription, requireActive } from '../billing/subscription';
 import { deriveKey, otpCode, otpHash, randomToken, safeEqual, sha256, signAccess, verifyAccess, type AccessClaims } from './tokens';
 
 export const ACCESS_TTL = 15 * 60;
@@ -27,6 +28,8 @@ export interface AuthOptions {
   jwtSecret: string;
   /** فقط توسعه با پیامک console: کد در پاسخ هم می‌آید تا پیش‌نمایش بی‌پیامک کار کند. config در production اجازه نمی‌دهد. */
   devCodes?: boolean;
+  /** امضای مجوز اشتراک که با هر ورود و تمدید به دستگاه می‌رسد؛ بی آن (تست‌های قدیمی) مجوزی فرستاده نمی‌شود. */
+  licenseKey?: KeyObject;
 }
 
 export type { InviteInfo, Role };
@@ -41,6 +44,8 @@ export interface Session {
   office: { id: string; name: string };
   /** دعوت دفتر دیگری برای این شماره، اگر باشد. */
   invite: InviteInfo | null;
+  /** مجوز امضاشدهٔ اشتراک دفتر (billing/license.ts). */
+  license?: string;
 }
 
 declare module 'fastify' {
@@ -75,7 +80,7 @@ export function authGuard(pool: Pool, jwtSecret: string) {
   };
 }
 
-export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, devCodes = false }: AuthOptions) {
+export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, devCodes = false, licenseKey }: AuthOptions) {
   const accessKey = deriveKey(jwtSecret, 'access');
   const otpKey = deriveKey(jwtSecret, 'otp');
   const otpByIp = new RateLimiter(10, 10 * 60_000);
@@ -397,7 +402,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     return reply.status(204).send();
   });
 
-  teamRoutes(app, pool, requireAuth);
+  teamRoutes(app, pool, requireAuth, requireActive(pool));
 
   async function startSession(db: Db, userId: string, officeId: string, name: string, viaOtp: boolean): Promise<Session> {
     const deviceId = randomUUID();
@@ -425,6 +430,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     // نام دفتر پشت RLS است؛ فقط در تراکنشی که دفتر خودش تنظیم شده دیده می‌شود.
     await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
     const o = await db.query<{ name: string }>('select name from offices where id = $1', [officeId]);
+    const sub = licenseKey ? await readSubscription(db, officeId) : null;
     return {
       accessToken: signAccess(accessKey, { sub: userId, off: officeId, dev: deviceId }, ACCESS_TTL),
       accessExpiresIn: ACCESS_TTL,
@@ -433,6 +439,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
       user: { id: userId, name: me?.name ?? '', phone: me?.phone ?? '', hasPassword: me?.has_password ?? false, role: me?.role ?? 'agent', seeOwnerPhones: me?.phones ?? false },
       office: { id: officeId, name: o.rows[0]?.name ?? '' },
       invite,
+      ...(licenseKey && sub ? { license: licenseOf(licenseKey, officeId, sub) } : {}),
     };
   }
 }

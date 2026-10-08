@@ -40,9 +40,11 @@ function createWindow() {
 
   win.once('ready-to-show', () => win.show());
 
-  // لینک‌های بیرونی در مرورگر سیستم باز شوند، نه داخل برنامه.
+  // لینک‌های بیرونی (مثل درگاه پرداخت) در مرورگر سیستم باز شوند، نه داخل برنامه.
+  // نسخهٔ توسعه سرور محلی http دارد؛ نسخهٔ نصبی فقط https.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://')) void shell.openExternal(url);
+    const local = !app.isPackaged && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(url);
+    if (url.startsWith('https://') || local) void shell.openExternal(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => {

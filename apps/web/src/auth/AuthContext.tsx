@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ApiError, apiFromEnv, type AuthApi, type Session } from './api';
 import { clearProfileQueue } from './profile';
+import { adoptLicense, bindLicense, clearLicense } from '../billing/license';
 import { clearSession, loadSession, markJoining, saveSession, type SavedSession } from './storage';
 
 export type AuthStatus = 'off' | 'loading' | 'signedOut' | 'signedIn';
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // توکن تمدید یک‌بارمصرف است: اول ذخیره، بعد استفاده؛ وگرنه بستن برنامه وسط کار یعنی ورود دوباره.
     const keep: SavedSession = { refreshToken: s.refreshToken, deviceId: s.deviceId, user: s.user, office: s.office, invite: s.invite ?? null };
     await saveSession(keep);
+    await adoptLicense(s.license, s.office.id);
     saved.current = keep;
     access.current = { token: s.accessToken, exp: Date.now() + s.accessExpiresIn * 1000 };
     setSession(keep);
@@ -67,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     access.current = null;
     await clearSession();
     clearProfileQueue();
+    clearLicense();
     setSession(null);
     setStatus('signedOut');
   }, []);
@@ -91,7 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!API) return;
     let live = true;
-    void loadSession().then((s) => {
+    void loadSession().then(async (s) => {
+      // وضعیت اشتراک پیش از باز شدن برنامه؛ وگرنه دفتر تمام‌شده یک لحظه قابل ویرایش دیده می‌شد.
+      await bindLicense(s?.office.id ?? null);
       if (!live) return;
       saved.current = s;
       setSession(s);

@@ -7,3 +7,6 @@ export const securityHeaders = {
   'strict-transport-security': 'max-age=31536000; includeSubDomains',
   'cache-control': 'no-store',
 };
+
+/** صفحه‌های HTML سرور (برگشت از درگاه): فقط استایل درون‌خطی، بی اسکریپت، بی فرم، بی قاب. */
+export const pageCsp = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";

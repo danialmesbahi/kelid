@@ -1,7 +1,8 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { authRoutes, type AuthOptions } from './auth/routes';
 import { syncRoutes } from './sync/routes';
-import { securityHeaders } from './headers';
+import { pageCsp, securityHeaders } from './headers';
+import { billingRoutes, type BillingOptions } from './billing/routes';
 import type { Queryable } from './db';
 import { PhotoBlobs } from './storage/photos';
 import { S3, type S3Config } from './storage/s3';
@@ -15,9 +16,11 @@ export interface AppOptions {
   corsOrigins?: string[];
   /** فضای ذخیره‌سازی عکس‌ها؛ بی آن، بایت عکس‌ها در خود دیتابیس می‌مانند (توسعه و تست). */
   s3?: S3Config | null;
+  /** اشتراک و پرداخت؛ کنار auth ثبت می‌شود. */
+  billing?: Omit<BillingOptions, 'pool' | 'jwtSecret'>;
 }
 
-export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [], s3 = null }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [], s3 = null, billing }: AppOptions): FastifyInstance {
   const app = Fastify({
     trustProxy,
     bodyLimit: 1_048_576,
@@ -29,7 +32,9 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
   });
 
   app.addHook('onSend', async (_req, reply) => {
-    reply.headers(securityHeaders);
+    // صفحه‌های HTML برگشت از درگاه استایل درون‌خطی دارند؛ هیچ اسکریپتی هیچ‌جا اجرا نمی‌شود.
+    const html = String(reply.getHeader('content-type') ?? '').startsWith('text/html');
+    reply.headers(html ? { ...securityHeaders, 'content-security-policy': pageCsp } : securityHeaders);
   });
 
   // فقط مبدأهای فهرست‌شده؛ بقیهٔ سایت‌ها پاسخ را نمی‌توانند بخوانند.
@@ -72,7 +77,8 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
   app.decorateRequest('auth', null);
   app.decorateRequest('member', null);
   if (auth) {
-    void app.register(authRoutes, auth);
+    void app.register(authRoutes, { ...auth, licenseKey: billing?.licenseKey });
+    if (billing) void app.register(billingRoutes, { ...billing, pool: auth.pool, jwtSecret: auth.jwtSecret });
     void app.register(syncRoutes, { ...auth, photos: new PhotoBlobs(s3 ? new S3(s3) : null) });
   }
 

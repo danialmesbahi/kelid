@@ -24,6 +24,8 @@ import { Greeting } from './auth/Greeting';
 import { Login } from './auth/Login';
 import { OfficeSwitch } from './auth/OfficeSwitch';
 import { takeJoining } from './auth/storage';
+import { PlansPage } from './billing/PlansPage';
+import { ReadOnlyToast, WriteGate } from './billing/LicenseUi';
 
 type Prefs = ReturnType<typeof usePrefs>;
 const PrefsContext = createContext<Prefs | null>(null);
@@ -50,12 +52,14 @@ const router = createHashRouter([
           { path: 'calendar', element: <CalendarPage /> },
           { path: 'deals', element: <DealsPage /> },
           { path: 'settings', element: <SettingsPage /> },
+          { path: 'plans', element: <PlansPage /> },
         ],
       },
-      { path: '/add', element: <AddPage /> },
-      { path: '/clients/new', element: <NewClientPage /> },
-      { path: '/clients/:id/edit', element: <EditClientPage /> },
-      { path: '/files/:id/edit', element: <EditListingPage /> },
+      // فرم‌های ثبت و ویرایش بعد از پایان اشتراک به جای فرمی که ذخیره نمی‌شود، راه تمدید را نشان می‌دهند.
+      { path: '/add', element: <WriteGate><AddPage /></WriteGate> },
+      { path: '/clients/new', element: <WriteGate><NewClientPage /></WriteGate> },
+      { path: '/clients/:id/edit', element: <WriteGate><EditClientPage /></WriteGate> },
+      { path: '/files/:id/edit', element: <WriteGate><EditListingPage /></WriteGate> },
       { path: '/show', element: <ShowPage /> },
     ],
   },
@@ -76,6 +80,8 @@ export function App() {
     </PrefsContext.Provider>
   );
 }
+
+const goPlans = (to: string) => void router.navigate(to, { viewTransition: true });
 
 type OfficeCheck = { office: string; state: 'ok' } | { office: string; state: 'other'; pending: number };
 
@@ -125,6 +131,7 @@ function Gate({ welcomed }: { welcomed: boolean }) {
     <>
       {ready && <RouterProvider router={router} />}
       {ready && status === 'signedIn' && <SyncRunner />}
+      {ready && status === 'signedIn' && <ReadOnlyToast go={goPlans} />}
       {status === 'signedIn' && check?.state === 'other' && !showLogin && <OfficeSwitch pending={check.pending} onCleared={recheck} />}
       {showLogin && (
         <Login

@@ -61,6 +61,8 @@ export function syncText(s: SyncStatus): { label: string; tone: 'ok' | 'busy' | 
       return { label: `همگام نشد؛ دوباره امتحان می‌شود${queued}`, tone: 'warn' };
     case 'blocked':
       return { label: 'این دستگاه مال دفتر دیگری است', tone: 'bad' };
+    case 'held':
+      return { label: `${toFaDigits(s.pending)} تغییر تا تمدید اشتراک همین‌جا می‌ماند`, tone: 'warn' };
     default:
       return { label: s.pending ? `${toFaDigits(s.pending)} تغییر در صف` : 'همگام با دفتر', tone: 'ok' };
   }
