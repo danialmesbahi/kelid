@@ -14,7 +14,8 @@ body{margin:0}
   font-family:'Vazirmatn',system-ui,sans-serif;font-size:15px;line-height:1.6;color:var(--ink);background:var(--bg);
   -webkit-font-smoothing:antialiased;color-scheme:light
 }
-.app.dark{
+/* برگهٔ چاپی همیشه روشن است؛ متن روشنِ پوستهٔ تیره روی کاغذ سفید دیده نمی‌شود. */
+@media screen{.app.dark{
   --bg:#0B0C0B;--paper:#141614;--paper2:#181A18;--sunk:#1D201D;--line:#262926;--line2:#383C38;
   --ink:#ECEDE9;--ink2:#C9CDC8;--mute:#9DA39E;--faint:#858B86;
   --pri:#3A9A7F;--pri-ink:#04110D;--pri-tint:#15302A;--pri-text:#7DD0B5;
@@ -24,7 +25,7 @@ body{margin:0}
   --sale:#1C6A55;--rent:#9C6C22;--full:#3B5B8A;
   --sh:0 1px 2px rgba(0,0,0,.4);--sh-lg:0 30px 60px -30px rgba(0,0,0,.85);
   color-scheme:dark
-}
+}}
 .app a{color:inherit;text-decoration:none}
 .app button,.app input,.app select,.app textarea{font:inherit;color:inherit}
 .app button{cursor:pointer}

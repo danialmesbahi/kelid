@@ -45,8 +45,10 @@ export function listingTitle(l: Listing): string {
 
 export function floorLabel(l: Listing): string {
   if (l.floor === undefined) return '—';
-  if (l.floorsTotal) return `${toFaDigits(l.floor)} از ${toFaDigits(l.floorsTotal)}`;
-  return toFaDigits(l.floor);
+  // طبقهٔ صفر را مشاور و مشتری «همکف» می‌گویند.
+  const floor = l.floor === 0 ? 'همکف' : toFaDigits(l.floor);
+  if (l.floorsTotal) return `${floor} از ${toFaDigits(l.floorsTotal)}`;
+  return floor;
 }
 
 /** ساعت به وقت تهران، مثل ۱۰:۳۰ */

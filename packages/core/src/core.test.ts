@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatPlaque, formatToman, matchListing, normalizeForSearch, filterListings, seedListings, seedClients, newId } from './index';
+import { floorLabel, formatPlaque, formatToman, matchListing, normalizeForSearch, filterListings, seedListings, seedClients, newId } from './index';
 
 describe('persian', () => {
   it('normalizes spacing, letters and digits for search', () => {
@@ -19,6 +19,13 @@ describe('format', () => {
     expect(formatToman(28_000_000_000)).toBe('۲۸ میلیارد');
     expect(formatToman(2_200_000_000)).toBe('۲٫۲ میلیارد');
     expect(formatToman(800_000_000)).toBe('۸۰۰ میلیون');
+  });
+  it('calls floor zero همکف', () => {
+    const l = seedListings[0]!;
+    expect(floorLabel({ ...l, floor: 0, floorsTotal: undefined })).toBe('همکف');
+    expect(floorLabel({ ...l, floor: 0, floorsTotal: 4 })).toBe('همکف از ۴');
+    expect(floorLabel({ ...l, floor: 3, floorsTotal: undefined })).toBe('۳');
+    expect(floorLabel({ ...l, floor: undefined })).toBe('—');
   });
 });
 

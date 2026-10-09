@@ -4,6 +4,7 @@ import { getSyncTarget, StoreProvider } from './data';
 import { usePrefs } from './prefs';
 import { Shell } from './layout/Shell';
 import { ScrollMemory } from './layout/ScrollMemory';
+import { RouteError } from './layout/RouteError';
 import { TodayPage } from './pages/Today';
 import { FilesPage } from './pages/Files';
 import { FileDetailPage } from './pages/FileDetail';
@@ -41,19 +42,27 @@ const router = createHashRouter([
   {
     // همهٔ صفحه‌ها زیر یک لایه تا جای اسکرول بین آن‌ها درست مدیریت شود
     element: <ScrollMemory />,
+    // نشانی ناشناخته یا خطای فرم‌های تمام‌صفحه: صفحهٔ فارسی به جای صفحهٔ انگلیسی پیش‌فرض.
+    errorElement: <RouteError full />,
     children: [
       {
         path: '/',
         element: <Shell />,
         children: [
-          { index: true, element: <TodayPage /> },
-          { path: 'files', element: <FilesPage /> },
-          { path: 'files/:id', element: <FileDetailPage /> },
-          { path: 'clients', element: <ClientsPage /> },
-          { path: 'calendar', element: <CalendarPage /> },
-          { path: 'deals', element: <DealsPage /> },
-          { path: 'settings', element: <SettingsPage /> },
-          { path: 'plans', element: <PlansPage /> },
+          {
+            // خطای یک صفحه فقط جای همان صفحه را می‌گیرد و نوار کناری سر جایش می‌ماند.
+            errorElement: <RouteError />,
+            children: [
+              { index: true, element: <TodayPage /> },
+              { path: 'files', element: <FilesPage /> },
+              { path: 'files/:id', element: <FileDetailPage /> },
+              { path: 'clients', element: <ClientsPage /> },
+              { path: 'calendar', element: <CalendarPage /> },
+              { path: 'deals', element: <DealsPage /> },
+              { path: 'settings', element: <SettingsPage /> },
+              { path: 'plans', element: <PlansPage /> },
+            ],
+          },
         ],
       },
       // فرم‌های ثبت و ویرایش بعد از پایان اشتراک به جای فرمی که ذخیره نمی‌شود، راه تمدید را نشان می‌دهند.

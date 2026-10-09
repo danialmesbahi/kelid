@@ -29,8 +29,10 @@ export function ListingCardContent({ l, cover, badge, flyName }: { l: Listing; c
         <span className="pcard-t">{listingTitle(l)}</span>
         <span className="pcard-loc">
           <Icon name="pin" size="s" />
-          {l.neighborhood}
-          {l.street ? `، ${l.street}` : ''}
+          <span>
+            {l.neighborhood}
+            {l.street ? `، ${l.street}` : ''}
+          </span>
         </span>
         <span className="pcard-facts">
           <b className="num">{toFaDigits(l.area)}</b> متر · <b className="num">{toFaDigits(l.bedrooms)}</b> خواب

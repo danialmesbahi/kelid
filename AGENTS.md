@@ -28,7 +28,7 @@ apps/desktop    Electron 44 shell: main.ts (window, single-instance), database.t
 apps/server     Phase 2 API: Fastify 5 + PostgreSQL 16 with row-level security per office (app.ts routes, db.ts withOffice, migrations.ts)
 packages/core   Pure TS domain: model, Persian text/number utils, formatting, client↔listing matching, KelidStore + SqlStore + schema
 packages/ui     Design system: kelid.css (tokens/components), motion.css (animation), icons.ts, components.tsx (Icon, Plaque, Cover…)
-docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md
+docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md, DEPLOY.md (production server checklist)
 ```
 
 ## Commands (npm workspaces — do not introduce pnpm/yarn)
