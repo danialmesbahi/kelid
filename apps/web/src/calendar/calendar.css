@@ -20,7 +20,8 @@
 }
 .cal-d:hover { background: var(--sunk); }
 .cal-d.out { color: var(--faint); }
-.cal-d.fri:not(.out) { color: var(--bad); }
+/* جمعهٔ انتخاب‌شده رنگ متن دکمهٔ پر را می‌گیرد؛ قرمز روی سبز خوانده نمی‌شود. */
+.cal-d.fri:not(.out):not([aria-pressed="true"]) { color: var(--bad); }
 .cal-d.today { box-shadow: inset 0 0 0 2px var(--pri); font-weight: 700; }
 .cal-d[aria-pressed="true"] { background: var(--pri); color: var(--pri-ink); font-weight: 700; }
 .cal-dots { display: flex; gap: 3px; height: 5px; }

@@ -84,10 +84,18 @@ export function FilesPage() {
 
       <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'stretch' }}>
         <section aria-label="نتایج" style={{ flex: '999 1 520px', minWidth: 0 }}>
-          {list.length === 0 && (
+          {/* دفتر خالی راه ثبت اولین فایل را می‌خواهد؛ فیلتر بی‌نتیجه فقط راه برگشت به همه را. */}
+          {list.length === 0 && data.all.length === 0 && (
             <div className="col" style={{ padding: '64px 16px', textAlign: 'center', gap: 6, alignItems: 'center' }}>
-              <span className="t2">فایلی با این مشخصات نیست</span>
+              <span className="t2">هنوز فایلی ثبت نشده</span>
+              <span className="mute sm">هر ملکی که برای فروش، اجاره یا رهن کامل می‌گیرید اینجا ثبت کنید تا پلاک خودش را بگیرد.</span>
               <Link viewTransition className="btn btn-p" to="/add" style={{ marginTop: 10 }}>ثبت اولین فایل</Link>
+            </div>
+          )}
+          {list.length === 0 && deal !== 'all' && data.all.length > 0 && (
+            <div className="col" style={{ padding: '64px 16px', textAlign: 'center', gap: 6, alignItems: 'center' }}>
+              <span className="t2">فایل {dealLabel[deal]} ندارید</span>
+              <button type="button" className="btn btn-g" onClick={() => setDeal('all')} style={{ marginTop: 10 }}>نمایش همهٔ فایل‌ها</button>
             </div>
           )}
 

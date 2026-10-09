@@ -85,7 +85,8 @@ export function SettingsPage() {
             options={[
               { value: 'light', label: <><Icon name="today" size="s" />روشن</> },
               { value: 'dark', label: <><Icon name="moon" size="s" />تیره</> },
-              { value: 'auto', label: <><Icon name="pc" size="s" />هماهنگ با ویندوز</> },
+              // در وب و گوشی «ویندوز» درست نیست؛ پوسته از خود دستگاه پیروی می‌کند.
+              { value: 'auto', label: <><Icon name="pc" size="s" />{window.kelid ? 'هماهنگ با ویندوز' : 'هماهنگ با دستگاه'}</> },
             ]}
           />
         </div>

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useViewTransitionState } from 'react-router';
-import { CheckBox, Icon, Plaque, type IconName } from '@kelid/ui';
-import { formatLongDate, formatTime, toFaDigits, type Listing, type Visit } from '@kelid/core';
+import { CheckBox, Icon, Plaque } from '@kelid/ui';
+import { formatLongDate, formatTime, toFaDigits, type Client, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { todayQuery } from '../queries';
 import { useFirstVisit } from '../layout/useFirstVisit';
@@ -13,11 +13,6 @@ import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePrefsContext } from '../App';
 import { callName } from '../prefs';
 
-const ACTION_ICON: Record<'sms' | 'call' | 'camera', { icon: IconName; label: string }> = {
-  sms: { icon: 'msg', label: 'پیامک' },
-  call: { icon: 'phone', label: 'تماس' },
-  camera: { icon: 'cam', label: 'دوربین' },
-};
 
 function greeting(d: Date): string {
   const h = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tehran' }).format(d));
@@ -85,7 +80,7 @@ export function TodayPage() {
             </div>
             {visits.length === 0 && <p className="mute">برای امروز قراری ثبت نشده.</p>}
             {visits.map((v) => (
-              <AgendaRow key={v.id} v={v} listing={v.listingId ? byId.get(v.listingId) : undefined} isNext={v.id === nextVisit?.id} showNow={v.id === nextVisit?.id} onEdit={() => setDialog({ visit: v })} />
+              <AgendaRow key={v.id} v={v} listing={v.listingId ? byId.get(v.listingId) : undefined} client={v.clientId ? clients.find((c) => c.id === v.clientId) : undefined} isNext={v.id === nextVisit?.id} showNow={v.id === nextVisit?.id} onEdit={() => setDialog({ visit: v })} />
             ))}
           </section>
 
@@ -104,12 +99,6 @@ export function TodayPage() {
                   <span className="sb" style={{ textDecoration: t.done ? 'line-through' : 'none' }}>{t.title}</span>
                   <span className="xs mute">{t.detail}</span>
                 </span>
-                {t.action && (
-                  <button type="button" className="btn btn-s" style={{ height: 36, padding: '0 12px', fontSize: 14 }}>
-                    <Icon name={ACTION_ICON[t.action].icon} size="s" />
-                    {ACTION_ICON[t.action].label}
-                  </button>
-                )}
                 <button
                   type="button"
                   className="ib ghost"
@@ -135,11 +124,19 @@ export function TodayPage() {
           <div className="rw" style={{ gap: 12 }}>
             <h2 id="nf" className="t2">تازه‌ترین فایل‌ها</h2>
             <span className="sp" style={{ height: 1, background: 'var(--line)' }} />
-            <Link viewTransition className="lnk sm" to="/files" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>همهٔ فایل‌ها</Link>
+            {recent.length > 0 && <Link viewTransition className="lnk sm" to="/files" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>همهٔ فایل‌ها</Link>}
           </div>
-          <div className={first ? 'hgrid stagger' : 'hgrid'}>
-            {recent.map((l) => <RecentCard key={l.id} l={l} cover={coverUrl(thumbs, l.id)} />)}
-          </div>
+          {/* دفتر تازه: به جای جای خالی، قدم بعدی را نشان بده. */}
+          {recent.length === 0 ? (
+            <div className="rw" style={{ gap: 12, flexWrap: 'wrap', padding: '18px 20px', border: '1px dashed var(--line2)', borderRadius: 16 }}>
+              <span className="mute sp" style={{ minWidth: 200 }}>هنوز فایلی ثبت نکرده‌اید. اولین ملک را ثبت کنید تا اینجا دیده شود.</span>
+              <Link viewTransition className="btn btn-p" to="/add"><Icon name="plus" size="s" thick />ثبت اولین فایل</Link>
+            </div>
+          ) : (
+            <div className={first ? 'hgrid stagger' : 'hgrid'}>
+              {recent.map((l) => <RecentCard key={l.id} l={l} cover={coverUrl(thumbs, l.id)} />)}
+            </div>
+          )}
         </section>
       </div>
       {dialog && <VisitDialog visit={dialog.visit} onClose={() => setDialog(null)} />}
@@ -156,7 +153,7 @@ function Stat({ label, value, border }: { label: string; value: string; border?:
   );
 }
 
-function AgendaRow({ v, listing, isNext, showNow, onEdit }: { v: Visit; listing?: Listing; isNext: boolean; showNow: boolean; onEdit: () => void }) {
+function AgendaRow({ v, listing, client, isNext, showNow, onEdit }: { v: Visit; listing?: Listing; client?: Client; isNext: boolean; showNow: boolean; onEdit: () => void }) {
   return (
     <div>
       {showNow && (
@@ -181,9 +178,12 @@ function AgendaRow({ v, listing, isNext, showNow, onEdit }: { v: Visit; listing?
             آماده‌سازی نمایش
           </Link>
         )}
-        <button type="button" className="ib" aria-label="تماس" style={{ width: 40, height: 40 }}>
-          <Icon name="phone" size="s" />
-        </button>
+        {/* تماس با مشتریِ همین قرار؛ قرار بدون مشتری دکمه‌ای ندارد که کاری نکند. */}
+        {client?.phone && (
+          <a className="ib" href={`tel:${client.phone}`} aria-label={`تماس با ${client.name}`} style={{ width: 40, height: 40 }}>
+            <Icon name="phone" size="s" />
+          </a>
+        )}
       </div>
     </div>
   );

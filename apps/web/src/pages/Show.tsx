@@ -5,6 +5,7 @@ import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toF
 import { useQuery } from '../data';
 import { FullPhotoLayer } from '../photos/Gallery';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
+import { usePrefsContext } from '../App';
 
 /**
  * حالت نمایش به مشتری: تمام‌صفحه، بدون اطلاعات مالک.
@@ -18,6 +19,7 @@ export function ShowPage() {
   const thumbs = useCoverThumbs();
   const [i, setI] = useState(0);
   const [liked, setLiked] = useState<Record<string, boolean>>({});
+  const officeName = usePrefsContext().officeName.trim();
 
   const list = all ? (ids.length ? ids.map((id) => all.find((l) => l.id === id)).filter((l) => l !== undefined) : all.slice(0, 5)) : [];
   const n = list.length;
@@ -62,7 +64,8 @@ export function ShowPage() {
 
       <header className="rw" style={{ position: 'relative', flexWrap: 'wrap', gap: 14, padding: '24px 44px' }}>
         <span className="plq" style={{ height: 32, padding: '0 12px', fontSize: 15 }}>کلید</span>
-        <span className="sm" style={{ color: 'rgba(255,255,255,.75)' }}>املاک [نام دفتر]</span>
+        {/* این صفحه جلوی مشتری است: نام واقعی دفتر، یا هیچ (نه متن نمونه). */}
+        {officeName && <span className="sm" style={{ color: 'rgba(255,255,255,.75)' }}>{officeName}</span>}
         <span className="sp" />
         <span className="rw xs" style={{ gap: 8, height: 40, padding: '0 14px', borderRadius: 99, background: 'rgba(18,20,18,.55)', border: '1px solid rgba(255,255,255,.14)' }}>
           <Icon name="lock" size="s" />

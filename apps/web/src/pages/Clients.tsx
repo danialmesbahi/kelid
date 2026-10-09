@@ -17,13 +17,22 @@ export function initial(name: string): string {
   return name.replace(/^(آقای|خانم|خانوادهٔ)\s*/, '').charAt(0);
 }
 
-function needSummary(c: Client): string {
+function needSummary(c: Client, short = false): string {
   const n = c.need;
   const parts = [dealLabel[n.deal]];
   if (n.bedroomsMin) parts.push(`${toFaDigits(n.bedroomsMin)} خواب`);
   if (n.neighborhoods[0]) parts.push(n.neighborhoods[0]);
-  if (n.budgetMax) parts.push(`تا ${formatToman(n.budgetMax, true)}`);
+  if (n.budgetMax) parts.push(`تا ${formatToman(n.budgetMax, short)}`);
   return parts.join(' · ');
+}
+
+// بازهٔ نیمه‌کاره («— تا —») برای کاربر معنایی ندارد؛ هر حالت جملهٔ خودش را دارد.
+function areaText(c: Client): string {
+  const { areaMin: lo, areaMax: hi } = c.need;
+  if (lo && hi) return `${toFaDigits(lo)} تا ${toFaDigits(hi)} متر`;
+  if (lo) return `از ${toFaDigits(lo)} متر`;
+  if (hi) return `تا ${toFaDigits(hi)} متر`;
+  return 'فرقی ندارد';
 }
 
 function budgetText(c: Client): string {
@@ -76,6 +85,12 @@ export function ClientsPage() {
           <Link viewTransition className="btn btn-p" to="/clients/new" style={{ marginTop: 10 }}>ثبت اولین مشتری</Link>
         </div>
       )}
+      {data.clients.length > 0 && list.length === 0 && (
+        <div className="col" style={{ padding: '64px 16px', textAlign: 'center', gap: 6, alignItems: 'center' }}>
+          <span className="t2">{kind === 'buy' ? 'مشتری خرید ندارید' : 'مشتری اجاره ندارید'}</span>
+          <button type="button" className="btn btn-g" onClick={() => setKind('all')} style={{ marginTop: 10 }}>نمایش همهٔ مشتری‌ها</button>
+        </div>
+      )}
 
       <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap' }}>
         {showList && <section aria-label="فهرست مشتری‌ها" className="col" style={{ flex: '1 1 340px', minWidth: 0, borderLeft: '1px solid var(--line)', padding: '12px 10px 24px', gap: 2 }}>
@@ -117,7 +132,7 @@ export function ClientsPage() {
               <div className="facts" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
                 <div><small>معامله</small><b>{dealLabel[cur.need.deal]}</b></div>
                 <div><small>محله‌ها</small><b style={{ fontSize: 15 }}>{cur.need.neighborhoods.join('، ') || 'فرقی ندارد'}</b></div>
-                <div><small>متراژ</small><b>{cur.need.areaMin ? toFaDigits(cur.need.areaMin) : '—'} تا {cur.need.areaMax ? toFaDigits(cur.need.areaMax) : '—'}</b></div>
+                <div><small>متراژ</small><b>{areaText(cur)}</b></div>
                 <div><small>بودجه</small><b style={{ fontSize: cur.need.rentMax ? 15 : undefined }}>{budgetText(cur)}</b></div>
               </div>
             </section>
@@ -172,7 +187,7 @@ const ClientRow = memo(function ClientRow({ c, on, onPick }: { c: Client; on: bo
       <span className={`av ${on ? 'on' : ''}`}>{initial(c.name)}</span>
       <span className="col sp" style={{ minWidth: 0, lineHeight: 1.5 }}>
         <span className="sb">{c.name}</span>
-        <span className="xs mute" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{needSummary(c)}</span>
+        <span className="xs mute" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{needSummary(c, true)}</span>
       </span>
       {c.waitingForNews && <span className="dot" style={{ background: 'var(--brass)' }} aria-label="منتظر خبر" />}
     </button>

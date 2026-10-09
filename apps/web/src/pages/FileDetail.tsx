@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Icon, Plaque, Segmented } from '@kelid/ui';
-import { dealLabel, floorLabel, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits } from '@kelid/core';
+import { dealLabel, floorLabel, formatPlaque, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
+import { usePrefsContext } from '../App';
 import { useMember } from '../auth/AuthContext';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
@@ -19,6 +20,7 @@ export function FileDetailPage() {
   const store = useStore();
   const toast = useToast();
   const navigate = useNavigate();
+  const { officeName } = usePrefsContext();
   const data = useQuery(`file:${id}`, async (s) => ({ l: await s.getListing(id), clients: await s.listClients() }), () => cachedListing(id));
 
   if (!data) return <PageSkeleton aside />;
@@ -39,7 +41,7 @@ export function FileDetailPage() {
 
   return (
     <div className="bd" style={{ paddingTop: 22 }}>
-      <div className="rw" style={{ flexWrap: 'wrap', gap: 10 }}>
+      <div className="rw np" style={{ flexWrap: 'wrap', gap: 10 }}>
         <Link viewTransition className="btn btn-g" to="/files" style={{ padding: '0 12px' }}><Icon name="back" size="s" />فایل‌ها</Link>
         <span className="sp" />
         <button
@@ -56,7 +58,7 @@ export function FileDetailPage() {
         </button>
         <button type="button" className="ib ghost" aria-label="چاپ برگهٔ فایل" onClick={() => window.print()}><Icon name="print" /></button>
         <Link viewTransition className="btn btn-s" to={`/files/${l.id}/edit`}><Icon name="edit" size="s" />ویرایش</Link>
-        <button type="button" className="btn btn-s"><Icon name="send" size="s" />ارسال برای مشتری</button>
+        <button type="button" className="btn btn-s" onClick={() => void shareListing(l, officeName, toast)}><Icon name="send" size="s" />ارسال برای مشتری</button>
         <button type="button" className="btn btn-s" onClick={() => setVisitOpen(true)}><Icon name="cal" size="s" />ثبت بازدید</button>
         <Link viewTransition className="btn btn-p" to={`/show?f=${l.id}`}><Icon name="show" size="s" />نمایش به مشتری</Link>
       </div>
@@ -88,7 +90,8 @@ export function FileDetailPage() {
         </Link>
       </div>
 
-      <PhotoGallery listing={l} />
+      {/* بدون عکس، جای خالی و «عکس‌ها را اینجا بکشید» روی برگهٔ چاپی معنایی ندارد. */}
+      <div className={l.photoCount ? undefined : 'np'}><PhotoGallery listing={l} /></div>
 
       {/* هر بار که پرونده باز می‌شود، جزئیات پشت عکسِ در حال پرواز آرام بالا می‌آیند */}
       <div className="arrive" style={{ display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start' }}>
@@ -112,7 +115,7 @@ export function FileDetailPage() {
               </ul>
             </section>
           )}
-          <section aria-labelledby="ab" className="col" style={{ gap: 10 }}>
+          <section aria-labelledby="ab" className={l.description ? 'col' : 'col np'} style={{ gap: 10 }}>
             <h2 id="ab" className="t2">دربارهٔ این ملک</h2>
             <p className="mute" style={{ margin: 0, fontSize: 16, lineHeight: 2 }}>{l.description ?? 'توضیحی ثبت نشده. نورگیری، وضعیت ساختمان و دسترسی‌ها را اینجا بنویسید.'}</p>
           </section>
@@ -125,7 +128,7 @@ export function FileDetailPage() {
             <span className="mute">{secondaryPrice(l)}{l.negotiable ? ' · قابل مذاکره' : ''}</span>
           </section>
 
-          <section aria-labelledby="ow" className="deep col" style={{ padding: '22px 24px', gap: 14 }}>
+          <section aria-labelledby="ow" className="deep col np" style={{ padding: '22px 24px', gap: 14 }}>
             <div className="rw" style={{ justifyContent: 'space-between' }}>
               <h2 id="ow" className="t3" style={{ color: 'var(--deep-mute)', fontWeight: 600 }}>مالک</h2>
               <span className="rw xs" style={{ gap: 6, color: 'var(--brass)' }}><Icon name="lock" size="s" />فقط برای دفتر</span>
@@ -147,7 +150,7 @@ export function FileDetailPage() {
           </section>
 
           {matches.length > 0 && (
-            <section aria-labelledby="mc" className="card col" style={{ padding: '18px 20px', gap: 4 }}>
+            <section aria-labelledby="mc" className="card col np" style={{ padding: '18px 20px', gap: 4 }}>
               <h2 id="mc" className="t3" style={{ marginBottom: 6 }}>مشتری‌های مناسب</h2>
               {matches.map(({ c, m }) => (
                 <Link key={c.id} viewTransition className="row hov" to={`/clients?c=${c.id}`} style={{ padding: 8 }}>
@@ -163,4 +166,41 @@ export function FileDetailPage() {
       {visitOpen && <VisitDialog preset={{ listingId: l.id }} onClose={() => setVisitOpen(false)} />}
     </div>
   );
+}
+
+/** متن کوتاه فایل برای مشتری (بدون اطلاعات مالک)؛ برای پیام‌رسان‌ها و پیامک. */
+function listingShareText(l: Listing, officeName: string): string {
+  const facts = [`${toFaDigits(l.area)} متر`, `${toFaDigits(l.bedrooms)} خواب`];
+  if (l.floor !== undefined) facts.push(`طبقهٔ ${floorLabel(l)}`);
+  const second = secondaryPrice(l);
+  return [
+    `${listingTitle(l)} — ${dealLabel[l.deal]}`,
+    `${l.neighborhood}${l.street ? `، ${l.street}` : ''}`,
+    facts.join(' · '),
+    `${headlinePrice(l)} تومان${second ? ` · ${second}` : ''}${l.negotiable ? ' · قابل مذاکره' : ''}`,
+    l.features.length ? `امکانات: ${l.features.join('، ')}` : '',
+    `کد فایل: ${formatPlaque(l.plaque)}`,
+    officeName.trim(),
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+// گوشی: پنجرهٔ اشتراک خود سیستم (پیام‌رسان، پیامک…). کامپیوتر: متن کپی می‌شود تا هر جا بچسبانند.
+async function shareListing(l: Listing, officeName: string, toast: ReturnType<typeof useToast>) {
+  const text = listingShareText(l, officeName);
+  if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+    try {
+      await navigator.share({ title: listingTitle(l), text });
+      return;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('مشخصات فایل کپی شد؛ در پیام‌رسان یا پیامک بچسبانید');
+  } catch {
+    toast('کپی نشد؛ دوباره امتحان کنید');
+  }
 }
