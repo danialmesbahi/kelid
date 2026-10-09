@@ -1108,5 +1108,60 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(detail.members).toHaveLength(1);
       await a.close();
     });
+
+    it('collects feedback and grouped app errors per office, shows them to the vendor, and flags pilot offices', async () => {
+      const a = vApp();
+      const s1 = await signUp(a, freshPhone());
+      const s2 = await signUp(a, freshPhone());
+      const fid = randomUUID();
+      const fb = { id: fid, kind: 'problem', body: '  دکمهٔ ذخیره روی گوشی دیده نمی‌شود  ', page: '/add', appVersion: '0.3.0', platform: 'pwa' };
+      expect((await post(a, '/beta/feedback', fb, s1.accessToken)).statusCode).toBe(204);
+      // دوباره فرستادن همان نظر (پاسخ گم‌شده) تکراری نمی‌سازد
+      expect((await post(a, '/beta/feedback', fb, s1.accessToken)).statusCode).toBe(204);
+      expect((await post(a, '/beta/feedback', { ...fb, id: randomUUID(), kind: 'spam' }, s1.accessToken)).statusCode).toBe(400);
+      expect((await post(a, '/beta/feedback', { ...fb, id: randomUUID() })).statusCode).toBe(401);
+
+      const boom = (file: string) => ({ message: 'Cannot read properties of undefined (reading 12)', stack: `TypeError: x\n    at save (http://localhost:5173/assets/index-${file}.js:10:20)`, page: '/add', platform: 'web' });
+      expect((await post(a, '/beta/errors', { errors: [boom('Ab12Cd34'), boom('Ab12Cd34')] }, s1.accessToken)).statusCode).toBe(204);
+      // نسخهٔ دیگر برنامه (hash دیگر) و دفتر دیگر: همان باگ
+      expect((await post(a, '/beta/errors', { errors: [{ ...boom('Zz99Yy88'), count: 3 }] }, s2.accessToken)).statusCode).toBe(204);
+      expect((await post(a, '/beta/errors', { errors: [] }, s1.accessToken)).statusCode).toBe(400);
+
+      // هر دفتر فقط مال خودش را می‌بیند
+      const own = await withOffice(app, s2.office.id, async (db) => ({
+        feedback: (await db.query('select 1 from feedback')).rowCount,
+        errors: (await db.query('select count from client_errors')).rows,
+      }));
+      expect(own).toEqual({ feedback: 0, errors: [{ count: 3 }] });
+
+      const token = await login(a, await newAdmin());
+      const list = (await get(a, '/admin/feedback', token)).json().feedback;
+      const mine = list.find((f: { id: string }) => f.id === fid);
+      expect(mine).toMatchObject({ kind: 'problem', body: 'دکمهٔ ذخیره روی گوشی دیده نمی‌شود', page: '/add', platform: 'pwa', office: { id: s1.office.id }, user: { name: 'علی رضایی' } });
+      expect(list.filter((f: { id: string }) => f.id === fid)).toHaveLength(1);
+      expect((await post(a, `/admin/feedback/${s1.office.id}/${fid}`, { done: true }, token)).statusCode).toBe(204);
+      expect((await get(a, '/admin/feedback', token)).json().feedback.some((f: { id: string }) => f.id === fid)).toBe(false);
+      expect((await get(a, '/admin/feedback?status=done', token)).json().feedback.some((f: { id: string }) => f.id === fid)).toBe(true);
+      expect((await post(a, `/admin/feedback/${s2.office.id}/${fid}`, { done: true }, token)).statusCode).toBe(404);
+
+      const errs = (await get(a, '/admin/errors', token)).json().errors;
+      const bug = errs.find((e: { recent: Array<{ id: string }> }) => e.recent.some((o) => o.id === s1.office.id));
+      expect(bug).toMatchObject({ count: 5, offices: 2, page: '/add' });
+      expect((await post(a, `/admin/errors/${bug.fingerprint}`, { resolved: true }, token)).statusCode).toBe(204);
+      expect((await get(a, '/admin/errors', token)).json().errors.some((e: { fingerprint: string }) => e.fingerprint === bug.fingerprint)).toBe(false);
+      // دوباره پیش آمد ⇒ دوباره باز
+      await post(a, '/beta/errors', { errors: [boom('Qq11Ww22')] }, s1.accessToken);
+      expect((await get(a, '/admin/errors', token)).json().errors.find((e: { fingerprint: string }) => e.fingerprint === bug.fingerprint)).toMatchObject({ offices: 1 });
+
+      // پرچم دفتر آزمایشی
+      const pilot = await post(a, `/admin/offices/${s1.office.id}/pilot`, { pilot: true }, token);
+      expect(pilot.json().office.pilot).toBe(true);
+      expect(pilot.json().notes[0].body).toMatch(/آزمایشی/);
+      const pilots = (await get(a, '/admin/offices?pilot=true', token)).json().offices.map((o: { id: string }) => o.id);
+      expect(pilots).toContain(s1.office.id);
+      expect(pilots).not.toContain(s2.office.id);
+      expect((await get(a, '/admin/stats', token)).json()).toMatchObject({ pilot: expect.any(Number), openFeedback: expect.any(Number), openErrors: expect.any(Number) });
+      await a.close();
+    });
   });
 });

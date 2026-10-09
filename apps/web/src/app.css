@@ -205,3 +205,4 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
 
 /* تازه‌های نسخهٔ برنامهٔ ویندوز */
 .upd-notes { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 4px; line-height: 1.8; font-size: 14px; color: var(--ink2); }
+button.nav { border: 0; background: none; width: 100%; text-align: right; font-family: inherit; cursor: pointer; }

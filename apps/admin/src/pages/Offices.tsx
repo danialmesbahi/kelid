@@ -2,24 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Icon, Skeleton } from '@kelid/ui';
 import { formatGrouped, toFaDigits } from '@kelid/core';
-import type { OfficeStatus, Stats } from '../api';
+import type { OfficeFilter, OfficeStatus, Stats } from '../api';
 import { useFlash } from '../live';
 import { ago, dateText, errorText, leftText, Phone, planName, statusTag, useLoad, useSlow } from '../ui';
 
-const FILTERS: Array<{ value: OfficeStatus | ''; label: string }> = [
+const FILTERS: Array<{ value: OfficeFilter | ''; label: string }> = [
   { value: '', label: 'همه' },
   { value: 'active', label: 'فعال' },
   { value: 'trial', label: 'آزمایشی' },
   { value: 'ending', label: 'رو به پایان' },
   { value: 'expired', label: 'تمام شده' },
   { value: 'suspended', label: 'معلق' },
+  { value: 'pilot', label: 'بتا' },
 ];
 
 /** فهرست همهٔ دفترها با آمار بالای صفحه؛ جستجو و فیلتر در نشانی صفحه می‌ماند تا برگشتن از جزئیات همان‌جا بیاید. */
 export function Offices() {
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
-  const status = (params.get('s') ?? '') as OfficeStatus | '';
+  const status = (params.get('s') ?? '') as OfficeFilter | '';
   const [text, setText] = useState(q);
   const search = useRef<HTMLInputElement>(null);
 
@@ -47,7 +48,7 @@ export function Offices() {
   const list = useLoad(`offices:${status}:${q.trim()}`, (a, t) => a.offices(t, q, status || null));
   const slow = useSlow(!list.data && list.pending);
   const flash = useFlash();
-  const setStatus = (s: OfficeStatus | '') => setParams((p) => (s ? p.set('s', s) : p.delete('s'), p), { replace: true });
+  const setStatus = (s: OfficeFilter | '') => setParams((p) => (s ? p.set('s', s) : p.delete('s'), p), { replace: true });
 
   return (
     <>
@@ -129,7 +130,10 @@ export function Offices() {
                   return (
                     <Link key={o.id} to={`/offices/${o.id}`} viewTransition className={`ad-row hov${flash.has(o.id) ? ' ad-flash' : ''}`}>
                       <span className="col ad-cell-main">
-                        <span className="b ad-ell">{o.name}</span>
+                        <span className="rw" style={{ gap: 6, minWidth: 0 }}>
+                          <span className="b ad-ell">{o.name}</span>
+                          {o.pilot && <span className="ad-pilot">بتا</span>}
+                        </span>
                         <span className="xs mute ad-ell">
                           {o.manager ? (
                             <>
@@ -182,7 +186,7 @@ export function Offices() {
   );
 }
 
-function StatsRow({ stats, status, onPick }: { stats: Stats | undefined; status: OfficeStatus | ''; onPick: (s: OfficeStatus | '') => void }) {
+function StatsRow({ stats, status, onPick }: { stats: Stats | undefined; status: OfficeFilter | ''; onPick: (s: OfficeStatus | '') => void }) {
   const items: Array<{ key: OfficeStatus | ''; label: string; value: number | undefined; sub?: string; tone?: string }> = [
     { key: '', label: 'همهٔ دفترها', value: stats?.offices, sub: stats ? `${toFaDigits(stats.fresh)} تازه در ۳۰ روز` : undefined },
     { key: 'active', label: 'اشتراک فعال', value: stats?.active, tone: 'ok' },

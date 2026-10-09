@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -15,6 +16,8 @@ export default defineConfig(({ command, mode }) => {
 });
 
 const config = {
+  // نسخهٔ برنامه برای گزارش خطا و نظر کاربر
+  define: { __KELID_VERSION__: JSON.stringify((JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8')) as { version: string }).version) },
   plugins: [
     react(),
     // نصب روی گوشی و کار بدون اینترنت. Service Worker را خود برنامه فقط در وب ثبت می‌کند (main.tsx)، نه در ویندوز.

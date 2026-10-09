@@ -43,6 +43,25 @@ export function OfficePage() {
     }
   };
 
+  // برچسب بتا برگشت‌پذیر است؛ بی پرسش، با «برگرداندن».
+  const togglePilot = async () => {
+    const next = !d.data!.office.pilot;
+    setBusy(true);
+    try {
+      d.set(await call((a, t) => a.setPilot(t, id, next)));
+      toast(next ? 'به دفترهای بتا اضافه شد.' : 'از دفترهای بتا بیرون آمد.', {
+        action: {
+          label: 'برگرداندن',
+          run: () => void call((a, t) => a.setPilot(t, id, !next)).then(d.set, (e: unknown) => toast(errorText(e), { bad: true })),
+        },
+      });
+    } catch (e) {
+      toast(errorText(e), { bad: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (!d.data) {
     return (
       <div className="bd" style={{ paddingTop: 26 }}>
@@ -80,6 +99,7 @@ export function OfficePage() {
           <span className="rw" style={{ gap: 12, flexWrap: 'wrap' }}>
             <h1 className="t1">{o.name}</h1>
             <span className={`tag ${tag.tone}`}>{tag.label}</span>
+            {o.pilot && <span className="ad-pilot">دفتر بتا</span>}
           </span>
           <span className="sm mute ad-facts-line">
             <span>ثبت‌نام {dateText(o.createdAt)}</span>
@@ -92,6 +112,10 @@ export function OfficePage() {
           </span>
         </div>
         <div className="rw ad-acts">
+          <button type="button" className="btn btn-g" onClick={togglePilot} disabled={busy} aria-pressed={o.pilot}>
+            <Icon name="spark" size="s" />
+            {o.pilot ? 'بیرون از بتا' : 'افزودن به بتا'}
+          </button>
           {suspended ? (
             <button type="button" className="btn btn-s" onClick={resume} disabled={busy}>
               <Icon name="check" size="s" />

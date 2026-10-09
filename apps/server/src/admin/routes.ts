@@ -184,15 +184,16 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
 
   app.get('/admin/stats', { preHandler: requireVendor }, async () =>
     withVendor(pool, async (db) => {
-      const { rows } = await db.query<Record<OfficeStatus | 'offices' | 'fresh', number>>(
+      const { rows } = await db.query<Record<OfficeStatus | 'offices' | 'fresh' | 'pilot', number>>(
         `select count(*)::int as offices,
                 count(*) filter (where s = 'trial')::int as trial,
                 count(*) filter (where s = 'active')::int as active,
                 count(*) filter (where s = 'ending')::int as ending,
                 count(*) filter (where s = 'expired')::int as expired,
                 count(*) filter (where s = 'suspended')::int as suspended,
-                count(*) filter (where created_at > now() - interval '30 days')::int as fresh
-           from (select ${STATUS_SQL} as s, o.created_at from offices o) x`,
+                count(*) filter (where created_at > now() - interval '30 days')::int as fresh,
+                count(*) filter (where pilot)::int as pilot
+           from (select ${STATUS_SQL} as s, o.created_at, o.pilot from offices o) x`,
       );
       const pay = await db.query<{ revenue: string; count: number; total: string }>(
         `select coalesce(sum(amount) filter (where paid_at > now() - interval '30 days'), 0) as revenue,
@@ -201,7 +202,11 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
            from payments where status = 'paid'`,
       );
       const p = pay.rows[0]!;
-      return { ...rows[0]!, revenue30: Number(p.revenue) / 10, payments30: p.count, revenueTotal: Number(p.total) / 10 };
+      const beta = await db.query<{ feedback: number; errors: number }>(
+        `select (select count(*) from feedback where done_at is null)::int as feedback,
+                (select count(distinct fingerprint) from client_errors where resolved_at is null)::int as errors`,
+      );
+      return { ...rows[0]!, openFeedback: beta.rows[0]!.feedback, openErrors: beta.rows[0]!.errors, revenue30: Number(p.revenue) / 10, payments30: p.count, revenueTotal: Number(p.total) / 10 };
     }),
   );
 
@@ -213,21 +218,21 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
         querystring: {
           type: 'object',
           additionalProperties: false,
-          properties: { q: { type: 'string', maxLength: 100 }, status: { type: 'string', enum: STATUSES } },
+          properties: { q: { type: 'string', maxLength: 100 }, status: { type: 'string', enum: STATUSES }, pilot: { type: 'boolean' } },
         },
       },
     },
     async (req) => {
-      const { q = '', status } = req.query as { q?: string; status?: OfficeStatus };
+      const { q = '', status, pilot } = req.query as { q?: string; status?: OfficeStatus; pilot?: boolean };
       const term = searchTerm(q);
       return withVendor(pool, async (db) => {
         const { rows } = await db.query<OfficeRow>(
           `select * from (select ${OFFICE_COLS} from offices o ${MANAGER_JOIN}) x
-            where ($1::text is null or x.status = $1)
+            where ($1::text is null or x.status = $1) and ($4::boolean is null or x.pilot = $4)
               and ($2::text = '' or translate(x.name, 'يك', 'یک') ilike '%' || $2 || '%' escape '\\'
                    or exists (select 1 from users u where u.office_id = x.id and u.phone like '%' || $3 || '%' and $3 <> ''))
             order by x.created_at desc limit 300`,
-          [status ?? null, term.text, term.digits],
+          [status ?? null, term.text, term.digits, pilot ?? null],
         );
         return { offices: rows.map(officeOut) };
       });
@@ -345,6 +350,125 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
     },
   );
 
+  // دفتر آزمایشی (pilot): دفترهای بتا که هر هفته با آن‌ها حرف می‌زنیم؛ فقط برچسب پنل است و در برنامهٔ دفتر اثری ندارد.
+  app.post(
+    '/admin/offices/:id/pilot',
+    { preHandler: requireVendor, schema: { ...idParams, body: body({ pilot: { type: 'boolean' } }, ['pilot']) } },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const { pilot } = req.body as { pilot: boolean };
+      const ok = await withVendor(pool, async (db) => {
+        const { rowCount } = await db.query('update offices set pilot = $2 where id = $1 and pilot <> $2', [id, pilot]);
+        if (!rowCount) return (await db.query('select 1 from offices where id = $1', [id])).rowCount ? 'same' : 'not_found';
+        await addNote(db, id, req.vendor!.id, 'note', pilot ? 'به دفترهای آزمایشی (بتا) اضافه شد' : 'از دفترهای آزمایشی (بتا) بیرون آمد');
+        return 'ok';
+      });
+      if (ok === 'not_found') return reply.status(404).send({ error: 'not_found' });
+      return reply.send(await officeAfter(id));
+    },
+  );
+
+  app.get(
+    '/admin/feedback',
+    {
+      preHandler: requireVendor,
+      schema: { querystring: { type: 'object', additionalProperties: false, properties: { status: { type: 'string', enum: ['open', 'done'] } } } },
+    },
+    async (req) => {
+      const { status = 'open' } = req.query as { status?: 'open' | 'done' };
+      return withVendor(pool, async (db) => {
+        const { rows } = await db.query<FeedbackRow>(
+          `select f.id, f.kind, f.body, f.page, f.app_version, f.platform, f.created_at, f.done_at,
+                  o.id as office_id, o.name as office_name, o.pilot, u.name as user_name, u.phone as user_phone, u.role as user_role
+             from feedback f join offices o on o.id = f.office_id join users u on u.id = f.user_id
+            where (f.done_at is null) = ($1 = 'open')
+            order by f.created_at desc limit 300`,
+          [status],
+        );
+        return { feedback: rows.map(feedbackOut) };
+      });
+    },
+  );
+
+  app.post(
+    '/admin/feedback/:office/:id',
+    {
+      preHandler: requireVendor,
+      schema: {
+        params: {
+          type: 'object',
+          required: ['office', 'id'],
+          properties: { office: { type: 'string', pattern: UUID_PATTERN }, id: { type: 'string', pattern: UUID_PATTERN } },
+        },
+        body: body({ done: { type: 'boolean' } }, ['done']),
+      },
+    },
+    async (req, reply) => {
+      const { office, id } = req.params as { office: string; id: string };
+      const { done } = req.body as { done: boolean };
+      const found = await withVendor(pool, async (db) => {
+        const { rowCount } = await db.query(
+          'update feedback set done_at = case when $3 then coalesce(done_at, now()) else null end where office_id = $1 and id = $2',
+          [office, id, done],
+        );
+        return rowCount;
+      });
+      if (!found) return reply.status(404).send({ error: 'not_found' });
+      return reply.status(204).send();
+    },
+  );
+
+  app.get(
+    '/admin/errors',
+    {
+      preHandler: requireVendor,
+      schema: { querystring: { type: 'object', additionalProperties: false, properties: { status: { type: 'string', enum: ['open', 'resolved'] } } } },
+    },
+    async (req) => {
+      const { status = 'open' } = req.query as { status?: 'open' | 'resolved' };
+      // یک باگ در چند دفتر یک ردیف است: جمع تکرارها، تعداد دفترها و تازه‌ترین نمونه.
+      return withVendor(pool, async (db) => {
+        const { rows } = await db.query<ErrorRow>(
+          `select e.fingerprint, sum(e.count)::bigint as count, count(*)::int as offices, min(e.first_seen) as first_seen, max(e.last_seen) as last_seen,
+                  (array_agg(e.message order by e.last_seen desc))[1] as message,
+                  (array_agg(e.stack order by e.last_seen desc))[1] as stack,
+                  (array_agg(e.page order by e.last_seen desc))[1] as page,
+                  (array_agg(e.app_version order by e.last_seen desc))[1] as app_version,
+                  (array_agg(e.platform order by e.last_seen desc))[1] as platform,
+                  (array_agg(json_build_object('id', o.id, 'name', o.name) order by e.last_seen desc))[1:5] as recent
+             from client_errors e join offices o on o.id = e.office_id
+            where (e.resolved_at is null) = ($1 = 'open')
+            group by e.fingerprint
+            order by max(e.last_seen) desc limit 200`,
+          [status],
+        );
+        return { errors: rows.map(errorOut) };
+      });
+    },
+  );
+
+  app.post(
+    '/admin/errors/:fp',
+    {
+      preHandler: requireVendor,
+      schema: {
+        params: { type: 'object', required: ['fp'], properties: { fp: { type: 'string', pattern: '^[0-9a-f]{16}$' } } },
+        body: body({ resolved: { type: 'boolean' } }, ['resolved']),
+      },
+    },
+    async (req, reply) => {
+      const { fp } = req.params as { fp: string };
+      const { resolved } = req.body as { resolved: boolean };
+      const n = await withVendor(pool, async (db) => {
+        const { rowCount } = await db.query('update client_errors set resolved_at = case when $2 then now() else null end where fingerprint = $1', [fp, resolved]);
+        return rowCount;
+      });
+      if (!n) return reply.status(404).send({ error: 'not_found' });
+      req.log.info({ admin: req.vendor!.id, fingerprint: fp, resolved }, 'vendor marked client error');
+      return reply.status(204).send();
+    },
+  );
+
   app.get(
     '/admin/payments',
     {
@@ -385,7 +509,7 @@ async function addNote(db: Db, officeId: string, adminId: string, kind: 'note' |
   await db.query('insert into vendor_notes (office_id, id, admin_id, kind, body) values ($1, $2, $3, $4, $5)', [officeId, randomUUID(), adminId, kind, text]);
 }
 
-const OFFICE_COLS = `o.id, o.name, o.plan, o.trial, o.expires_at, o.seats, o.created_at, o.suspended_at, o.suspend_reason, ${STATUS_SQL} as status,
+const OFFICE_COLS = `o.id, o.name, o.pilot, o.plan, o.trial, o.expires_at, o.seats, o.created_at, o.suspended_at, o.suspend_reason, ${STATUS_SQL} as status,
   (select count(*) from users u where u.office_id = o.id and u.removed_at is null)::int as members,
   (select max(d.last_seen_at) from devices d join users u on u.id = d.user_id where u.office_id = o.id and d.revoked_at is null) as last_seen_at,
   (select coalesce(sum(p.amount), 0) from payments p where p.office_id = o.id and p.status = 'paid') as paid_total,
@@ -398,6 +522,7 @@ const MANAGER_JOIN = `left join lateral (select name, phone from users u where u
 interface OfficeRow {
   id: string;
   name: string;
+  pilot: boolean;
   plan: string;
   trial: boolean;
   expires_at: Date;
@@ -417,6 +542,7 @@ function officeOut(r: OfficeRow) {
   return {
     id: r.id,
     name: r.name,
+    pilot: r.pilot,
     plan: r.plan,
     trial: r.trial,
     status: r.status,
@@ -502,4 +628,66 @@ function searchTerm(q: string): { text: string; digits: string } {
   const t = q.trim().replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/‌/g, ' ');
   const digits = t.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)).replace(/\D/g, '');
   return { text: t.replace(/[\\%_]/g, (c) => `\\${c}`), digits: digits.length >= 3 ? digits : '' };
+}
+
+interface FeedbackRow {
+  id: string;
+  kind: string;
+  body: string;
+  page: string;
+  app_version: string;
+  platform: string;
+  created_at: Date;
+  done_at: Date | null;
+  office_id: string;
+  office_name: string;
+  pilot: boolean;
+  user_name: string;
+  user_phone: string;
+  user_role: string;
+}
+
+function feedbackOut(r: FeedbackRow) {
+  return {
+    id: r.id,
+    kind: r.kind,
+    body: r.body,
+    page: r.page,
+    appVersion: r.app_version,
+    platform: r.platform,
+    createdAt: r.created_at.toISOString(),
+    doneAt: r.done_at?.toISOString() ?? null,
+    office: { id: r.office_id, name: r.office_name, pilot: r.pilot },
+    user: { name: r.user_name, phone: r.user_phone, role: r.user_role },
+  };
+}
+
+interface ErrorRow {
+  fingerprint: string;
+  count: string;
+  offices: number;
+  first_seen: Date;
+  last_seen: Date;
+  message: string;
+  stack: string;
+  page: string;
+  app_version: string;
+  platform: string;
+  recent: Array<{ id: string; name: string }>;
+}
+
+function errorOut(r: ErrorRow) {
+  return {
+    fingerprint: r.fingerprint,
+    count: Number(r.count),
+    offices: r.offices,
+    firstSeen: r.first_seen.toISOString(),
+    lastSeen: r.last_seen.toISOString(),
+    message: r.message,
+    stack: r.stack,
+    page: r.page,
+    appVersion: r.app_version,
+    platform: r.platform,
+    recent: r.recent,
+  };
 }
