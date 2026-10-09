@@ -12,6 +12,7 @@ import { useUpdatedToast } from '../updates';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from './Toasts';
 import { LicenseBar, PlanLine } from '../billing/LicenseUi';
+import { FeedbackDialog } from '../beta/FeedbackDialog';
 
 const NAV: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
@@ -44,6 +45,9 @@ let toldInvite = '';
 export function Shell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [more, setMore] = useState(false);
+  const [feedback, setFeedback] = useState(false);
+  // نظر به سرور کلید می‌رود؛ بی حساب جایی برای فرستادن نیست.
+  const signedIn = useAuth().status === 'signedIn';
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const storage = useStorageInfo();
@@ -128,6 +132,12 @@ export function Shell() {
             </span>
           )}
         </Link>
+        {signedIn && (
+          <button type="button" className="nav" onClick={() => setFeedback(true)}>
+            <Icon name="msg" />
+            نظر بدهید
+          </button>
+        )}
         <NavLink to="/settings" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
           <Icon name="set" />
           تنظیمات
@@ -162,7 +172,8 @@ export function Shell() {
       </nav>
 
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
-      {more && <MoreSheet onClose={() => setMore(false)} />}
+      {more && <MoreSheet onClose={() => setMore(false)} onFeedback={signedIn ? () => { setMore(false); setFeedback(true); } : undefined} />}
+      {feedback && <FeedbackDialog onClose={() => setFeedback(false)} />}
     </div>
   );
 }
@@ -177,7 +188,7 @@ function TabLink({ to, icon, label }: { to: string; icon: IconName; label: strin
 }
 
 /** برگهٔ «بیشتر» روی گوشی: بخش‌هایی که در نوار پایین جا نشده‌اند. */
-function MoreSheet({ onClose }: { onClose: () => void }) {
+function MoreSheet({ onClose, onFeedback }: { onClose: () => void; onFeedback?: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -192,6 +203,12 @@ function MoreSheet({ onClose }: { onClose: () => void }) {
             {n.label}
           </NavLink>
         ))}
+        {onFeedback && (
+          <button type="button" className="nav" onClick={onFeedback}>
+            <Icon name="msg" />
+            نظر بدهید
+          </button>
+        )}
       </nav>
     </div>,
     document.getElementById('root') ?? document.body,

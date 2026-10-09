@@ -134,6 +134,10 @@ export interface AuthApi {
   removeDevice(accessToken: string, id: string): Promise<void>;
   /** نام شما و نام دفتر روی سرور، تا دستگاه‌های دیگر دفتر هم ببینند. */
   updateProfile(accessToken: string, p: { name?: string; officeName?: string }): Promise<{ name: string; officeName: string }>;
+  /** نظر کاربر برای تیم کلید (ابزار بتا). */
+  sendFeedback(accessToken: string, f: { id: string; kind: string; body: string; page: string; appVersion: string; platform: string }): Promise<void>;
+  /** خطاهای برنامه روی این دستگاه (تا ۱۰ تا در هر درخواست). */
+  reportErrors(accessToken: string, errors: Array<{ message: string; stack: string; page: string; count: number; appVersion: string; platform: string }>): Promise<void>;
   /** شمارهٔ دعوت‌شده بعد از کد درست: نام و رمز، و عضو دفتر می‌شود. */
   join(signupToken: string, name: string, password: string, deviceName: string): Promise<Session>;
   /** کسی که دفتر خودش را دارد به دفتر دعوت‌کننده می‌رود (فقط اگر در دفتر فعلی‌اش تنهاست). */
@@ -200,6 +204,8 @@ export function httpApi(base: string): AuthApi {
     devices: (token) => call('GET', '/auth/devices', undefined, token),
     removeDevice: (token, id) => call('DELETE', `/auth/devices/${encodeURIComponent(id)}`, undefined, token),
     updateProfile: (token, p) => call('POST', '/auth/profile', p, token),
+    sendFeedback: (token, f) => call('POST', '/beta/feedback', f, token),
+    reportErrors: (token, errors) => call('POST', '/beta/errors', { errors }, token),
     join: (signupToken, name, password, deviceName) => call('POST', '/auth/join', { signupToken, name, password, deviceName }),
     acceptInvite: (token) => call('POST', '/auth/invite/accept', {}, token),
     declineInvite: (token) => call('POST', '/auth/invite/decline', {}, token),
@@ -508,6 +514,15 @@ export function demoApi(): AuthApi {
       const next = { ...a, name: p.name?.trim() || a.name, office: p.officeName?.trim() || a.office };
       remember(phone, next);
       return { name: next.name, officeName: next.office };
+    },
+    // پیش‌نمایش: نظر و خطا جایی نمی‌روند، فقط در کنسول دیده می‌شوند.
+    async sendFeedback(_t, f) {
+      await wait(400);
+      console.info('[demo feedback]', f.kind, f.body);
+    },
+    async reportErrors(_t, errors) {
+      await wait(100);
+      console.info('[demo errors]', errors.length);
     },
   };
 }

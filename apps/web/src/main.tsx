@@ -8,6 +8,10 @@ import './app.css';
 import { App } from './App';
 import { registerPwa } from './pwa';
 import { openStore } from './data';
+import { installErrorCapture } from './beta/beta';
+
+// خطاهای پیش‌بینی‌نشده از همین لحظه در صف گزارش می‌روند (ابزار بتا).
+installErrorCapture();
 
 // نصب روی گوشی و کار بدون اینترنت فقط در وب
 registerPwa();

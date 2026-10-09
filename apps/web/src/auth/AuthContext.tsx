@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ApiError, apiFromEnv, type AuthApi, type Session } from './api';
 import { clearProfileQueue } from './profile';
+import { clearBetaQueues } from '../beta/beta';
 import { adoptLicense, bindLicense, clearLicense } from '../billing/license';
 import { clearSession, loadSession, markJoining, saveSession, type SavedSession } from './storage';
 
@@ -69,6 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     access.current = null;
     await clearSession();
     clearProfileQueue();
+    // نظر و خطای این حساب نباید با حساب بعدی (شاید دفتر دیگر) فرستاده شود.
+    clearBetaQueues();
     clearLicense();
     setSession(null);
     setStatus('signedOut');

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { Icon } from '@kelid/ui';
+import { toFaDigits } from '@kelid/core';
 import { DEMO } from './api';
 import { useAuth } from './auth';
 import { useTheme } from './theme';
 import { useLiveConnection, useLiveState } from './live';
-import { Dialog, Phone } from './ui';
+import { Dialog, Phone, useLoad } from './ui';
 
 const liveText = { live: 'زنده', connecting: 'در حال وصل شدن…', offline: 'قطع است؛ دوباره وصل می‌شود' } as const;
 
@@ -18,6 +19,9 @@ export function Shell() {
   const [leaving, setLeaving] = useState(false);
   const live = useLiveState();
   useLiveConnection();
+  // نظرها و خطاهای باز، زنده؛ همان آماری که صفحهٔ دفترها دارد (یک درخواست مشترک در حافظه).
+  const stats = useLoad('stats', (a, t) => a.stats(t)).data;
+  const open = (stats?.openFeedback ?? 0) + (stats?.openErrors ?? 0);
   return (
     <div className="shell ad-shell">
       <aside className="side ad-side" aria-label="منوی پنل">
@@ -45,6 +49,11 @@ export function Shell() {
           <NavLink to="/payments" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
             <Icon name="receipt" />
             پرداخت‌ها
+          </NavLink>
+          <NavLink to="/beta" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
+            <Icon name="msg" />
+            نظرها و خطاها
+            {open > 0 && <span className="badge num" aria-label={`${toFaDigits(open)} مورد باز`}>{toFaDigits(open)}</span>}
           </NavLink>
         </nav>
         <span className="sp" />

@@ -14,6 +14,8 @@ export interface Admin {
 export interface Office {
   id: string;
   name: string;
+  /** دفتر آزمایشی بتا */
+  pilot: boolean;
   plan: string;
   trial: boolean;
   status: OfficeStatus;
@@ -80,7 +82,42 @@ export interface Stats {
   revenue30: number;
   payments30: number;
   revenueTotal: number;
+  pilot: number;
+  openFeedback: number;
+  openErrors: number;
 }
+
+export type FeedbackKind = 'problem' | 'idea' | 'praise';
+
+export interface Feedback {
+  id: string;
+  kind: FeedbackKind;
+  body: string;
+  page: string;
+  appVersion: string;
+  platform: string;
+  createdAt: string;
+  doneAt: string | null;
+  office: { id: string; name: string; pilot: boolean };
+  user: { name: string; phone: string; role: string };
+}
+
+/** یک باگ در همهٔ دفترها (با اثرانگشت یکی شده). */
+export interface ClientError {
+  fingerprint: string;
+  count: number;
+  offices: number;
+  firstSeen: string;
+  lastSeen: string;
+  message: string;
+  stack: string;
+  page: string;
+  appVersion: string;
+  platform: string;
+  recent: Array<{ id: string; name: string }>;
+}
+
+export type OfficeFilter = OfficeStatus | 'pilot';
 
 export type ErrorCode = 'offline' | 'unauthorized' | 'bad_login' | 'locked' | 'too_many' | 'too_small' | 'not_found' | 'already' | 'server';
 
@@ -97,13 +134,18 @@ export interface AdminApi {
   login(phone: string, password: string, code: string): Promise<{ token: string; expiresIn: number; admin: Admin }>;
   me(token: string): Promise<Admin>;
   stats(token: string): Promise<Stats>;
-  offices(token: string, q: string, status: OfficeStatus | null): Promise<Office[]>;
+  offices(token: string, q: string, status: OfficeFilter | null): Promise<Office[]>;
   office(token: string, id: string): Promise<OfficeDetail>;
   extend(token: string, id: string, b: { days: number; plan: PlanId; trial: boolean; note: string }): Promise<OfficeDetail>;
   suspend(token: string, id: string, reason: string): Promise<OfficeDetail>;
   resume(token: string, id: string, note: string): Promise<OfficeDetail>;
   addNote(token: string, id: string, body: string): Promise<OfficeDetail>;
   payments(token: string, status: PaymentStatus | null): Promise<Array<Payment & { office: { id: string; name: string } }>>;
+  setPilot(token: string, id: string, pilot: boolean): Promise<OfficeDetail>;
+  feedback(token: string, status: 'open' | 'done'): Promise<Feedback[]>;
+  markFeedback(token: string, office: string, id: string, done: boolean): Promise<void>;
+  errors(token: string, status: 'open' | 'resolved'): Promise<ClientError[]>;
+  resolveError(token: string, fingerprint: string, resolved: boolean): Promise<void>;
   /**
    * اتصال زنده: changed با شناسهٔ دفترهایی که عوض شدند (فهرست خالی = همه‌چیز را تازه کن). تا بسته شدن اتصال
    * باز می‌ماند؛ قطع شدنش با ApiError می‌آید تا دوباره وصل شود.
@@ -131,6 +173,7 @@ function httpApi(base: string): AdminApi {
     } catch {
       throw new ApiError('offline');
     }
+    if (res.status === 204) return undefined as T;
     if (res.ok) return (await res.json()) as T;
     const e = (await res.json().catch(() => ({}))) as { error?: string; retryAfter?: number };
     const known: ErrorCode[] = ['unauthorized', 'bad_login', 'locked', 'too_many', 'too_small', 'not_found', 'already'];
@@ -146,7 +189,9 @@ function httpApi(base: string): AdminApi {
     login: (phone, password, code) => call('POST', '/admin/login', null, { phone, password, code }),
     me: async (t) => (await call<{ admin: Admin }>('GET', '/admin/me', t)).admin,
     stats: (t) => call('GET', '/admin/stats', t),
-    offices: async (t, q, status) => (await call<{ offices: Office[] }>('GET', `/admin/offices${qs({ q: q.trim() || null, status })}`, t)).offices,
+    offices: async (t, q, status) =>
+      (await call<{ offices: Office[] }>('GET', `/admin/offices${qs({ q: q.trim() || null, status: status === 'pilot' ? null : status, pilot: status === 'pilot' ? 'true' : null })}`, t))
+        .offices,
     office: (t, id) => call('GET', `/admin/offices/${id}`, t),
     extend: (t, id, b) => call('POST', `/admin/offices/${id}/extend`, t, b),
     suspend: (t, id, reason) => call('POST', `/admin/offices/${id}/suspend`, t, { reason }),
@@ -154,6 +199,11 @@ function httpApi(base: string): AdminApi {
     addNote: (t, id, body) => call('POST', `/admin/offices/${id}/notes`, t, { body }),
     payments: async (t, status) =>
       (await call<{ payments: Array<Payment & { office: { id: string; name: string } }> }>('GET', `/admin/payments${qs({ status })}`, t)).payments,
+    setPilot: (t, id, pilot) => call('POST', `/admin/offices/${id}/pilot`, t, { pilot }),
+    feedback: async (t, status) => (await call<{ feedback: Feedback[] }>('GET', `/admin/feedback${qs({ status })}`, t)).feedback,
+    markFeedback: (t, office, id, done) => call('POST', `/admin/feedback/${office}/${id}`, t, { done }),
+    errors: async (t, status) => (await call<{ errors: ClientError[] }>('GET', `/admin/errors${qs({ status })}`, t)).errors,
+    resolveError: (t, fp, resolved) => call('POST', `/admin/errors/${fp}`, t, { resolved }),
     listen: async (token, on, signal) => {
       // fetch به‌جای EventSource: توکن در هدر می‌رود، نه در آدرس (که در لاگ‌ها می‌ماند).
       const ctl = new AbortController();
@@ -323,6 +373,7 @@ function demoApi(): AdminApi {
       lastSeenAt: team[0]?.lastSeenAt ?? null,
       suspendedAt: suspended ? iso(-1) : null,
       suspendReason: suspended ? 'پرداخت با کارت دزدی؛ تا بررسی بانک معلق' : null,
+      pilot: i === 0 || i === 3 || i === 8,
       paidTotal: pays.filter((x) => x.status === 'paid').reduce((s, x) => s + x.amount, 0),
       manager: { name: team[0]!.name, phone },
     };
@@ -334,6 +385,58 @@ function demoApi(): AdminApi {
       notes,
     };
   });
+
+  const fb = (i: number, kind: FeedbackKind, body: string, page: string, hours: number, done = false): Feedback => {
+    const d = offices[i]!;
+    const m = d.members[d.members.length > 1 ? 1 : 0]!;
+    return {
+      id: `f${i}${hours}`,
+      kind,
+      body,
+      page,
+      appVersion: '0.1.0',
+      platform: i % 2 ? 'pwa' : 'desktop',
+      createdAt: new Date(now - hours * 3_600_000).toISOString(),
+      doneAt: done ? new Date(now - (hours - 1) * 3_600_000).toISOString() : null,
+      office: { id: d.office.id, name: d.office.name, pilot: d.office.pilot },
+      user: { name: m.name, phone: m.phone, role: m.role },
+    };
+  };
+  const feedback: Feedback[] = [
+    fb(0, 'problem', 'وقتی عکس فایل را از گوشی می‌گیرم، عکس برعکس ذخیره می‌شود.', '/files/:id/edit', 2),
+    fb(3, 'idea', 'کاش می‌شد فایل‌ها را برای مشتری در واتساپ هم فرستاد، نه فقط پیامک.', '/show', 5),
+    fb(8, 'praise', 'تقویم خیلی خوب شده، همکارها هم راحت کار می‌کنند. ممنون.', '/calendar', 26),
+    fb(3, 'problem', 'جستجوی «ونك» با ک عربی چیزی پیدا نمی‌کرد.', '/files', 72, true),
+  ];
+  const clientErrors: ClientError[] = [
+    {
+      fingerprint: '3fa1c0de9b2e4471',
+      count: 14,
+      offices: 2,
+      firstSeen: iso(-3),
+      lastSeen: new Date(now - 40 * 60_000).toISOString(),
+      message: "TypeError: Cannot read properties of undefined (reading 'plaque')",
+      stack: "TypeError: Cannot read properties of undefined (reading 'plaque')\n    at ListingCard (assets/index-Bx3k.js:2:41120)\n    at renderWithHooks (assets/react-Dq9.js:1:22011)",
+      page: '/files/:id',
+      appVersion: '0.1.0',
+      platform: 'desktop',
+      recent: [offices[3]!.office, offices[0]!.office].map((o) => ({ id: o.id, name: o.name })),
+    },
+    {
+      fingerprint: '91c2aa07e3d5b810',
+      count: 3,
+      offices: 1,
+      firstSeen: iso(-1),
+      lastSeen: iso(-0.4),
+      message: 'QuotaExceededError: The quota has been exceeded.',
+      stack: 'QuotaExceededError: The quota has been exceeded.\n    at savePhoto (assets/index-Bx3k.js:2:88310)',
+      page: '/add',
+      appVersion: '0.1.0',
+      platform: 'pwa',
+      recent: [{ id: offices[8]!.office.id, name: offices[8]!.office.name }],
+    },
+  ];
+  const resolved = new Set<string>();
 
   const status = (o: Office): OfficeStatus => {
     const left = Date.parse(o.expiresAt) - Date.now();
@@ -396,6 +499,9 @@ function demoApi(): AdminApi {
           revenue30: recent.reduce((s, p) => s + p.amount, 0),
           payments30: recent.length,
           revenueTotal: paid.reduce((s, p) => s + p.amount, 0),
+          pilot: offices.filter((d) => d.office.pilot).length,
+          openFeedback: feedback.filter((f) => !f.doneAt).length,
+          openErrors: clientErrors.filter((e) => !resolved.has(e.fingerprint)).length,
         };
       }),
     offices: (_t, q, st) =>
@@ -404,7 +510,7 @@ function demoApi(): AdminApi {
         const digits = text.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)).replace(/\D/g, '');
         return offices
           .map(fresh)
-          .filter((d) => !st || d.office.status === st)
+          .filter((d) => !st || (st === 'pilot' ? d.office.pilot : d.office.status === st))
           .filter((d) => !text || d.office.name.includes(text) || (digits.length >= 3 && d.members.some((m) => m.phone.includes(digits))))
           .sort((a, b) => Date.parse(b.office.createdAt) - Date.parse(a.office.createdAt))
           .map((d) => d.office);
@@ -453,5 +559,26 @@ function demoApi(): AdminApi {
           .filter((p) => !st || p.status === st)
           .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
       ),
+    setPilot: (_t, id, pilot) =>
+      wait(() => {
+        const d = find(id);
+        if (d.office.pilot !== pilot) note(d, 'note', pilot ? 'به دفترهای آزمایشی (بتا) اضافه شد' : 'از دفترهای آزمایشی (بتا) بیرون آمد');
+        d.office.pilot = pilot;
+        for (const f of feedback) if (f.office.id === id) f.office.pilot = pilot;
+        return fresh(d);
+      }),
+    feedback: (_t, st) => wait(() => structuredClone(feedback.filter((f) => !f.doneAt === (st === 'open')))),
+    markFeedback: (_t, _o, id, done) =>
+      wait(() => {
+        const f = feedback.find((x) => x.id === id);
+        if (!f) throw new ApiError('not_found');
+        f.doneAt = done ? (f.doneAt ?? new Date().toISOString()) : null;
+      }),
+    errors: (_t, st) => wait(() => structuredClone(clientErrors.filter((e) => resolved.has(e.fingerprint) === (st === 'resolved')))),
+    resolveError: (_t, fp, r) =>
+      wait(() => {
+        if (r) resolved.add(fp);
+        else resolved.delete(fp);
+      }),
   };
 }

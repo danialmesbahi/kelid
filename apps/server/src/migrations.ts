@@ -262,6 +262,62 @@ export const migrations: readonly string[] = [
       is distinct from (new.plan, new.trial, new.expires_at, new.seats, new.suspended_at, new.suspend_reason))
     execute function kelid_billing_notify();
   `,
+  // 11: ابزار بتا. دفترهای آزمایشی (pilot)، نظر کاربرها از داخل برنامه و خطاهای برنامه روی دستگاه‌ها.
+  // هر دو جدول مال دفترند (RLS)؛ پنل فروشنده با kelid_vendor می‌خواند و «رسیدگی شد» می‌زند. خطاها با اثرانگشت یکی می‌شوند
+  // تا یک باگ تکراری صد ردیف نسازد.
+  `
+  alter table offices add column pilot boolean not null default false;
+
+  create table feedback (
+    office_id uuid not null default kelid_office() references offices (id),
+    id uuid not null,
+    user_id uuid not null references users (id),
+    kind text not null check (kind in ('problem', 'idea', 'praise')),
+    body text not null check (length(body) between 1 and 2000),
+    page text not null default '' check (length(page) <= 200),
+    app_version text not null default '' check (length(app_version) <= 40),
+    platform text not null default '' check (platform in ('', 'web', 'pwa', 'desktop')),
+    created_at timestamptz not null default now(),
+    done_at timestamptz,
+    primary key (office_id, id)
+  );
+  create index feedback_recent on feedback (created_at desc);
+  alter table feedback enable row level security;
+  alter table feedback force row level security;
+  create policy office_isolation on feedback
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  create policy vendor_access on feedback
+    using (kelid_vendor())
+    with check (kelid_vendor());
+
+  create table client_errors (
+    office_id uuid not null default kelid_office() references offices (id),
+    fingerprint text not null check (fingerprint ~ '^[0-9a-f]{16}$'),
+    message text not null check (length(message) between 1 and 500),
+    stack text not null default '' check (length(stack) <= 4000),
+    page text not null default '' check (length(page) <= 200),
+    app_version text not null default '' check (length(app_version) <= 40),
+    platform text not null default '' check (platform in ('', 'web', 'pwa', 'desktop')),
+    count int not null default 1,
+    first_seen timestamptz not null default now(),
+    last_seen timestamptz not null default now(),
+    resolved_at timestamptz,
+    primary key (office_id, fingerprint)
+  );
+  create index client_errors_recent on client_errors (last_seen desc);
+  alter table client_errors enable row level security;
+  alter table client_errors force row level security;
+  create policy office_isolation on client_errors
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  create policy vendor_access on client_errors
+    using (kelid_vendor())
+    with check (kelid_vendor());
+
+  create trigger vendor_notify after insert or update or delete on feedback for each row execute function kelid_vendor_notify();
+  create trigger vendor_notify after insert or update or delete on client_errors for each row execute function kelid_vendor_notify();
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

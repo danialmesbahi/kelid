@@ -20,6 +20,7 @@ import { UpdateNotice } from './pwa';
 import { Welcome } from './welcome/Welcome';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { SyncRunner } from './sync/SyncRunner';
+import { BetaRunner } from './beta/BetaRunner';
 import { Greeting } from './auth/Greeting';
 import { Login } from './auth/Login';
 import { OfficeSwitch } from './auth/OfficeSwitch';
@@ -131,6 +132,7 @@ function Gate({ welcomed }: { welcomed: boolean }) {
     <>
       {ready && <RouterProvider router={router} />}
       {ready && status === 'signedIn' && <SyncRunner />}
+      {ready && status === 'signedIn' && <BetaRunner />}
       {ready && status === 'signedIn' && <ReadOnlyToast go={goPlans} />}
       {status === 'signedIn' && check?.state === 'other' && !showLogin && <OfficeSwitch pending={check.pending} onCleared={recheck} />}
       {showLogin && (
