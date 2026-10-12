@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Cover, Icon } from '@kelid/ui';
-import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
+import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { coverUrl, photoUrl, prefetchFullPhoto, useCoverThumbs, useFullPhotoUrl } from '../photos/photos';
 import { usePrefsContext } from '../App';
+import { usePhone } from '../layout/usePhone';
 import './show.css';
 
 /**
@@ -38,6 +39,11 @@ export function ShowPage() {
   const full = useFullPhotoUrl(ph?.id ?? (p ? thumbs[p.id]?.photoId : undefined));
   const stripRef = useRef<HTMLDivElement>(null);
   const touchX = useRef<number | null>(null);
+  const phone = usePhone();
+  const trackRef = useRef<HTMLDivElement>(null);
+  // وقتی خود کاربر عکس را کشیده، اسکرول دوباره تنظیم نمی‌شود.
+  const fromSwipe = useRef(false);
+  const shownListing = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     document.documentElement.requestFullscreen?.().catch(() => undefined);
@@ -55,6 +61,20 @@ export function ShowPage() {
   useEffect(() => {
     stripRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
   }, [pi, p?.id]);
+
+  // گالری گوشی: با عوض شدن عکس از بیرون (ملک بعدی، دکمه‌ها) نوار کشیدنی هم همان‌جا می‌رود.
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el || !p) return;
+    const sameListing = shownListing.current === p.id;
+    shownListing.current = p.id;
+    if (fromSwipe.current && sameListing) {
+      fromSwipe.current = false;
+      return;
+    }
+    // راست‌به‌چپ: scrollLeft از صفر به منفی می‌رود
+    el.scrollTo({ left: -pi * el.clientWidth, behavior: sameListing ? 'smooth' : 'instant' });
+  }, [phone, p, pi]);
 
   // برگشت به همان جایی که نمایش از آن شروع شد؛ اگر مستقیم باز شده، به «امروز».
   const close = () => {
@@ -100,6 +120,72 @@ export function ShowPage() {
   if (!p) return null;
   const isLiked = !!liked[p.id];
   const nextListing = n > 1 ? list[(i + 1) % n] : undefined;
+
+  if (phone) {
+    const slides = photos ?? [];
+    return (
+      <div className="app dark shm">
+        <section className="shm-hero" aria-label="عکس‌ها">
+          <div
+            className="shm-track"
+            ref={trackRef}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              const k = Math.round(Math.abs(el.scrollLeft) / Math.max(1, el.clientWidth));
+              if (k !== pi && k < pn) {
+                fromSwipe.current = true;
+                setPhotoAt((m) => ({ ...m, [p.id]: k }));
+              }
+            }}
+          >
+            {slides.length > 0 ? (
+              slides.map((x, k) => <Slide key={x.id} x={x} near={Math.abs(k - pi) <= 1} alt={`${listingTitle(p)}، عکس ${toFaDigits(k + 1)}`} />)
+            ) : (
+              <div className="shm-slide">
+                {thumb ? <><img className="sh-bg" src={thumb} alt="" aria-hidden /><img className="sh-img" src={full ?? thumb} alt={listingTitle(p)} /></> : <Cover variant={p.cover} className="sh-cover" />}
+              </div>
+            )}
+          </div>
+          <div className="shm-top">
+            <button type="button" className="shm-ib" aria-label="پایان نمایش" onClick={close}><Icon name="x" /></button>
+            <span className="sp" />
+            {n > 1 && (
+              <span className="shm-nav" role="group" aria-label="ملک‌ها">
+                <button type="button" aria-label="ملک قبلی" onClick={() => goListing(i - 1)}><Icon name="chr" size="s" /></button>
+                <span className="num" aria-live="polite">ملک {toFaDigits(i + 1)} از {toFaDigits(n)}</span>
+                <button type="button" aria-label="ملک بعدی" onClick={() => goListing(i + 1)}><Icon name="chl" size="s" /></button>
+              </span>
+            )}
+          </div>
+          {pn > 1 && (
+            <div className="shm-dots" aria-hidden>
+              {pn <= 10 ? slides.map((x, k) => <i key={x.id} className={k === pi ? 'on' : ''} />) : <span className="num">{toFaDigits(pi + 1)} از {toFaDigits(pn)}</span>}
+            </div>
+          )}
+        </section>
+
+        <article className="shm-sheet" key={p.id}>
+          <div className="sh-info-in fade">
+            <InfoBody p={p} />
+            <span className="shm-private"><Icon name="lock" size="s" />اطلاعات مالک پنهان است{officeName ? ` · ${officeName}` : ''}</span>
+          </div>
+        </article>
+
+        <div className="shm-bar">
+          <button type="button" aria-pressed={isLiked} className={`sh-like${isLiked ? ' on' : ''}`} onClick={() => setLiked((l) => ({ ...l, [p.id]: !isLiked }))}>
+            <span key={String(isLiked)} className={isLiked ? 'pop-in' : ''} style={{ display: 'flex' }}><Icon name="heart" className={isLiked ? 'filled' : ''} /></span>
+            {isLiked ? 'پسندیدید' : 'می‌پسندم'}
+          </button>
+          {nextListing && (
+            <button type="button" className="shm-next" onClick={() => goListing(i + 1)}>
+              ملک بعدی
+              <Icon name="chl" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`app dark sh${focus ? ' focus' : ''}`}>
@@ -166,27 +252,7 @@ export function ShowPage() {
 
         <aside className="sh-info" key={p.id}>
           <div className="sh-info-in fade">
-            <span className="sh-kicker">
-              <span className={`sh-deal ${p.deal}`}>{dealLabel[p.deal]}</span>
-              <span className="rw" style={{ gap: 4 }}><Icon name="pin" size="s" />{p.neighborhood}</span>
-            </span>
-            <h1>{listingTitle(p)}</h1>
-            <div className="sh-price">
-              <b className="num">{headlinePrice(p)}{p.deal === 'sale' ? <small> تومان</small> : null}</b>
-              <span>{secondaryPrice(p)}</span>
-            </div>
-            <dl className="sh-specs">
-              <div><dt>متراژ</dt><dd className="num">{toFaDigits(p.area)} متر</dd></div>
-              <div><dt>اتاق خواب</dt><dd className="num">{toFaDigits(p.bedrooms)}</dd></div>
-              <div><dt>طبقه</dt><dd className="num">{floorLabel(p)}</dd></div>
-              <div><dt>سال ساخت</dt><dd className="num">{p.yearBuilt ? toFaDigits(p.yearBuilt) : '—'}</dd></div>
-            </dl>
-            {p.features.length > 0 && (
-              <ul className="sh-feat" aria-label="امکانات">
-                {p.features.map((f) => <li key={f}><Icon name="check" size="s" />{f}</li>)}
-              </ul>
-            )}
-            {p.description?.trim() && <p className="sh-desc">{p.description}</p>}
+            <InfoBody p={p} />
 
             <div className="sh-actions">
               <button type="button" aria-pressed={isLiked} className={`sh-like${isLiked ? ' on' : ''}`} onClick={() => setLiked((l) => ({ ...l, [p.id]: !isLiked }))}>
@@ -213,5 +279,46 @@ function NextCard({ l, src, onClick }: { l: Listing; src: string | undefined; on
       </span>
       <Icon name="chl" />
     </button>
+  );
+}
+
+/** مشخصات ملک برای مشتری؛ بدون اطلاعات مالک. */
+function InfoBody({ p }: { p: Listing }) {
+  return (
+    <>
+      <span className="sh-kicker">
+        <span className={`sh-deal ${p.deal}`}>{dealLabel[p.deal]}</span>
+        <span className="rw" style={{ gap: 4 }}><Icon name="pin" size="s" />{p.neighborhood}</span>
+      </span>
+      <h1>{listingTitle(p)}</h1>
+      <div className="sh-price">
+        <b className="num">{headlinePrice(p)}{p.deal === 'sale' ? <small> تومان</small> : null}</b>
+        <span>{secondaryPrice(p)}</span>
+      </div>
+      <dl className="sh-specs">
+        <div><dt>متراژ</dt><dd className="num">{toFaDigits(p.area)} متر</dd></div>
+        <div><dt>اتاق خواب</dt><dd className="num">{toFaDigits(p.bedrooms)}</dd></div>
+        <div><dt>طبقه</dt><dd className="num">{floorLabel(p)}</dd></div>
+        <div><dt>سال ساخت</dt><dd className="num">{p.yearBuilt ? toFaDigits(p.yearBuilt) : '—'}</dd></div>
+      </dl>
+      {p.features.length > 0 && (
+        <ul className="sh-feat" aria-label="امکانات">
+          {p.features.map((f) => <li key={f}><Icon name="check" size="s" />{f}</li>)}
+        </ul>
+      )}
+      {p.description?.trim() && <p className="sh-desc">{p.description}</p>}
+    </>
+  );
+}
+
+/** یک عکس در گالری کشیدنی گوشی؛ نسخهٔ کامل فقط برای عکس جاری و دو همسایه‌اش بار می‌شود. */
+function Slide({ x, near, alt }: { x: PhotoThumb; near: boolean; alt: string }) {
+  const thumb = photoUrl(x.id, 'thumb', x.thumb, x.mime);
+  const full = useFullPhotoUrl(near ? x.id : undefined);
+  return (
+    <div className="shm-slide">
+      <img className="sh-bg" src={thumb} alt="" aria-hidden draggable={false} />
+      <img className="sh-img" src={full ?? thumb} alt={alt} draggable={false} loading={near ? 'eager' : 'lazy'} />
+    </div>
   );
 }

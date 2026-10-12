@@ -160,3 +160,65 @@
 @media (max-width: 899px) and (orientation: landscape) and (max-height: 500px) {
   .sh-stage { height: calc(100svh - 72px); }
 }
+
+/* ── گوشی: عکس لبه‌به‌لبه و کشیدنی، مشخصات در برگه‌ای که روی عکس می‌آید، دکمه‌ها پایین صفحه ── */
+.shm {
+  position: fixed; inset: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  background: var(--bg); color: var(--ink);
+}
+.shm-hero { position: relative; height: 56svh; min-height: 280px; background: var(--sunk); }
+.shm-track {
+  display: flex; height: 100%; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
+}
+.shm-track::-webkit-scrollbar { display: none; }
+.shm-slide { position: relative; flex: none; width: 100%; height: 100%; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; }
+
+.shm-top {
+  position: absolute; inset: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: calc(12px + env(safe-area-inset-top)) 12px 28px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 70%, transparent), transparent);
+  pointer-events: none;
+}
+.shm-top > * { pointer-events: auto; }
+.shm-ib, .shm-nav {
+  height: 44px; border-radius: 99px; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--bg) 55%, transparent); color: var(--ink); backdrop-filter: blur(10px);
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+}
+.shm-ib { width: 44px; }
+.shm-nav { gap: 2px; padding: 0 4px; font-size: 13px; font-weight: 600; }
+.shm-nav button { width: 36px; height: 36px; border: 0; background: none; display: flex; align-items: center; justify-content: center; }
+
+.shm-dots {
+  position: absolute; bottom: 34px; right: 50%; translate: 50% 0;
+  display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 99px;
+  background: color-mix(in srgb, var(--bg) 50%, transparent); backdrop-filter: blur(8px); font-size: 12px; font-weight: 600;
+}
+.shm-dots i { width: 6px; height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 45%, transparent); transition: width .2s ease, background .2s ease; }
+.shm-dots i.on { width: 16px; background: var(--ink); }
+
+/* برگهٔ مشخصات کمی روی عکس می‌نشیند */
+.shm-sheet {
+  position: relative; margin-top: -22px; border-radius: 24px 24px 0 0;
+  background: var(--paper); border-top: 1px solid var(--line);
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+.shm-sheet::before { content: ''; position: absolute; top: 8px; right: 50%; translate: 50% 0; width: 40px; height: 4px; border-radius: 99px; background: var(--line2); }
+.shm-sheet .sh-info-in { padding: 26px 18px 8px; gap: 18px; }
+.shm-sheet h1 { margin: 0; font-size: 25px; line-height: 1.4; font-weight: 800; }
+.shm-sheet .sh-price b { font-size: 30px; }
+.shm-sheet .sh-specs dd { font-size: 18px; }
+.shm-private { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); }
+
+.shm-bar {
+  position: fixed; inset: auto 0 0; display: flex; gap: 10px;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+}
+.shm-bar .sh-like { flex: 1; height: 54px; font-size: 16px; }
+.shm-next {
+  flex: 1.2; height: 54px; border-radius: 16px; border: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--pri); color: var(--pri-ink); font-size: 16px; font-weight: 700;
+}
