@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3-multiple-ciphers';
 import { nodeSqliteDriver, openEncrypted } from '../sql/nodeDriver';
 import { SqlStore } from '../sql/sqlStore';
+import { bestMatches } from '../match';
 import type { NewListing } from '../store';
 import { Hlc, decodeHlc, encodeHlc } from './hlc';
 import { mergeChange, type EntityState } from './merge';
@@ -172,6 +173,15 @@ describe('sync between two offline devices', () => {
     await sync(a, server);
     expect(server.rows.size).toBe(2);
     expect((await a.listTodos()).map((t) => t.title)).toEqual(['زنگ به مالک']);
+  });
+
+  it('reads a synced client need with nulls as empty, so matching still works', async () => {
+    const b = await device();
+    const need = { deal: 'sale', kinds: ['apartment'], neighborhoods: ['محله 3'], areaMin: null, areaMax: null, bedroomsMin: null, budgetMax: null, rentMax: null };
+    await b.applyRemote([{ kind: 'client', id: 'c1', fields: { name: 'مشتری', phone: '', need, createdAt: '2026-01-01T00:00:00Z' } }], '1', null);
+    const c = (await b.getClient('c1'))!;
+    expect(c.need.budgetMax).toBeUndefined();
+    expect(bestMatches([{ ...listing(3), id: 'l1', plaque: 1, createdAt: '', updatedAt: '' }], c.need)).toHaveLength(1);
   });
 
   it('never sends sample data, and skips malformed remote fields', async () => {

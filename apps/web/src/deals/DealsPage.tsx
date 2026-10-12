@@ -4,6 +4,7 @@ import { Cover, Icon, Plaque } from '@kelid/ui';
 import {
   checklistFor, dealCommission, formatJalaliDay, formatToman, jalaliOf, listingTitle, tehranDayKey, toFaDigits,
   type Client, type Deal, type DealStage, type Listing,
+  listingPlace,
 } from '@kelid/core';
 import { useQuery, useSlow } from '../data';
 import { dealsQuery } from '../queries';
@@ -289,7 +290,7 @@ function DealCard({ d, l, c, cover, stamped, onOpen }: { d: Deal; l?: Listing; c
             {d.price ? <span className="dl-price num">{formatToman(d.price)}</span> : null}
           </span>
           <span className="dl-title">{l ? listingTitle(l) : 'فایل حذف شده'}</span>
-          <span className="xs mute dl-ell">{l ? `${l.neighborhood}، ${l.street}` : ''}</span>
+          <span className="xs mute dl-ell">{l ? listingPlace(l) : ''}</span>
         </span>
       </span>
       <span className="dl-card-mid">

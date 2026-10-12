@@ -72,7 +72,8 @@ function rowToClient(r: Row): Client {
     id: s(r.id),
     name: s(r.name),
     phone: s(r.phone),
-    need: JSON.parse(s(r.need)) as Client['need'],
+    // نیازی که از سرور برگشته به جای «خالی» null دارد؛ null با شرط‌های === undefined جور نمی‌شد و مشتری هیچ فایل مناسبی نمی‌دید.
+    need: JSON.parse(s(r.need), (_k, v: unknown) => (v === null ? undefined : v)) as Client['need'],
     temperature: s(r.temperature) as Client['temperature'],
     waitingForNews: b(r.waiting),
     lastContactAt: s(r.last_contact_at),

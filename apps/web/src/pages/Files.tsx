@@ -1,7 +1,7 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
-import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
+import { listingPlace, dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
 import { useQuery } from '../data';
 import { filesQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
@@ -131,7 +131,7 @@ export function FilesPage() {
             </span>
             <div className="rw" style={{ gap: 12, alignItems: 'flex-start' }}>
               <span className="col sp">
-                <span className="xs mute">{dealLabel[sel.deal]} · {sel.neighborhood}، {sel.street}</span>
+                <span className="xs mute">{dealLabel[sel.deal]} · {listingPlace(sel)}</span>
                 <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.5 }}>{listingTitle(sel)}</span>
               </span>
               <span style={{ viewTransitionName: `plaque-${sel.id}` }}><Plaque value={sel.plaque} deal={sel.deal} size="l" /></span>
@@ -176,7 +176,7 @@ const FileRow = memo(function FileRow({ l, selected, cover, onOpen, onEnter }: R
         <Cover variant={l.cover} src={cover} style={{ flex: '0 0 56px', height: 42, borderRadius: 8 }} />
         <span className="col" style={{ minWidth: 0, lineHeight: 1.5 }}>
           <span className="sb" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{listingTitle(l)}</span>
-          <span className="xs mute">{l.neighborhood}، {l.street}{statusLabel[l.status] ? ` · ${statusLabel[l.status]}` : ''}</span>
+          <span className="xs mute">{listingPlace(l)}{statusLabel[l.status] ? ` · ${statusLabel[l.status]}` : ''}</span>
         </span>
       </span>
       <span className="num">{toFaDigits(l.area)} م</span>
