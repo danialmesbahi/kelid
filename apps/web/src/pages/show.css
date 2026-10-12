@@ -164,7 +164,9 @@
 
 /* ── گوشی: عکس لبه‌به‌لبه و کشیدنی، مشخصات در برگه‌ای که روی عکس می‌آید، دکمه‌ها پایین صفحه ── */
 .shm {
-  position: fixed; top: 0; right: 0; bottom: 0; left: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  /* ارتفاع = بخش دیدنی صفحه (dvh)؛ با bottom: 0 در سافاری آیفون پایین صفحه زیر نوار ابزار مرورگر می‌رفت */
+  position: fixed; top: 0; right: 0; left: 0; height: 100vh; height: 100dvh;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch;
   display: flex; flex-direction: column;
   background: var(--bg); color: var(--ink);
 }
@@ -174,7 +176,7 @@
   scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
 }
 .shm-track::-webkit-scrollbar { display: none; }
-.shm-slide { position: relative; flex: none; width: 100%; height: 100%; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-in; }
+.shm-slide { position: relative; flex: none; width: 100%; height: 100%; overflow: hidden; background: var(--bg); scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-in; }
 
 .shm-top {
   position: absolute; top: 0; right: 0; left: 0; display: flex; align-items: center; gap: 8px;
@@ -185,7 +187,7 @@
 .shm-top > * { pointer-events: auto; }
 .shm-ib, .shm-nav {
   height: 44px; border-radius: 99px; display: flex; align-items: center; justify-content: center;
-  background: rgba(11, 12, 11, .55); color: var(--ink); backdrop-filter: blur(10px);
+  background: rgba(11, 12, 11, .55); color: var(--ink);
   border: 1px solid rgba(236, 237, 233, .16);
 }
 .shm-ib { width: 44px; }
@@ -195,7 +197,7 @@
 .shm-dots {
   position: absolute; bottom: 34px; right: 50%; transform: translateX(50%);
   display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 99px;
-  background: rgba(11, 12, 11, .50); backdrop-filter: blur(8px); font-size: 12px; font-weight: 600;
+  background: rgba(11, 12, 11, .50); font-size: 12px; font-weight: 600;
 }
 .shm-dots i { flex: none; width: 6px; height: 6px; border-radius: 99px; background: rgba(236, 237, 233, .45); transition: width .2s ease, background .2s ease; }
 .shm-dots i.on { width: 16px; background: var(--ink); }
@@ -216,7 +218,7 @@
 .shm-bar {
   position: sticky; bottom: 0; z-index: 2; display: flex; gap: 10px;
   padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
-  background: rgba(11, 12, 11, .85); backdrop-filter: blur(14px);
+  background: var(--bg);
   border-top: 1px solid var(--line);
 }
 .shm-bar .sh-like { flex: 1; height: 54px; font-size: 16px; }
@@ -226,7 +228,6 @@
 }
 
 /* عکس تمام‌صفحه روی گوشی: پس‌زمینهٔ ساده، عکس کامل، همچنان کشیدنی */
-.shm-viewer { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 10; background: var(--bg); animation: kl-fadein .2s ease both; }
+.shm-viewer { position: fixed; top: 0; right: 0; left: 0; height: 100vh; height: 100dvh; z-index: 10; background: var(--bg); animation: kl-fadein .2s ease both; }
 .shm-viewer .shm-track { height: 100%; }
-.shm-track.plain .sh-bg { display: none; }
 .shm-track.plain .shm-slide { cursor: default; }

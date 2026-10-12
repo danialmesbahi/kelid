@@ -305,6 +305,8 @@ function SwipeTrack({ photos, pi, listingId, alt, onPick, onTap, plain }: { phot
   const ref = useRef<HTMLDivElement>(null);
   const fromSwipe = useRef(false);
   const shown = useRef<string | undefined>(undefined);
+  const settle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(settle.current), []);
   const n = photos.length;
   // پیش از نقاشی، تا عکس اشتباه یک لحظه هم دیده نشود.
   useLayoutEffect(() => {
@@ -325,11 +327,15 @@ function SwipeTrack({ photos, pi, listingId, alt, onPick, onTap, plain }: { phot
       ref={ref}
       onScroll={(e) => {
         const el = e.currentTarget;
-        const k = n - 1 - Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
-        if (k !== pi && k >= 0 && k < n) {
-          fromSwipe.current = true;
-          onPick(k);
-        }
+        // فقط وقتی کشیدن تمام شد؛ رندر وسط حرکت انگشت، ورق زدن را روی آیفون گیر می‌انداخت.
+        clearTimeout(settle.current);
+        settle.current = setTimeout(() => {
+          const k = n - 1 - Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+          if (k !== pi && k >= 0 && k < n) {
+            fromSwipe.current = true;
+            onPick(k);
+          }
+        }, 120);
       }}
     >
       {photos.map((_, j) => {
@@ -347,8 +353,8 @@ function Slide({ x, near, alt, onTap }: { x: PhotoThumb; near: boolean; alt: str
   const full = useFullPhotoUrl(near ? x.id : undefined);
   return (
     <div className="shm-slide" onClick={onTap}>
-      <img className="sh-bg" src={thumb} alt="" aria-hidden draggable={false} />
-      <img className="sh-img" src={full ?? thumb} alt={alt} draggable={false} loading={near ? 'eager' : 'lazy'} />
+      {/* بدون نسخهٔ محو پشت عکس: blur هنگام کشیدن، سافاری آیفون را کند می‌کرد */}
+      <img className="sh-img" src={full ?? thumb} alt={alt} draggable={false} decoding="async" loading={near ? 'eager' : 'lazy'} />
     </div>
   );
 }
