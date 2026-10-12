@@ -40,10 +40,8 @@ export function ShowPage() {
   const stripRef = useRef<HTMLDivElement>(null);
   const touchX = useRef<number | null>(null);
   const phone = usePhone();
-  const trackRef = useRef<HTMLDivElement>(null);
-  // وقتی خود کاربر عکس را کشیده، اسکرول دوباره تنظیم نمی‌شود.
-  const fromSwipe = useRef(false);
-  const shownListing = useRef<string | undefined>(undefined);
+  // گوشی: زدن روی عکس آن را تمام‌صفحه باز می‌کند (همچنان کشیدنی).
+  const [viewer, setViewer] = useState(false);
 
   useEffect(() => {
     document.documentElement.requestFullscreen?.().catch(() => undefined);
@@ -61,20 +59,6 @@ export function ShowPage() {
   useEffect(() => {
     stripRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
   }, [pi, p?.id]);
-
-  // گالری گوشی: با عوض شدن عکس از بیرون (ملک بعدی، دکمه‌ها) نوار کشیدنی هم همان‌جا می‌رود.
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el || !p) return;
-    const sameListing = shownListing.current === p.id;
-    shownListing.current = p.id;
-    if (fromSwipe.current && sameListing) {
-      fromSwipe.current = false;
-      return;
-    }
-    // راست‌به‌چپ: scrollLeft از صفر به منفی می‌رود
-    el.scrollTo({ left: -pi * el.clientWidth, behavior: sameListing ? 'smooth' : 'instant' });
-  }, [phone, p, pi]);
 
   // برگشت به همان جایی که نمایش از آن شروع شد؛ اگر مستقیم باز شده، به «امروز».
   const close = () => {
@@ -107,7 +91,8 @@ export function ShowPage() {
       else if (e.key === 'ArrowDown' || e.key === 'PageDown') goListing(i + 1);
       else if (e.key === 'ArrowUp' || e.key === 'PageUp') goListing(i - 1);
       else if (e.key === 'Escape') {
-        if (focus) setFocus(false);
+        if (viewer) setViewer(false);
+        else if (focus) setFocus(false);
         else close();
       } else return;
       e.preventDefault();
@@ -115,7 +100,7 @@ export function ShowPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [n, i, pi, pn, focus]);
+  }, [n, i, pi, pn, focus, viewer]);
 
   if (!p) return null;
   const isLiked = !!liked[p.id];
@@ -123,29 +108,17 @@ export function ShowPage() {
 
   if (phone) {
     const slides = photos ?? [];
+    const pick = (k: number) => setPhotoAt((m) => ({ ...m, [p.id]: k }));
     return (
       <div className="app dark shm">
         <section className="shm-hero" aria-label="عکس‌ها">
-          <div
-            className="shm-track"
-            ref={trackRef}
-            onScroll={(e) => {
-              const el = e.currentTarget;
-              const k = Math.round(Math.abs(el.scrollLeft) / Math.max(1, el.clientWidth));
-              if (k !== pi && k < pn) {
-                fromSwipe.current = true;
-                setPhotoAt((m) => ({ ...m, [p.id]: k }));
-              }
-            }}
-          >
-            {slides.length > 0 ? (
-              slides.map((x, k) => <Slide key={x.id} x={x} near={Math.abs(k - pi) <= 1} alt={`${listingTitle(p)}، عکس ${toFaDigits(k + 1)}`} />)
-            ) : (
-              <div className="shm-slide">
-                {thumb ? <><img className="sh-bg" src={thumb} alt="" aria-hidden /><img className="sh-img" src={full ?? thumb} alt={listingTitle(p)} /></> : <Cover variant={p.cover} className="sh-cover" />}
-              </div>
-            )}
-          </div>
+          {slides.length > 0 ? (
+            <SwipeTrack photos={slides} pi={pi} listingId={p.id} alt={listingTitle(p)} onPick={pick} onTap={() => setViewer(true)} />
+          ) : (
+            <div className="shm-slide">
+              {thumb ? <><img className="sh-bg" src={thumb} alt="" aria-hidden /><img className="sh-img" src={full ?? thumb} alt={listingTitle(p)} /></> : <Cover variant={p.cover} className="sh-cover" />}
+            </div>
+          )}
           <div className="shm-top">
             <button type="button" className="shm-ib" aria-label="پایان نمایش" onClick={close}><Icon name="x" /></button>
             <span className="sp" />
@@ -170,6 +143,17 @@ export function ShowPage() {
             <span className="shm-private"><Icon name="lock" size="s" />اطلاعات مالک پنهان است{officeName ? ` · ${officeName}` : ''}</span>
           </div>
         </article>
+
+        {viewer && slides.length > 0 && (
+          <div className="shm-viewer" role="dialog" aria-modal="true" aria-label="عکس‌ها">
+            <SwipeTrack photos={slides} pi={pi} listingId={p.id} alt={listingTitle(p)} onPick={pick} plain />
+            <div className="shm-top">
+              <button type="button" className="shm-ib" aria-label="بستن عکس" onClick={() => setViewer(false)}><Icon name="x" /></button>
+              <span className="sp" />
+              {pn > 1 && <span className="shm-nav num" style={{ padding: '0 14px' }}>{toFaDigits(pi + 1)} از {toFaDigits(pn)}</span>}
+            </div>
+          </div>
+        )}
 
         <div className="shm-bar">
           <button type="button" aria-pressed={isLiked} className={`sh-like${isLiked ? ' on' : ''}`} onClick={() => setLiked((l) => ({ ...l, [p.id]: !isLiked }))}>
@@ -311,12 +295,50 @@ function InfoBody({ p }: { p: Listing }) {
   );
 }
 
-/** یک عکس در گالری کشیدنی گوشی؛ نسخهٔ کامل فقط برای عکس جاری و دو همسایه‌اش بار می‌شود. */
-function Slide({ x, near, alt }: { x: PhotoThumb; near: boolean; alt: string }) {
+/**
+ * گالری کشیدنی گوشی (اسکرول با snap). با عوض شدن عکس از بیرون (ملک بعدی، دکمه‌ها)
+ * همان‌جا می‌رود؛ وقتی خود کاربر کشیده، دوباره تنظیم نمی‌شود.
+ */
+function SwipeTrack({ photos, pi, listingId, alt, onPick, onTap, plain }: { photos: PhotoThumb[]; pi: number; listingId: string; alt: string; onPick: (k: number) => void; onTap?: () => void; plain?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const fromSwipe = useRef(false);
+  const shown = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const same = shown.current === listingId;
+    shown.current = listingId;
+    if (fromSwipe.current && same) {
+      fromSwipe.current = false;
+      return;
+    }
+    // راست‌به‌چپ: scrollLeft از صفر به منفی می‌رود
+    el.scrollTo({ left: -pi * el.clientWidth, behavior: same ? 'smooth' : 'instant' });
+  }, [listingId, pi]);
+  return (
+    <div
+      className={`shm-track${plain ? ' plain' : ''}`}
+      ref={ref}
+      onScroll={(e) => {
+        const el = e.currentTarget;
+        const k = Math.round(Math.abs(el.scrollLeft) / Math.max(1, el.clientWidth));
+        if (k !== pi && k < photos.length) {
+          fromSwipe.current = true;
+          onPick(k);
+        }
+      }}
+    >
+      {photos.map((x, k) => <Slide key={x.id} x={x} near={Math.abs(k - pi) <= 1} alt={`${alt}، عکس ${toFaDigits(k + 1)}`} onTap={onTap} />)}
+    </div>
+  );
+}
+
+/** یک عکس گالری گوشی؛ نسخهٔ کامل فقط برای عکس جاری و دو همسایه‌اش بار می‌شود. */
+function Slide({ x, near, alt, onTap }: { x: PhotoThumb; near: boolean; alt: string; onTap?: () => void }) {
   const thumb = photoUrl(x.id, 'thumb', x.thumb, x.mime);
   const full = useFullPhotoUrl(near ? x.id : undefined);
   return (
-    <div className="shm-slide">
+    <div className="shm-slide" onClick={onTap}>
       <img className="sh-bg" src={thumb} alt="" aria-hidden draggable={false} />
       <img className="sh-img" src={full ?? thumb} alt={alt} draggable={false} loading={near ? 'eager' : 'lazy'} />
     </div>
