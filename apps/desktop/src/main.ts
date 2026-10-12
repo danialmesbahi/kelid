@@ -49,7 +49,10 @@ function createWindow() {
   });
   win.webContents.on('will-navigate', (e, url) => {
     const allowed = DEV_URL ? url.startsWith(DEV_URL) : url.startsWith('file://');
-    if (!allowed) e.preventDefault();
+    if (allowed) return;
+    e.preventDefault();
+    // دکمهٔ «تماس»: ویندوز آن را به برنامهٔ تماس (Phone Link) می‌دهد.
+    if (/^tel:\+?\d{3,15}$/.test(url)) void shell.openExternal(url);
   });
 
   if (DEV_URL) void win.loadURL(DEV_URL);

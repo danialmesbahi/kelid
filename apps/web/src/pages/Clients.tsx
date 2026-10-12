@@ -6,6 +6,7 @@ import { useQuery, useStore } from '../data';
 import { clientsQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { CallLink } from '../layout/CallLink';
 import { VisitDialog } from '../visits/VisitDialog';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePhone } from '../layout/usePhone';
@@ -110,7 +111,7 @@ export function ClientsPage() {
                 <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.45 }}>{cur.name}</h2>
                 <span className="mute sm">{needSummary(cur)}</span>
               </div>
-              <a className="ib" href={`tel:${cur.phone}`} aria-label={`تماس با ${cur.name}`}><Icon name="phone" /></a>
+              <CallLink className="ib" phone={cur.phone} label={`تماس با ${cur.name}`}><Icon name="phone" /></CallLink>
               <a className="ib" href={`sms:${cur.phone}`} aria-label={`پیامک به ${cur.name}`}><Icon name="msg" /></a>
               <Link viewTransition className="ib" to={`/clients/${cur.id}/edit`} aria-label={`ویرایش ${cur.name}`}><Icon name="edit" /></Link>
               <button

@@ -1,6 +1,7 @@
 import { randomUUID, type KeyObject } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { formatDate, formatGrouped } from '@kelid/core/format';
+import { toFaDigits } from '@kelid/core/persian';
 import { nextExpiry, planById, PLANS, priceOf, type Period, type PlanId } from '@kelid/core/plans';
 import { authGuard } from '../auth/routes';
 import { RateLimiter } from '../auth/rateLimit';
@@ -220,7 +221,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
         page({
           tone: 'ok',
           title: 'پرداخت انجام شد',
-          lines: [`اشتراک ${plan?.name ? `پلن ${plan.name}` : ''} تا ${formatDate(new Date(r.expiresAt!))} فعال است.`, `کد پیگیری: ${r.refId ?? ''}`],
+          lines: [`اشتراک ${plan?.name ? `پلن ${plan.name}` : ''} تا ${formatDate(new Date(r.expiresAt!))} فعال است.`, `کد پیگیری: ${toFaDigits(r.refId ?? '')}`],
           note: closeNote,
         }),
       );

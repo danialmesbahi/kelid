@@ -181,8 +181,13 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
 
 }
 
+/* ورق زدن عکس‌های یک ملک در حالت نمایش؛ روی عکس، پس نیمه‌شفاف و همیشه تیره (مثل بقیهٔ این صفحه). */
+.showarrow { width: 56px; height: 56px; border-radius: 50%; border: 1px solid rgba(255,255,255,.2); background: rgba(18,20,18,.55); color: #fff; display: flex; align-items: center; justify-content: center; }
+.showarrow:hover { background: rgba(18,20,18,.75); }
+
 /* حالت نمایش روی گوشی، ایستاده یا خوابیده: حاشیه و نوشته‌ها کوچک‌تر */
 @media (max-width: 767px), (max-height: 500px) {
+  .showarrow { width: 44px; height: 44px; }
   .showpage header { padding: 14px 16px !important; gap: 8px !important; }
   .showpage header .sm:not(button) { display: none; }
   .showpage > .rw:last-child { padding: 0 16px 20px !important; gap: 14px 18px !important; }

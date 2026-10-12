@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Cover, Icon } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits } from '@kelid/core';
-import { useQuery } from '../data';
+import { useQuery, useStore } from '../data';
 import { FullPhotoLayer } from '../photos/Gallery';
-import { coverUrl, useCoverThumbs } from '../photos/photos';
+import { coverUrl, photoUrl, prefetchFullPhoto, useCoverThumbs } from '../photos/photos';
 import { usePrefsContext } from '../App';
 
 /**
@@ -19,10 +19,36 @@ export function ShowPage() {
   const thumbs = useCoverThumbs();
   const [i, setI] = useState(0);
   const [liked, setLiked] = useState<Record<string, boolean>>({});
+  // عکسِ در حال نمایش هر ملک؛ برگشتن به یک ملک همان عکس را نشان می‌دهد.
+  const [photoAt, setPhotoAt] = useState<Record<string, number>>({});
+  const store = useStore();
   const officeName = usePrefsContext().officeName.trim();
 
   const list = all ? (ids.length ? ids.map((id) => all.find((l) => l.id === id)).filter((l) => l !== undefined) : all.slice(0, 5)) : [];
   const n = list.length;
+  const p = list[i];
+  const photos = useQuery(`photos:${p?.id ?? ''}`, (s) => (p ? s.listPhotos(p.id) : Promise.resolve([])));
+  const pn = photos?.length ?? 0;
+  const pi = p ? Math.min(photoAt[p.id] ?? 0, Math.max(0, pn - 1)) : 0;
+  const ph = photos?.[pi];
+
+  // عکس بعدی از قبل آماده می‌شود تا ورق زدن جلوی مشتری مکث نداشته باشد.
+  useEffect(() => {
+    if (photos && pn > 1) prefetchFullPhoto(store, photos[(pi + 1) % pn]?.id);
+  }, [store, photos, pi, pn]);
+
+  // ورق زدن عکس‌ها؛ بعد از آخرین عکس به ملک بعدی می‌رود (و برعکس).
+  const step = (d: 1 | -1) => {
+    if (!p) return;
+    const next = pi + d;
+    if (next >= 0 && next < pn) return setPhotoAt((m) => ({ ...m, [p.id]: next }));
+    if (n < 2) return setPhotoAt((m) => ({ ...m, [p.id]: (next + pn) % Math.max(1, pn) }));
+    const k = (i + d + n) % n;
+    const q = list[k];
+    if (q) setPhotoAt((m) => ({ ...m, [q.id]: d === 1 ? 0 : Math.max(0, q.photoCount - 1) }));
+    setI(k);
+  };
+  const touchX = useRef<number | null>(null);
 
   useEffect(() => {
     document.documentElement.requestFullscreen?.().catch(() => undefined);
@@ -40,24 +66,33 @@ export function ShowPage() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') setI((x) => (x + 1) % Math.max(1, n));
-      else if (e.key === 'ArrowRight') setI((x) => (x - 1 + n) % Math.max(1, n));
+      if (e.key === 'ArrowLeft') step(1);
+      else if (e.key === 'ArrowRight') step(-1);
       else if (e.key === 'Escape') close();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [n]);
+  }, [n, i, pi, pn]);
 
-  const p = list[i];
   if (!p) return null;
   const isLiked = !!liked[p.id];
 
   return (
-    <div className="col showpage" style={{ position: 'relative', minHeight: '100vh', background: '#0B0C0B', color: '#fff', overflow: 'hidden', fontSize: 16 }}>
-      <span key={p.id} className="fade" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-        <Cover variant={p.cover} src={coverUrl(thumbs, p.id)} className="kenburns" style={{ position: 'absolute', inset: 0 }}>
-          <FullPhotoLayer photoId={thumbs[p.id]?.photoId} />
+    <div
+      className="col showpage"
+      onTouchStart={(e) => (touchX.current = e.touches[0]?.clientX ?? null)}
+      onTouchEnd={(e) => {
+        const x0 = touchX.current;
+        const x1 = e.changedTouches[0]?.clientX;
+        touchX.current = null;
+        // راست‌به‌چپ: کشیدن به راست = عکس بعدی
+        if (x0 !== null && x1 !== undefined && Math.abs(x1 - x0) > 50) step(x1 > x0 ? 1 : -1);
+      }}
+      style={{ position: 'relative', minHeight: '100vh', background: '#0B0C0B', color: '#fff', overflow: 'hidden', fontSize: 16 }}>
+      <span key={`${p.id}:${ph?.id ?? ''}`} className="fade" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+        <Cover variant={p.cover} src={ph ? photoUrl(ph.id, 'thumb', ph.thumb, ph.mime) : coverUrl(thumbs, p.id)} className="kenburns" style={{ position: 'absolute', inset: 0 }}>
+          <FullPhotoLayer photoId={ph?.id ?? thumbs[p.id]?.photoId} />
         </Cover>
       </span>
       <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(11,12,11,.94) 0%, rgba(11,12,11,.68) 32%, rgba(11,12,11,0) 62%), linear-gradient(to bottom, rgba(11,12,11,.55) 0%, rgba(11,12,11,0) 18%)' }} />
@@ -67,6 +102,11 @@ export function ShowPage() {
         {/* این صفحه جلوی مشتری است: نام واقعی دفتر، یا هیچ (نه متن نمونه). */}
         {officeName && <span className="sm" style={{ color: 'rgba(255,255,255,.75)' }}>{officeName}</span>}
         <span className="sp" />
+        {pn > 1 && (
+          <span className="num xs" aria-live="polite" style={{ height: 40, padding: '0 14px', display: 'flex', alignItems: 'center', borderRadius: 99, background: 'rgba(18,20,18,.55)', border: '1px solid rgba(255,255,255,.14)' }}>
+            عکس {toFaDigits(pi + 1)} از {toFaDigits(pn)}
+          </span>
+        )}
         <span className="rw xs" style={{ gap: 8, height: 40, padding: '0 14px', borderRadius: 99, background: 'rgba(18,20,18,.55)', border: '1px solid rgba(255,255,255,.14)' }}>
           <Icon name="lock" size="s" />
           اطلاعات مالک پنهان است
@@ -76,6 +116,13 @@ export function ShowPage() {
           پایان نمایش
         </button>
       </header>
+      <div className="sp" />
+      {pn > 1 && (
+        <div className="rw" style={{ position: 'relative', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 24px' }}>
+          <button type="button" aria-label="عکس قبلی" onClick={() => step(-1)} className="showarrow"><Icon name="chr" size="l" /></button>
+          <button type="button" aria-label="عکس بعدی" onClick={() => step(1)} className="showarrow"><Icon name="chl" size="l" /></button>
+        </div>
+      )}
       <div className="sp" />
 
       <div className="rw" style={{ position: 'relative', flexWrap: 'wrap', alignItems: 'flex-end', gap: 32, padding: '0 44px 40px' }}>

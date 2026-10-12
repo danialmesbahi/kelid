@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { floorLabel, formatPlaque, formatToman, matchListing, normalizeForSearch, filterListings, seedListings, seedClients, newId } from './index';
+import { floorLabel, listingPlace, formatPlaque, formatToman, matchListing, normalizeForSearch, filterListings, seedListings, seedClients, newId } from './index';
 
 describe('persian', () => {
   it('normalizes spacing, letters and digits for search', () => {
@@ -26,6 +26,10 @@ describe('format', () => {
     expect(floorLabel({ ...l, floor: 0, floorsTotal: 4 })).toBe('همکف از ۴');
     expect(floorLabel({ ...l, floor: 3, floorsTotal: undefined })).toBe('۳');
     expect(floorLabel({ ...l, floor: undefined })).toBe('—');
+  });
+  it('joins place without a dangling comma', () => {
+    expect(listingPlace({ neighborhood: 'ونک', street: 'ملاصدرا' })).toBe('ونک، ملاصدرا');
+    expect(listingPlace({ neighborhood: 'ونک', street: '' })).toBe('ونک');
   });
 });
 

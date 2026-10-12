@@ -4,6 +4,7 @@ import { Icon, Plaque } from '@kelid/ui';
 import {
   headlinePrice, listingTitle, matchListing, normalizeForSearch, searchText, suggestedCommission, toFaDigits,
   type Client, type Deal, type Listing,
+  listingPlace,
 } from '@kelid/core';
 import { useStore } from '../data';
 import { useToast } from '../layout/Toasts';
@@ -82,7 +83,7 @@ export function NewDealDialog({ data, listingId, onClose, onCreated }: { data: {
                       <Plaque value={x.plaque} deal={x.deal} size="s" />
                       <span className="col sp" style={{ minWidth: 0, textAlign: 'right' }}>
                         <span className="sm sb">{listingTitle(x)}</span>
-                        <span className="xs mute">{x.neighborhood}، {x.street}</span>
+                        <span className="xs mute">{listingPlace(x)}</span>
                       </span>
                       <span className="xs num mute">{headlinePrice(x)}</span>
                       {taken.has(x.id) && <span className="tag warn" style={{ height: 22, fontSize: 12 }}>در جریان</span>}
@@ -97,7 +98,7 @@ export function NewDealDialog({ data, listingId, onClose, onCreated }: { data: {
                   <Plaque value={l.plaque} deal={l.deal} />
                   <span className="col sp" style={{ minWidth: 0 }}>
                     <span className="sb">{listingTitle(l)}</span>
-                    <span className="xs mute">{l.neighborhood}، {l.street} · {headlinePrice(l)}</span>
+                    <span className="xs mute">{listingPlace(l)} · {headlinePrice(l)}</span>
                   </span>
                   <button type="button" className="btn btn-g" style={{ height: 36, padding: '0 10px', fontSize: 14 }} onClick={() => setPick('')}>عوض کردن</button>
                 </div>

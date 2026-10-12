@@ -4,10 +4,12 @@ import { Icon, Plaque } from '@kelid/ui';
 import {
   JALALI_MONTHS, addDays, addJalaliMonths, formatJalaliDay, formatTime, jalaliMonthDays, jalaliOf, tehranDayKey,
   toFaDigits, weekStart, weekdayIndex, type Client, type Listing, type Visit, type VisitKind,
+  listingPlace,
 } from '@kelid/core';
 import { useQuery, useSlow } from '../data';
 import { calendarQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
+import { CallLink } from '../layout/CallLink';
 import { VisitDialog, type VisitPreset } from '../visits/VisitDialog';
 import { KIND, dayName, useNow, validDay } from './time';
 import './calendar.css';
@@ -170,14 +172,14 @@ export function CalendarPage() {
                       <span className="xs mute rw" style={{ gap: 8, flexWrap: 'wrap' }}>
                         <span className="cal-kind"><Icon name={KIND[v.kind].icon} size="s" />{KIND[v.kind].label}</span>
                         {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
-                        {l ? `${l.neighborhood}، ${l.street}` : c ? c.name : ''}
+                        {l ? listingPlace(l) : c ? c.name : ''}
                         {v.done && <span>· انجام شد</span>}
                       </span>
                     </button>
                     {c?.phone && (
-                      <a className="ib" href={`tel:${c.phone}`} aria-label={`تماس با ${c.name}`} style={{ width: 44, height: 44 }}>
+                      <CallLink className="ib" phone={c.phone} label={`تماس با ${c.name}`} style={{ width: 44, height: 44 }}>
                         <Icon name="phone" size="s" />
-                      </a>
+                      </CallLink>
                     )}
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon, Kbd, Plaque, type IconName } from '@kelid/ui';
-import { headlinePrice, listingTitle, normalizeForSearch, normalizePhone, filterListings, toEnDigits } from '@kelid/core';
+import { listingPlace, headlinePrice, listingTitle, normalizeForSearch, normalizePhone, filterListings, toEnDigits } from '@kelid/core';
 import { useQuery } from '../data';
 import { paletteQuery } from '../queries';
 
@@ -36,7 +36,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     return [
       ...files.map((l) => ({
         key: l.id, group: 'فایل‌ها', to: `/files/${l.id}`,
-        render: () => (<><Plaque value={l.plaque} deal={l.deal} /><span className="col sp" style={{ lineHeight: 1.45 }}><span className="sb">{listingTitle(l)}</span><span className="xs mute">{l.neighborhood}، {l.street}</span></span><span className="num sb sm">{headlinePrice(l, true)}</span></>),
+        render: () => (<><Plaque value={l.plaque} deal={l.deal} /><span className="col sp" style={{ lineHeight: 1.45 }}><span className="sb">{listingTitle(l)}</span><span className="xs mute">{listingPlace(l)}</span></span><span className="num sb sm">{headlinePrice(l, true)}</span></>),
       })),
       ...clients.map((c) => ({
         key: c.id, group: 'مشتری‌ها', to: `/clients?c=${c.id}`,

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Icon, Plaque, Segmented } from '@kelid/ui';
-import { dealLabel, floorLabel, formatPlaque, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
+import { listingPlace, dealLabel, floorLabel, formatPlaque, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
 import { usePrefsContext } from '../App';
 import { useMember } from '../auth/AuthContext';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { CallLink } from '../layout/CallLink';
 import { VisitDialog } from '../visits/VisitDialog';
 import { statusOptions } from './ListingForm';
 import { PhotoGallery } from '../photos/Gallery';
@@ -68,7 +69,7 @@ export function FileDetailPage() {
         <div className="col" style={{ flex: '1 1 360px', gap: 2 }}>
           <h1 className="t1">{listingTitle(l)}</h1>
           <span className="mute rw" style={{ flexWrap: 'wrap', gap: '6px 14px' }}>
-            <span className="rw" style={{ gap: 6 }}><Icon name="pin" size="s" />{l.neighborhood}، {l.street}</span>
+            <span className="rw" style={{ gap: 6 }}><Icon name="pin" size="s" />{listingPlace(l)}</span>
             <span>{dealLabel[l.deal]}</span>
           </span>
         </div>
@@ -136,7 +137,7 @@ export function FileDetailPage() {
             <span style={{ fontSize: 18, fontWeight: 700 }}>{l.owner.name}</span>
             {l.owner.phone ? (
               <div className="rw" style={{ gap: 8 }}>
-                <a className="btn sp" href={`tel:${l.owner.phone}`} style={{ background: 'var(--deep-ink)', color: 'var(--deep)' }}><Icon name="phone" size="s" />تماس</a>
+                <CallLink className="btn sp" phone={l.owner.phone} style={{ background: 'var(--deep-ink)', color: 'var(--deep)' }}><Icon name="phone" size="s" />تماس</CallLink>
                 <button type="button" className="btn sp" onClick={() => setShowPhone((v) => !v)} style={{ borderColor: 'var(--deep-line)', background: 'transparent', color: 'var(--deep-ink)', direction: 'ltr' }}>
                   {showPhone ? toFaDigits(l.owner.phone) : 'نمایش شماره'}
                 </button>

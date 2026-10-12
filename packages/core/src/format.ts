@@ -43,6 +43,11 @@ export function listingTitle(l: Listing): string {
   return `${kind} ${toFaDigits(l.area)} متری`;
 }
 
+/** «محله، خیابان»؛ خیابان اختیاری است و بدون آن ویرگول آویزان نمی‌ماند. */
+export function listingPlace(l: Pick<Listing, 'neighborhood' | 'street'>): string {
+  return [l.neighborhood, l.street].map((x) => x.trim()).filter(Boolean).join('، ');
+}
+
 export function floorLabel(l: Listing): string {
   if (l.floor === undefined) return '—';
   // طبقهٔ صفر را مشاور و مشتری «همکف» می‌گویند.

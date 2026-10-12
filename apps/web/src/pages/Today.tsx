@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useViewTransitionState } from 'react-router';
 import { CheckBox, Icon, Plaque } from '@kelid/ui';
-import { formatLongDate, formatTime, toFaDigits, type Client, type Listing, type Visit } from '@kelid/core';
+import { listingPlace, formatLongDate, formatTime, toFaDigits, type Client, type Listing, type Visit } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { todayQuery } from '../queries';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import { ListingCardContent } from '../layout/ListingCard';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { CallLink } from '../layout/CallLink';
 import { VisitDialog } from '../visits/VisitDialog';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
 import { usePrefsContext } from '../App';
@@ -169,7 +170,7 @@ function AgendaRow({ v, listing, client, isNext, showNow, onEdit }: { v: Visit; 
           <span className="sb">{v.title}</span>
           <span className="xs mute rw" style={{ gap: 8, flexWrap: 'wrap' }}>
             {listing && <Plaque value={listing.plaque} deal={listing.deal} size="s" />}
-            {listing ? `${listing.neighborhood}، ${listing.street}` : v.done ? 'انجام شد' : ''}
+            {listing ? listingPlace(listing) : v.done ? 'انجام شد' : ''}
           </span>
         </button>
         {isNext && (
@@ -180,9 +181,9 @@ function AgendaRow({ v, listing, client, isNext, showNow, onEdit }: { v: Visit; 
         )}
         {/* تماس با مشتریِ همین قرار؛ قرار بدون مشتری دکمه‌ای ندارد که کاری نکند. */}
         {client?.phone && (
-          <a className="ib" href={`tel:${client.phone}`} aria-label={`تماس با ${client.name}`} style={{ width: 40, height: 40 }}>
+          <CallLink className="ib" phone={client.phone} label={`تماس با ${client.name}`} style={{ width: 40, height: 40 }}>
             <Icon name="phone" size="s" />
-          </a>
+          </CallLink>
         )}
       </div>
     </div>
