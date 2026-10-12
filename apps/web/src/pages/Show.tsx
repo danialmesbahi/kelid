@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Cover, Icon } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
@@ -298,12 +298,16 @@ function InfoBody({ p }: { p: Listing }) {
 /**
  * گالری کشیدنی گوشی (اسکرول با snap). با عوض شدن عکس از بیرون (ملک بعدی، دکمه‌ها)
  * همان‌جا می‌رود؛ وقتی خود کاربر کشیده، دوباره تنظیم نمی‌شود.
+ * نوار چپ‌به‌راست است و عکس‌ها وارونه چیده می‌شوند (عکس اول همچنان سمت راست): scrollLeft در حالت راست‌به‌چپ
+ * در مرورگرهای قدیمی گوشی علامت دیگری دارد و گالری را به هم می‌ریخت.
  */
 function SwipeTrack({ photos, pi, listingId, alt, onPick, onTap, plain }: { photos: PhotoThumb[]; pi: number; listingId: string; alt: string; onPick: (k: number) => void; onTap?: () => void; plain?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const fromSwipe = useRef(false);
   const shown = useRef<string | undefined>(undefined);
-  useEffect(() => {
+  const n = photos.length;
+  // پیش از نقاشی، تا عکس اشتباه یک لحظه هم دیده نشود.
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const same = shown.current === listingId;
@@ -312,23 +316,27 @@ function SwipeTrack({ photos, pi, listingId, alt, onPick, onTap, plain }: { phot
       fromSwipe.current = false;
       return;
     }
-    // راست‌به‌چپ: scrollLeft از صفر به منفی می‌رود
-    el.scrollTo({ left: -pi * el.clientWidth, behavior: same ? 'smooth' : 'instant' });
-  }, [listingId, pi]);
+    el.scrollTo({ left: (n - 1 - pi) * el.clientWidth, behavior: same ? 'smooth' : 'auto' });
+  }, [listingId, pi, n]);
   return (
     <div
       className={`shm-track${plain ? ' plain' : ''}`}
+      dir="ltr"
       ref={ref}
       onScroll={(e) => {
         const el = e.currentTarget;
-        const k = Math.round(Math.abs(el.scrollLeft) / Math.max(1, el.clientWidth));
-        if (k !== pi && k < photos.length) {
+        const k = n - 1 - Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+        if (k !== pi && k >= 0 && k < n) {
           fromSwipe.current = true;
           onPick(k);
         }
       }}
     >
-      {photos.map((x, k) => <Slide key={x.id} x={x} near={Math.abs(k - pi) <= 1} alt={`${alt}، عکس ${toFaDigits(k + 1)}`} onTap={onTap} />)}
+      {photos.map((_, j) => {
+        const k = n - 1 - j;
+        const x = photos[k]!;
+        return <Slide key={x.id} x={x} near={Math.abs(k - pi) <= 1} alt={`${alt}، عکس ${toFaDigits(k + 1)}`} onTap={onTap} />;
+      })}
     </div>
   );
 }
