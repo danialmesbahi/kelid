@@ -164,13 +164,10 @@
 
 /* ── گوشی: عکس لبه‌به‌لبه و کشیدنی، مشخصات در برگه‌ای که روی عکس می‌آید، دکمه‌ها پایین صفحه ── */
 .shm {
-  /* ارتفاع = بخش دیدنی صفحه (dvh)؛ با bottom: 0 در سافاری آیفون پایین صفحه زیر نوار ابزار مرورگر می‌رفت */
-  position: fixed; top: 0; right: 0; left: 0; height: 100vh; height: 100dvh;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-  display: flex; flex-direction: column;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
   background: var(--bg); color: var(--ink);
 }
-.shm-hero { position: relative; flex: none; height: 56vh; height: 56svh; min-height: 280px; background: var(--sunk); }
+.shm-hero { position: relative; height: 56vh; height: 56svh; min-height: 280px; background: var(--sunk); }
 .shm-track {
   display: flex; height: 100%; overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
@@ -204,9 +201,9 @@
 
 /* برگهٔ مشخصات کمی روی عکس می‌نشیند */
 .shm-sheet {
-  position: relative; flex: 1 0 auto; margin-top: -22px; border-radius: 24px 24px 0 0;
+  position: relative; margin-top: -22px; border-radius: 24px 24px 0 0;
   background: var(--paper); border-top: 1px solid var(--line);
-  padding-bottom: 8px;
+  padding-bottom: calc(150px + env(safe-area-inset-bottom));
 }
 .shm-sheet::before { content: ''; position: absolute; top: 8px; right: 50%; transform: translateX(50%); width: 40px; height: 4px; border-radius: 99px; background: var(--line2); }
 .shm-sheet .sh-info-in { padding: 26px 18px 16px; gap: 18px; }
@@ -216,9 +213,9 @@
 .shm-private { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); }
 
 .shm-bar {
-  position: sticky; bottom: 0; z-index: 2; display: flex; gap: 10px;
+  position: fixed; right: 0; bottom: 0; left: 0; z-index: 2; display: flex; gap: 10px;
   padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
-  background: var(--bg);
+  background: rgba(11, 12, 11, .85); backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
 }
 .shm-bar .sh-like { flex: 1; height: 54px; font-size: 16px; }

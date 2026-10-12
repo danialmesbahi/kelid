@@ -139,8 +139,8 @@ export function ShowPage() {
 
         <article className="shm-sheet" key={p.id}>
           <div className="sh-info-in fade">
-            <InfoBody p={p} />
             <span className="shm-private"><Icon name="lock" size="s" />اطلاعات مالک پنهان است{officeName ? ` · ${officeName}` : ''}</span>
+            <InfoBody p={p} />
           </div>
         </article>
 
@@ -341,13 +341,19 @@ function SwipeTrack({ photos, pi, listingId, alt, onPick, onTap, plain }: { phot
       {photos.map((_, j) => {
         const k = n - 1 - j;
         const x = photos[k]!;
-        return <Slide key={x.id} x={x} near={Math.abs(k - pi) <= 1} alt={`${alt}، عکس ${toFaDigits(k + 1)}`} onTap={onTap} />;
+        return <Slide key={x.id} x={x} near={Math.abs(k - pi) <= FULL_AROUND} alt={`${alt}، عکس ${toFaDigits(k + 1)}`} onTap={onTap} />;
       })}
     </div>
   );
 }
 
-/** یک عکس گالری گوشی؛ نسخهٔ کامل فقط برای عکس جاری و دو همسایه‌اش بار می‌شود. */
+/**
+ * عکس‌های کامل اطراف عکس جاری (عملاً همهٔ عکس‌های یک ملک) از قبل بار می‌شوند تا ورق زدن هیچ‌وقت تصویر کم‌کیفیت نشان ندهد.
+ * سقف دارد چون حافظهٔ عکس‌های کامل (FULL_KEEP در photos.ts) ۴۰ تاست.
+ */
+const FULL_AROUND = 15;
+
+/** یک عکس گالری گوشی. */
 function Slide({ x, near, alt, onTap }: { x: PhotoThumb; near: boolean; alt: string; onTap?: () => void }) {
   const thumb = photoUrl(x.id, 'thumb', x.thumb, x.mime);
   const full = useFullPhotoUrl(near ? x.id : undefined);
