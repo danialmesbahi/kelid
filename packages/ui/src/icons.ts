@@ -28,6 +28,7 @@ export const iconPaths = {
   "edit": "<path d=\"M4 20h4L19 9l-4-4L4 16z\"></path>",
   "up": "<path d=\"M12 16V4M7 9l5-5 5 5M4 20h16\"></path>",
   "cam": "<path d=\"M4 8h3l2-3h6l2 3h3v11H4z\"></path><circle cx=\"12\" cy=\"13\" r=\"3.5\"></circle>",
+  "photos": "<rect x=\"3\" y=\"6\" width=\"14\" height=\"14\" rx=\"2\"></rect><path d=\"M7 3h11a3 3 0 0 1 3 3v11M3 16.5l4-4 4 4 2-2 4 4\"></path>",
   "cloud": "<path d=\"M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 17.9 8.6 4.5 4.5 0 0 1 17 18z\"></path><path d=\"m9.5 13.5 2 2 3.5-4\"></path>",
   "sync": "<path d=\"M20 11a8 8 0 0 0-14.5-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5L20 16M20 20v-4h-4\"></path>",
   "mic": "<rect x=\"9\" y=\"3\" width=\"6\" height=\"11\" rx=\"3\"></rect><path d=\"M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21\"></path>",
