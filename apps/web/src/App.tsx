@@ -4,6 +4,7 @@ import { getSyncTarget, StoreProvider } from './data';
 import { usePrefs } from './prefs';
 import { Shell } from './layout/Shell';
 import { ScrollMemory } from './layout/ScrollMemory';
+import { useDesktopHistoryKeys } from './layout/useGoBack';
 import { RouteError } from './layout/RouteError';
 import { TodayPage } from './pages/Today';
 import { FilesPage } from './pages/Files';
@@ -77,6 +78,7 @@ const router = createHashRouter([
 
 export function App() {
   const prefs = usePrefs();
+  useDesktopHistoryKeys();
   return (
     <PrefsContext.Provider value={prefs}>
       <AuthProvider>
