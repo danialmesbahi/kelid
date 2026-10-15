@@ -565,6 +565,9 @@ h2 .mute { font-weight: 700; }
   .pp b { font-size: 36px; }
   .ftr-grid { grid-template-columns: 1fr 1fr; gap: 32px 20px; }
   .ftr-col:last-child { grid-column: 1 / -1; }
+  .period { width: 100%; }
+  .period label { padding: 0 8px; }
+  .period .tag { display: none; }
   .ftr-mid { flex-direction: column; align-items: flex-start; }
   .ftr-bar { flex-direction: column-reverse; align-items: flex-start; }
 }
