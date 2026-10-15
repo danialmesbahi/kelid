@@ -270,65 +270,80 @@ h2 .mute { font-weight: 700; }
 .pts span { color: var(--deep-mute); line-height: 1.8; }
 
 
-/* ── آیفون ۱۸ پرومکس: بدنهٔ فلزی، دکمه‌های کناری، Dynamic Island و نوار وضعیت iOS (در فارسی آینه‌ای). رنگ بدنه سخت‌افزار است، صفحه با پوسته عوض می‌شود. ── */
+/* ── آیفون ۱۷/۱۸ پرومکس با iOS 27. بدنه با واحد em (۱em = ۱۰px) و صفحه در .ios با «نقطه»ی iOS (۱em = ۱۰pt) تا همهٔ اندازه‌ها از خود iOS بیاید. رنگ بدنه سخت‌افزار است، صفحه با پوسته عوض می‌شود. ── */
 .iph {
   --fr1: #3B4352; --fr2: #9AA4B5; --fr3: #20242C;
-  position: relative; flex: none; width: 30em; height: 63em; padding: .38em; border-radius: 5.6em; font-size: 10px;
+  position: relative; flex: none; width: 30em; height: 63em; padding: .3em; border-radius: 4.8em; font-size: 10px;
   background: linear-gradient(135deg, var(--fr2) 0%, var(--fr1) 16%, var(--fr3) 48%, var(--fr1) 84%, var(--fr2) 100%);
-  box-shadow: inset 0 0 0 .1em rgba(255, 255, 255, .45), inset 0 0 .4em rgba(0, 0, 0, .6), 0 5em 9em -3em rgba(0, 0, 0, .55), 0 2em 3em -1.5em rgba(0, 0, 0, .35);
+  box-shadow: inset 0 0 0 .08em rgba(255, 255, 255, .4), inset 0 0 .3em rgba(0, 0, 0, .6), 0 5em 9em -3em rgba(0, 0, 0, .55), 0 2em 3em -1.5em rgba(0, 0, 0, .35);
 }
-.iph-b { position: absolute; width: .42em; border-radius: .3em; background: linear-gradient(90deg, var(--fr3), var(--fr2) 55%, var(--fr1)); }
-.iph-b.act { left: -.34em; top: 12.5em; height: 3em; }
-.iph-b.vu { left: -.34em; top: 18em; height: 5.6em; }
-.iph-b.vd { left: -.34em; top: 24.6em; height: 5.6em; }
-.iph-b.pw { right: -.34em; top: 19.5em; height: 8.8em; }
-.iph-b.cc { right: -.22em; top: 37em; height: 5.2em; width: .3em; }
-.iph-scr { position: relative; height: 100%; overflow: hidden; border: .55em solid #050506; border-radius: 5.25em; background: var(--bg); color: var(--ink); text-align: start; }
-.iph-island { position: absolute; z-index: 3; top: .95em; left: 50%; translate: -50% 0; width: 9.4em; height: 2.75em; border-radius: 2em; background: #000; }
-.ios-bar { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; height: 4.7em; padding: 0 2.7em; }
-.ios-bar b { font-size: 1.55em; font-weight: 600; letter-spacing: .01em; }
+.iph-b { position: absolute; width: .4em; border-radius: .3em; background: linear-gradient(90deg, var(--fr3), var(--fr2) 55%, var(--fr1)); }
+.iph-b.act { left: -.32em; top: 12.5em; height: 3.1em; }
+.iph-b.vu { left: -.32em; top: 18.2em; height: 5.6em; }
+.iph-b.vd { left: -.32em; top: 24.8em; height: 5.6em; }
+.iph-b.pw { right: -.32em; top: 19.6em; height: 8.8em; }
+.iph-b.cc { right: -.2em; top: 37em; height: 5.4em; width: .28em; background: linear-gradient(90deg, #15181D, #4A5260); }
+.iph-scr { position: relative; height: 100%; overflow: hidden; border: .46em solid #000; border-radius: 4.5em; background: var(--bg); color: var(--ink); text-align: start; }
+.ios { position: absolute; inset: 0; font-size: .64em; }
+.ios .ic { width: 2.2em; height: 2.2em; }
+/* نوار وضعیت: ساعت وسط گوشهٔ چپ و آنتن/وای‌فای/باتری وسط گوشهٔ راست، هر دو هم‌تراز مرکز آیلند */
+.ios-bar { position: absolute; z-index: 3; top: 0; inset-inline: 0; display: grid; grid-template-columns: 1fr 12.6em 1fr; justify-items: center; align-items: center; height: 5.9em; padding: 0 .8em 0 1.4em; }
+.ios-bar b { font: 600 1.7em/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .ios-bar span { display: flex; align-items: center; gap: .55em; }
-.ios-bar svg { height: 1.15em; fill: currentColor; }
-.ios-bar svg:nth-child(1) { width: 1.75em; }
-.ios-bar svg:nth-child(2) { width: 1.55em; }
-.ios-bar svg:nth-child(3) { width: 2.6em; }
-.ios-home { position: absolute; z-index: 3; bottom: .75em; left: 50%; translate: -50% 0; width: 11em; height: .45em; border-radius: 1em; background: var(--ink); opacity: .9; }
-/* خود برنامه، به اندازهٔ واقعی صفحهٔ فایل‌ها روی گوشی */
-.ka { display: flex; flex-direction: column; gap: .85em; height: calc(100% - 4.7em); padding: .3em 1.1em 0; font-size: 1.3em; }
-.ka .ic { width: 1.15em; height: 1.15em; }
-.ka-top { display: flex; align-items: center; gap: .6em; }
-.ka .plq { font-size: .92em; }
-.ka-search { flex: 1; display: flex; align-items: center; gap: .5em; height: 2.8em; padding: 0 .9em; border-radius: .9em; background: var(--sunk); color: var(--mute); font-size: .85em; white-space: nowrap; overflow: hidden; }
-.ka-hd b { display: block; font-size: 1.9em; font-weight: 800; line-height: 1.35; }
-.ka-hd small { color: var(--mute); font-size: .82em; }
-.ka-seg { display: flex; gap: .4em; font-size: .8em; white-space: nowrap; }
-.ka-seg span { display: inline-flex; align-items: center; gap: .4em; height: 2.5em; padding: 0 .85em; border-radius: .8em; background: var(--sunk); color: var(--ink2); }
-.ka-seg .on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--line); }
-.ka-seg i { width: .8em; height: .8em; border-radius: .2em; }
-.ka-list { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .45em; overflow: hidden; }
-.ka-row { display: flex; align-items: center; gap: .75em; padding: .7em .75em; border-radius: 1em; background: var(--paper); box-shadow: 0 0 0 1px var(--line); }
-.ka-row.sel { background: var(--sel); box-shadow: 0 0 0 1px var(--sel-line); }
+.ios-bar svg { fill: currentColor; }
+.ios-bar svg:nth-child(1) { width: 1.7em; height: 1.1em; }
+.ios-bar svg:nth-child(2) { width: 1.55em; height: 1.15em; }
+.ios-bar svg:nth-child(3) { width: 2.7em; height: 1.3em; }
+.ios-island { position: absolute; z-index: 4; top: 1.1em; left: 50%; translate: -50% 0; width: 12.6em; height: 3.7em; border-radius: 1.85em; background: radial-gradient(circle at 81% 50%, #1A2130 0 .6em, #0B0E14 .7em, transparent .75em), #000; }
+.ios-home { position: absolute; z-index: 4; bottom: .8em; left: 50%; translate: -50% 0; width: 13.4em; height: .5em; border-radius: 1em; background: var(--ink); }
+/* شیشهٔ مایع iOS 26/27: نیمه‌شفاف با تاری پشت و لبهٔ روشن */
+.glass {
+  background: color-mix(in srgb, var(--paper) 74%, transparent); -webkit-backdrop-filter: blur(2.2em) saturate(1.8); backdrop-filter: blur(2.2em) saturate(1.8);
+  box-shadow: inset 0 0 0 .07em rgba(255, 255, 255, .7), inset 0 .12em .25em rgba(255, 255, 255, .55), 0 0 0 .05em rgba(0, 0, 0, .06), 0 .8em 2em -.8em rgba(0, 0, 0, .3);
+}
+@media (prefers-color-scheme: dark) {
+  .glass { box-shadow: inset 0 0 0 .07em rgba(255, 255, 255, .16), inset 0 .12em .25em rgba(255, 255, 255, .08), 0 .8em 2em -.8em rgba(0, 0, 0, .7); }
+}
+/* خود برنامه، صفحهٔ فایل‌ها روی گوشی با الگوهای iOS: عنوان بزرگ، جستجوی کپسولی، فهرست گروه‌بندی‌شده */
+.ka { position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 6.2em; overflow: hidden; }
+.ka .plq { height: 1.75em; min-width: 3em; padding: 0 .4em; border-radius: .36em; font-size: 1.4em; box-shadow: inset 0 0 0 .13em var(--pc), inset 0 0 0 .24em rgba(255, 255, 255, .9); }
+.ka-nav { display: flex; align-items: center; justify-content: space-between; height: 4.4em; padding: 0 1.6em; }
+.ka-nav .plq { font-size: 1.7em; }
+.ka-btns { display: flex; align-items: center; height: 4.4em; padding: 0 .7em; border-radius: 2.2em; }
+.ka-btns .ic { margin: 0 .4em; }
+.ka-hd { padding: .6em 1.6em 0; }
+.ka-hd b { display: block; font-size: 3.4em; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; }
+.ka-hd small { display: block; font-size: 1.5em; color: var(--mute); }
+.ka-search { display: flex; align-items: center; gap: .7em; height: 4.2em; margin: 1.2em 1.6em 0; padding: 0 1.3em; border-radius: 2.1em; background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--mute); }
+.ka-search span { flex: 1; min-width: 0; font-size: 1.7em; white-space: nowrap; overflow: hidden; }
+.ka-search .ic { width: 1.9em; height: 1.9em; }
+.ka-seg { display: grid; grid-template-columns: 1fr 1fr 1.3fr; height: 3.6em; margin: 1.2em 1.6em 0; padding: .25em; border-radius: 1.8em; background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.ka-seg span { display: flex; align-items: center; justify-content: center; gap: .45em; border-radius: 1.6em; font-size: 1.4em; color: var(--ink2); white-space: nowrap; }
+.ka-seg .on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 .15em .5em rgba(0, 0, 0, .14), 0 0 0 .04em rgba(0, 0, 0, .04); }
+.ka-seg i { width: .6em; height: .6em; border-radius: .15em; }
+.ka-list { flex: none; margin: 1.6em 1.6em 0; border-radius: 2.6em; background: var(--paper); overflow: hidden; }
+.ka-row { position: relative; display: flex; align-items: center; gap: 1.2em; height: 6.6em; padding-inline: 1.6em 1.1em; }
+.ka-row + .ka-row::before { content: ""; position: absolute; top: 0; inset-inline: 7.5em 0; height: 1px; background: var(--line); }
 .ka-t { flex: 1; min-width: 0; }
-.ka-t b, .ka-t small, .ka-p b, .ka-p small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ka-t b { font-size: .9em; }
+.ka-t b, .ka-t small, .ka-p b, .ka-p small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.45; }
+.ka-t b { font-size: 1.6em; font-weight: 700; }
 .ka-p { text-align: left; }
-.ka-p b { font-size: .88em; }
-.ka-t small, .ka-p small { font-size: .74em; color: var(--mute); }
-.ka-tab { display: flex; justify-content: space-around; align-items: flex-start; margin: 0 -1.1em; padding: .7em .4em 2.6em; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 90%, transparent); font-size: .7em; color: var(--faint); }
-.ka-tab span { display: flex; flex-direction: column; align-items: center; gap: .3em; }
-.ka-tab .ic { width: 1.9em; height: 1.9em; }
-.ka-tab .on { color: var(--pri-text); font-weight: 700; }
-.ka-tab .fab { justify-content: center; width: 4.3em; height: 4.3em; margin-top: -1.9em; border-radius: 1.4em; background: var(--pri); color: var(--pri-ink); box-shadow: 0 .8em 1.6em -.6em var(--pri); }
+.ka-p b { font-size: 1.5em; font-weight: 700; }
+.ka-t small, .ka-p small { font-size: 1.25em; color: var(--mute); }
+.ka .chev { flex: none; width: 1.5em; height: 1.5em; color: var(--faint); opacity: .6; }
+/* نوار زبانهٔ شناور شیشه‌ای و دکمهٔ جدای «+» مثل iOS 26/27 */
+.ka-tabs { position: absolute; z-index: 2; inset-inline: 2.1em; bottom: 2.1em; display: flex; gap: 1em; }
+.ka-tab { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); height: 6.2em; padding: .45em; border-radius: 3.1em; }
+.ka-tab span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15em; border-radius: 2.7em; font-size: 1em; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.ka-tab .ic { width: 2.5em; height: 2.5em; }
+.ka-tab .on { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--pri-text); }
+.ka-add { flex: none; display: grid; place-items: center; width: 6.2em; height: 6.2em; border-radius: 50%; color: var(--pri-text); }
+.ka-add .ic { width: 2.8em; height: 2.8em; stroke-width: 2.4; }
 
 /* ── دانلود ── */
 .dlx { display: grid; grid-template-columns: auto 1fr; gap: clamp(40px, 7vw, 100px); align-items: center; isolation: isolate; }
-.dlx-art { position: relative; display: grid; place-items: center; padding: 20px 44px; }
+.dlx-art { position: relative; display: grid; place-items: center; padding: 20px 0; }
 .dlx-art::before { content: ""; position: absolute; inset: -4% -24%; z-index: -1; background: radial-gradient(closest-side, color-mix(in srgb, var(--pri) 24%, transparent), transparent); }
-.dlx-art .iph { rotate: -3deg; }
-.dlx-art .float { animation: none; }
-.float.d1 { top: 18%; right: -6px; rotate: 3deg; }
-.float.d2 { bottom: 20%; left: -6px; rotate: -3deg; }
-.float.d1 > .ic, .float.d2 > .ic { background: var(--pri-tint); color: var(--pri-text); }
 .dlx-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .dlx-main .eb { margin: 0; }
 .plat { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
@@ -486,10 +501,8 @@ h2 .mute { font-weight: 700; }
   .win { display: none; }
   .hero-phone { display: block; }
   .hero-phone .iph { font-size: 9px; }
-  .float.f1 { top: -2%; right: 4px; }
-  .float.f2 { top: 78%; left: 4px; }
-  .float.f3 { display: none; }
-  .float b { font-size: 13px; }
+  /* روی گوشی جایی بیرون از آیفون نیست؛ کارت‌ها صفحهٔ آن را نمی‌پوشانند */
+  .stage .float { display: none; }
   .step-v { padding: 20px 16px; }
   .vf-grid { grid-template-columns: 1fr; }
   .toast { left: 8px; bottom: -20px; }
@@ -498,8 +511,6 @@ h2 .mute { font-weight: 700; }
   .plat { grid-template-columns: 1fr; }
   .dlx-art { padding: 10px 0; }
   .dlx-art .iph { font-size: 8.6px; }
-  .float.d1 { right: 0; }
-  .float.d2 { left: 0; }
   .plan { padding: 28px 20px; }
   .plan.hot { padding: 40px 20px 30px; }
   .pp b { font-size: 36px; }

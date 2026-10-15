@@ -216,7 +216,7 @@ export function brand(name: string): string {
 
 export const menuIcon = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>';
 
-/** آیفون ۱۸ پرومکس با نوار وضعیت iOS و کلید نصب‌شده روی آن؛ رنگ بدنه سخت‌افزار است و با پوسته عوض نمی‌شود. */
+/** آیفون ۱۷/۱۸ پرومکس با iOS 27: نوار وضعیت دو طرف Dynamic Island، نوار زبانه‌ی شیشه‌ای شناور، فهرست گروه‌بندی‌شده. رنگ بدنه سخت‌افزار است و با پوسته عوض نمی‌شود. */
 export function iphone(): string {
   const rows: [string, string, string, string, string, string][] = [
     ['', '۰۵۲', 'آپارتمان ۱۰۵ متری', 'ونک، ملاصدرا', '۲۴ میلیارد', 'متری ۲۲۸ میلیون'],
@@ -225,23 +225,35 @@ export function iphone(): string {
     ['', '۰۲۷', 'آپارتمان ۱۲۰ متری', 'سعادت‌آباد', '۲۸ میلیارد', 'متری ۲۳۳ میلیون'],
     ['f', '۰۴۲', 'آپارتمان ۷۰ متری', 'تهرانپارس', 'رهن ۲٫۲ میلیارد', 'بدون اجاره'],
     ['r', '۰۳۱', 'آپارتمان ۸۵ متری', 'پونک', 'ودیعه ۸۰۰ م', 'اجاره ۲۲ میلیون'],
+    ['', '۰۲۹', 'ویلایی ۲۴۰ متری', 'شهران', '۳۱ میلیارد', 'متری ۱۲۹ میلیون'],
+    ['r', '۰۲۲', 'آپارتمان ۶۵ متری', 'جنت‌آباد', 'ودیعه ۵۰۰ م', 'اجاره ۱۸ میلیون'],
+    ['', '۰۱۸', 'آپارتمان ۱۴۰ متری', 'زعفرانیه', '۵۲ میلیارد', 'متری ۳۷۱ میلیون'],
+    ['f', '۰۱۵', 'آپارتمان ۹۰ متری', 'نارمک', 'رهن ۳ میلیارد', 'بدون اجاره'],
   ];
-  const signal = '<svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx=".8"/><rect x="5" y="5.5" width="3" height="6.5" rx=".8"/><rect x="10" y="3" width="3" height="9" rx=".8"/><rect x="15" y="0" width="3" height="12" rx=".8"/></svg>';
-  const wifi = '<svg viewBox="0 0 16 12"><path d="M8 2.2c2.3 0 4.4.9 6 2.4l1.2-1.3A10.3 10.3 0 0 0 8 .4 10.3 10.3 0 0 0 .8 3.3L2 4.6a8.6 8.6 0 0 1 6-2.4zm0 3.6c1.3 0 2.5.5 3.4 1.3l1.2-1.3A6.6 6.6 0 0 0 8 4a6.6 6.6 0 0 0-4.6 1.8l1.2 1.3c.9-.8 2.1-1.3 3.4-1.3zM8 9.4 9.9 7.3a2.8 2.8 0 0 0-3.8 0z"/></svg>';
-  const battery = '<svg viewBox="0 0 27 12"><rect x=".5" y=".5" width="23" height="11" rx="3.4" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2"/><path d="M25 4v4c.8-.3 1.3-1.1 1.3-2S25.8 4.3 25 4z" opacity=".45"/></svg>';
+  // آنتن، وای‌فای و باتری با همان اندازه‌های نوار وضعیت iOS (نقطه)
+  const signal = `<svg viewBox="0 0 17 11">${[3.6, 5.8, 8.2, 11].map((h, i) => `<rect x="${i * 4.6}" y="${11 - h}" width="3" height="${h}" rx="1"/>`).join('')}</svg>`;
+  const sector = (r0: number, r1: number): string => {
+    const at = (r: number, deg: number) => `${(8 + r * Math.cos((deg * Math.PI) / 180)).toFixed(2)} ${(11.5 + r * Math.sin((deg * Math.PI) / 180)).toFixed(2)}`;
+    return r0 === 0
+      ? `M8 11.5L${at(r1, 225)}A${r1} ${r1} 0 0 1 ${at(r1, 315)}Z`
+      : `M${at(r1, 225)}A${r1} ${r1} 0 0 1 ${at(r1, 315)}L${at(r0, 315)}A${r0} ${r0} 0 0 0 ${at(r0, 225)}Z`;
+  };
+  const wifi = `<svg viewBox="0 0 16 12"><path d="${sector(0, 3.6)}${sector(5.3, 7.9)}${sector(9.5, 11.4)}" stroke="currentColor" stroke-width=".6" stroke-linejoin="round"/></svg>`;
+  const battery = '<svg viewBox="0 0 27 13"><rect x=".6" y=".6" width="23.4" height="11.8" rx="3.9" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".38"/><rect x="2.4" y="2.4" width="16.4" height="8.2" rx="2.2"/><path d="M25.4 4.5v4c.8-.3 1.4-1.1 1.4-2s-.6-1.7-1.4-2z" opacity=".42"/></svg>';
   return `<div class="iph" aria-hidden="true">
 <i class="iph-b act"></i><i class="iph-b vu"></i><i class="iph-b vd"></i><i class="iph-b pw"></i><i class="iph-b cc"></i>
-<div class="iph-scr">
-<div class="ios-bar"><b>۹:۴۱</b><span>${signal}${wifi}${battery}</span></div>
-<span class="iph-island"></span>
+<div class="iph-scr"><div class="ios">
+<div class="ios-bar" dir="ltr"><b>9:41</b><i></i><span>${signal}${wifi}${battery}</span></div>
+<span class="ios-island"></span>
 <div class="ka">
-<div class="ka-top"><span class="plq s">کلید</span><span class="ka-search">${icon('search', 's')}جستجو در فایل‌ها، مشتری‌ها…</span></div>
-<div class="ka-hd"><b>فایل‌ها</b><small>۱۲۸ فایل</small></div>
-<div class="ka-seg"><span class="on">همه ۱۲۸</span><span><i class="sw-s"></i>فروش ۵۴</span><span><i class="sw-r"></i>رهن و اجاره ۵۱</span></div>
-<div class="ka-list">${rows.map(([c, n, t, pl, pr, sub], i) => `<div class="ka-row${i === 0 ? ' sel' : ''}"><span class="plq s${c ? ` ${c}` : ''}">${n}</span><span class="ka-t"><b>${t}</b><small>${pl}</small></span><span class="ka-p"><b>${pr}</b><small>${sub}</small></span></div>`).join('')}</div>
-<div class="ka-tab"><span>${icon('today', 's')}امروز</span><span class="on">${icon('files', 's')}فایل‌ها</span><span class="fab">${icon('plus')}</span><span>${icon('users', 's')}مشتری‌ها</span><span>${icon('set', 's')}تنظیمات</span></div>
+<div class="ka-nav"><span class="plq s">کلید</span><span class="glass ka-btns">${icon('set')}${icon('more')}</span></div>
+<div class="ka-hd"><b>فایل‌ها</b><small>۱۲۸ فایل · ۳ تای تازه امروز</small></div>
+<div class="ka-search">${icon('search')}<span>جستجو در فایل‌ها، مشتری‌ها</span>${icon('mic')}</div>
+<div class="ka-seg"><span class="on">همه</span><span><i class="sw-s"></i>فروش</span><span><i class="sw-r"></i>رهن و اجاره</span></div>
+<div class="ka-list">${rows.map(([c, n, t, pl, pr, sub]) => `<div class="ka-row"><span class="plq s${c ? ` ${c}` : ''}">${n}</span><span class="ka-t"><b>${t}</b><small>${pl}</small></span><span class="ka-p"><b>${pr}</b><small>${sub}</small></span>${icon('chl', 'chev')}</div>`).join('')}</div>
 </div>
+<div class="ka-tabs"><div class="glass ka-tab"><span>${icon('today')}امروز</span><span class="on">${icon('files')}فایل‌ها</span><span>${icon('users')}مشتری‌ها</span><span>${icon('set')}تنظیمات</span></div><span class="glass ka-add">${icon('plus')}</span></div>
 <span class="ios-home"></span>
-</div>
+</div></div>
 </div>`;
 }
