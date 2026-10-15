@@ -8,6 +8,7 @@ import {
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { useGoBack } from '../layout/useGoBack';
 
 const KINDS: Array<{ value: PropertyKind; label: string }> = [
   { value: 'apartment', label: 'آپارتمان' },
@@ -98,6 +99,7 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
+  const goBack = useGoBack();
   const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
   const dirty = JSON.stringify(f) !== initial;
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !saving.current && currentLocation.pathname !== nextLocation.pathname);
@@ -172,7 +174,7 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
             </>
           ) : (
             <>
-              <Link viewTransition className="btn btn-g" to={client ? `/clients?c=${client.id}` : '/clients'} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</Link>
+              <button type="button" className="btn btn-g" onClick={() => goBack(client ? `/clients?c=${client.id}` : '/clients')} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
               <span className="b" style={{ fontSize: 18 }}>{client ? `ویرایش ${client.name}` : 'مشتری جدید'}</span>
               <span className="sp" />
               {error && <span role="alert" className="tag bad">{error}</span>}
@@ -303,7 +305,7 @@ export function NewClientPage() {
 
 export function EditClientPage() {
   const { id = '' } = useParams();
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const toast = useToast();
   const data = useQuery(`client-edit:${id}`, async (s) => ({ c: await s.getClient(id) }));
   if (!data) return <PageSkeleton />;
@@ -320,7 +322,8 @@ export function EditClientPage() {
       key={data.c.id}
       client={data.c}
       onSaved={(c) => {
-        navigate(`/clients?c=${c.id}`, { replace: true, viewTransition: true });
+        // ویرایش از پروندهٔ همین مشتری باز می‌شود؛ برگشت به همان.
+        goBack(`/clients?c=${c.id}`);
         toast(`تغییرات ${c.name} ذخیره شد`);
       }}
     />

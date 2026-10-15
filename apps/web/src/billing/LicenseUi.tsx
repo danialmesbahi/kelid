@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { Icon } from '@kelid/ui';
 import { toFaDigits, type LicenseInfo } from '@kelid/core';
 import { useAuth, useMember } from '../auth/AuthContext';
 import { useToast } from '../layout/Toasts';
 import { useLicense } from './license';
 import { onBlockedWrite } from './readOnly';
+import { useGoBack } from '../layout/useGoBack';
 import { daysLeftText, planName, untilText, useLicenseWatch, useLiveLicense } from './useBilling';
 import './billing.css';
 
@@ -138,7 +139,7 @@ export function ReadOnlyToast({ go }: { go: (to: string) => void }) {
 export function WriteGate({ children }: { children: ReactNode }) {
   const lic = useLicense();
   const { manager } = useMember();
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const { status } = useAuth();
   if (status !== 'signedIn' || !lic?.readOnly) return children;
   return (
@@ -158,7 +159,7 @@ export function WriteGate({ children }: { children: ReactNode }) {
               تمدید اشتراک
             </Link>
           )}
-          <button type="button" className="btn btn-s btn-lg" onClick={() => (history.length > 1 ? navigate(-1) : navigate('/', { viewTransition: true }))}>
+          <button type="button" className="btn btn-s btn-lg" onClick={() => goBack('/')}>
             برگشت
           </button>
         </div>

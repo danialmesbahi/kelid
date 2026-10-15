@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { Icon, Plaque, Segmented } from '@kelid/ui';
 import { listingPlace, dealLabel, floorLabel, formatPlaque, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
 import { usePrefsContext } from '../App';
@@ -12,6 +12,7 @@ import { VisitDialog } from '../visits/VisitDialog';
 import { statusOptions } from './ListingForm';
 import { PhotoGallery } from '../photos/Gallery';
 import { cachedListing } from '../queries';
+import { useGoBack } from '../layout/useGoBack';
 
 export function FileDetailPage() {
   const { id = '' } = useParams();
@@ -20,7 +21,7 @@ export function FileDetailPage() {
   const [visitOpen, setVisitOpen] = useState(false);
   const store = useStore();
   const toast = useToast();
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const { officeName } = usePrefsContext();
   const data = useQuery(`file:${id}`, async (s) => ({ l: await s.getListing(id), clients: await s.listClients() }), () => cachedListing(id));
 
@@ -43,7 +44,8 @@ export function FileDetailPage() {
   return (
     <div className="bd" style={{ paddingTop: 22 }}>
       <div className="rw np" style={{ flexWrap: 'wrap', gap: 10 }}>
-        <Link viewTransition className="btn btn-g" to="/files" style={{ padding: '0 12px' }}><Icon name="back" size="s" />فایل‌ها</Link>
+        {/* برگشت به همان صفحه‌ای که فایل از آن باز شد (امروز، مشتری، تقویم…)، نه همیشه فهرست فایل‌ها */}
+        <button type="button" className="btn btn-g" onClick={() => goBack('/files')} style={{ padding: '0 12px' }}><Icon name="back" size="s" />برگشت</button>
         <span className="sp" />
         <button
           type="button"
@@ -51,7 +53,7 @@ export function FileDetailPage() {
           aria-label="بایگانی فایل"
           onClick={async () => {
             await store.archiveListing(l.id);
-            navigate('/files', { viewTransition: true });
+            goBack('/files');
             toast(`فایل ${listingTitle(l)} بایگانی شد`, { label: 'برگرداندن', run: () => void store.restoreListing(l.id) });
           }}
         >

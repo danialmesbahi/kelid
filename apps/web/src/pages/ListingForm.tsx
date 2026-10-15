@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useBlocker } from 'react-router';
+import { useBlocker } from 'react-router';
+import { useGoBack } from '../layout/useGoBack';
 import { useMember } from '../auth/AuthContext';
 import { Cover, Icon, Segmented } from '@kelid/ui';
 import { dealLabel, formatGrouped, formatPlaque, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
@@ -128,6 +129,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
+  const goBack = useGoBack();
   const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
   const dirty = JSON.stringify(f) !== initial;
 
@@ -195,7 +197,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             </>
           ) : (
             <>
-              <Link viewTransition className="btn btn-g" to={cancelTo} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</Link>
+              <button type="button" className="btn btn-g" onClick={() => goBack(cancelTo)} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
               <span className="b" style={{ fontSize: 18 }}>{title}</span>
               <span className="sp" />
               {error && <span role="alert" className="tag bad">{error}</span>}
