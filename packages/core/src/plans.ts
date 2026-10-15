@@ -20,8 +20,8 @@ export interface Plan {
 
 export const PLANS: readonly Plan[] = [
   { id: 'solo', name: 'تک‌نفره', seats: 1, monthly: 2_000_000, blurb: 'برای مشاوری که تنها کار می‌کند' },
-  { id: 'office', name: 'دفتر', seats: 3, monthly: 3_500_000, blurb: 'برای دفترهای کوچک و خانوادگی' },
-  { id: 'pro', name: 'دفتر بزرگ', seats: 12, monthly: 5_500_000, blurb: 'برای دفترهای پرهمکار', extra: { monthly: 500_000, max: 50 } },
+  { id: 'office', name: 'دفتر', seats: 5, monthly: 5_000_000, blurb: 'برای بیشتر دفترهای املاک' },
+  { id: 'pro', name: 'دفتر بزرگ', seats: 10, monthly: 9_900_000, blurb: 'برای دفترهای پرهمکار', extra: { monthly: 500_000, max: 50 } },
 ];
 
 export interface Term {
@@ -76,10 +76,22 @@ export function monthlyOf(plan: Plan, seats?: number): number {
   return plan.monthly + (plan.extra ? (seatsFor(plan, seats) - plan.seats) * plan.extra.monthly : 0);
 }
 
-/** مبلغ یک خرید به تومان؛ گرد به هزار تومان. */
+/** قیمت‌ها گرد به این مقدار تا هر عددی که کاربر می‌بیند رند باشد. */
+const ROUND = 50_000;
+
+/** هزینهٔ هر ماهِ اعتبار در این مدت (با تخفیف و ماه‌های هدیه)، رند. */
+export function perMonthOf(plan: Plan, period: Period, seats?: number): number {
+  const t = termOf(period);
+  if (!t.gift && !t.off) return monthlyOf(plan, seats);
+  const f = (t.months * (100 - t.off)) / 100 / (t.months + t.gift);
+  const each = (m: number) => Math.round((m * f) / ROUND) * ROUND;
+  return each(plan.monthly) + (plan.extra ? (seatsFor(plan, seats) - plan.seats) * each(plan.extra.monthly) : 0);
+}
+
+/** مبلغ یک خرید به تومان. */
 export function priceOf(plan: Plan, period: Period, seats?: number): number {
   const t = termOf(period);
-  return Math.round((monthlyOf(plan, seats) * t.months * (100 - t.off)) / 100 / 1000) * 1000;
+  return perMonthOf(plan, period, seats) * (t.months + t.gift);
 }
 
 export interface SubscriptionState {

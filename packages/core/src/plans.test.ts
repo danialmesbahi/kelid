@@ -10,19 +10,20 @@ const solo = planById('solo')!;
 describe('plans', () => {
   it('discounts longer terms and adds their gift months', () => {
     expect(priceOf(office, 'month')).toBe(office.monthly);
-    expect(priceOf(office, 'half')).toBe(18_900_000);
-    expect(priceOf(office, 'year')).toBe(35_700_000);
+    expect(priceOf(office, 'half')).toBe(26_950_000);
+    expect(priceOf(office, 'year')).toBe(51_100_000);
     expect([termDays('month'), termDays('half'), termDays('year')]).toEqual([30, 213, 426]);
     expect(new Set(PLANS.map((p) => p.id)).size).toBe(PLANS.length);
   });
 
   it('charges each seat beyond the base of a plan that sells extra seats', () => {
     expect(seatsFor(pro, 15)).toBe(15);
+    expect(priceOf(pro, 'year', 12)).toBe((7_200_000 + 2 * 350_000) * 14);
     expect(seatsFor(pro, 3)).toBe(pro.seats);
     expect(seatsFor(pro, 9999)).toBe(pro.extra!.max);
     expect(seatsFor(office, 15)).toBe(office.seats);
-    expect(monthlyOf(pro, 15)).toBe(pro.monthly + 3 * pro.extra!.monthly);
-    expect(priceOf(pro, 'month', 14)).toBe(6_500_000);
+    expect(monthlyOf(pro, 15)).toBe(pro.monthly + 5 * pro.extra!.monthly);
+    expect(priceOf(pro, 'month', 14)).toBe(11_900_000);
   });
 
   it('adds a period after the remaining days of the same plan or the trial', () => {
@@ -45,7 +46,7 @@ describe('plans', () => {
     expect(down).toBeGreaterThan(now + 40 * DAY);
     // نفر بیشتر روی همان پلن هم ارتقاست.
     const more = nextExpiry({ plan: 'pro', trial: false, expiresAt: in10, seats: 12 }, pro, 'month', now, 14);
-    expect(more).toBe(now + Math.floor((10 * DAY * pro.monthly) / monthlyOf(pro, 14)) + 30 * DAY);
+    expect(more).toBe(now + Math.floor((10 * DAY * monthlyOf(pro, 12)) / monthlyOf(pro, 14)) + 30 * DAY);
   });
 });
 

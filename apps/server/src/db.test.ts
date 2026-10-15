@@ -871,7 +871,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await get(a, `/billing/payments/${cheap.id}`, m.accessToken)).json().amount).toBe(planById('office')!.monthly);
       // پلن بی‌نفر اضافه همان جای خودش را می‌فروشد، هرچه برنامه بخواهد.
       const half = (await post(a, '/billing/checkout', { plan: 'office', period: 'half', seats: 40 }, m.accessToken)).json();
-      expect((await get(a, `/billing/payments/${half.id}`, m.accessToken)).json()).toMatchObject({ amount: priceOf(planById('office')!, 'half'), seats: 3, period: 'half' });
+      expect((await get(a, `/billing/payments/${half.id}`, m.accessToken)).json()).toMatchObject({ amount: priceOf(planById('office')!, 'half'), seats: 5, period: 'half' });
       await a.close();
     });
 
@@ -1006,7 +1006,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const ext = await post(a, `/admin/offices/${s.office.id}/extend`, { days: 30, plan: 'pro', trial: false, note: 'کارت به کارت، رسید ۱۲۳' }, token);
       expect(ext.statusCode).toBe(200);
       const e = ext.json();
-      expect(e.office).toMatchObject({ plan: 'pro', seats: 12, trial: false, status: 'active' });
+      expect(e.office).toMatchObject({ plan: 'pro', seats: 10, trial: false, status: 'active' });
       expect(Math.abs(Date.parse(e.office.expiresAt) - (before + 30 * 86_400_000))).toBeLessThan(60_000);
       expect(e.notes[0]).toMatchObject({ kind: 'extend', admin: 'پشتیبان کلید' });
       expect(e.notes[0].body).toContain('کارت به کارت');

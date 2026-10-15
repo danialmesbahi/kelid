@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Icon } from '@kelid/ui';
-import { formatGrouped, monthlyOf, nextExpiry, PLANS, priceOf, seatsFor, TERMS, termOf, toFaDigits, type Period, type Plan, type PlanId } from '@kelid/core';
+import { formatGrouped, monthlyOf, nextExpiry, perMonthOf, PLANS, priceOf, seatsFor, TERMS, termOf, toFaDigits, type Period, type Plan, type PlanId } from '@kelid/core';
 import { API_URL, type PaymentStatus, type Receipt } from '../auth/api';
 import { useAuth, useMember } from '../auth/AuthContext';
 import { useToast } from '../layout/Toasts';
@@ -28,7 +28,6 @@ const FEATURES = [
 const TERM_LABEL: Record<Period, string> = { month: 'یک ماه', half: 'شش ماه', year: 'یک سال' };
 /** پلنی که برجسته نشان داده می‌شود. */
 const BEST: PlanId = 'office';
-const YEAR = termOf('year');
 const DEMO = API_URL === 'demo';
 // پرداختی که منتظرش هستیم با تازه‌شدن صفحه گم نمی‌شود.
 const PENDING = 'kelid.pay';
@@ -297,9 +296,8 @@ export function PlansPage() {
           const n = seatsOf(p);
           const total = priceOf(p, period, n);
           const full = monthlyOf(p, n);
-          const perMonth = Math.round(total / termMonths / 1000) * 1000;
+          const perMonth = perMonthOf(p, period, n);
           const save = Math.round((1 - total / (full * termMonths)) * 100);
-          const yearly = priceOf(p, 'year', n);
           const step = (d: number) => {
             setPicked(p.id);
             setWantSeats(seatsFor(p, Math.max(used, n + d)));
@@ -347,7 +345,7 @@ export function PlansPage() {
                   </>
                 ) : (
                   <span className="mute">
-                    با اشتراک یک‌ساله ماهی <b className="num">{formatGrouped(Math.round(yearly / (YEAR.months + YEAR.gift) / 1000) * 1000)}</b> تومان
+                    با اشتراک یک‌ساله ماهی <b className="num">{formatGrouped(perMonthOf(p, 'year', n))}</b> تومان
                   </span>
                 )}
               </span>
