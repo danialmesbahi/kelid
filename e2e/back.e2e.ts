@@ -15,6 +15,10 @@ test('back and close return to the exact previous page', async ({ page }) => {
   await page.getByLabel('متراژ').fill('۱۲۰');
   await page.getByRole('button', { name: 'ثبت فایل' }).click();
   await expect(page.getByRole('heading', { name: 'آپارتمان ۱۲۰ متری' })).toBeVisible();
+  // فایلی که از «امروز» باز شده زیر همان تب می‌ماند
+  const nav = page.getByRole('navigation', { name: 'منوی اصلی' }).first();
+  await expect(nav.getByRole('link', { name: 'امروز' })).toHaveAttribute('aria-current', 'page');
+  await expect(nav.getByRole('link', { name: /فایل‌ها/ })).not.toHaveAttribute('aria-current', 'page');
 
   // ویرایش و ذخیره، بعد برگشت: یک بار برگشت باید به «امروز» برسد، نه دوباره به همین فایل
   await page.getByRole('link', { name: 'ویرایش' }).click();
