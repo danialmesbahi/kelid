@@ -1,14 +1,22 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useBlocker } from 'react-router';
 import { useGoBack } from '../layout/useGoBack';
+import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
-import { Cover, Icon, Segmented } from '@kelid/ui';
-import { dealLabel, formatGrouped, formatPlaque, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
+import { dealLabel, formatGrouped, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
 
 const FEATURES = ['پارکینگ', 'آسانسور', 'انباری', 'بالکن', 'لابی و نگهبان', 'استخر و سونا'];
+
+/** نوع معامله با نشانهٔ خودش؛ رنگ هر کارت همان رنگ پلاک است. */
+const DEALS: Array<{ value: DealType; cls: string; icon: IconName; hint: string }> = [
+  { value: 'sale', cls: '', icon: 'dealSale', hint: 'انتقال سند به خریدار' },
+  { value: 'rent', cls: 'r', icon: 'dealRent', hint: 'ودیعه و اجارهٔ ماهانه' },
+  { value: 'full', cls: 'f', icon: 'dealFull', hint: 'فقط ودیعه، بی اجاره' },
+];
 
 const KINDS: Array<{ value: PropertyKind; label: string }> = [
   { value: 'apartment', label: 'آپارتمان' },
@@ -61,6 +69,17 @@ function toState(l?: Listing): FormState {
   };
 }
 
+type Required = 'neighborhood' | 'area';
+const REQ_MSG = 'فیلدهای ستاره‌دار را پر کنید.';
+
+/** فیلدهای ضروری که خالی مانده‌اند، با پیامی که می‌گوید چه بنویسند. */
+function missing(f: FormState): Partial<Record<Required, string>> {
+  const out: Partial<Record<Required, string>> = {};
+  if (!f.neighborhood.trim()) out.neighborhood = 'محلهٔ ملک را بنویسید.';
+  if (!parseNum(f.area)) out.area = 'متراژ را بنویسید.';
+  return out;
+}
+
 function toFields(f: FormState): ListingFields | string {
   const area = parseNum(f.area);
   if (!f.neighborhood.trim() || !area) return 'محله و متراژ را بنویسید.';
@@ -93,7 +112,7 @@ function AmountField({ label, value, onChange }: { label: string; value: string;
   return (
     <label className="lbl">
       {label}
-      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder="به تومان" style={{ fontSize: 19 }} />
+      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(onlyAmount(e.target.value))} placeholder="به تومان" style={{ fontSize: 19 }} />
       <span className="hint">{n ? `${formatToman(n)} تومان` : ' '}</span>
     </label>
   );
@@ -125,12 +144,21 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
   const [start] = useState(() => toFields(toState(listing)));
   const [initial] = useState(() => JSON.stringify(toState(listing)));
   const [error, setError] = useState('');
+  const [errs, setErrs] = useState<Partial<Record<Required, string>>>({});
+  // همهٔ فیلدهای ضروری که پر شد، پیام پایین فرم هم می‌رود
+  useEffect(() => {
+    if (!Object.keys(errs).length) setError((x) => (x === REQ_MSG ? '' : x));
+  }, [errs]);
   const [custom, setCustom] = useState('');
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
   const goBack = useGoBack();
-  const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
+  const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => {
+    setF((x) => ({ ...x, [k]: v }));
+    // با نوشتن در فیلد، پیام خطای همان فیلد می‌رود
+    if (k in errs) setErrs((e) => { const n = { ...e }; delete n[k as Required]; return n; });
+  };
   const dirty = JSON.stringify(f) !== initial;
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !saving.current && currentLocation.pathname !== nextLocation.pathname);
@@ -162,6 +190,18 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
     e.preventDefault();
     // دوبار کلیک یا نگه داشتن Ctrl+S نباید دو فایل بسازد
     if (saving.current) return;
+    const miss = missing(f);
+    if (Object.keys(miss).length) {
+      setErrs(miss);
+      setError(REQ_MSG);
+      // اولین فیلد خالی دیده و آمادهٔ نوشتن شود
+      requestAnimationFrame(() => {
+        const el = formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]');
+        el?.focus({ preventScroll: true });
+        el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+      return;
+    }
     const fields = toFields(f);
     if (typeof fields === 'string') {
       setError(fields);
@@ -186,7 +226,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
 
   return (
     <div style={{ padding: 8, minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
-      <form ref={formRef} onSubmit={submit} className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
+      <form ref={formRef} onSubmit={submit} noValidate className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
         <header className="top" style={{ position: 'sticky', top: 0, background: 'var(--paper)', borderRadius: '20px 20px 0 0', zIndex: 2 }}>
           {blocker.state === 'blocked' ? (
             <>
@@ -199,21 +239,21 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             <>
               <button type="button" className="btn btn-g" onClick={() => goBack(cancelTo)} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
               <span className="b" style={{ fontSize: 18 }}>{title}</span>
-              <span className="sp" />
-              {error && <span role="alert" className="tag bad">{error}</span>}
-              <button type="submit" className="btn btn-p">{submitLabel}</button>
             </>
           )}
         </header>
 
-        <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 80px', gap: 36 }}>
+        <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
           <Section legend="۱. این ملک برای چیست؟">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-              {(['sale', 'rent', 'full'] as const).map((d) => (
-                <button key={d} type="button" aria-pressed={f.deal === d} onClick={() => set('deal')(d)} className={`col ${f.deal === d ? 'sel' : ''}`}
-                  style={{ minHeight: 88, borderRadius: 16, border: '1px solid var(--line2)', background: 'var(--paper)', padding: '14px 16px', alignItems: 'flex-start', gap: 8, textAlign: 'right' }}>
-                  <span className={`plq ${d === 'rent' ? 'r' : d === 'full' ? 'f' : ''}`} style={{ minWidth: 40 }}>{listing ? formatPlaque(listing.plaque) : '؟'}</span>
-                  <span className="b">{dealLabel[d]}</span>
+            <div className="dealpick">
+              {DEALS.map((d) => (
+                <button key={d.value} type="button" aria-pressed={f.deal === d.value} onClick={() => set('deal')(d.value)} className={`dealopt ${d.cls}`}>
+                  <span className="dealopt-ic"><Icon name={d.icon} size="l" /></span>
+                  <span className="col" style={{ gap: 2, minWidth: 0 }}>
+                    <span className="b" style={{ fontSize: 16 }}>{dealLabel[d.value]}</span>
+                    <span className="xs mute">{d.hint}</span>
+                  </span>
+                  {f.deal === d.value && <span className="dealopt-ok pop-in" aria-hidden="true"><Icon name="check" size="s" thick /></span>}
                 </button>
               ))}
             </div>
@@ -231,7 +271,11 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
 
           <Section legend="۲. کجاست؟">
             <div style={grid(220)}>
-              <label className="lbl">محله<input className="fld" value={f.neighborhood} onChange={(e) => set('neighborhood')(e.target.value)} placeholder="مثلاً سعادت‌آباد" required /></label>
+              <label className="lbl">
+                <span>محله<Req /></span>
+                <input className="fld" value={f.neighborhood} onChange={(e) => set('neighborhood')(e.target.value)} placeholder="مثلاً سعادت‌آباد" aria-required="true" aria-invalid={!!errs.neighborhood} aria-describedby={errs.neighborhood ? 'err-hood' : undefined} />
+                <FieldError id="err-hood" text={errs.neighborhood} />
+              </label>
               <label className="lbl">خیابان<input className="fld" value={f.street} onChange={(e) => set('street')(e.target.value)} /></label>
             </div>
             <label className="lbl">نشانی کامل <span className="hint">فقط برای دفتر؛ به مشتری نشان داده نمی‌شود</span><input className="fld" value={f.address} onChange={(e) => set('address')(e.target.value)} /></label>
@@ -239,11 +283,15 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
 
           <Section legend="۳. مشخصات">
             <div style={grid(120)}>
-              <label className="lbl">متراژ<input className="fld num" inputMode="numeric" value={f.area} onChange={(e) => set('area')(e.target.value)} required /></label>
-              <label className="lbl">خواب<input className="fld num" inputMode="numeric" value={f.bedrooms} onChange={(e) => set('bedrooms')(e.target.value)} /></label>
-              <label className="lbl">طبقه<input className="fld num" inputMode="numeric" value={f.floor} onChange={(e) => set('floor')(e.target.value)} /></label>
-              <label className="lbl">تعداد طبقات<input className="fld num" inputMode="numeric" value={f.floorsTotal} onChange={(e) => set('floorsTotal')(e.target.value)} /></label>
-              <label className="lbl">سال ساخت<input className="fld num" inputMode="numeric" value={f.yearBuilt} onChange={(e) => set('yearBuilt')(e.target.value)} placeholder="۱۴۰۳" /></label>
+              <label className="lbl">
+                <span>متراژ<Req /></span>
+                <input className="fld num" inputMode="numeric" value={f.area} onChange={(e) => set('area')(onlyDigits(e.target.value, 6))} aria-required="true" aria-invalid={!!errs.area} aria-describedby={errs.area ? 'err-area' : undefined} />
+                <FieldError id="err-area" text={errs.area} />
+              </label>
+              <label className="lbl">خواب<input className="fld num" inputMode="numeric" value={f.bedrooms} onChange={(e) => set('bedrooms')(onlyDigits(e.target.value, 2))} /></label>
+              <label className="lbl">طبقه<input className="fld num" inputMode="numeric" value={f.floor} onChange={(e) => set('floor')(onlyDigits(e.target.value, 3))} /></label>
+              <label className="lbl">تعداد طبقات<input className="fld num" inputMode="numeric" value={f.floorsTotal} onChange={(e) => set('floorsTotal')(onlyDigits(e.target.value, 3))} /></label>
+              <label className="lbl">سال ساخت<input className="fld num" inputMode="numeric" value={f.yearBuilt} onChange={(e) => set('yearBuilt')(onlyDigits(e.target.value, 4))} placeholder="۱۴۰۳" /></label>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
               {allFeatures.map((x) => (
@@ -295,7 +343,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
               ) : (
                 <label className="lbl">
                   شمارهٔ مالک
-                  <input className="fld num" inputMode="tel" value={f.ownerPhone} onChange={(e) => set('ownerPhone')(e.target.value)} style={{ direction: 'ltr', textAlign: 'right' }} aria-describedby={ownerPhones ? undefined : 'phone-hidden'} />
+                  <input className="fld num" inputMode="tel" value={f.ownerPhone} onChange={(e) => set('ownerPhone')(onlyDigits(e.target.value))} style={{ direction: 'ltr', textAlign: 'right' }} aria-describedby={ownerPhones ? undefined : 'phone-hidden'} />
                   {!ownerPhones && <span id="phone-hidden" className="xs mute">بعد از ثبت، شماره فقط برای مدیر دفتر دیده می‌شود.</span>}
                 </label>
               )}
@@ -310,6 +358,15 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             </div>
           )}
         </div>
+
+        {/* دکمهٔ ثبت همیشه پایین فرم و زیر دست است، همان‌جا که چشم بعد از پر کردن فرم می‌رسد. */}
+        <footer className="lf-foot">
+          <div className="lf-foot-in">
+            {error ? <span role="alert" className="tag bad">{error}</span> : <span className="xs mute lf-kbd"><span className="req" style={{ marginInlineStart: 0 }}>*</span> ضروری · ذخیرهٔ سریع: Ctrl+S</span>}
+            <span className="sp" />
+            <button type="submit" className="btn btn-p btn-lg lf-save"><Icon name="check" size="s" thick />{submitLabel}</button>
+          </div>
+        </footer>
       </form>
     </div>
   );

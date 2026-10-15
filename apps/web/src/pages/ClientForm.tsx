@@ -9,6 +9,7 @@ import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { useGoBack } from '../layout/useGoBack';
+import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 
 const KINDS: Array<{ value: PropertyKind; label: string }> = [
   { value: 'apartment', label: 'آپارتمان' },
@@ -50,8 +51,10 @@ function toState(c?: Client): FormState {
   };
 }
 
+const NAME_MSG = 'نام مشتری را بنویسید.';
+
 function toClient(f: FormState): NewClient | string {
-  if (!f.name.trim()) return 'نام مشتری را بنویسید.';
+  if (!f.name.trim()) return NAME_MSG;
   return {
     name: f.name.trim(),
     phone: normalizePhone(f.phone),
@@ -71,7 +74,7 @@ function AmountField({ label, value, onChange }: { label: string; value: string;
   return (
     <label className="lbl">
       {label}
-      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder="به تومان" style={{ fontSize: 19 }} />
+      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(onlyAmount(e.target.value))} placeholder="به تومان" style={{ fontSize: 19 }} />
       <span className="hint">{n ? `${formatToman(n)} تومان` : ' '}</span>
     </label>
   );
@@ -96,6 +99,7 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
   const [initial] = useState(() => JSON.stringify(toState(client)));
   const [hood, setHood] = useState('');
   const [error, setError] = useState('');
+  const [nameErr, setNameErr] = useState(false);
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
@@ -146,6 +150,14 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
     const input = toClient(f);
     if (typeof input === 'string') {
       setError(input);
+      if (input === NAME_MSG) {
+        setNameErr(true);
+        requestAnimationFrame(() => {
+          const el = formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]');
+          el?.focus({ preventScroll: true });
+          el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
+      }
       return;
     }
     setError('');
@@ -163,7 +175,7 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
 
   return (
     <div style={{ padding: 8, minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
-      <form ref={formRef} onSubmit={submit} className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
+      <form ref={formRef} onSubmit={submit} noValidate className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
         <header className="top" style={{ position: 'sticky', top: 0, background: 'var(--paper)', borderRadius: '20px 20px 0 0', zIndex: 2 }}>
           {blocker.state === 'blocked' ? (
             <>
@@ -186,10 +198,28 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
         <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 80px', gap: 36 }}>
           <Section legend="۱. چه کسی است؟">
             <div style={grid(220)}>
-              <label className="lbl">نام<input className="fld" value={f.name} onChange={(e) => set('name')(e.target.value)} placeholder="مثلاً آقای کریمی" required /></label>
+              <label className="lbl">
+                <span>نام<Req /></span>
+                <input
+                  className="fld"
+                  value={f.name}
+                  onChange={(e) => {
+                    set('name')(e.target.value);
+                    if (nameErr) {
+                      setNameErr(false);
+                      setError('');
+                    }
+                  }}
+                  placeholder="مثلاً آقای کریمی"
+                  aria-required="true"
+                  aria-invalid={nameErr}
+                  aria-describedby={nameErr ? 'err-name' : undefined}
+                />
+                <FieldError id="err-name" text={nameErr ? NAME_MSG : undefined} />
+              </label>
               <label className="lbl">
                 شماره تماس
-                <input className="fld num" inputMode="tel" value={f.phone} onChange={(e) => set('phone')(e.target.value)} style={{ direction: 'ltr', textAlign: 'right' }} />
+                <input className="fld num" inputMode="tel" value={f.phone} onChange={(e) => set('phone')(onlyDigits(e.target.value))} style={{ direction: 'ltr', textAlign: 'right' }} />
               </label>
             </div>
             {duplicate && (
@@ -253,9 +283,9 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
 
           <Section legend="۴. اندازه">
             <div style={grid(140)}>
-              <label className="lbl">متراژ از<input className="fld num" inputMode="numeric" value={f.areaMin} onChange={(e) => set('areaMin')(e.target.value)} /></label>
-              <label className="lbl">متراژ تا<input className="fld num" inputMode="numeric" value={f.areaMax} onChange={(e) => set('areaMax')(e.target.value)} /></label>
-              <label className="lbl">حداقل خواب<input className="fld num" inputMode="numeric" value={f.bedroomsMin} onChange={(e) => set('bedroomsMin')(e.target.value)} /></label>
+              <label className="lbl">متراژ از<input className="fld num" inputMode="numeric" value={f.areaMin} onChange={(e) => set('areaMin')(onlyDigits(e.target.value, 6))} /></label>
+              <label className="lbl">متراژ تا<input className="fld num" inputMode="numeric" value={f.areaMax} onChange={(e) => set('areaMax')(onlyDigits(e.target.value, 6))} /></label>
+              <label className="lbl">حداقل خواب<input className="fld num" inputMode="numeric" value={f.bedroomsMin} onChange={(e) => set('bedroomsMin')(onlyDigits(e.target.value, 2))} /></label>
             </div>
           </Section>
 
