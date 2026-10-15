@@ -32,9 +32,27 @@ const TABS: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/calendar', icon: 'cal', label: 'تقویم' },
 ];
 
-function activeIndex(pathname: string): number {
-  if (pathname === '/') return 0;
-  return NAV.findIndex((n, i) => i > 0 && pathname.startsWith(n.to));
+function tabFromPath(pathname: string): string | undefined {
+  if (pathname === '/') return '/';
+  return NAV.find((n, i) => i > 0 && pathname.startsWith(n.to))?.to;
+}
+
+// تب هر ورودی تاریخچه. صفحهٔ جزئیات (مثل یک فایل) زیر همان تبی می‌ماند که از آن باز شد،
+// نه اینکه کاربر را ناگهان به «فایل‌ها» ببرد؛ با دکمهٔ برگشت هم همان تب برمی‌گردد.
+const tabByEntry = new Map<string, string | undefined>();
+let lastTab: string | undefined;
+
+function useActiveTab(): string | undefined {
+  const { pathname, key } = useLocation();
+  if (NAV.some((n) => n.to === pathname)) {
+    lastTab = pathname;
+    return pathname;
+  }
+  // تنظیمات و اشتراک زیر هیچ تبی نیستند
+  const own = tabFromPath(pathname);
+  if (!own) return undefined;
+  if (!tabByEntry.has(key)) tabByEntry.set(key, lastTab ?? own);
+  return tabByEntry.get(key);
 }
 
 const storageLabel = { desktop: 'ذخیرهٔ رمزگذاری‌شده روی این سیستم', browser: 'ذخیره روی همین مرورگر', memory: 'این مرورگر حافظهٔ ماندگار ندارد', locked: 'کلید در تب دیگری باز است' } as const;
@@ -49,7 +67,6 @@ export function Shell() {
   // نظر به سرور کلید می‌رود؛ بی حساب جایی برای فرستادن نیست.
   const signedIn = useAuth().status === 'signedIn';
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const storage = useStorageInfo();
   const sync = useSyncStatus();
   const counts = useQuery(navCountsQuery.key, navCountsQuery.fn);
@@ -67,7 +84,8 @@ export function Shell() {
     const t = setTimeout(warm, 300);
     return () => clearTimeout(t);
   }, [store]);
-  const idx = activeIndex(pathname);
+  const tab = useActiveTab();
+  const idx = NAV.findIndex((n) => n.to === tab);
 
   // دفتر دیگری شما را دعوت کرده: یک خبر کوچک، تصمیم در تنظیمات.
   const toast = useToast();
@@ -109,12 +127,12 @@ export function Shell() {
         <nav aria-label="منوی اصلی" className="col navwrap" style={{ gap: 2 }}>
           <span className="nav-indicator" aria-hidden="true" style={{ transform: `translateY(${Math.max(idx, 0) * ROW}px)`, opacity: idx < 0 ? 0 : 1 }} />
           {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
+            <Link key={n.to} to={n.to} className={n.to === tab ? 'nav on' : 'nav'} aria-current={n.to === tab ? 'page' : undefined}>
               <Icon name={n.icon} />
               {n.label}
               {n.to === '/files' && counts && <span className="cnt num">{toFaDigits(counts.files)}</span>}
               {n.to === '/clients' && counts && <span className="cnt num">{toFaDigits(counts.clients)}</span>}
-            </NavLink>
+            </Link>
           ))}
         </nav>
         <div className="sp" />
@@ -166,9 +184,9 @@ export function Shell() {
       </main>
 
       <nav aria-label="منوی اصلی" className="mtab">
-        {TABS.slice(0, 2).map((t) => <TabLink key={t.to} {...t} />)}
+        {TABS.slice(0, 2).map((t) => <TabLink key={t.to} {...t} on={t.to === tab} />)}
         <Link className="fab" to="/add" viewTransition aria-label="ثبت فایل جدید"><Icon name="plus" size="l" thick /></Link>
-        {TABS.slice(2).map((t) => <TabLink key={t.to} {...t} />)}
+        {TABS.slice(2).map((t) => <TabLink key={t.to} {...t} on={t.to === tab} />)}
       </nav>
 
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
@@ -178,12 +196,12 @@ export function Shell() {
   );
 }
 
-function TabLink({ to, icon, label }: { to: string; icon: IconName; label: string }) {
+function TabLink({ to, icon, label, on }: { to: string; icon: IconName; label: string; on: boolean }) {
   return (
-    <NavLink to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'tab on' : 'tab')}>
+    <Link to={to} className={on ? 'tab on' : 'tab'} aria-current={on ? 'page' : undefined}>
       <Icon name={icon} />
       {label}
-    </NavLink>
+    </Link>
   );
 }
 
