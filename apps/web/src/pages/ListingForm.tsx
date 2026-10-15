@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useBlocker } from 'react-router';
 import { useGoBack } from '../layout/useGoBack';
+import { FieldError, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
 import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
 import { dealLabel, formatGrouped, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
@@ -68,6 +69,17 @@ function toState(l?: Listing): FormState {
   };
 }
 
+type Required = 'neighborhood' | 'area';
+const REQ_MSG = 'فیلدهای ستاره‌دار را پر کنید.';
+
+/** فیلدهای ضروری که خالی مانده‌اند، با پیامی که می‌گوید چه بنویسند. */
+function missing(f: FormState): Partial<Record<Required, string>> {
+  const out: Partial<Record<Required, string>> = {};
+  if (!f.neighborhood.trim()) out.neighborhood = 'محلهٔ ملک را بنویسید.';
+  if (!parseNum(f.area)) out.area = 'متراژ را بنویسید.';
+  return out;
+}
+
 function toFields(f: FormState): ListingFields | string {
   const area = parseNum(f.area);
   if (!f.neighborhood.trim() || !area) return 'محله و متراژ را بنویسید.';
@@ -132,12 +144,21 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
   const [start] = useState(() => toFields(toState(listing)));
   const [initial] = useState(() => JSON.stringify(toState(listing)));
   const [error, setError] = useState('');
+  const [errs, setErrs] = useState<Partial<Record<Required, string>>>({});
+  // همهٔ فیلدهای ضروری که پر شد، پیام پایین فرم هم می‌رود
+  useEffect(() => {
+    if (!Object.keys(errs).length) setError((x) => (x === REQ_MSG ? '' : x));
+  }, [errs]);
   const [custom, setCustom] = useState('');
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
   const goBack = useGoBack();
-  const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
+  const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => {
+    setF((x) => ({ ...x, [k]: v }));
+    // با نوشتن در فیلد، پیام خطای همان فیلد می‌رود
+    if (k in errs) setErrs((e) => { const n = { ...e }; delete n[k as Required]; return n; });
+  };
   const dirty = JSON.stringify(f) !== initial;
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !saving.current && currentLocation.pathname !== nextLocation.pathname);
@@ -169,6 +190,18 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
     e.preventDefault();
     // دوبار کلیک یا نگه داشتن Ctrl+S نباید دو فایل بسازد
     if (saving.current) return;
+    const miss = missing(f);
+    if (Object.keys(miss).length) {
+      setErrs(miss);
+      setError(REQ_MSG);
+      // اولین فیلد خالی دیده و آمادهٔ نوشتن شود
+      requestAnimationFrame(() => {
+        const el = formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]');
+        el?.focus({ preventScroll: true });
+        el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+      return;
+    }
     const fields = toFields(f);
     if (typeof fields === 'string') {
       setError(fields);
@@ -193,7 +226,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
 
   return (
     <div style={{ padding: 8, minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
-      <form ref={formRef} onSubmit={submit} className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
+      <form ref={formRef} onSubmit={submit} noValidate className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
         <header className="top" style={{ position: 'sticky', top: 0, background: 'var(--paper)', borderRadius: '20px 20px 0 0', zIndex: 2 }}>
           {blocker.state === 'blocked' ? (
             <>
@@ -238,7 +271,11 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
 
           <Section legend="۲. کجاست؟">
             <div style={grid(220)}>
-              <label className="lbl">محله<input className="fld" value={f.neighborhood} onChange={(e) => set('neighborhood')(e.target.value)} placeholder="مثلاً سعادت‌آباد" required /></label>
+              <label className="lbl">
+                <span>محله<Req /></span>
+                <input className="fld" value={f.neighborhood} onChange={(e) => set('neighborhood')(e.target.value)} placeholder="مثلاً سعادت‌آباد" aria-required="true" aria-invalid={!!errs.neighborhood} aria-describedby={errs.neighborhood ? 'err-hood' : undefined} />
+                <FieldError id="err-hood" text={errs.neighborhood} />
+              </label>
               <label className="lbl">خیابان<input className="fld" value={f.street} onChange={(e) => set('street')(e.target.value)} /></label>
             </div>
             <label className="lbl">نشانی کامل <span className="hint">فقط برای دفتر؛ به مشتری نشان داده نمی‌شود</span><input className="fld" value={f.address} onChange={(e) => set('address')(e.target.value)} /></label>
@@ -246,7 +283,11 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
 
           <Section legend="۳. مشخصات">
             <div style={grid(120)}>
-              <label className="lbl">متراژ<input className="fld num" inputMode="numeric" value={f.area} onChange={(e) => set('area')(e.target.value)} required /></label>
+              <label className="lbl">
+                <span>متراژ<Req /></span>
+                <input className="fld num" inputMode="numeric" value={f.area} onChange={(e) => set('area')(e.target.value)} aria-required="true" aria-invalid={!!errs.area} aria-describedby={errs.area ? 'err-area' : undefined} />
+                <FieldError id="err-area" text={errs.area} />
+              </label>
               <label className="lbl">خواب<input className="fld num" inputMode="numeric" value={f.bedrooms} onChange={(e) => set('bedrooms')(e.target.value)} /></label>
               <label className="lbl">طبقه<input className="fld num" inputMode="numeric" value={f.floor} onChange={(e) => set('floor')(e.target.value)} /></label>
               <label className="lbl">تعداد طبقات<input className="fld num" inputMode="numeric" value={f.floorsTotal} onChange={(e) => set('floorsTotal')(e.target.value)} /></label>
@@ -321,7 +362,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
         {/* دکمهٔ ثبت همیشه پایین فرم و زیر دست است، همان‌جا که چشم بعد از پر کردن فرم می‌رسد. */}
         <footer className="lf-foot">
           <div className="lf-foot-in">
-            {error ? <span role="alert" className="tag bad">{error}</span> : <span className="xs mute lf-kbd">ذخیرهٔ سریع: Ctrl+S</span>}
+            {error ? <span role="alert" className="tag bad">{error}</span> : <span className="xs mute lf-kbd"><span className="req" style={{ marginInlineStart: 0 }}>*</span> ضروری · ذخیرهٔ سریع: Ctrl+S</span>}
             <span className="sp" />
             <button type="submit" className="btn btn-p btn-lg lf-save"><Icon name="check" size="s" thick />{submitLabel}</button>
           </div>

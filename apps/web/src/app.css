@@ -243,3 +243,9 @@ button.nav { border: 0; background: none; width: 100%; text-align: right; font-f
   .lf-foot-in { flex-wrap: wrap; }
   .lf-save { flex: 1 1 100%; min-width: 0; }
 }
+
+/* فیلد ضروری: ستارهٔ قرمز کنار نام، و پیام خودمان زیر فیلدی که خالی مانده */
+.req { color: var(--bad); margin-inline-start: 3px; font-weight: 700; }
+.fld[aria-invalid="true"] { border-color: var(--bad); }
+.fld[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px var(--bad-tint); }
+.ferr { display: flex; align-items: center; gap: 6px; color: var(--bad); font-size: 13px; font-weight: 500; }
