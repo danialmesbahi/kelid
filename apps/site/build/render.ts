@@ -125,12 +125,12 @@ export function plans(): string {
 ${hot ? `<span class="plan-badge">${icon('spark', 's')}محبوب‌ترین پلن دفترها</span>` : ''}
 <div class="plan-hd"><span class="plan-ic">${icon(PLAN_ICON[p.id] ?? 'user')}</span><span><h3 class="plan-name">${p.name}</h3><p class="plan-blurb">${p.blurb}</p></span></div>
 <div class="plan-price">
-<p class="pp"><b class="num py">${mil(pr.y)}</b><b class="num ph">${mil(pr.h)}</b><b class="num pm">${mil(pr.m)}</b><span>میلیون تومان<br>در ماه</span></p>
-<p class="pwas py"><s class="num">${mil(pr.m)} میلیون</s><span class="save">${gift('y')} ماه هدیه</span></p>
-<p class="pwas ph"><s class="num">${mil(pr.m)} میلیون</s><span class="save">${gift('h')} ماه هدیه</span></p>
-<p class="pnote py">سالانه ${mil(total('y'))} میلیون برای ${toFaDigits(PERIODS.y.use)} ماه · روزی ${kTooman(total('y') / (PERIODS.y.use * 30))}</p>
-<p class="pnote ph">۶ ماهه ${mil(total('h'))} میلیون برای ${toFaDigits(PERIODS.h.use)} ماه · روزی ${kTooman(total('h') / (PERIODS.h.use * 30))}</p>
-<p class="pnote pm">پرداخت ماهانه · روزی حدود ${kTooman(pr.m / 30)}</p>
+<p class="pp"><b class="num per-y">${mil(pr.y)}</b><b class="num per-h">${mil(pr.h)}</b><b class="num per-m">${mil(pr.m)}</b><span>میلیون تومان<br>در ماه</span></p>
+<p class="pwas per-y"><s class="num">${mil(pr.m)} میلیون</s><span class="save">${gift('y')} ماه هدیه</span></p>
+<p class="pwas per-h"><s class="num">${mil(pr.m)} میلیون</s><span class="save">${gift('h')} ماه هدیه</span></p>
+<p class="pnote per-y">سالانه ${mil(total('y'))} میلیون برای ${toFaDigits(PERIODS.y.use)} ماه · روزی ${kTooman(total('y') / (PERIODS.y.use * 30))}</p>
+<p class="pnote per-h">۶ ماهه ${mil(total('h'))} میلیون برای ${toFaDigits(PERIODS.h.use)} ماه · روزی ${kTooman(total('h') / (PERIODS.h.use * 30))}</p>
+<p class="pnote per-m">پرداخت ماهانه · روزی حدود ${kTooman(pr.m / 30)}</p>
 </div>
 <a class="btn btn-lg btn-w ${hot ? 'btn-gold' : 'btn-d'}" href="#download">شروع ${trialDays} روز رایگان${icon('chl', 's')}</a>
 <p class="plan-safe">${icon('check', 's')}بدون کارت بانکی · بدون تعهد</p>

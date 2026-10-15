@@ -375,13 +375,9 @@ h2 .mute { font-weight: 700; }
 @property --pa { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 .pricing { display: flex; flex-direction: column; align-items: center; margin-top: 36px; }
 .period { position: relative; display: inline-grid; grid-template-columns: repeat(3, 1fr); padding: 5px; border-radius: 99px; background: var(--paper); box-shadow: 0 0 0 1px var(--line), 0 10px 30px -18px rgba(0, 0, 0, .35); }
-.period::before { content: ""; position: absolute; inset-block: 5px; inset-inline-start: 5px; width: calc((100% - 10px) / 3); border-radius: 99px; background: var(--ink); transition: translate var(--t-med) var(--ease-out); }
-/* راست‌به‌چپ: ستون بعدی سمت چپ است */
-.period:has(#p-h:checked)::before { translate: -100% 0; }
-.period:has(#p-m:checked)::before { translate: -200% 0; }
 .period input { position: absolute; opacity: 0; pointer-events: none; }
-.period label { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 46px; padding: 0 22px; border-radius: 99px; font-weight: 700; color: var(--ink2); cursor: pointer; transition: color var(--t-med); white-space: nowrap; }
-.period input:checked + label { color: var(--paper); }
+.period label { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 46px; padding: 0 22px; border-radius: 99px; font-weight: 700; color: var(--ink2); cursor: pointer; transition: color var(--t-med), background-color var(--t-med); white-space: nowrap; }
+.period input:checked + label { background: var(--ink); color: var(--paper); }
 .period input:focus-visible + label { outline: 2px solid var(--pri-text); outline-offset: 3px; }
 .period .tag { height: 24px; font-size: 12.5px; background: linear-gradient(180deg, #F8D98F, #EDBD5B); color: #1A1A14; }
 
@@ -446,9 +442,11 @@ h2 .mute { font-weight: 700; }
 .hot .plan-feats { padding-bottom: 34px; }
 @media (prefers-reduced-motion: reduce) { .plan.hot::before { animation: none; } }
 /* دوره فقط با CSS؛ قیمت هر سه در HTML هست و مرورگر بی :has سالانه را نشان می‌دهد. */
-.pm, .ph { display: none; }
-.pricing:has(#p-h:checked) :is(.py, .pm), .pricing:has(#p-m:checked) :is(.py, .ph) { display: none; }
-.pricing:has(#p-h:checked) .ph, .pricing:has(#p-m:checked) .pm { display: revert; }
+/* نام per-* چون .ph در kelid.css کلاس جای عکس فایل است */
+.per-m, .per-h { display: none; }
+.pricing:has(#p-h:checked) :is(.per-y, .per-m), .pricing:has(#p-m:checked) :is(.per-y, .per-h) { display: none; }
+.pricing:has(#p-h:checked) .per-h, .pricing:has(#p-m:checked) .per-m { display: revert; }
+.pricing:has(#p-h:checked) .pwas.per-h { display: flex; }
 .assure { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; margin: 40px 0 0; padding: 0; }
 .assure li { display: flex; align-items: flex-start; gap: 14px; padding: 18px; border-radius: 18px; background: var(--paper2); border: 1px solid var(--line); }
 .assure .ic { flex: none; margin-top: 2px; color: var(--pri-text); }
