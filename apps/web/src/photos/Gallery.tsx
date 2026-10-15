@@ -3,7 +3,6 @@ import { Cover, Icon } from '@kelid/ui';
 import { toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { useToast } from '../layout/Toasts';
-import { usePhone } from '../layout/usePhone';
 import { coverUrl, forgetPhotoUrls, photoUrl, prefetchFullPhoto, useCoverThumbs, useFullPhotoUrl, usePhotoUpload } from './photos';
 
 const thumbSrc = (p: PhotoThumb) => photoUrl(p.id, 'thumb', p.thumb, p.mime);
@@ -96,7 +95,6 @@ export function PhotoGallery({ listing }: { listing: Listing }) {
 
 function PhotoGrid({ listing, photos, loaded, onOpen, onPick }: { listing: Listing; photos: PhotoThumb[]; loaded: boolean; onOpen: (i: number) => void; onPick: () => void }) {
   const thumbs = useCoverThumbs();
-  const phone = usePhone();
   const first = photos[0];
 
   if (!first) {
@@ -116,81 +114,99 @@ function PhotoGrid({ listing, photos, loaded, onOpen, onPick }: { listing: Listi
     );
   }
 
-  if (phone) return <PhotoStrip listing={listing} photos={photos} onOpen={onOpen} />;
-
-  // کامپیوتر: چیدمان بر اساس تعداد عکس، تا هیچ‌وقت جای خالی نماند (۱ تا ۵ خانه).
-  const shown = photos.slice(0, 5);
-  const more = photos.length - shown.length;
-  return (
-    <div className="pgal" data-n={shown.length}>
-      {shown.map((p, i) => (
-        <button
-          key={p.id}
-          type="button"
-          className={i === 0 ? 'pgal-it hero vt-cover' : 'pgal-it'}
-          onClick={() => onOpen(i)}
-          aria-label={`نمایش عکس ${toFaDigits(i + 1)} از ${toFaDigits(photos.length)}`}
-          style={i === 0 ? { viewTransitionName: `cover-${listing.id}` } : undefined}
-        >
-          <Cover variant={listing.cover} src={thumbSrc(p)}>
-            {/* بندانگشتی فوراً دیده می‌شود؛ نسخهٔ کامل که آماده شد، نرم رویش می‌نشیند تا خانه‌ها تار نمانند. */}
-            <FullPhotoLayer photoId={p.id} />
-            {i === shown.length - 1 && more > 0 && <span className="pgal-more num">+{toFaDigits(more)}</span>}
-          </Cover>
-        </button>
-      ))}
-      {photos.length > 1 && (
-        <button type="button" className="pgal-all" onClick={() => onOpen(0)}>
-          <Icon name="photos" size="s" />
-          همهٔ {toFaDigits(photos.length)} عکس
-        </button>
-      )}
-    </div>
-  );
+  return <PhotoStage listing={listing} photos={photos} onOpen={onOpen} />;
 }
 
-/** گوشی: عکس‌ها کنار هم، با کشیدن انگشت ورق می‌خورند؛ نسخهٔ کامل فقط برای عکس‌هایی که به آن‌ها رسیده‌اید. */
-function PhotoStrip({ listing, photos, onOpen }: { listing: Listing; photos: PhotoThumb[]; onOpen: (i: number) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
+/**
+ * عکس کامل و بی‌برش، روی نسخهٔ محو خودش (مثل حالت نمایش به مشتری). ورق زدن: کشیدن انگشت، فلش‌ها
+ * یا بندانگشتی‌های پایین؛ زدن روی عکس، نمایش تمام‌صفحه. نسخهٔ کامل فقط برای عکس جاری و بعدی بارگذاری می‌شود.
+ */
+function PhotoStage({ listing, photos, onOpen }: { listing: Listing; photos: PhotoThumb[]; onOpen: (i: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
   const [at, setAt] = useState(0);
   const [reach, setReach] = useState(1);
   const n = photos.length;
+  const cur = Math.min(at, n - 1);
 
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  useEffect(() => {
+    const strip = stripRef.current;
+    const th = strip?.children[cur] as HTMLElement | undefined;
+    // فقط نوار بندانگشتی اسکرول می‌خورد، نه خود صفحه
+    if (th && strip) strip.scrollTo({ left: th.offsetLeft - (strip.clientWidth - th.offsetWidth) / 2, behavior: 'smooth' });
+  }, [cur]);
+
+  const go = (k: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // راست‌به‌چپ: جلو رفتن یعنی scrollLeft منفی‌تر
+    el.scrollTo({ left: -((k + n) % n) * el.clientWidth, behavior: smooth ? 'smooth' : 'instant' });
+  };
+
   const onScroll = () => {
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(() => {
-      const el = ref.current;
-      const slide = el?.firstElementChild as HTMLElement | null;
-      if (!el || !slide) return;
-      // راست‌به‌چپ: scrollLeft منفی است
-      const k = Math.min(n - 1, Math.round(Math.abs(el.scrollLeft) / (slide.offsetWidth + 8)));
+      const el = trackRef.current;
+      if (!el || !el.clientWidth) return;
+      const k = Math.min(n - 1, Math.round(Math.abs(el.scrollLeft) / el.clientWidth));
       setAt(k);
       setReach((r) => Math.max(r, k + 1));
     });
   };
 
   return (
-    <div className="pgal-wrap">
-      <div ref={ref} className="pgal-strip" onScroll={onScroll}>
-        {photos.map((p, i) => (
-          <button
-            key={p.id}
-            type="button"
-            className={i === 0 ? 'pgal-slide vt-cover' : 'pgal-slide'}
-            onClick={() => onOpen(i)}
-            aria-label={`نمایش عکس ${toFaDigits(i + 1)} از ${toFaDigits(n)}`}
-            style={i === 0 ? { viewTransitionName: `cover-${listing.id}` } : undefined}
-          >
-            <Cover variant={listing.cover} src={thumbSrc(p)}>
-              <FullPhotoLayer photoId={i <= reach ? p.id : undefined} />
-            </Cover>
-          </button>
-        ))}
+    <div className="pstage-wrap">
+      <div className="pstage">
+        <div ref={trackRef} className="pstage-track" onScroll={onScroll}>
+          {photos.map((p, i) => (
+            <button
+              key={p.id}
+              type="button"
+              className={i === 0 ? 'pstage-slide vt-cover' : 'pstage-slide'}
+              onClick={() => onOpen(i)}
+              aria-label={`نمایش بزرگ عکس ${toFaDigits(i + 1)} از ${toFaDigits(n)}`}
+              style={i === 0 ? { viewTransitionName: `cover-${listing.id}` } : undefined}
+            >
+              <StagePhoto photo={p} load={i <= reach} />
+            </button>
+          ))}
+        </div>
+        {n > 1 && (
+          <>
+            <button type="button" className="pstage-nav pstage-prev" aria-label="عکس قبلی" onClick={() => go(cur - 1)}><Icon name="chr" /></button>
+            <button type="button" className="pstage-nav pstage-next" aria-label="عکس بعدی" onClick={() => go(cur + 1)}><Icon name="chl" /></button>
+            <span className="pstage-count num" aria-hidden="true">{toFaDigits(cur + 1)} / {toFaDigits(n)}</span>
+          </>
+        )}
       </div>
-      {n > 1 && <span className="pgal-count num" aria-hidden="true">{toFaDigits(at + 1)} / {toFaDigits(n)}</span>}
+      {n > 1 && (
+        <div ref={stripRef} className="pstage-strip" aria-label="عکس‌های فایل">
+          {photos.map((p, i) => (
+            <button key={p.id} type="button" className="pstage-th" aria-current={i === cur} aria-label={`عکس ${toFaDigits(i + 1)}`} onClick={() => go(i)}>
+              <img src={thumbSrc(p)} alt="" draggable={false} loading="lazy" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** پس‌زمینهٔ محو + عکس کامل بی‌برش؛ بندانگشتی تا رسیدن نسخهٔ کامل جای آن را نگه می‌دارد. */
+function StagePhoto({ photo, load }: { photo: PhotoThumb; load: boolean }) {
+  const full = useFullPhotoUrl(load ? photo.id : undefined);
+  const [ready, setReady] = useState<string>();
+  const sharp = !!full && ready === full;
+  const thumb = thumbSrc(photo);
+  return (
+    <>
+      <img className="pstage-bg" src={thumb} alt="" draggable={false} />
+      <img className="pstage-img" src={thumb} alt="" draggable={false} style={{ opacity: sharp ? 0 : 1 }} />
+      {full && <img className="pstage-img" src={full} alt="" draggable={false} decoding="async" onLoad={() => setReady(full)} style={{ opacity: sharp ? 1 : 0 }} />}
+    </>
   );
 }
 
