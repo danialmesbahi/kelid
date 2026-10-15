@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { Cover, Icon, Plaque } from '@kelid/ui';
 import {
@@ -177,11 +177,16 @@ function Empty({ stage }: { stage: Live }) {
 }
 
 /** ستون‌های خط معامله؛ کارت با موس به ستون دیگر کشیده می‌شود. */
-function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => void; render: (d: Deal) => ReactNode }) {
-  const g = useRef<{ d: Deal; x0: number; y0: number; cols: Array<{ id: Live; r: DOMRect }>; moved: boolean; el: HTMLElement } | null>(null);
+function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => Promise<void> | void; render: (d: Deal) => ReactNode }) {
+  const g = useRef<{ d: Deal; x0: number; y0: number; x: number; y: number; cols: Array<{ id: Live; r: DOMRect }>; moved: boolean; el: HTMLElement } | null>(null);
   // state فقط وقتی عوض می‌شود که ستون زیر موس عوض شود؛ جابه‌جایی خود کارت مستقیم روی DOM است تا هر حرکت موس کل تابلو را رندر نکند.
   const [drag, setDrag] = useState<{ id: string; to: Live } | null>(null);
   const dragRef = useRef(drag);
+  // کارت رهاشده همان لحظه در ستون تازه می‌نشیند، بی آنکه منتظر ذخیره بماند و یک لحظه به جای قبلی‌اش بپرد.
+  const [moved, setMoved] = useState<Record<string, Live>>({});
+  // جایی که کارت رها شد؛ بعد از رندر، کارت از همان‌جا نرم به جای تازه‌اش سُر می‌خورد.
+  const flip = useRef<{ id: string; x: number; y: number; rot: number } | null>(null);
+  const frame = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
   const swallow = useRef(false);
 
@@ -194,13 +199,43 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
       e.preventDefault();
     };
     window.addEventListener('click', stop, true);
-    return () => window.removeEventListener('click', stop, true);
+    return () => {
+      window.removeEventListener('click', stop, true);
+      cancelAnimationFrame(frame.current);
+    };
   }, []);
+
+  // وقتی دادهٔ ذخیره‌شده به جای تازه رسید، جای موقت لازم نیست.
+  useEffect(() => {
+    setMoved((m) => {
+      const done = Object.keys(m).filter((id) => deals.find((d) => d.id === id)?.stage === m[id] || !deals.some((d) => d.id === id));
+      if (!done.length) return m;
+      const next = { ...m };
+      for (const id of done) delete next[id];
+      return next;
+    });
+  }, [deals]);
+
+  useLayoutEffect(() => {
+    const f = flip.current;
+    if (!f) return;
+    flip.current = null;
+    const el = boardRef.current?.querySelector<HTMLElement>(`[data-deal="${f.id}"]`);
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const r = el.getBoundingClientRect();
+    const dx = f.x - (r.left + r.width / 2);
+    const dy = f.y - (r.top + r.height / 2);
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    el.animate([{ transform: `translate(${dx}px, ${dy}px) rotate(${f.rot}deg)` }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2, .8, .2, 1)' });
+  });
+
+  const stageOf = (d: Deal) => moved[d.id] ?? (d.stage as Live);
 
   // کشیدن نیمه‌کاره (رها شده بیرون صفحه یا لغو شده) بی‌صدا برمی‌گردد و هیچ معامله‌ای جابه‌جا نمی‌شود
   const reset = () => {
     const s = g.current;
     g.current = null;
+    cancelAnimationFrame(frame.current);
     if (!s?.moved) return;
     s.el.style.transform = '';
     dragRef.current = null;
@@ -213,33 +248,57 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     const d = deals.find((x) => x.id === el.dataset.deal);
     if (!d) return;
     const cols = [...(boardRef.current?.querySelectorAll<HTMLElement>('[data-stage]') ?? [])].map((c) => ({ id: c.dataset.stage as Live, r: c.getBoundingClientRect() }));
-    g.current = { d, x0: e.clientX, y0: e.clientY, cols, moved: false, el };
+    g.current = { d, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, cols, moved: false, el };
   };
-  const moveP = (e: PointerEvent<HTMLDivElement>) => {
+  const rot = (s: { x: number; x0: number }) => (s.x > s.x0 ? 1.5 : -1.5);
+  // هر فریم یک بار: موس می‌تواند در هر فریم چند رویداد بفرستد
+  const paint = () => {
     const s = g.current;
     if (!s) return;
-    if (e.buttons === 0) return reset();
-    if (!s.moved && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) < 6) return;
-    if (!s.moved) s.el.setPointerCapture?.(e.pointerId);
-    s.moved = true;
-    const hit = s.cols.find((c) => e.clientX >= c.r.left && e.clientX <= c.r.right);
-    const dx = e.clientX - s.x0;
-    s.el.style.transform = `translate(${dx}px, ${e.clientY - s.y0}px) rotate(${dx > 0 ? 1.5 : -1.5}deg)`;
-    const to = hit?.id ?? (s.d.stage as Live);
+    s.el.style.transform = `translate3d(${s.x - s.x0}px, ${s.y - s.y0}px, 0) rotate(${rot(s)}deg)`;
+    const hit = s.cols.find((c) => s.x >= c.r.left && s.x <= c.r.right);
+    const to = hit?.id ?? stageOf(s.d);
     if (dragRef.current?.id !== s.d.id || dragRef.current.to !== to) {
       dragRef.current = { id: s.d.id, to };
       setDrag(dragRef.current);
     }
   };
+  const moveP = (e: PointerEvent<HTMLDivElement>) => {
+    const s = g.current;
+    if (!s) return;
+    if (e.buttons === 0) return reset();
+    s.x = e.clientX;
+    s.y = e.clientY;
+    if (!s.moved && Math.hypot(s.x - s.x0, s.y - s.y0) < 6) return;
+    if (!s.moved) s.el.setPointerCapture?.(e.pointerId);
+    s.moved = true;
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(paint);
+  };
   const up = () => {
     const s = g.current;
     g.current = null;
+    cancelAnimationFrame(frame.current);
     if (!s?.moved) return;
+    // جای فعلی کارت (با جابه‌جایی) پیش از برداشتن آن، برای سُر خوردن به جای تازه
+    const r = s.el.getBoundingClientRect();
+    flip.current = { id: s.d.id, x: r.left + r.width / 2, y: r.top + r.height / 2, rot: rot(s) };
     s.el.style.transform = '';
     swallow.current = true;
     setTimeout(() => (swallow.current = false), 0);
     const last = dragRef.current;
-    if (last && last.to !== s.d.stage) onMove(s.d, last.to);
+    if (last && last.to !== stageOf(s.d)) {
+      const id = s.d.id;
+      setMoved((m) => ({ ...m, [id]: last.to }));
+      // ذخیره نشد (مثلاً اشتراک تمام شده): کارت به جای واقعی‌اش برمی‌گردد
+      void Promise.resolve(onMove(s.d, last.to)).catch(() =>
+        setMoved((m) => {
+          const next = { ...m };
+          delete next[id];
+          return next;
+        }),
+      );
+    }
     dragRef.current = null;
     setDrag(null);
   };
@@ -247,7 +306,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
   return (
     <div className="dl-board" ref={boardRef} onPointerDown={down} onPointerMove={moveP} onPointerUp={up} onPointerCancel={reset}>
       {STAGES.map((s, i) => {
-        const mine = deals.filter((d) => d.stage === s.id);
+        const mine = deals.filter((d) => stageOf(d) === s.id);
         const sum = mine.reduce((t, d) => t + dealCommission(d), 0);
         return (
           <section key={s.id} data-stage={s.id} className={`dl-col${drag?.to === s.id ? ' drop' : ''}${s.id === 'done' ? ' done' : ''}`} aria-label={s.label}>
