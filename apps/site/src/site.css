@@ -472,36 +472,25 @@ h2 .mute { font-weight: 700; }
 .final h2 { max-width: 760px; }
 .final .cta { margin-top: 0; animation: none; }
 
-/* ── پانویس: ستون‌های پیوند، دانلود سریع، نشانه‌های اعتماد و واژهٔ بزرگ «کلید» که در شب محو می‌شود ── */
-.ftr { position: relative; isolation: isolate; overflow: hidden; padding-top: clamp(56px, 7vw, 88px); background: radial-gradient(70% 45% at 50% 100%, rgba(14, 77, 63, .5), transparent 75%), linear-gradient(180deg, #041611, #07100D 40%); color: rgba(255, 255, 255, .66); }
-/* پانویس ادامهٔ زمین شهر بخش پایانی است؛ در هر دو پوسته همان شب */
-.ftr { --deep-ink: #FFFFFF; --deep-mute: rgba(255, 255, 255, .66); --deep-line: rgba(255, 255, 255, .1); }
-.ftr-in { position: relative; z-index: 2; }
-.ftr-grid { display: grid; grid-template-columns: 1.7fr repeat(3, 1fr); gap: 40px; }
-.ftr-b { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; max-width: 420px; }
-.ftr-b p { line-height: 1.95; font-size: 14.5px; }
-.ftr-dl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 4px; }
-.ftr-dl a { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 14px; border-radius: 14px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px var(--deep-line); color: var(--deep-ink); font-weight: 700; transition: background-color var(--t-fast), box-shadow var(--t-fast), transform var(--t-med) var(--ease-out); }
-.ftr-dl a:hover { background: rgba(255, 255, 255, .09); box-shadow: inset 0 0 0 1px rgba(246, 207, 124, .4); transform: translateY(-2px); }
-.ftr-dl .os-logo { flex: none; width: 22px; height: 22px; fill: currentColor; }
-.ftr-dl span { display: flex; flex-direction: column; line-height: 1.25; font-size: 14.5px; }
-.ftr-dl small { font-size: 11px; font-weight: 500; color: var(--deep-mute); }
-.ftr-col { display: flex; flex-direction: column; gap: 12px; }
-.ftr-col h3 { margin-bottom: 6px; font-size: 14px; font-weight: 800; color: var(--deep-ink); }
+/* ── پانویس: ادامهٔ زمین شهر بخش پایانی؛ جمع‌وجور، با پیوندها، دانلود سریع و نشانه‌های اعتماد ── */
+.ftr { --deep-ink: #FFFFFF; --deep-mute: rgba(255, 255, 255, .62); --deep-line: rgba(255, 255, 255, .09); padding-top: clamp(40px, 5vw, 64px); background: #041611; color: var(--deep-mute); }
+.ftr-grid { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 32px 40px; padding-bottom: 36px; }
+.ftr-b { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: 380px; }
+.ftr-b p { font-size: 14.5px; line-height: 1.9; }
+.ftr-col { display: flex; flex-direction: column; gap: 10px; }
+.ftr-col h3 { margin-bottom: 4px; font-size: 14px; font-weight: 800; color: var(--deep-ink); }
 .ftr-col a { width: fit-content; font-size: 14.5px; transition: color var(--t-fast); }
 .ftr-col a:hover, .ftr-up:hover { color: var(--lit); }
-.ftr-trust { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; margin: 48px 0 0; padding: 0; }
-.ftr-trust li { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 99px; background: rgba(255, 255, 255, .04); box-shadow: inset 0 0 0 1px var(--deep-line); font-size: 13.5px; }
+.ftr-mid { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-block: 22px; border-block: 1px solid var(--deep-line); }
+.ftr-dl { display: flex; flex-wrap: wrap; gap: 8px; }
+.ftr-dl a { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; background: rgba(255, 255, 255, .06); color: var(--deep-ink); font-size: 14px; font-weight: 700; transition: background-color var(--t-fast); }
+.ftr-dl a:hover { background: rgba(255, 255, 255, .12); }
+.ftr-dl .os-logo { width: 18px; height: 18px; fill: currentColor; }
+.ftr-trust { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; padding: 0; font-size: 13.5px; }
+.ftr-trust li { display: inline-flex; align-items: center; gap: 7px; }
 .ftr-trust .ic { color: var(--lit); }
-.ftr-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; padding-block: 22px; border-top: 1px solid var(--deep-line); font-size: 14px; }
+.ftr-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-block: 22px 28px; font-size: 13.5px; }
 .ftr-up { display: inline-flex; align-items: center; gap: 8px; color: var(--deep-ink); transition: color var(--t-fast); }
-.ftr-word { position: relative; z-index: 1; margin-top: 8px; text-align: center; line-height: .8; pointer-events: none; user-select: none; }
-.ftr-word::before { content: ""; position: absolute; inset: 20% 15% -30%; z-index: -1; background: radial-gradient(closest-side, rgba(58, 154, 127, .28), transparent); filter: blur(10px); }
-.ftr-word span {
-  display: inline-block; font-size: clamp(130px, 28vw, 400px); font-weight: 900; color: transparent; translate: 0 16%;
-  background: linear-gradient(180deg, rgba(246, 207, 124, .34), rgba(125, 208, 181, .12) 55%, transparent 90%); -webkit-background-clip: text; background-clip: text;
-  -webkit-mask-image: linear-gradient(180deg, #000 25%, transparent 92%); mask-image: linear-gradient(180deg, #000 25%, transparent 92%);
-}
 
 
 /* نمایش تدریجی هنگام اسکرول، فقط با CSS؛ مرورگری که نمی‌تواند، همه‌چیز را از اول نشان می‌دهد. */
@@ -570,5 +559,6 @@ h2 .mute { font-weight: 700; }
   .pp b { font-size: 36px; }
   .ftr-grid { grid-template-columns: 1fr 1fr; gap: 32px 20px; }
   .ftr-col:last-child { grid-column: 1 / -1; }
+  .ftr-mid { flex-direction: column; align-items: flex-start; }
   .ftr-bar { flex-direction: column-reverse; align-items: flex-start; }
 }
