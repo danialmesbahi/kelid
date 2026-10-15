@@ -292,20 +292,47 @@
 
 <footer class="ftr">
   <div class="wrap ftr-in">
-    <div class="ftr-b">
-      <span class="plq">کلید</span>
-      <p>نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک؛ فایل‌ها، مشتری‌ها، بازدیدها و قراردادها روی ویندوز، مک، وب و گوشی.</p>
+    <div class="ftr-grid">
+      <div class="ftr-b">
+        <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول"><span class="plq">کلید</span></a>
+        <p>نرم‌افزار املاک کلید، دفتر مشاوران املاک را مرتب نگه می‌دارد: فایل‌های فروش، رهن و اجاره، مشتری‌ها، بازدیدها و قراردادها؛ روی ویندوز، مک، گوشی و وب، حتی بدون اینترنت.</p>
+        <div class="ftr-dl">
+          <a href="{{windows}}" download>{{brand:win}}<span><small>دانلود برای</small>ویندوز</span></a>
+          <a href="{{mac}}" download>{{brand:mac}}<span><small>دانلود برای</small>مک</span></a>
+          <a href="#download">{{brand:mac}}<span><small>نصب روی</small>آیفون</span></a>
+          <a href="{{app}}" rel="noopener">{{brand:and}}<span><small>نصب روی</small>اندروید</span></a>
+        </div>
+      </div>
+      <nav class="ftr-col" aria-labelledby="fc1"><h3 id="fc1">نرم‌افزار</h3>
+        <a href="#how">کلید چطور کار می‌کند</a>
+        <a href="#features">امکانات نرم‌افزار املاک</a>
+        <a href="#offline">کار بدون اینترنت</a>
+        <a href="#pricing">قیمت اشتراک</a>
+      </nav>
+      <nav class="ftr-col" aria-labelledby="fc2"><h3 id="fc2">دانلود</h3>
+        <a href="{{windows}}" download>کلید برای ویندوز</a>
+        <a href="{{mac}}" download>کلید برای مک</a>
+        <a href="#download">کلید روی آیفون و اندروید</a>
+        <a href="{{app}}" rel="noopener">نسخهٔ وب</a>
+      </nav>
+      <nav class="ftr-col" aria-labelledby="fc3"><h3 id="fc3">راهنما</h3>
+        <a href="#faq">پرسش‌های پرتکرار</a>
+        <a href="#pricing">{{trial}} روز استفادهٔ رایگان</a>
+        <a href="#offline">امنیت اطلاعات دفتر</a>
+        <a href="#download">نصب قدم‌به‌قدم</a>
+      </nav>
     </div>
-    <nav aria-label="پیوندهای پانویس">
-      <a href="#how">کلید چطور کار می‌کند</a>
-      <a href="#features">امکانات نرم‌افزار املاک</a>
-      <a href="#offline">کار بدون اینترنت</a>
-      <a href="#download">دانلود کلید</a>
-      <a href="#pricing">قیمت اشتراک</a>
-      <a href="#faq">پرسش‌های پرتکرار</a>
-    </nav>
-    <p class="ftr-c">© {{year}} کلید. همهٔ حقوق محفوظ است.</p>
+    <ul class="ftr-trust">
+      <li>{{icon:lock s}}اطلاعات رمزگذاری‌شده روی دستگاه خودتان</li>
+      <li>{{icon:card s}}پرداخت امن با زرین‌پال</li>
+      <li>{{icon:cloud s}}همگام روی همهٔ دستگاه‌های دفتر</li>
+    </ul>
+    <div class="ftr-bar">
+      <p>© {{year}} کلید · ساخته‌شده برای مشاوران املاک ایران</p>
+      <a class="ftr-up" href="#top">بازگشت به بالا{{icon:up s}}</a>
+    </div>
   </div>
+  <div class="ftr-word" aria-hidden="true"><span>کلید</span></div>
 </footer>
 <script>/* منوی گوشی با رفتن به یک بخش بسته می‌شود. */document.querySelectorAll('#menu a').forEach(function(a){a.addEventListener('click',function(){var m=document.getElementById('menu');if(m&&m.hidePopover)m.hidePopover()})})</script>
 </body>
