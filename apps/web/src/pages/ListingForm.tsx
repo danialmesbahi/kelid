@@ -2,13 +2,20 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { useBlocker } from 'react-router';
 import { useGoBack } from '../layout/useGoBack';
 import { useMember } from '../auth/AuthContext';
-import { Cover, Icon, Segmented } from '@kelid/ui';
-import { dealLabel, formatGrouped, formatPlaque, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
+import { dealLabel, formatGrouped, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
 
 const FEATURES = ['پارکینگ', 'آسانسور', 'انباری', 'بالکن', 'لابی و نگهبان', 'استخر و سونا'];
+
+/** نوع معامله با نشانهٔ خودش؛ رنگ هر کارت همان رنگ پلاک است. */
+const DEALS: Array<{ value: DealType; cls: string; icon: IconName; hint: string }> = [
+  { value: 'sale', cls: '', icon: 'dealSale', hint: 'انتقال سند به خریدار' },
+  { value: 'rent', cls: 'r', icon: 'dealRent', hint: 'ودیعه و اجارهٔ ماهانه' },
+  { value: 'full', cls: 'f', icon: 'dealFull', hint: 'فقط ودیعه، بی اجاره' },
+];
 
 const KINDS: Array<{ value: PropertyKind; label: string }> = [
   { value: 'apartment', label: 'آپارتمان' },
@@ -199,21 +206,21 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             <>
               <button type="button" className="btn btn-g" onClick={() => goBack(cancelTo)} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
               <span className="b" style={{ fontSize: 18 }}>{title}</span>
-              <span className="sp" />
-              {error && <span role="alert" className="tag bad">{error}</span>}
-              <button type="submit" className="btn btn-p">{submitLabel}</button>
             </>
           )}
         </header>
 
-        <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 80px', gap: 36 }}>
+        <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
           <Section legend="۱. این ملک برای چیست؟">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-              {(['sale', 'rent', 'full'] as const).map((d) => (
-                <button key={d} type="button" aria-pressed={f.deal === d} onClick={() => set('deal')(d)} className={`col ${f.deal === d ? 'sel' : ''}`}
-                  style={{ minHeight: 88, borderRadius: 16, border: '1px solid var(--line2)', background: 'var(--paper)', padding: '14px 16px', alignItems: 'flex-start', gap: 8, textAlign: 'right' }}>
-                  <span className={`plq ${d === 'rent' ? 'r' : d === 'full' ? 'f' : ''}`} style={{ minWidth: 40 }}>{listing ? formatPlaque(listing.plaque) : '؟'}</span>
-                  <span className="b">{dealLabel[d]}</span>
+            <div className="dealpick">
+              {DEALS.map((d) => (
+                <button key={d.value} type="button" aria-pressed={f.deal === d.value} onClick={() => set('deal')(d.value)} className={`dealopt ${d.cls}`}>
+                  <span className="dealopt-ic"><Icon name={d.icon} size="l" /></span>
+                  <span className="col" style={{ gap: 2, minWidth: 0 }}>
+                    <span className="b" style={{ fontSize: 16 }}>{dealLabel[d.value]}</span>
+                    <span className="xs mute">{d.hint}</span>
+                  </span>
+                  {f.deal === d.value && <span className="dealopt-ok pop-in" aria-hidden="true"><Icon name="check" size="s" thick /></span>}
                 </button>
               ))}
             </div>
@@ -310,6 +317,15 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             </div>
           )}
         </div>
+
+        {/* دکمهٔ ثبت همیشه پایین فرم و زیر دست است، همان‌جا که چشم بعد از پر کردن فرم می‌رسد. */}
+        <footer className="lf-foot">
+          <div className="lf-foot-in">
+            {error ? <span role="alert" className="tag bad">{error}</span> : <span className="xs mute lf-kbd">ذخیرهٔ سریع: Ctrl+S</span>}
+            <span className="sp" />
+            <button type="submit" className="btn btn-p btn-lg lf-save"><Icon name="check" size="s" thick />{submitLabel}</button>
+          </div>
+        </footer>
       </form>
     </div>
   );

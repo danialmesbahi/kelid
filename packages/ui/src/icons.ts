@@ -53,6 +53,9 @@ export const iconPaths = {
   "more": "<path d=\"M5 12h.01M12 12h.01M19 12h.01\"></path>",
   "nav": "<path d=\"M3 11 21 3l-8 18-2-8z\"></path>",
   "download": "<path d=\"M12 4v12M7 11l5 5 5-5M4 20h16\"></path>",
+  "dealSale": "<path d=\"M3 11.5 11 4.5l8 7\"></path><path d=\"M5 10v9.5h5\"></path><path d=\"M12.5 13.5h5.3l2.9 3.25-2.9 3.25h-5.3z\"></path><circle cx=\"14.9\" cy=\"16.75\" r=\".5\"></circle>",
+  "dealRent": "<circle cx=\"7\" cy=\"15.5\" r=\"3\"></circle><path d=\"M10 15.5h10.5M17.5 15.5v2.5M20.5 15.5v2\"></path><path d=\"M5 9.5a7.5 7.5 0 0 1 13.6-2.7\"></path><path d=\"M19 3.6v3.4h-3.4\"></path>",
+  "dealFull": "<ellipse cx=\"16\" cy=\"5.8\" rx=\"4.5\" ry=\"1.9\"></ellipse><path d=\"M11.5 5.8v3c0 1 2 1.9 4.5 1.9s4.5-.9 4.5-1.9v-3M11.5 8.8v3c0 1 2 1.9 4.5 1.9s4.5-.9 4.5-1.9v-3\"></path><circle cx=\"6.5\" cy=\"17.5\" r=\"3\"></circle><path d=\"M9.5 17.5H20M16.5 17.5V20M19.5 17.5v2\"></path>",
 } as const;
 
 export type IconName = keyof typeof iconPaths;

@@ -214,3 +214,32 @@ button.nav { border: 0; background: none; width: 100%; text-align: right; font-f
   .card { box-shadow: none !important; break-inside: avoid; }
   .arrive, .enter, .stagger > * { animation: none !important; opacity: 1 !important; transform: none !important; }
 }
+
+/* فرم فایل: انتخاب نوع معامله با نشانه و رنگ پلاک همان نوع */
+.dealpick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.dealopt { --pc: var(--sale); position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-height: 128px; padding: 16px; border-radius: 16px; border: 1px solid var(--line2); background: var(--paper); color: var(--ink); text-align: right; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.dealopt.r { --pc: var(--rent); }
+.dealopt.f { --pc: var(--full); }
+.dealopt:hover { border-color: color-mix(in srgb, var(--pc) 40%, var(--line2)); }
+.dealopt[aria-pressed="true"] { border-color: var(--pc); background: color-mix(in srgb, var(--pc) 7%, var(--paper)); box-shadow: inset 0 0 0 1px var(--pc); }
+.dealopt-ic { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--pc) 12%, var(--paper)); color: color-mix(in srgb, var(--pc) 78%, var(--ink)); transition: background-color .15s ease, color .15s ease; }
+.dealopt-ic .ic { width: 30px; height: 30px; stroke-width: 1.6; }
+.dealopt[aria-pressed="true"] .dealopt-ic { background: var(--pc); color: #FFFFFF; }
+.dealopt-ok { position: absolute; top: 12px; left: 12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--pc); color: #FFFFFF; }
+@media (max-width: 640px) {
+  .dealpick { grid-template-columns: 1fr; gap: 8px; }
+  .dealopt { flex-direction: row; align-items: center; min-height: 72px; padding: 10px 14px; }
+  .dealopt-ic { width: 48px; height: 48px; border-radius: 14px; }
+  .dealopt-ok { top: 50%; margin-top: -12px; left: 16px; }
+}
+
+/* نوار پایین فرم فایل: دکمهٔ ثبت همیشه پیداست */
+.lf-foot { position: sticky; bottom: 0; z-index: 2; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-radius: 0 0 20px 20px; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(10px); }
+.lf-foot-in { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.lf-save { min-width: 220px; gap: 8px; }
+@media (max-width: 640px) {
+  .lf-foot { padding-inline: 12px; }
+  .lf-kbd, .lf-foot-in > .sp { display: none; }
+  .lf-foot-in { flex-wrap: wrap; }
+  .lf-save { flex: 1 1 100%; min-width: 0; }
+}
