@@ -4,31 +4,58 @@
  */
 
 export type PlanId = 'solo' | 'office' | 'pro';
-export type Period = 'month' | 'year';
+export type Period = 'month' | 'half' | 'year';
 
 export interface Plan {
   id: PlanId;
   name: string;
-  /** چند نفر (عضو + دعوت باز) در دفتر جا می‌شوند. */
+  /** چند نفر (عضو + دعوت باز) در قیمت پایه جا می‌شوند. */
   seats: number;
   /** قیمت یک ماه به تومان. */
   monthly: number;
   blurb: string;
+  /** پلنی که نفر اضافه می‌گیرد: قیمت ماهانهٔ هر نفر بیشتر از seats، و سقف کل نفرات. */
+  extra?: { monthly: number; max: number };
 }
 
 export const PLANS: readonly Plan[] = [
-  { id: 'solo', name: 'تک‌نفره', seats: 1, monthly: 190_000, blurb: 'برای مشاوری که تنها کار می‌کند' },
-  { id: 'office', name: 'دفتر', seats: 5, monthly: 490_000, blurb: 'برای بیشتر دفترهای املاک' },
-  { id: 'pro', name: 'دفتر بزرگ', seats: 15, monthly: 990_000, blurb: 'برای دفترهای پرهمکار' },
+  { id: 'solo', name: 'تک‌نفره', seats: 1, monthly: 2_000_000, blurb: 'برای مشاوری که تنها کار می‌کند' },
+  { id: 'office', name: 'دفتر', seats: 5, monthly: 5_000_000, blurb: 'برای بیشتر دفترهای املاک' },
+  { id: 'pro', name: 'دفتر بزرگ', seats: 10, monthly: 9_900_000, blurb: 'برای دفترهای پرهمکار', extra: { monthly: 500_000, max: 50 } },
 ];
+
+export interface Term {
+  id: Period;
+  name: string;
+  /** ماه‌هایی که پولش داده می‌شود. */
+  months: number;
+  /** ماه‌های هدیه روی همان. */
+  gift: number;
+  /** درصد تخفیف روی قیمت ماه‌های پولی. */
+  off: number;
+}
+
+/** مدت‌های خرید. ماه هدیه و تخفیف با هم: هرچه مدت بلندتر، هر ماه ارزان‌تر. */
+export const TERMS: readonly Term[] = [
+  { id: 'month', name: 'یک‌ماهه', months: 1, gift: 0, off: 0 },
+  { id: 'half', name: 'شش‌ماهه', months: 6, gift: 1, off: 10 },
+  { id: 'year', name: 'یک‌ساله', months: 12, gift: 2, off: 15 },
+];
+
+export function termOf(period: Period): Term {
+  return TERMS.find((t) => t.id === period) ?? TERMS[0]!;
+}
 
 /** پلن دورهٔ آزمایشی دفتر تازه؛ همان جای پیش‌فرض دفترها (offices.seats). */
 export const TRIAL_PLAN: PlanId = 'office';
 export const TRIAL_DAYS = 14;
-/** سالانه = ده ماه؛ دو ماه هدیه. */
-export const YEAR_MONTHS = 10;
 const DAY = 86_400_000;
-export const PERIOD_DAYS: Record<Period, number> = { month: 30, year: 365 };
+/** میانگین روزهای یک ماه؛ مدت هر خرید = (ماه‌های پولی + هدیه) × این. */
+const MONTH_DAYS = 30.44;
+export function termDays(period: Period): number {
+  const t = termOf(period);
+  return Math.round((t.months + t.gift) * MONTH_DAYS);
+}
 /** از چند روز مانده به پایان، برنامه یادآوری می‌کند. */
 export const WARN_DAYS = 7;
 /** دستگاهی که این‌قدر به سرور سر نزده، تا یک بار وصل نشود فقط‌خواندنی است (اشتراک لغوشده یا معلق دیر نماند). */
@@ -38,9 +65,33 @@ export function planById(id: string): Plan | undefined {
   return PLANS.find((p) => p.id === id);
 }
 
+/** تعداد نفرات معتبر برای پلن: پلن بی‌نفر اضافه همیشه seats خودش، بقیه بین seats و سقف. */
+export function seatsFor(plan: Plan, seats?: number): number {
+  if (!plan.extra || seats === undefined || !Number.isInteger(seats)) return plan.seats;
+  return Math.min(plan.extra.max, Math.max(plan.seats, seats));
+}
+
+/** قیمت یک ماهِ پلن با همین تعداد نفر، بی‌تخفیف. */
+export function monthlyOf(plan: Plan, seats?: number): number {
+  return plan.monthly + (plan.extra ? (seatsFor(plan, seats) - plan.seats) * plan.extra.monthly : 0);
+}
+
+/** قیمت‌ها گرد به این مقدار تا هر عددی که کاربر می‌بیند رند باشد. */
+const ROUND = 50_000;
+
+/** هزینهٔ هر ماهِ اعتبار در این مدت (با تخفیف و ماه‌های هدیه)، رند. */
+export function perMonthOf(plan: Plan, period: Period, seats?: number): number {
+  const t = termOf(period);
+  if (!t.gift && !t.off) return monthlyOf(plan, seats);
+  const f = (t.months * (100 - t.off)) / 100 / (t.months + t.gift);
+  const each = (m: number) => Math.round((m * f) / ROUND) * ROUND;
+  return each(plan.monthly) + (plan.extra ? (seatsFor(plan, seats) - plan.seats) * each(plan.extra.monthly) : 0);
+}
+
 /** مبلغ یک خرید به تومان. */
-export function priceOf(plan: Plan, period: Period): number {
-  return period === 'year' ? plan.monthly * YEAR_MONTHS : plan.monthly;
+export function priceOf(plan: Plan, period: Period, seats?: number): number {
+  const t = termOf(period);
+  return perMonthOf(plan, period, seats) * (t.months + t.gift);
 }
 
 export interface SubscriptionState {
@@ -48,17 +99,21 @@ export interface SubscriptionState {
   trial: boolean;
   /** پایان اعتبار، ISO. */
   expiresAt: string;
+  /** نفرات خریده‌شده؛ برای پلن با نفر اضافه. */
+  seats?: number;
 }
 
 /**
  * پایان اعتبار بعد از خرید. روزهای باقی‌مانده هدر نمی‌روند: روزهای آزمایشی و روزهای همان پلن کامل به آخر اضافه می‌شوند،
- * و با عوض کردن پلن، ارزش ریالی روزهای مانده به روزهای پلن تازه تبدیل می‌شود (ارتقا = روز کمتر، کاهش = روز بیشتر).
+ * و با عوض کردن پلن یا تعداد نفرات، ارزش ریالی روزهای مانده به روزهای پلن تازه تبدیل می‌شود (ارتقا = روز کمتر، کاهش = روز بیشتر).
  */
-export function nextExpiry(cur: SubscriptionState, plan: Plan, period: Period, now: number): number {
+export function nextExpiry(cur: SubscriptionState, plan: Plan, period: Period, now: number, seats?: number): number {
   const left = Math.max(0, Date.parse(cur.expiresAt) - now);
   const old = planById(cur.plan);
-  const carry = cur.trial || !old || old.id === plan.id ? left : Math.floor((left * old.monthly) / plan.monthly);
-  return now + carry + PERIOD_DAYS[period] * DAY;
+  const was = old && monthlyOf(old, cur.seats);
+  const will = monthlyOf(plan, seats);
+  const carry = cur.trial || !was || was === will ? left : Math.floor((left * was) / will);
+  return now + carry + termDays(period) * DAY;
 }
 
 /** آنچه سرور امضا می‌کند و دستگاه بی‌اینترنت هم با کلید عمومی می‌سنجد. زمان‌ها ثانیهٔ یونیکس. */

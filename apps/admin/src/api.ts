@@ -1,4 +1,4 @@
-import { PLANS, type PlanId } from '@kelid/core/plans';
+import { PLANS, priceOf, type Period, type PlanId } from '@kelid/core/plans';
 
 // همهٔ تماس‌های پنل با سرور (apps/server/src/admin/routes.ts). VITE_ADMIN_API_URL=demo = دادهٔ نمایشی برای پیش‌نمایش.
 
@@ -34,7 +34,7 @@ export interface Office {
 export interface Payment {
   id: string;
   plan: string;
-  period: 'month' | 'year';
+  period: Period;
   /** تومان */
   amount: number;
   gateway: string;
@@ -327,7 +327,7 @@ function demoApi(): AdminApi {
           id: `${id}p${k}`,
           plan: planId,
           period: k === 0 && left > 60 ? 'year' : 'month',
-          amount: k === 0 && left > 60 ? p.monthly * 10 : p.monthly,
+          amount: priceOf(p, k === 0 && left > 60 ? 'year' : 'month'),
           gateway: 'zarinpal',
           status: 'paid',
           refId: String(80000000 + i * 1234 + k),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeLicense, encodeLicense, licenseInfo, nextExpiry, planById, PLANS, priceOf, type LicensePayload } from './plans';
+import { decodeLicense, encodeLicense, licenseInfo, monthlyOf, nextExpiry, planById, PLANS, priceOf, seatsFor, termDays, type LicensePayload } from './plans';
 
 const DAY = 86_400_000;
 const now = Date.parse('2026-10-08T12:00:00Z');
@@ -8,17 +8,29 @@ const pro = planById('pro')!;
 const solo = planById('solo')!;
 
 describe('plans', () => {
-  it('prices a year as ten months', () => {
+  it('discounts longer terms and adds their gift months', () => {
     expect(priceOf(office, 'month')).toBe(office.monthly);
-    expect(priceOf(office, 'year')).toBe(office.monthly * 10);
+    expect(priceOf(office, 'half')).toBe(26_950_000);
+    expect(priceOf(office, 'year')).toBe(51_100_000);
+    expect([termDays('month'), termDays('half'), termDays('year')]).toEqual([30, 213, 426]);
     expect(new Set(PLANS.map((p) => p.id)).size).toBe(PLANS.length);
+  });
+
+  it('charges each seat beyond the base of a plan that sells extra seats', () => {
+    expect(seatsFor(pro, 15)).toBe(15);
+    expect(priceOf(pro, 'year', 12)).toBe((7_200_000 + 2 * 350_000) * 14);
+    expect(seatsFor(pro, 3)).toBe(pro.seats);
+    expect(seatsFor(pro, 9999)).toBe(pro.extra!.max);
+    expect(seatsFor(office, 15)).toBe(office.seats);
+    expect(monthlyOf(pro, 15)).toBe(pro.monthly + 5 * pro.extra!.monthly);
+    expect(priceOf(pro, 'month', 14)).toBe(11_900_000);
   });
 
   it('adds a period after the remaining days of the same plan or the trial', () => {
     const in5 = new Date(now + 5 * DAY).toISOString();
     expect(nextExpiry({ plan: 'office', trial: false, expiresAt: in5 }, office, 'month', now)).toBe(now + 35 * DAY);
     // روزهای آزمایشی کامل می‌مانند، حتی با پلن دیگر.
-    expect(nextExpiry({ plan: 'office', trial: true, expiresAt: in5 }, pro, 'year', now)).toBe(now + 370 * DAY);
+    expect(nextExpiry({ plan: 'office', trial: true, expiresAt: in5 }, pro, 'year', now)).toBe(now + 5 * DAY + 426 * DAY);
   });
 
   it('starts from now when the subscription already ended', () => {
@@ -32,6 +44,9 @@ describe('plans', () => {
     expect(up).toBe(now + Math.floor((10 * DAY * office.monthly) / pro.monthly) + 30 * DAY);
     const down = nextExpiry({ plan: 'office', trial: false, expiresAt: in10 }, solo, 'month', now);
     expect(down).toBeGreaterThan(now + 40 * DAY);
+    // نفر بیشتر روی همان پلن هم ارتقاست.
+    const more = nextExpiry({ plan: 'pro', trial: false, expiresAt: in10, seats: 12 }, pro, 'month', now, 14);
+    expect(more).toBe(now + Math.floor((10 * DAY * monthlyOf(pro, 12)) / monthlyOf(pro, 14)) + 30 * DAY);
   });
 });
 

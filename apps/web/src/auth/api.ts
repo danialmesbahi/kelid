@@ -1,4 +1,4 @@
-import { encodeLicense, nextExpiry, PLANS, planById, priceOf, TRIAL_DAYS, type Period, type Plan, type PlanId } from '@kelid/core';
+import { encodeLicense, nextExpiry, PLANS, planById, priceOf, seatsFor, TRIAL_DAYS, type Period, type Plan, type PlanId } from '@kelid/core';
 import { phoneDigits } from './phone';
 
 // ارتباط با سرور ورود (apps/server/src/auth/routes.ts). نشانی سرور در زمان ساخت: VITE_KELID_API_URL.
@@ -33,6 +33,8 @@ export interface Receipt {
   id: string;
   plan: PlanId;
   period: Period;
+  /** نفرات خریده‌شده؛ سرور قدیمی ندارد. */
+  seats?: number;
   /** تومان */
   amount: number;
   status: PaymentStatus;
@@ -151,7 +153,7 @@ export interface AuthApi {
   /** اشتراک دفتر، پلن‌ها و رسیدها، با مجوز تازه. */
   billing(accessToken: string): Promise<Billing>;
   /** شروع پرداخت (فقط مدیر)؛ مبلغ را سرور از پلن حساب می‌کند. payUrl خالی = پیش‌نمایش بی‌درگاه. */
-  checkout(accessToken: string, plan: PlanId, period: Period): Promise<{ id: string; payUrl: string }>;
+  checkout(accessToken: string, plan: PlanId, period: Period, seats?: number): Promise<{ id: string; payUrl: string }>;
   /** وضعیت یک پرداخت؛ بعد از پرداخت مجوز تازه هم دارد. */
   payment(accessToken: string, id: string): Promise<Receipt & { license: string | null }>;
 }
@@ -215,7 +217,7 @@ export function httpApi(base: string): AuthApi {
     updateMember: (token, id, p) => call('POST', `/team/members/${encodeURIComponent(id)}`, p, token),
     removeMember: (token, id) => call('DELETE', `/team/members/${encodeURIComponent(id)}`, undefined, token),
     billing: (token) => call('GET', '/billing', undefined, token),
-    checkout: (token, plan, period) => call('POST', '/billing/checkout', { plan, period }, token),
+    checkout: (token, plan, period, seats) => call('POST', '/billing/checkout', { plan, period, ...(seats ? { seats } : {}) }, token),
     payment: (token, id) => call('GET', `/billing/payments/${encodeURIComponent(id)}`, undefined, token),
   };
 }
@@ -338,7 +340,7 @@ export function demoApi(): AuthApi {
     const iat = Math.floor(Date.now() / 1000);
     return `${encodeLicense({ v: 1, off: office, plan: s.plan, seats: s.seats, trial: s.trial, exp: Math.floor(Date.parse(s.expiresAt) / 1000), iat, chk: iat + 14 * 86_400 })}.demo`;
   };
-  const pending = new Map<string, { office: string; plan: PlanId; period: Period; at: number; receipt?: Receipt }>();
+  const pending = new Map<string, { office: string; plan: PlanId; period: Period; seats: number; at: number; receipt?: Receipt }>();
   const userOf = (token: string) => {
     const phone = phoneOf(token);
     const a = accounts()[phone];
@@ -480,14 +482,15 @@ export function demoApi(): AuthApi {
       const t = teamOf(phone);
       return { ...s, used: t.members.length + t.invites.length, plans: [...PLANS], canPay: true, payments: s.payments, license: demoLicense(office) };
     },
-    async checkout(token, plan, period) {
+    async checkout(token, plan, period, seats) {
       await wait(500);
       const { phone, office, manager } = userOf(token);
       if (!manager) throw new ApiError('forbidden');
       const t = teamOf(phone);
-      if (planById(plan)!.seats < t.members.length + t.invites.length) throw new ApiError('too_small');
+      const n = seatsFor(planById(plan)!, seats);
+      if (n < t.members.length + t.invites.length) throw new ApiError('too_small');
       const id = `pay-${Date.now()}`;
-      pending.set(id, { office, plan, period, at: Date.now() });
+      pending.set(id, { office, plan, period, seats: n, at: Date.now() });
       return { id, payUrl: '' };
     },
     async payment(token, id) {
@@ -499,12 +502,12 @@ export function demoApi(): AuthApi {
       // پیش‌نمایش: «پرداخت» دو ثانیه و نیم بعد خودش انجام می‌شود.
       if (!p.receipt && Date.now() - p.at > 2500) {
         const s = subOf(office);
-        const until = new Date(nextExpiry(s, plan, p.period, Date.now())).toISOString();
-        p.receipt = { id, plan: plan.id, period: p.period, amount: priceOf(plan, p.period), status: 'paid', refId: String(Math.floor(1e8 + Math.random() * 9e8)), card: '6037-99**-****-1234', createdAt: new Date(p.at).toISOString(), paidAt: new Date().toISOString(), expiresAt: until };
-        saveSub(office, { plan: plan.id, trial: false, expiresAt: until, seats: plan.seats, payments: [p.receipt, ...s.payments] });
+        const until = new Date(nextExpiry(s, plan, p.period, Date.now(), p.seats)).toISOString();
+        p.receipt = { id, plan: plan.id, period: p.period, seats: p.seats, amount: priceOf(plan, p.period, p.seats), status: 'paid', refId: String(Math.floor(1e8 + Math.random() * 9e8)), card: '6037-99**-****-1234', createdAt: new Date(p.at).toISOString(), paidAt: new Date().toISOString(), expiresAt: until };
+        saveSub(office, { plan: plan.id, trial: false, expiresAt: until, seats: p.seats, payments: [p.receipt, ...s.payments] });
       }
       if (p.receipt) return { ...p.receipt, license: demoLicense(office) };
-      return { id, plan: plan.id, period: p.period, amount: priceOf(plan, p.period), status: 'pending', refId: null, card: null, createdAt: new Date(p.at).toISOString(), paidAt: null, expiresAt: null, license: null };
+      return { id, plan: plan.id, period: p.period, seats: p.seats, amount: priceOf(plan, p.period, p.seats), status: 'pending', refId: null, card: null, createdAt: new Date(p.at).toISOString(), paidAt: null, expiresAt: null, license: null };
     },
     async updateProfile(token, p) {
       await wait(300);

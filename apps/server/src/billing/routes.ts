@@ -2,7 +2,7 @@ import { randomUUID, type KeyObject } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { formatDate, formatGrouped } from '@kelid/core/format';
 import { toFaDigits } from '@kelid/core/persian';
-import { nextExpiry, planById, PLANS, priceOf, type Period, type PlanId } from '@kelid/core/plans';
+import { nextExpiry, planById, PLANS, priceOf, seatsFor, termOf, TERMS, type Period, type PlanId } from '@kelid/core/plans';
 import { authGuard } from '../auth/routes';
 import { RateLimiter } from '../auth/rateLimit';
 import { withOffice, type Db, type Pool } from '../db';
@@ -26,6 +26,8 @@ export interface Receipt {
   id: string;
   plan: PlanId;
   period: Period;
+  /** نفرات خریده‌شده. */
+  seats: number;
   /** تومان */
   amount: number;
   status: Status;
@@ -38,7 +40,6 @@ export interface Receipt {
 }
 
 const PENDING_MINUTES = 30;
-const periodName = { month: 'یک‌ماهه', year: 'یک‌ساله' } as const;
 const idParam = { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', format: 'uuid' } } } as const;
 const callbackQuery = {
   type: 'object',
@@ -96,29 +97,35 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
           type: 'object',
           additionalProperties: false,
           required: ['plan', 'period'],
-          properties: { plan: { type: 'string', enum: PLANS.map((p) => p.id) }, period: { type: 'string', enum: ['month', 'year'] } },
+          properties: {
+            plan: { type: 'string', enum: PLANS.map((p) => p.id) },
+            period: { type: 'string', enum: TERMS.map((t) => t.id) },
+            seats: { type: 'integer', minimum: 1, maximum: 500 },
+          },
         },
       },
     },
     async (req, reply) => {
       if (!gateway) return reply.status(503).send({ error: 'no_gateway' });
-      const body = req.body as { plan: PlanId; period: Period };
+      const body = req.body as { plan: PlanId; period: Period; seats?: number };
       const plan = planById(body.plan)!;
+      const seats = seatsFor(plan, body.seats);
       const { off, sub } = req.auth!;
       const wait = checkoutsByOffice.take(off);
       if (wait) return reply.status(429).header('retry-after', String(wait)).send({ error: 'too_many', retryAfter: wait });
       // مبلغ فقط از فهرست سرور؛ برنامه هیچ عددی نمی‌فرستد. درگاه ریال می‌گیرد.
-      const amount = priceOf(plan, body.period) * 10;
+      const amount = priceOf(plan, body.period, seats) * 10;
       const id = randomUUID();
       const made = await withOffice(pool, off, async (db) => {
         // دفتر معلق تا تصمیم پشتیبانی پرداختی نمی‌کند.
         if ((await readSubscription(db, off))?.suspended) return 'suspended' as const;
         // پلنی که جای همکاران فعلی را ندارد خریدنی نیست؛ اول باید کسی برداشته شود.
-        if (plan.seats < (await seatsUsed(db, off))) return null;
-        await db.query('insert into payments (id, plan, period, amount, gateway, created_by) values ($1, $2, $3, $4, $5, $6)', [
+        if (seats < (await seatsUsed(db, off))) return null;
+        await db.query('insert into payments (id, plan, period, seats, amount, gateway, created_by) values ($1, $2, $3, $4, $5, $6, $7)', [
           id,
           plan.id,
           body.period,
+          seats,
           amount,
           gateway.name,
           sub,
@@ -134,7 +141,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       try {
         started = await gateway.request({
           amount,
-          description: `اشتراک کلید، پلن ${plan.name} (${periodName[body.period]})`,
+          description: `اشتراک کلید، پلن ${plan.name}${seats > plan.seats ? ` برای ${seats} نفر` : ''} (${termOf(body.period).name})`,
           callbackUrl: callbackUrl(off, id),
           mobile: made.phone,
         });
@@ -258,7 +265,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
           title: 'درگاه آزمایشی',
           lines: [
             `${formatGrouped(Number(row.amount) / 10)} تومان`,
-            `پلن ${plan?.name ?? row.plan}، ${periodName[row.period as Period]}`,
+            `پلن ${plan?.name ?? row.plan}، ${termOf(row.period).name}`,
             'این صفحه فقط روی سرور توسعه است و پولی جابه‌جا نمی‌شود.',
           ],
           actions: [
@@ -272,17 +279,23 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
 
   async function applyPayment(office: string, id: string, refId: string, card: string | null): Promise<Status> {
     return withOffice(pool, office, async (db) => {
-      const p = await db.query<{ status: Status; plan: string; period: Period }>('select status, plan, period from payments where id = $1 for update', [id]);
+      const p = await db.query<{ status: Status; plan: string; period: Period; seats: number | null }>(
+        'select status, plan, period, seats from payments where id = $1 for update',
+        [id],
+      );
       const row = p.rows[0]!;
       // برگشت هم‌زمان یا تکراری: فقط بار اول تمدید می‌کند.
       if (row.status !== 'pending') return row.status;
-      const cur = await db.query<{ plan: string; trial: boolean; expires_at: Date }>('select plan, trial, expires_at from offices where id = $1 for update', [
-        office,
-      ]);
+      const cur = await db.query<{ plan: string; trial: boolean; expires_at: Date; seats: number }>(
+        'select plan, trial, expires_at, seats from offices where id = $1 for update',
+        [office],
+      );
       const c = cur.rows[0]!;
       const plan = planById(row.plan)!;
-      const until = new Date(nextExpiry({ plan: c.plan as PlanId, trial: c.trial, expiresAt: c.expires_at.toISOString() }, plan, row.period, Date.now()));
-      await db.query('update offices set plan = $2, trial = false, seats = $3, expires_at = $4 where id = $1', [office, plan.id, plan.seats, until]);
+      const seats = seatsFor(plan, row.seats ?? undefined);
+      const was = { plan: c.plan as PlanId, trial: c.trial, expiresAt: c.expires_at.toISOString(), seats: c.seats };
+      const until = new Date(nextExpiry(was, plan, row.period, Date.now(), seats));
+      await db.query('update offices set plan = $2, trial = false, seats = $3, expires_at = $4 where id = $1', [office, plan.id, seats, until]);
       await db.query("update payments set status = 'paid', ref_id = $2, card = $3, paid_at = now(), expires_at = $4 where id = $1", [id, refId, card, until]);
       return 'paid';
     });
@@ -309,6 +322,7 @@ interface PaymentRow {
   id: string;
   plan: string;
   period: Period;
+  seats: number | null;
   amount: string;
   status: Status;
   ref_id: string | null;
@@ -319,15 +333,17 @@ interface PaymentRow {
   gateway: string;
   authority?: string | null;
 }
-const PAYMENT_COLS = 'id, plan, period, amount, status, ref_id, card, created_at, paid_at, expires_at, gateway';
+const PAYMENT_COLS = 'id, plan, period, seats, amount, status, ref_id, card, created_at, paid_at, expires_at, gateway';
 
 function receipt(r: PaymentRow): Receipt {
   // پرداختی که نیم ساعت در انتظار مانده یعنی کاربر درگاه را رها کرده است.
   const stale = r.status === 'pending' && Date.now() - r.created_at.getTime() > PENDING_MINUTES * 60_000;
+  const plan = planById(r.plan);
   return {
     id: r.id,
-    plan: (planById(r.plan)?.id ?? r.plan) as PlanId,
+    plan: (plan?.id ?? r.plan) as PlanId,
     period: r.period,
+    seats: r.seats ?? plan?.seats ?? 1,
     amount: Number(r.amount) / 10,
     status: stale ? 'canceled' : r.status,
     refId: r.ref_id,
