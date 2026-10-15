@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
-import { Icon, Segmented, Switch } from '@kelid/ui';
+import { Icon, Segmented, Switch, type IconName } from '@kelid/ui';
 import {
-  bestMatches, dealLabel, formatGrouped, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
+  bestMatches, formatGrouped, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
   type Client, type ClientTemperature, type DealType, type NewClient, type PropertyKind,
 } from '@kelid/core';
 import { useQuery, useStore } from '../data';
@@ -10,6 +10,13 @@ import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { useGoBack } from '../layout/useGoBack';
 import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
+
+// همان کارت‌های فرم فایل، با زبان مشتری: او می‌خرد یا اجاره می‌کند.
+const DEALS: Array<{ value: DealType; cls: string; icon: IconName; label: string; hint: string }> = [
+  { value: 'sale', cls: '', icon: 'dealSale', label: 'خرید', hint: 'دنبال ملک برای خرید' },
+  { value: 'rent', cls: 'r', icon: 'dealRent', label: 'رهن و اجاره', hint: 'ودیعه و اجارهٔ ماهانه' },
+  { value: 'full', cls: 'f', icon: 'dealFull', label: 'رهن کامل', hint: 'فقط ودیعه، بی اجاره' },
+];
 
 const KINDS: Array<{ value: PropertyKind; label: string }> = [
   { value: 'apartment', label: 'آپارتمان' },
@@ -188,14 +195,11 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
             <>
               <button type="button" className="btn btn-g" onClick={() => goBack(client ? `/clients?c=${client.id}` : '/clients')} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
               <span className="b" style={{ fontSize: 18 }}>{client ? `ویرایش ${client.name}` : 'مشتری جدید'}</span>
-              <span className="sp" />
-              {error && <span role="alert" className="tag bad">{error}</span>}
-              <button type="submit" className="btn btn-p">{client ? 'ذخیرهٔ تغییرات' : 'ثبت مشتری'}</button>
             </>
           )}
         </header>
 
-        <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 80px', gap: 36 }}>
+        <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
           <Section legend="۱. چه کسی است؟">
             <div style={grid(220)}>
               <label className="lbl">
@@ -232,12 +236,15 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
           </Section>
 
           <Section legend="۲. دنبال چه می‌گردد؟">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-              {(['sale', 'rent', 'full'] as const).map((d) => (
-                <button key={d} type="button" aria-pressed={f.deal === d} onClick={() => set('deal')(d)} className={`col ${f.deal === d ? 'sel' : ''}`}
-                  style={{ minHeight: 80, borderRadius: 16, border: '1px solid var(--line2)', background: 'var(--paper)', padding: '14px 16px', alignItems: 'flex-start', gap: 8, textAlign: 'right' }}>
-                  <span className={`plq s ${d === 'rent' ? 'r' : d === 'full' ? 'f' : ''}`}>{d === 'sale' ? 'خرید' : d === 'rent' ? 'اجاره' : 'رهن'}</span>
-                  <span className="b">{dealLabel[d]}</span>
+            <div className="dealpick">
+              {DEALS.map((d) => (
+                <button key={d.value} type="button" aria-pressed={f.deal === d.value} onClick={() => set('deal')(d.value)} className={`dealopt ${d.cls}`}>
+                  <span className="dealopt-ic"><Icon name={d.icon} size="l" /></span>
+                  <span className="col" style={{ gap: 2, minWidth: 0 }}>
+                    <span className="b" style={{ fontSize: 16 }}>{d.label}</span>
+                    <span className="xs mute">{d.hint}</span>
+                  </span>
+                  {f.deal === d.value && <span className="dealopt-ok pop-in" aria-hidden="true"><Icon name="check" size="s" thick /></span>}
                 </button>
               ))}
             </div>
@@ -315,6 +322,15 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
             </label>
           </Section>
         </div>
+
+        {/* مثل فرم فایل: دکمهٔ ثبت همیشه پایین فرم و زیر دست است. */}
+        <footer className="lf-foot">
+          <div className="lf-foot-in">
+            {error ? <span role="alert" className="tag bad">{error}</span> : <span className="xs mute lf-kbd"><span className="req" style={{ marginInlineStart: 0 }}>*</span> ضروری · ذخیرهٔ سریع: Ctrl+S</span>}
+            <span className="sp" />
+            <button type="submit" className="btn btn-p btn-lg lf-save"><Icon name="check" size="s" thick />{client ? 'ذخیرهٔ تغییرات' : 'ثبت مشتری'}</button>
+          </div>
+        </footer>
       </form>
     </div>
   );
