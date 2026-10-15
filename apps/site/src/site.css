@@ -34,7 +34,9 @@ h2 .mute { font-weight: 700; }
   padding-right: max(24px, env(safe-area-inset-right, 0px)); padding-left: max(24px, env(safe-area-inset-left, 0px));
 }
 .logo { display: inline-flex; align-items: center; gap: 12px; justify-self: start; }
-.logo .plq { height: 38px; min-width: 70px; font-size: 18px; border-radius: 9px; box-shadow: inset 0 0 0 2.5px var(--pc), inset 0 0 0 4.5px rgba(255, 255, 255, .92); }
+.logo { color: var(--night-ink); }
+.logo .mark { width: 38px; height: 38px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .35)); }
+.logo b { font-size: 21px; font-weight: 900; letter-spacing: -.01em; }
 .hdr-nav { display: flex; gap: 2px; padding: 4px; border-radius: 14px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
 .hdr-nav a { position: relative; padding: 8px 16px; border-radius: 10px; font-size: 15px; color: var(--night-mute); transition: color var(--t-fast), background-color var(--t-fast); }
 .hdr-nav a:hover { color: var(--night-ink); background: rgba(255, 255, 255, .08); }
@@ -372,9 +374,11 @@ h2 .mute { font-weight: 700; }
 /* ── قیمت: سالانه پیش‌فرض، پلن دفتر برجسته در رنگ شب صفحهٔ اول با قاب طلایی چرخان ── */
 @property --pa { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 .pricing { display: flex; flex-direction: column; align-items: center; margin-top: 36px; }
-.period { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; padding: 5px; border-radius: 99px; background: var(--paper); box-shadow: 0 0 0 1px var(--line), 0 10px 30px -18px rgba(0, 0, 0, .35); }
-.period::before { content: ""; position: absolute; inset: 5px; inset-inline-end: 50%; border-radius: 99px; background: var(--ink); transition: inset var(--t-med) var(--ease-out); }
-.period:has(#p-m:checked)::before { inset-inline: 50% 5px; }
+.period { position: relative; display: inline-grid; grid-template-columns: repeat(3, 1fr); padding: 5px; border-radius: 99px; background: var(--paper); box-shadow: 0 0 0 1px var(--line), 0 10px 30px -18px rgba(0, 0, 0, .35); }
+.period::before { content: ""; position: absolute; inset-block: 5px; inset-inline-start: 5px; width: calc((100% - 10px) / 3); border-radius: 99px; background: var(--ink); transition: translate var(--t-med) var(--ease-out); }
+/* راست‌به‌چپ: ستون بعدی سمت چپ است */
+.period:has(#p-h:checked)::before { translate: -100% 0; }
+.period:has(#p-m:checked)::before { translate: -200% 0; }
 .period input { position: absolute; opacity: 0; pointer-events: none; }
 .period label { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 46px; padding: 0 22px; border-radius: 99px; font-weight: 700; color: var(--ink2); cursor: pointer; transition: color var(--t-med); white-space: nowrap; }
 .period input:checked + label { color: var(--paper); }
@@ -441,10 +445,10 @@ h2 .mute { font-weight: 700; }
 .plan-city .lit { fill: var(--lit); opacity: .5; }
 .hot .plan-feats { padding-bottom: 34px; }
 @media (prefers-reduced-motion: reduce) { .plan.hot::before { animation: none; } }
-/* سالانه/ماهانه فقط با CSS؛ قیمت هر دو در HTML هست و مرورگر بی :has سالانه را نشان می‌دهد. */
-.pm { display: none; }
-.pricing:has(#p-m:checked) .py { display: none; }
-.pricing:has(#p-m:checked) .pm { display: revert; }
+/* دوره فقط با CSS؛ قیمت هر سه در HTML هست و مرورگر بی :has سالانه را نشان می‌دهد. */
+.pm, .ph { display: none; }
+.pricing:has(#p-h:checked) :is(.py, .pm), .pricing:has(#p-m:checked) :is(.py, .ph) { display: none; }
+.pricing:has(#p-h:checked) .ph, .pricing:has(#p-m:checked) .pm { display: revert; }
 .assure { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; margin: 40px 0 0; padding: 0; }
 .assure li { display: flex; align-items: flex-start; gap: 14px; padding: 18px; border-radius: 18px; background: var(--paper2); border: 1px solid var(--line); }
 .assure .ic { flex: none; margin-top: 2px; color: var(--pri-text); }
@@ -468,7 +472,7 @@ h2 .mute { font-weight: 700; }
 /* ── پایان ── */
 .final { position: relative; isolation: isolate; margin-top: clamp(72px, 10vw, 128px); padding-block: clamp(72px, 9vw, 120px) clamp(220px, 24vw, 300px); color: var(--night-ink); text-align: center; overflow: hidden; }
 .final-in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 30px; }
-.final .plq.xl { --pc: #0E4D3F; box-shadow: inset 0 0 0 5px var(--pc), inset 0 0 0 9px rgba(255, 255, 255, .92), 0 40px 90px -20px rgba(246, 207, 124, .35), 0 0 0 1px rgba(255, 255, 255, .14); }
+.final .mark { width: 104px; height: 104px; filter: drop-shadow(0 30px 50px rgba(246, 207, 124, .3)) drop-shadow(0 0 1px rgba(255, 255, 255, .3)); }
 .final h2 { max-width: 760px; }
 .final .cta { margin-top: 0; animation: none; }
 

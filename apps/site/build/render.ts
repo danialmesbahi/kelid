@@ -1,7 +1,6 @@
 // تکه‌های HTML که موقع ساخت تولید می‌شوند تا صفحه بی هیچ جاوااسکریپتی کامل به مرورگر و گوگل برسد.
 import { iconPaths, type IconName } from '../../../packages/ui/src/icons';
-import { PLANS, TRIAL_DAYS, YEAR_MONTHS, priceOf } from '../../../packages/core/src/plans';
-import { formatGrouped } from '../../../packages/core/src/format';
+import { PLANS, TRIAL_DAYS } from '../../../packages/core/src/plans';
 import { toFaDigits } from '../../../packages/core/src/persian';
 
 export interface SiteConfig {
@@ -86,10 +85,8 @@ export function skyline(): string {
 </div>`;
 }
 
-const fa = (n: number) => toFaDigits(formatGrouped(n));
-
-// قیمت‌ها به هزار تومان، همان‌طور که در بازار گفته می‌شود
-const k = (n: number) => toFaDigits(Math.round(n / 1000));
+// قیمت‌ها به میلیون تومان، همان‌طور که در بازار گفته می‌شود (۳٫۶۵ میلیون)
+const mil = (n: number) => toFaDigits(String(Math.round(n / 10_000) / 100)).replace('.', '٫');
 
 const kTooman = (n: number) => `${toFaDigits(Math.round(n / 1000))} هزار تومان`;
 
@@ -97,34 +94,47 @@ const kTooman = (n: number) => `${toFaDigits(Math.round(n / 1000))} هزار ت�
 const PLAN_FEATS: Record<string, string[]> = {
   solo: ['فایل، مشتری، بازدید و قرارداد در یک‌جا', 'پیدا کردن خودکار فایل جور برای هر مشتری', 'کار کامل بدون اینترنت', 'روی ویندوز، مک و گوشی با هم'],
   office: ['هر همکار روی دستگاه خودش، همه هماهنگ', 'نقش مدیر و مشاور برای همکاران', 'شمارهٔ مالک فقط برای کسی که مدیر بخواهد', 'همهٔ امکانات پلن تک‌نفره'],
-  pro: ['جا برای ۱۵ همکار در یک دفتر', 'دعوت همکار فقط با شمارهٔ موبایل', 'نقش‌ها و دسترسی‌های جدا', 'همهٔ امکانات پلن دفتر'],
+  pro: ['تا ۱۰ همکار؛ هر نفر بیشتر ماهی ۵۰۰ هزار تومان', 'دعوت همکار فقط با شمارهٔ موبایل', 'نقش‌ها و دسترسی‌های جدا', 'همهٔ امکانات پلن دفتر'],
 };
 const PLAN_ICON: Record<string, string> = { solo: 'user', office: 'users', pro: 'gem' };
 
 // خط افق شهر ته کارت پیشنهادی؛ همان شب صفحهٔ اول، کوچک
 const MINI_CITY = '<svg class="plan-city" viewBox="0 0 360 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0 70V44h18V30h16v14h10V20h22v24h8V36h14v34h6V26l12-8 12 8v44h8V40h20v30h6V14h4V4h4v10h4v56h8V34h18v36h6V46h14V28h20v42h8V38h12v32h6V22h20v48h8V42h16v28h8V32h18v38z"/><path class="lit" d="M22 36h4v4h-4zM48 26h4v4h-4zM56 34h4v4h-4zM100 26h4v4h-4zM108 40h4v4h-4zM134 46h4v4h-4zM166 22h4v4h-4zM166 34h4v4h-4zM194 40h4v4h-4zM232 34h4v4h-4zM258 44h4v4h-4zM282 28h4v4h-4zM290 40h4v4h-4zM318 48h4v4h-4zM342 38h4v4h-4z"/></svg>';
 
-/** کارت‌های قیمت از همان پلن‌های برنامه؛ قیمت فقط یک جا (packages/core) عوض می‌شود. سالانه پیش‌فرض است. */
+/** قیمت تازهٔ اشتراک به تومانِ هر ماه، برای پرداخت ماهانه، ۶ ماهه و سالانه. نام و توضیح پلن‌ها از packages/core می‌آید. */
+const PRICES: Record<string, { seats: number; m: number; h: number; y: number }> = {
+  solo: { seats: 1, m: 2_000_000, h: 1_550_000, y: 1_450_000 },
+  office: { seats: 5, m: 5_000_000, h: 3_850_000, y: 3_650_000 },
+  pro: { seats: 10, m: 9_900_000, h: 7_650_000, y: 7_200_000 },
+};
+/** چند ماه پول می‌دهید و چند ماه استفاده می‌کنید؛ ماه‌های اضافه هدیه است. */
+const PERIODS = { m: { pay: 1, use: 1 }, h: { pay: 6, use: 7 }, y: { pay: 12, use: 14 } } as const;
+const gift = (k: 'h' | 'y') => toFaDigits(PERIODS[k].use - PERIODS[k].pay);
+
+/** کارت‌های قیمت؛ سالانه پیش‌فرض است و دوره فقط با CSS عوض می‌شود. */
 export function plans(): string {
   return PLANS.map((p) => {
     const hot = p.id === 'office';
-    const yearly = priceOf(p, 'year');
-    const perMonthYearly = Math.round(yearly / 12 / 1000) * 1000;
-    const avatars = ['ر', 'م', 'س', 'ن', 'ک'].slice(0, Math.min(p.seats, 4));
-    const more = p.seats > 4 ? `<span class="av plus">+${toFaDigits(p.seats - 4)}</span>` : '';
+    const pr = PRICES[p.id];
+    if (!pr) throw new Error(`no price for plan: ${p.id}`);
+    const avatars = ['ر', 'م', 'س', 'ن', 'ک'].slice(0, Math.min(pr.seats, 4));
+    const more = pr.seats > 4 ? `<span class="av plus">+${toFaDigits(pr.seats - 4)}</span>` : '';
     const feats = PLAN_FEATS[p.id] ?? [];
+    const total = (k: 'h' | 'y') => pr[k] * PERIODS[k].pay;
     return `<article class="plan${hot ? ' hot' : ''}">
 ${hot ? `<span class="plan-badge">${icon('spark', 's')}محبوب‌ترین پلن دفترها</span>` : ''}
 <div class="plan-hd"><span class="plan-ic">${icon(PLAN_ICON[p.id] ?? 'user')}</span><span><h3 class="plan-name">${p.name}</h3><p class="plan-blurb">${p.blurb}</p></span></div>
 <div class="plan-price">
-<p class="pp"><b class="num py">${k(perMonthYearly)}</b><b class="num pm">${k(p.monthly)}</b><span>هزار تومان<br>در ماه</span></p>
-<p class="pwas py"><s class="num">${k(p.monthly)} هزار</s><span class="save">${yearGift} ماه هدیه</span></p>
-<p class="pnote py">سالانه <span class="num">${fa(yearly)}</span> تومان · روزی حدود ${kTooman(yearly / 365)}</p>
-<p class="pnote pm">پرداخت ماهانه · روزی حدود ${kTooman(p.monthly / 30)}</p>
+<p class="pp"><b class="num py">${mil(pr.y)}</b><b class="num ph">${mil(pr.h)}</b><b class="num pm">${mil(pr.m)}</b><span>میلیون تومان<br>در ماه</span></p>
+<p class="pwas py"><s class="num">${mil(pr.m)} میلیون</s><span class="save">${gift('y')} ماه هدیه</span></p>
+<p class="pwas ph"><s class="num">${mil(pr.m)} میلیون</s><span class="save">${gift('h')} ماه هدیه</span></p>
+<p class="pnote py">سالانه ${mil(total('y'))} میلیون برای ${toFaDigits(PERIODS.y.use)} ماه · روزی ${kTooman(total('y') / (PERIODS.y.use * 30))}</p>
+<p class="pnote ph">۶ ماهه ${mil(total('h'))} میلیون برای ${toFaDigits(PERIODS.h.use)} ماه · روزی ${kTooman(total('h') / (PERIODS.h.use * 30))}</p>
+<p class="pnote pm">پرداخت ماهانه · روزی حدود ${kTooman(pr.m / 30)}</p>
 </div>
 <a class="btn btn-lg btn-w ${hot ? 'btn-gold' : 'btn-d'}" href="#download">شروع ${trialDays} روز رایگان${icon('chl', 's')}</a>
 <p class="plan-safe">${icon('check', 's')}بدون کارت بانکی · بدون تعهد</p>
-<div class="plan-seats"><span class="avs">${avatars.map((a) => `<span class="av">${a}</span>`).join('')}${more}</span><b>${p.seats === 1 ? 'برای یک نفر' : `تا ${toFaDigits(p.seats)} همکار`}</b></div>
+<div class="plan-seats"><span class="avs">${avatars.map((a) => `<span class="av">${a}</span>`).join('')}${more}</span><b>${pr.seats === 1 ? 'برای یک نفر' : `تا ${toFaDigits(pr.seats)} همکار`}</b></div>
 <ul class="plan-feats">${feats.map((f) => `<li>${icon('check', 's')}${f}</li>`).join('')}</ul>
 ${hot ? MINI_CITY : ''}
 </article>`;
@@ -132,8 +142,8 @@ ${hot ? MINI_CITY : ''}
 }
 
 export const trialDays = toFaDigits(TRIAL_DAYS);
-export const saveYear = (() => { const p = PLANS.find((x) => x.id === 'office') ?? PLANS[0]!; return kTooman(p.monthly * 12 - priceOf(p, 'year')); })();
-export const yearGift = toFaDigits(12 - YEAR_MONTHS);
+export const yearGift = gift('y');
+export const halfGift = gift('h');
 
 export interface Faq {
   q: string;
@@ -160,7 +170,7 @@ export const faqs: Faq[] = [
   },
   {
     q: 'چند نفر از همکاران می‌توانند با هم کار کنند؟',
-    a: 'بسته به پلن، از یک نفر تا پانزده همکار. مدیر دفتر همکاران را با شمارهٔ موبایل دعوت می‌کند و هر کس روی دستگاه خودش کار می‌کند.',
+    a: 'بسته به پلن، از یک نفر تا ده همکار، و بیشتر با هزینهٔ هر نفر. مدیر دفتر همکاران را با شمارهٔ موبایل دعوت می‌کند و هر کس روی دستگاه خودش کار می‌کند.',
   },
   {
     q: 'دورهٔ رایگان چطور است؟',
@@ -183,7 +193,7 @@ export function faqHtml(): string {
 
 /** داده‌های ساخت‌یافته برای گوگل: سازمان، سایت، نرم‌افزار با قیمت‌ها، و پرسش‌ها. */
 export function jsonLd(c: SiteConfig): string {
-  const prices = PLANS.map((p) => p.monthly * 10); // درگاه و schema.org ریال می‌خواهند
+  const prices = Object.values(PRICES).flatMap((p) => [p.y * 10, p.m * 10]); // درگاه و schema.org ریال می‌خواهند
   const data = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -202,7 +212,7 @@ export function jsonLd(c: SiteConfig): string {
         downloadUrl: new URL(c.windows, `${c.site}/`).href,
         image: `${c.site}/og.png`,
         publisher: { '@id': `${c.site}/#org` },
-        offers: { '@type': 'AggregateOffer', priceCurrency: 'IRR', lowPrice: Math.min(...prices), highPrice: Math.max(...prices), offerCount: PLANS.length },
+        offers: { '@type': 'AggregateOffer', priceCurrency: 'IRR', lowPrice: Math.min(...prices), highPrice: Math.max(...prices), offerCount: Object.keys(PRICES).length },
       },
       {
         '@type': 'FAQPage',
@@ -228,6 +238,11 @@ export function brand(name: string): string {
   const p = d[name];
   if (!p) throw new Error(`unknown brand: ${name}`);
   return `<svg class="os-logo" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+}
+
+/** نشان «کلید شمسه»: شمسهٔ هشت‌پر با نگین برنجی، سر کلید روی کاشی زمردی. شناسهٔ گرادیان برای هر جای صفحه جداست. */
+export function mark(id: string): string {
+  return `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kg-${id}" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#17654F"/><stop offset=".55" stop-color="#0E4D3F"/><stop offset="1" stop-color="#0A3A30"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#kg-${id})"/><path fill="#fff" fill-rule="evenodd" d="M32 8.42L35.98 12.4L41.6 12.4L41.6 18.02L45.58 22L41.6 25.98L41.6 31.6L35.98 31.6L32 35.58L28.02 31.6L22.4 31.6L22.4 25.98L18.42 22L22.4 18.02L22.4 12.4L28.02 12.4ZM26.4 22a5.6 5.6 0 1 0 11.2 0a5.6 5.6 0 1 0-11.2 0Z"/><circle cx="32" cy="22" r="2.9" fill="#C9A86F"/><path fill="#fff" d="M29 31.5H35V43.4H41.6V47.6H35V49.2H39.8V53.4H31.6A2.6 2.6 0 0 1 29 50.8Z"/></svg>`;
 }
 
 export const menuIcon = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>';

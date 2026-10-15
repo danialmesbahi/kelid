@@ -24,6 +24,7 @@
 <meta property="og:image:alt" content="پلاک کلید روی آسمان شب تهران">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="/src/site.css">
@@ -35,7 +36,7 @@
 
 <header class="hdr">
   <div class="hdr-in">
-    <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول"><span class="plq">کلید</span></a>
+    <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول">{{mark:h}}<b>کلید</b></a>
     <nav class="hdr-nav" aria-label="بخش‌های صفحه">
       <a href="#how">چطور کار می‌کند</a>
       <a href="#features">امکانات</a>
@@ -252,6 +253,7 @@
   <div class="pricing">
     <div class="period" role="radiogroup" aria-label="دورهٔ پرداخت">
       <input type="radio" name="period" id="p-y" checked><label for="p-y">سالانه <span class="tag ok">{{gift}} ماه هدیه</span></label>
+      <input type="radio" name="period" id="p-h"><label for="p-h">۶ ماهه <span class="tag ok">{{gift6}} ماه هدیه</span></label>
       <input type="radio" name="period" id="p-m"><label for="p-m">ماهانه</label>
     </div>
     <div class="plans"><!--@plans--></div>
@@ -277,7 +279,7 @@
 <section class="final" aria-labelledby="final-t">
   <!--@skyline-->
   <div class="wrap final-in">
-    <span class="plq xl">کلید</span>
+    {{mark:x}}
     <h2 id="final-t">امشب که چراغ دفتر را خاموش می‌کنید،<br>همه‌چیز سر جایش است.</h2>
     <div class="cta">
       <a class="btn btn-lg btn-gold os-win" href="{{windows}}" download>{{brand:win}}دانلود رایگان برای ویندوز</a>
@@ -294,7 +296,7 @@
   <div class="wrap ftr-in">
     <div class="ftr-grid">
       <div class="ftr-b">
-        <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول"><span class="plq">کلید</span></a>
+        <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول">{{mark:f}}<b>کلید</b></a>
         <p>نرم‌افزار املاک برای مشاوران و دفترهای املاک؛ فایل، مشتری، بازدید و قرارداد روی ویندوز، مک، گوشی و وب، حتی بدون اینترنت.</p>
       </div>
       <nav class="ftr-col" aria-labelledby="fc1"><h3 id="fc1">نرم‌افزار</h3>
