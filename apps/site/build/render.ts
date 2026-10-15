@@ -88,7 +88,21 @@ export function skyline(): string {
 
 const fa = (n: number) => toFaDigits(formatGrouped(n));
 
+// قیمت‌ها به هزار تومان، همان‌طور که در بازار گفته می‌شود
+const k = (n: number) => toFaDigits(Math.round(n / 1000));
+
 const kTooman = (n: number) => `${toFaDigits(Math.round(n / 1000))} هزار تومان`;
+
+/** آنچه هر پلن به دفتر می‌دهد؛ همهٔ پلن‌ها همهٔ امکانات را دارند و فرق فقط در همکاران است. */
+const PLAN_FEATS: Record<string, string[]> = {
+  solo: ['فایل، مشتری، بازدید و قرارداد در یک‌جا', 'پیدا کردن خودکار فایل جور برای هر مشتری', 'کار کامل بدون اینترنت', 'روی ویندوز، مک و گوشی با هم'],
+  office: ['هر همکار روی دستگاه خودش، همه هماهنگ', 'نقش مدیر و مشاور برای همکاران', 'شمارهٔ مالک فقط برای کسی که مدیر بخواهد', 'همهٔ امکانات پلن تک‌نفره'],
+  pro: ['جا برای ۱۵ همکار در یک دفتر', 'دعوت همکار فقط با شمارهٔ موبایل', 'نقش‌ها و دسترسی‌های جدا', 'همهٔ امکانات پلن دفتر'],
+};
+const PLAN_ICON: Record<string, string> = { solo: 'user', office: 'users', pro: 'gem' };
+
+// خط افق شهر ته کارت پیشنهادی؛ همان شب صفحهٔ اول، کوچک
+const MINI_CITY = '<svg class="plan-city" viewBox="0 0 360 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0 70V44h18V30h16v14h10V20h22v24h8V36h14v34h6V26l12-8 12 8v44h8V40h20v30h6V14h4V4h4v10h4v56h8V34h18v36h6V46h14V28h20v42h8V38h12v32h6V22h20v48h8V42h16v28h8V32h18v38z"/><path class="lit" d="M22 36h4v4h-4zM48 26h4v4h-4zM56 34h4v4h-4zM100 26h4v4h-4zM108 40h4v4h-4zM134 46h4v4h-4zM166 22h4v4h-4zM166 34h4v4h-4zM194 40h4v4h-4zM232 34h4v4h-4zM258 44h4v4h-4zM282 28h4v4h-4zM290 40h4v4h-4zM318 48h4v4h-4zM342 38h4v4h-4z"/></svg>';
 
 /** کارت‌های قیمت از همان پلن‌های برنامه؛ قیمت فقط یک جا (packages/core) عوض می‌شود. سالانه پیش‌فرض است. */
 export function plans(): string {
@@ -98,19 +112,21 @@ export function plans(): string {
     const perMonthYearly = Math.round(yearly / 12 / 1000) * 1000;
     const avatars = ['ر', 'م', 'س', 'ن', 'ک'].slice(0, Math.min(p.seats, 4));
     const more = p.seats > 4 ? `<span class="av plus">+${toFaDigits(p.seats - 4)}</span>` : '';
+    const feats = PLAN_FEATS[p.id] ?? [];
     return `<article class="plan${hot ? ' hot' : ''}">
-${hot ? `<span class="plan-badge">${icon('gem', 's')}پیشنهاد ما برای بیشتر دفترها</span>` : ''}
-<h3 class="plan-name">${p.name}</h3>
-<p class="plan-blurb">${p.blurb}</p>
-<div class="plan-seats"><span class="avs">${avatars.map((a) => `<span class="av">${a}</span>`).join('')}${more}</span><b>${p.seats === 1 ? 'یک نفر' : `تا ${toFaDigits(p.seats)} همکار`}</b></div>
+${hot ? `<span class="plan-badge">${icon('spark', 's')}محبوب‌ترین پلن دفترها</span>` : ''}
+<div class="plan-hd"><span class="plan-ic">${icon(PLAN_ICON[p.id] ?? 'user')}</span><span><h3 class="plan-name">${p.name}</h3><p class="plan-blurb">${p.blurb}</p></span></div>
 <div class="plan-price">
-<p class="py"><s class="num">${fa(p.monthly)}</s><span class="save">${toFaDigits(Math.round((1 - YEAR_MONTHS / 12) * 100))}٪ کمتر</span></p>
-<p class="pp"><b class="num py">${fa(perMonthYearly)}</b><b class="num pm">${fa(p.monthly)}</b><span>تومان در ماه</span></p>
+<p class="pp"><b class="num py">${k(perMonthYearly)}</b><b class="num pm">${k(p.monthly)}</b><span>هزار تومان<br>در ماه</span></p>
+<p class="pwas py"><s class="num">${k(p.monthly)} هزار</s><span class="save">${yearGift} ماه هدیه</span></p>
 <p class="pnote py">سالانه <span class="num">${fa(yearly)}</span> تومان · روزی حدود ${kTooman(yearly / 365)}</p>
 <p class="pnote pm">پرداخت ماهانه · روزی حدود ${kTooman(p.monthly / 30)}</p>
 </div>
-<a class="btn btn-lg btn-w ${hot ? 'btn-gold' : 'btn-d'}" href="#download">${trialDays} روز رایگان امتحان کنید</a>
-<p class="plan-safe">${icon('check', 's')}بدون کارت بانکی، بدون تعهد</p>
+<a class="btn btn-lg btn-w ${hot ? 'btn-gold' : 'btn-d'}" href="#download">شروع ${trialDays} روز رایگان${icon('chl', 's')}</a>
+<p class="plan-safe">${icon('check', 's')}بدون کارت بانکی · بدون تعهد</p>
+<div class="plan-seats"><span class="avs">${avatars.map((a) => `<span class="av">${a}</span>`).join('')}${more}</span><b>${p.seats === 1 ? 'برای یک نفر' : `تا ${toFaDigits(p.seats)} همکار`}</b></div>
+<ul class="plan-feats">${feats.map((f) => `<li>${icon('check', 's')}${f}</li>`).join('')}</ul>
+${hot ? MINI_CITY : ''}
 </article>`;
   }).join('\n');
 }
