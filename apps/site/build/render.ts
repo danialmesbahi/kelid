@@ -11,6 +11,8 @@ export interface SiteConfig {
   app: string;
   /** نصب‌کنندهٔ ویندوز. */
   windows: string;
+  /** نصب‌کنندهٔ مک (dmg). */
+  mac: string;
 }
 
 export function icon(name: string, cls = ''): string {
@@ -86,29 +88,35 @@ export function skyline(): string {
 
 const fa = (n: number) => toFaDigits(formatGrouped(n));
 
-/** کارت‌های قیمت از همان پلن‌های برنامه؛ قیمت فقط یک جا (packages/core) عوض می‌شود. */
+const kTooman = (n: number) => `${toFaDigits(Math.round(n / 1000))} هزار تومان`;
+
+/** کارت‌های قیمت از همان پلن‌های برنامه؛ قیمت فقط یک جا (packages/core) عوض می‌شود. سالانه پیش‌فرض است. */
 export function plans(): string {
   return PLANS.map((p) => {
     const hot = p.id === 'office';
     const yearly = priceOf(p, 'year');
+    const perMonthYearly = Math.round(yearly / 12 / 1000) * 1000;
+    const avatars = ['ر', 'م', 'س', 'ن', 'ک'].slice(0, Math.min(p.seats, 4));
+    const more = p.seats > 4 ? `<span class="av plus">+${toFaDigits(p.seats - 4)}</span>` : '';
     return `<article class="plan${hot ? ' hot' : ''}">
-${hot ? '<span class="plan-badge">انتخاب بیشتر دفترها</span>' : ''}
+${hot ? `<span class="plan-badge">${icon('gem', 's')}پیشنهاد ما برای بیشتر دفترها</span>` : ''}
 <h3 class="plan-name">${p.name}</h3>
 <p class="plan-blurb">${p.blurb}</p>
-<p class="plan-price"><span class="pm"><b class="num">${fa(p.monthly)}</b> تومان <small>ماهانه</small></span><span class="py"><b class="num">${fa(Math.round(yearly / 12 / 1000) * 1000)}</b> تومان <small>ماهانه، با پرداخت سالانه</small></span></p>
-<p class="plan-year py">سالانه <span class="num">${fa(yearly)}</span> تومان</p>
-<ul class="plan-list">
-<li>${icon('users', 's')}${p.seats === 1 ? 'یک نفر' : `تا ${toFaDigits(p.seats)} همکار`}</li>
-<li>${icon('check', 's')}همهٔ امکانات، بدون محدودیت فایل</li>
-<li>${icon('check', 's')}ویندوز، وب و گوشی با هم</li>
-<li>${icon('check', 's')}${toFaDigits(TRIAL_DAYS)} روز رایگان، بدون کارت بانکی</li>
-</ul>
-<a class="btn btn-lg btn-w ${hot ? 'btn-p' : 'btn-s'}" href="#download">شروع رایگان</a>
+<div class="plan-seats"><span class="avs">${avatars.map((a) => `<span class="av">${a}</span>`).join('')}${more}</span><b>${p.seats === 1 ? 'یک نفر' : `تا ${toFaDigits(p.seats)} همکار`}</b></div>
+<div class="plan-price">
+<p class="py"><s class="num">${fa(p.monthly)}</s><span class="save">${toFaDigits(Math.round((1 - YEAR_MONTHS / 12) * 100))}٪ کمتر</span></p>
+<p class="pp"><b class="num py">${fa(perMonthYearly)}</b><b class="num pm">${fa(p.monthly)}</b><span>تومان در ماه</span></p>
+<p class="pnote py">سالانه <span class="num">${fa(yearly)}</span> تومان · روزی حدود ${kTooman(yearly / 365)}</p>
+<p class="pnote pm">پرداخت ماهانه · روزی حدود ${kTooman(p.monthly / 30)}</p>
+</div>
+<a class="btn btn-lg btn-w ${hot ? 'btn-gold' : 'btn-d'}" href="#download">${trialDays} روز رایگان امتحان کنید</a>
+<p class="plan-safe">${icon('check', 's')}بدون کارت بانکی، بدون تعهد</p>
 </article>`;
   }).join('\n');
 }
 
 export const trialDays = toFaDigits(TRIAL_DAYS);
+export const saveYear = (() => { const p = PLANS.find((x) => x.id === 'office') ?? PLANS[0]!; return kTooman(p.monthly * 12 - priceOf(p, 'year')); })();
 export const yearGift = toFaDigits(12 - YEAR_MONTHS);
 
 export interface Faq {
@@ -127,8 +135,8 @@ export const faqs: Faq[] = [
     a: 'بله. اطلاعات دفتر روی خود دستگاه ذخیره می‌شود و همهٔ کارها بدون اینترنت انجام می‌شوند. هر وقت وصل شدید، تغییرات خودکار با دستگاه‌های همکاران هماهنگ می‌شود.',
   },
   {
-    q: 'روی گوشی هم می‌شود از کلید استفاده کرد؟',
-    a: 'بله. کلید روی ویندوز، در مرورگر و روی گوشی‌های اندروید و آیفون کار می‌کند. روی گوشی کافی است نسخهٔ وب را باز کنید و آن را به صفحهٔ اصلی گوشی اضافه کنید تا مثل یک برنامه باز شود.',
+    q: 'روی مک و گوشی هم کار می‌کند؟',
+    a: 'بله. کلید روی ویندوز، مک، آیفون، اندروید و در مرورگر کار می‌کند. روی گوشی، نسخهٔ وب را در Safari یا Chrome باز کنید و «افزودن به صفحهٔ اصلی» را بزنید تا مثل یک برنامه نصب شود.',
   },
   {
     q: 'اطلاعات دفتر و شمارهٔ مالک‌ها امن است؟',
@@ -153,7 +161,8 @@ export const faqs: Faq[] = [
 ];
 
 export function faqHtml(): string {
-  return faqs.map((x, i) => `<details class="qa"${i === 0 ? ' open' : ''}><summary><h3>${x.q}</h3>${icon('down', 'qa-i')}</summary><p>${x.a}</p></details>`).join('\n');
+  // name یکسان: با باز شدن یک پرسش بقیه خودشان بسته می‌شوند، بی جاوااسکریپت.
+  return faqs.map((x, i) => `<details class="qa" name="faq"${i === 0 ? ' open' : ''}><summary><h3>${x.q}</h3>${icon('down', 'qa-i')}</summary><p>${x.a}</p></details>`).join('\n');
 }
 
 /** داده‌های ساخت‌یافته برای گوگل: سازمان، سایت، نرم‌افزار با قیمت‌ها، و پرسش‌ها. */
@@ -168,10 +177,10 @@ export function jsonLd(c: SiteConfig): string {
         '@type': 'SoftwareApplication',
         name: 'کلید',
         alternateName: 'نرم‌افزار املاک کلید',
-        description: 'نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک: فایل‌ها، مشتری‌ها، بازدیدها و قراردادها؛ روی ویندوز، وب و گوشی، حتی بدون اینترنت.',
+        description: 'نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک: فایل‌ها، مشتری‌ها، بازدیدها و قراردادها؛ روی ویندوز، مک، وب و گوشی، حتی بدون اینترنت.',
         applicationCategory: 'BusinessApplication',
         applicationSubCategory: 'نرم‌افزار املاک',
-        operatingSystem: 'Windows 10, Windows 11, Android, iOS, Web',
+        operatingSystem: 'Windows 10, Windows 11, macOS, Android, iOS, Web',
         inLanguage: 'fa-IR',
         url: `${c.site}/`,
         downloadUrl: new URL(c.windows, `${c.site}/`).href,
@@ -193,20 +202,46 @@ export function faYear(): string {
   return new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', timeZone: 'Asia/Tehran' }).format(new Date()).replace(/[^۰-۹]/g, '');
 }
 
-/** گوشی نمونه با فهرست فایل‌ها؛ هم در سرصفحه (گوشی) و هم در بخش دانلود. */
-export function phone(): string {
-  const rows: [string, string, string, string][] = [
-    ['', '۰۵۲', 'آپارتمان ۱۰۵ متری', 'ونک · ۲۴ میلیارد'],
-    ['r', '۰۵۰', 'آپارتمان ۸۰ متری', 'پونک · ۹۰۰ میلیون'],
-    ['f', '۰۴۷', 'آپارتمان ۹۵ متری', 'یوسف‌آباد · ۳٫۵ میلیارد'],
-    ['', '۰۴۴', 'مغازهٔ ۴۰ متری', 'سعادت‌آباد · ۱۲ میلیارد'],
-    ['r', '۰۴۱', 'آپارتمان ۶۵ متری', 'شهرک غرب · ۶۰۰ میلیون'],
+/** آرم سیستم‌عامل‌ها برای دکمه‌های دانلود. */
+export function brand(name: string): string {
+  const d: Record<string, string> = {
+    win: '<path d="M3 5.6 10.4 4.6v7H3zM11.4 4.4 21 3v8.6h-9.6zM3 12.6h7.4v7L3 18.5zM11.4 12.6H21V21l-9.6-1.4z"/>',
+    mac: '<path d="M16.4 12.7c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8s-1.8-.8-3-.8c-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.3-2.6-.1 0-2.5-.9-2.5-3.7zM14.1 5.8c.6-.8 1.1-1.9.9-2.9-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.8-1 2.8 1.1.1 2.1-.5 2.8-1.3z"/>',
+    and: '<path d="M7.2 9.5h9.6a.6.6 0 0 1 .6.6v7a1.6 1.6 0 0 1-1.6 1.6h-.6v2.4a1.1 1.1 0 0 1-2.2 0v-2.4h-2v2.4a1.1 1.1 0 0 1-2.2 0v-2.4h-.6a1.6 1.6 0 0 1-1.6-1.6v-7a.6.6 0 0 1 .6-.6zM4.9 9.5a1.1 1.1 0 0 1 1.1 1.1v4.6a1.1 1.1 0 0 1-2.2 0v-4.6a1.1 1.1 0 0 1 1.1-1.1zm14.2 0a1.1 1.1 0 0 1 1.1 1.1v4.6a1.1 1.1 0 0 1-2.2 0v-4.6a1.1 1.1 0 0 1 1.1-1.1zM6.7 8.6a5.3 5.3 0 0 1 2.9-4.3l-.9-1.6a.25.25 0 0 1 .43-.25l.92 1.6a5.6 5.6 0 0 1 3.9 0l.92-1.6a.25.25 0 0 1 .43.25l-.9 1.6a5.3 5.3 0 0 1 2.9 4.3zm3-2.2a.6.6 0 1 0 0 1.2.6.6 0 0 0 0-1.2zm4.6 0a.6.6 0 1 0 0 1.2.6.6 0 0 0 0-1.2z"/>',
+  };
+  const p = d[name];
+  if (!p) throw new Error(`unknown brand: ${name}`);
+  return `<svg class="os-logo" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+}
+
+export const menuIcon = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>';
+
+/** آیفون ۱۸ پرومکس با نوار وضعیت iOS و کلید نصب‌شده روی آن؛ رنگ بدنه سخت‌افزار است و با پوسته عوض نمی‌شود. */
+export function iphone(): string {
+  const rows: [string, string, string, string, string, string][] = [
+    ['', '۰۵۲', 'آپارتمان ۱۰۵ متری', 'ونک، ملاصدرا', '۲۴ میلیارد', 'متری ۲۲۸ میلیون'],
+    ['', '۰۵۱', 'آپارتمان ۹۵ متری', 'یوسف‌آباد', '۱۹ میلیارد', 'متری ۲۰۰ میلیون'],
+    ['r', '۰۵۰', 'آپارتمان ۸۰ متری', 'پونک، حصارک', 'ودیعه ۹۰۰ م', 'اجاره ۲۰ میلیون'],
+    ['', '۰۲۷', 'آپارتمان ۱۲۰ متری', 'سعادت‌آباد', '۲۸ میلیارد', 'متری ۲۳۳ میلیون'],
+    ['f', '۰۴۲', 'آپارتمان ۷۰ متری', 'تهرانپارس', 'رهن ۲٫۲ میلیارد', 'بدون اجاره'],
+    ['r', '۰۳۱', 'آپارتمان ۸۵ متری', 'پونک', 'ودیعه ۸۰۰ م', 'اجاره ۲۲ میلیون'],
   ];
-  return `<div class="ph-scr">
-<div class="ph-st"><b>۹:۴۱</b><span></span></div>
-<div class="ph-hd"><small>عصر بخیر</small><b>فایل‌ها</b></div>
-<span class="m-search">${icon('search', 's')}جستجو…</span>
-<div class="ph-list">${rows.map(([c, n, t, s]) => `<div class="ph-row"><span class="plq s${c ? ` ${c}` : ''}">${n}</span><span><b>${t}</b><small>${s}</small></span></div>`).join('')}</div>
-<div class="ph-tab"><span class="on">${icon('today', 's')}</span><span>${icon('files', 's')}</span><span class="fab">${icon('plus', 's')}</span><span>${icon('users', 's')}</span><span>${icon('cal', 's')}</span></div>
+  const signal = '<svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx=".8"/><rect x="5" y="5.5" width="3" height="6.5" rx=".8"/><rect x="10" y="3" width="3" height="9" rx=".8"/><rect x="15" y="0" width="3" height="12" rx=".8"/></svg>';
+  const wifi = '<svg viewBox="0 0 16 12"><path d="M8 2.2c2.3 0 4.4.9 6 2.4l1.2-1.3A10.3 10.3 0 0 0 8 .4 10.3 10.3 0 0 0 .8 3.3L2 4.6a8.6 8.6 0 0 1 6-2.4zm0 3.6c1.3 0 2.5.5 3.4 1.3l1.2-1.3A6.6 6.6 0 0 0 8 4a6.6 6.6 0 0 0-4.6 1.8l1.2 1.3c.9-.8 2.1-1.3 3.4-1.3zM8 9.4 9.9 7.3a2.8 2.8 0 0 0-3.8 0z"/></svg>';
+  const battery = '<svg viewBox="0 0 27 12"><rect x=".5" y=".5" width="23" height="11" rx="3.4" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="8" rx="2"/><path d="M25 4v4c.8-.3 1.3-1.1 1.3-2S25.8 4.3 25 4z" opacity=".45"/></svg>';
+  return `<div class="iph" aria-hidden="true">
+<i class="iph-b act"></i><i class="iph-b vu"></i><i class="iph-b vd"></i><i class="iph-b pw"></i><i class="iph-b cc"></i>
+<div class="iph-scr">
+<div class="ios-bar"><b>۹:۴۱</b><span>${signal}${wifi}${battery}</span></div>
+<span class="iph-island"></span>
+<div class="ka">
+<div class="ka-top"><span class="plq s">کلید</span><span class="ka-search">${icon('search', 's')}جستجو در فایل‌ها، مشتری‌ها…</span></div>
+<div class="ka-hd"><b>فایل‌ها</b><small>۱۲۸ فایل</small></div>
+<div class="ka-seg"><span class="on">همه ۱۲۸</span><span><i class="sw-s"></i>فروش ۵۴</span><span><i class="sw-r"></i>رهن و اجاره ۵۱</span></div>
+<div class="ka-list">${rows.map(([c, n, t, pl, pr, sub], i) => `<div class="ka-row${i === 0 ? ' sel' : ''}"><span class="plq s${c ? ` ${c}` : ''}">${n}</span><span class="ka-t"><b>${t}</b><small>${pl}</small></span><span class="ka-p"><b>${pr}</b><small>${sub}</small></span></div>`).join('')}</div>
+<div class="ka-tab"><span>${icon('today', 's')}امروز</span><span class="on">${icon('files', 's')}فایل‌ها</span><span class="fab">${icon('plus')}</span><span>${icon('users', 's')}مشتری‌ها</span><span>${icon('set', 's')}تنظیمات</span></div>
+</div>
+<span class="ios-home"></span>
+</div>
 </div>`;
 }

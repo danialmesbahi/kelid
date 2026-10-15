@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>نرم‌افزار املاک کلید | مدیریت فایل، مشتری و بازدید برای مشاوران املاک</title>
-<meta name="description" content="کلید، نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک: فایل‌های فروش و رهن و اجاره، مشتری جور خودکار، تقویم بازدید و قرارداد. روی ویندوز، وب و گوشی؛ حتی بدون اینترنت. {{trial}} روز رایگان.">
+<meta name="description" content="کلید، نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک: فایل‌های فروش و رهن و اجاره، مشتری جور خودکار، تقویم بازدید و قرارداد. روی ویندوز، مک، وب و گوشی؛ حتی بدون اینترنت. {{trial}} روز رایگان.">
 <link rel="canonical" href="{{site}}/">
 <link rel="alternate" hreflang="fa-IR" href="{{site}}/">
 <link rel="alternate" hreflang="x-default" href="{{site}}/">
@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="کلید">
 <meta property="og:url" content="{{site}}/">
 <meta property="og:title" content="نرم‌افزار املاک کلید؛ دفترتان، مرتب و همیشه دم دست">
-<meta property="og:description" content="فایل‌ها، مشتری‌ها، بازدیدها و قراردادهای دفتر املاک در یک جا؛ روی ویندوز، وب و گوشی، حتی بدون اینترنت.">
+<meta property="og:description" content="فایل‌ها، مشتری‌ها، بازدیدها و قراردادهای دفتر املاک در یک جا؛ روی ویندوز، مک، وب و گوشی، حتی بدون اینترنت.">
 <meta property="og:image" content="{{site}}/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -28,41 +28,56 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="/src/site.css">
 <!--@jsonld-->
+<script>/* دکمهٔ اصلی دانلود را به سیستم‌عامل بیننده می‌سپارد؛ بی آن هم صفحه کامل است. */(function(){var u=navigator.userAgent,p=navigator.platform||'',o=/iPhone|iPad|iPod/.test(u)||(p==='MacIntel'&&navigator.maxTouchPoints>1)?'ios':/Android/.test(u)?'and':/Mac/.test(p)?'mac':/Win/.test(p)?'win':'';if(o)document.documentElement.setAttribute('data-os',o)})()</script>
 </head>
 <body>
 <a class="skip" href="#main">رفتن به محتوای اصلی</a>
 
 <header class="hdr">
-  <div class="wrap hdr-in">
-    <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول"><span class="plq">کلید</span></a>
+  <div class="hdr-in">
+    <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول"><span class="plq">کلید</span><span class="logo-t">نرم‌افزار املاک</span></a>
     <nav class="hdr-nav" aria-label="بخش‌های صفحه">
+      <a href="#how">چطور کار می‌کند</a>
       <a href="#features">امکانات</a>
-      <a href="#offline">بدون اینترنت</a>
+      <a href="#download">دانلود</a>
       <a href="#pricing">قیمت</a>
       <a href="#faq">پرسش‌ها</a>
     </nav>
-    <a class="btn btn-p hdr-cta" href="#download">{{icon:download s}}دانلود رایگان</a>
+    <div class="hdr-end">
+      <a class="hdr-login" href="{{app}}" rel="noopener">ورود</a>
+      <a class="btn hdr-cta" href="#download">{{icon:download s}}دانلود رایگان</a>
+      <button class="hdr-menu" type="button" popovertarget="menu" aria-label="باز کردن منو">{{menu}}</button>
+    </div>
   </div>
 </header>
+<div class="menu" id="menu" popover>
+  <nav aria-label="منوی گوشی">
+    <a href="#how">چطور کار می‌کند</a>
+    <a href="#features">امکانات</a>
+    <a href="#download">دانلود</a>
+    <a href="#pricing">قیمت</a>
+    <a href="#faq">پرسش‌ها</a>
+    <a href="{{app}}" rel="noopener">ورود به برنامه</a>
+  </nav>
+  <a class="btn btn-lg btn-gold btn-w" href="#download">{{icon:download}}دانلود رایگان</a>
+  <button class="menu-x" type="button" popovertarget="menu" popovertargetaction="hide" aria-label="بستن منو">{{icon:x}}</button>
+</div>
 
 <main id="main">
 <section class="hero" id="top" aria-labelledby="hero-t">
   <!--@skyline-->
   <div class="wrap hero-in">
-    <p class="chip">{{icon:spark s}}نرم‌افزار مدیریت املاک · ویندوز، وب و گوشی</p>
-    <h1 id="hero-t"><span class="h1-k">نرم‌افزار املاک کلید</span><span class="h1-d">دفترتان، مرتب و <em>همیشه دم دست</em></span></h1>
-    <p class="lead">فایل‌ها با پلاک رنگی، مشتری‌هایی که فایل جورشان خودکار پیدا می‌شود، بازدیدهایی که یادتان می‌ماند. همه در یک برنامهٔ آرام و سریع که بدون اینترنت هم کار می‌کند.</p>
+    <p class="chip">{{icon:spark s}}{{trial}} روز رایگان · بدون کارت بانکی</p>
+    <h1 id="hero-t"><span class="h1-k">نرم‌افزار املاک کلید</span><span class="h1-d">دفتر املاکتان، مرتب و <em>همیشه دم دست</em></span></h1>
+    <p class="lead">فایل‌ها، مشتری‌ها، بازدیدها و قراردادهای دفتر را یک‌جا نگه دارید. کلید برای هر مشتری فایل جورش را پیدا می‌کند و بدون اینترنت هم کار می‌کند.</p>
     <div class="cta">
-      <a class="btn btn-lg btn-gold desk" href="{{windows}}" download>{{icon:download}}دانلود رایگان برای ویندوز</a>
-      <a class="btn btn-lg btn-ghost desk" href="{{app}}" rel="noopener">{{icon:pc}}باز کردن نسخهٔ وب</a>
-      <a class="btn btn-lg btn-gold touch" href="{{app}}" rel="noopener">{{icon:mobile}}نصب رایگان روی گوشی</a>
-      <a class="btn btn-lg btn-ghost touch" href="#pricing">دیدن قیمت‌ها</a>
+      <a class="btn btn-lg btn-gold os-win" href="{{windows}}" download>{{brand:win}}دانلود رایگان برای ویندوز</a>
+      <a class="btn btn-lg btn-gold os-mac" href="{{mac}}" download>{{brand:mac}}دانلود رایگان برای مک</a>
+      <a class="btn btn-lg btn-gold os-ios" href="#download">{{brand:mac}}نصب رایگان روی آیفون</a>
+      <a class="btn btn-lg btn-gold os-and" href="{{app}}" rel="noopener">{{brand:and}}نصب رایگان روی اندروید</a>
+      <a class="btn btn-lg btn-ghost" href="#how">{{icon:play}}ببینید چطور کار می‌کند</a>
     </div>
-    <ul class="trust">
-      <li>{{icon:check s}}{{trial}} روز رایگان</li>
-      <li>{{icon:check s}}بدون کارت بانکی</li>
-      <li>{{icon:check s}}نصب در یک دقیقه</li>
-    </ul>
+    <p class="plats">برای {{brand:win}} ویندوز {{brand:mac}} مک {{brand:mac}} آیفون {{brand:and}} اندروید و وب</p>
   </div>
 
   <div class="wrap stage" aria-hidden="true">
@@ -97,90 +112,99 @@
         </div>
       </div>
     </div>
-    <div class="phone hero-phone"><!--@phone--></div>
+    <div class="hero-phone"><!--@iphone--></div>
     <span class="float f1"><span class="av">ک</span><b>آقای کریمی</b><small class="ok">۹۲٪ جور با فایل ۰۵۲</small></span>
     <span class="float f2">{{icon:cal}}<b>بازدید ساعت ۱۰:۳۰</b><small>فردا · پونک</small></span>
     <span class="float f3">{{icon:cloud}}<b>اینترنت قطع است</b><small>همه‌چیز ذخیره شد</small></span>
   </div>
 </section>
 
-<section class="plates wrap" aria-label="پلاک‌های کلید">
-  <p>هر فایل یک <b>پلاک</b> دارد؛ یک نگاه، و می‌دانید با چه فایلی طرفید.</p>
-  <ul>
-    <li><span class="plq">۰۵۲</span>فروش</li>
-    <li><span class="plq r">۰۵۰</span>رهن و اجاره</li>
-    <li><span class="plq f">۰۴۷</span>رهن کامل</li>
-  </ul>
-</section>
-
-<section class="sec wrap story" aria-labelledby="story-t">
-  <p class="eb">چرا کلید</p>
-  <h2 id="story-t">دفترچه و کاغذ و گروه تلگرام، <span class="mute">جای فایل‌های میلیاردی نیست.</span></h2>
-  <div class="split">
-    <div class="before">
-      <h3>بدون کلید</h3>
-      <ul>
-        <li>{{icon:x s}}فایل‌ها در دفترچه، گوشی و ذهن همکارها پخش‌اند</li>
-        <li>{{icon:x s}}مشتری‌ای که هفتهٔ پیش آمد، یادش رفته</li>
-        <li>{{icon:x s}}پیدا کردن یک فایل یعنی ورق زدن و زنگ زدن</li>
-        <li>{{icon:x s}}همکار رفت، شمارهٔ مالک‌ها هم با او رفت</li>
-      </ul>
-    </div>
-    <div class="after">
-      <h3>با کلید</h3>
-      <ul>
-        <li>{{icon:check s}}همهٔ فایل‌ها با عکس و پلاک، در یک جا</li>
-        <li>{{icon:check s}}هر فایل تازه، خودش مشتری‌های جورش را پیدا می‌کند</li>
-        <li>{{icon:check s}}هر فایلی را در یک ثانیه پیدا می‌کنید</li>
-        <li>{{icon:check s}}اطلاعات مال دفتر است و با شما می‌ماند</li>
-      </ul>
-    </div>
+<section class="sec wrap flow" id="how" aria-labelledby="how-t">
+  <div class="sec-hd">
+    <p class="eb">یک روز با کلید</p>
+    <h2 id="how-t">از ثبت فایل تا امضای قرارداد، <span class="mute">در چهار قدم.</span></h2>
   </div>
+  <ol class="steps">
+    <li class="step">
+      <div class="step-tx">
+        <span class="n">۱</span>
+        <h3>فایل را ثبت کنید، پلاکش را بگیرد</h3>
+        <p>نوع معامله، متراژ، محله و قیمت را بنویسید و عکس‌ها را بگذارید. هر فایل یک پلاک رنگی می‌گیرد: سبز فروش، خردلی رهن و اجاره، آبی رهن کامل.</p>
+        <ul class="ticks"><li>{{icon:check s}}کمتر از یک دقیقه</li><li>{{icon:check s}}شمارهٔ مالک محفوظ</li><li>{{icon:check s}}عکس از گوشی</li></ul>
+      </div>
+      <div class="step-v v-form" aria-hidden="true">
+        <div class="vf-hd"><b>فایل جدید</b><span class="m-seg"><span class="on"><i class="sw-s"></i>فروش</span><span><i class="sw-r"></i>رهن و اجاره</span><span><i class="sw-f"></i>رهن کامل</span></span></div>
+        <div class="vf-grid">
+          <span><small>نوع ملک</small>آپارتمان</span>
+          <span><small>متراژ</small>۱۰۵ متر</span>
+          <span><small>محله</small>ونک، ملاصدرا</span>
+          <span><small>قیمت کل</small>۲۴ میلیارد تومان</span>
+        </div>
+        <div class="vf-ft"><span class="vf-ok">{{icon:check s}}ذخیره شد</span><span class="plq l">۰۵۲</span></div>
+      </div>
+    </li>
+    <li class="step">
+      <div class="step-tx">
+        <span class="n">۲</span>
+        <h3>کلید مشتری جورش را پیدا می‌کند</h3>
+        <p>نیاز هر مشتری را یک بار بنویسید. هر فایل تازه با همهٔ مشتری‌ها مقایسه می‌شود و جورترین‌ها جلوی چشمتان می‌آیند.</p>
+        <ul class="ticks"><li>{{icon:check s}}درصد جور بودن</li><li>{{icon:check s}}بودجه، محله، متراژ</li></ul>
+      </div>
+      <div class="step-v v-clients" aria-hidden="true">
+        <p class="vc-hd">{{icon:spark s}}۳ مشتری با فایل ۰۵۲ جورند</p>
+        <div class="vc-row"><span class="ring" style="--p:92"><b>۹۲٪</b></span><span><b>آقای کریمی</b><small>۲ خوابه تا ۲۵ میلیارد، ونک و جردن</small></span>{{icon:phone s}}</div>
+        <div class="vc-row"><span class="ring" style="--p:78"><b>۷۸٪</b></span><span><b>خانم رضایی</b><small>۱۰۰ متر به بالا، شمال تهران</small></span>{{icon:phone s}}</div>
+        <div class="vc-row"><span class="ring" style="--p:64"><b>۶۴٪</b></span><span><b>آقای محمدی</b><small>تا ۲۲ میلیارد، با پارکینگ</small></span>{{icon:phone s}}</div>
+      </div>
+    </li>
+    <li class="step">
+      <div class="step-tx">
+        <span class="n">۳</span>
+        <h3>بازدید بگذارید، یادتان می‌ماند</h3>
+        <p>بازدید، تماس و کارهای فردا در تقویم شمسی دفتر می‌نشیند و پیش از هر قرار یادآوری می‌گیرید.</p>
+        <ul class="ticks"><li>{{icon:check s}}تقویم شمسی</li><li>{{icon:check s}}یادآوری به وقت تهران</li></ul>
+      </div>
+      <div class="step-v v-day" aria-hidden="true">
+        <p class="vd-hd"><b>فردا</b><small>سه بازدید و یک قرارداد</small></p>
+        <span class="ev"><small>۱۰:۳۰</small><b>بازدید فایل ۰۵۲ با آقای کریمی</b></span>
+        <span class="ev am"><small>۱۲:۰۰</small><b>تماس با مالک فایل ۰۵۰</b></span>
+        <span class="ev bl"><small>۱۷:۰۰</small><b>امضای قرارداد فایل ۰۴۷</b></span>
+        <span class="toast">{{icon:bell s}}۳۰ دقیقه تا بازدید فایل ۰۵۲</span>
+      </div>
+    </li>
+    <li class="step">
+      <div class="step-tx">
+        <span class="n">۴</span>
+        <h3>قرارداد ببندید، کمیسیون ثبت شود</h3>
+        <p>هر معامله از مذاکره تا امضا دنبال می‌شود و کمیسیون دفتر و سهم هر همکار جایی ثبت می‌شود که گم نشود.</p>
+        <ul class="ticks"><li>{{icon:check s}}مرحلهٔ هر معامله</li><li>{{icon:check s}}کمیسیون و سهم همکار</li></ul>
+      </div>
+      <div class="step-v v-deal" aria-hidden="true">
+        <span class="stamp">امضا شد</span>
+        <p class="vdl-t"><span class="plq">۰۵۲</span><span><b>فروش آپارتمان ۱۰۵ متری</b><small>ونک، ملاصدرا</small></span></p>
+        <dl>
+          <div><dt>مبلغ معامله</dt><dd>۲۴ میلیارد تومان</dd></div>
+          <div><dt>کمیسیون دفتر</dt><dd class="ok">۲۴۰ میلیون تومان</dd></div>
+          <div><dt>سهم مشاور</dt><dd>۹۶ میلیون تومان</dd></div>
+        </dl>
+      </div>
+    </li>
+  </ol>
 </section>
 
 <section class="sec wrap" id="features" aria-labelledby="feat-t">
-  <p class="eb">امکانات</p>
-  <h2 id="feat-t">هرچه یک دفتر املاک لازم دارد؛ <span class="mute">نه بیشتر، نه پیچیده‌تر.</span></h2>
-  <div class="bento">
-    <article class="tile t-files">
-      <div class="tile-tx"><h3>{{icon:files}}فایل‌های فروش، رهن و اجاره</h3><p>هر فایل با عکس، متراژ، قیمت و شمارهٔ مالک. فیلتر کنید، مرتب کنید، بدون اینترنت هم.</p></div>
-      <div class="m-seg v-seg"><span class="on">همه ۱۲۸</span><span><i class="sw-s"></i>فروش ۵۴</span><span><i class="sw-r"></i>رهن و اجاره ۵۱</span><span><i class="sw-f"></i>رهن کامل ۲۳</span></div>
-      <div class="v-rows">
-        <div class="v-row"><span class="plq s">۰۵۲</span><span><b>آپارتمان ۱۰۵ متری</b><small>ونک، ملاصدرا</small></span><b class="num">۲۴ میلیارد</b></div>
-        <div class="v-row"><span class="plq s r">۰۵۰</span><span><b>آپارتمان ۸۰ متری</b><small>پونک، اباذر</small></span><b class="num">۹۰۰ میلیون</b></div>
-        <div class="v-row"><span class="plq s f">۰۴۷</span><span><b>آپارتمان ۹۵ متری</b><small>یوسف‌آباد</small></span><b class="num">۳٫۵ میلیارد</b></div>
-        <div class="v-row"><span class="plq s">۰۴۴</span><span><b>مغازهٔ ۴۰ متری</b><small>سعادت‌آباد</small></span><b class="num">۱۲ میلیارد</b></div>
-      </div>
-    </article>
-    <article class="tile t-match">
-      <div class="tile-tx"><h3>{{icon:spark}}مشتری جور، خودکار</h3><p>نیاز هر مشتری را یک بار بنویسید؛ هر فایل تازه‌ای که جور باشد، خودش نشان داده می‌شود.</p></div>
-      <div class="v-match"><span class="ring" style="--p:92"><b>۹۲٪</b></span><span><b>آقای کریمی</b><small>دنبال ۲ خوابه تا ۲۵ میلیارد، غرب</small></span></div>
-    </article>
-    <article class="tile t-cal">
-      <div class="tile-tx"><h3>{{icon:cal}}تقویم و بازدیدها</h3><p>بازدید، تماس و کار فردا؛ با یادآوری، به وقت تهران.</p></div>
-      <div class="v-cal">
-        <span><small>۱۰:۳۰</small><b>بازدید · فایل ۰۵۲</b></span>
-        <span class="am"><small>۱۲:۰۰</small><b>تماس با مالک ۰۵۰</b></span>
-        <span class="bl"><small>۱۷:۰۰</small><b>امضای قرارداد</b></span>
-      </div>
-    </article>
-    <article class="tile t-show">
-      <div class="tile-tx"><h3>{{icon:show}}نمایش به مشتری</h3><p>عکس‌ها تمام‌صفحه، بی شمارهٔ مالک و بی یادداشت‌های دفتر.</p></div>
-      <div class="v-show"><span class="ph ph-i m-ph tall">{{cover}}</span><span class="plq">۰۵۲</span></div>
-    </article>
-    <article class="tile t-deal">
-      <div class="tile-tx"><h3>{{icon:deal}}قرارداد و کمیسیون</h3><p>معامله‌ها از مذاکره تا امضا، با کمیسیونی که از یاد نمی‌رود.</p></div>
-      <div class="v-deal"><span class="stamp">امضا شد</span><b>فروش فایل ۰۵۲</b><small>کمیسیون: ۲۴۰ میلیون تومان</small></div>
-    </article>
-    <article class="tile t-team">
-      <div class="tile-tx"><h3>{{icon:users}}همکاران دفتر</h3><p>هر کس روی دستگاه خودش، همه با هم هماهنگ. مدیر می‌گوید چه کسی شمارهٔ مالک‌ها را ببیند.</p></div>
-      <div class="v-team"><span class="av">ر</span><span class="av b">م</span><span class="av c">س</span><span class="av d">+۲</span></div>
-    </article>
-    <article class="tile t-search">
-      <div class="tile-tx"><h3>{{icon:search}}جستجوی فارسی که می‌فهمد</h3><p>«ي» یا «ی»، با فاصله یا نیم‌فاصله، عدد فارسی یا انگلیسی؛ کلید پیدا می‌کند.</p></div>
-      <div class="v-search"><span class="m-search">{{icon:search s}}سعادت آباد ۳ خوابه<kbd>Ctrl K</kbd></span><span class="hit"><span class="plq s">۰۴۴</span>سعادت‌آباد، ۳ خوابه، ۱۴۰ متر</span></div>
-    </article>
+  <div class="sec-hd">
+    <p class="eb">و هرچه دفتر لازم دارد</p>
+    <h2 id="feat-t">ساده برای امروز، <span class="mute">کامل برای وقتی دفتر بزرگ شد.</span></h2>
   </div>
+  <ul class="more">
+    <li>{{icon:show}}<b>نمایش به مشتری</b><span>عکس‌ها تمام‌صفحه، بی شمارهٔ مالک و یادداشت‌های دفتر.</span></li>
+    <li>{{icon:search}}<b>جستجوی فارسی</b><span>«ي» یا «ی»، نیم‌فاصله یا فاصله، عدد فارسی یا انگلیسی؛ پیدا می‌شود.</span></li>
+    <li>{{icon:users}}<b>همکاران و دسترسی</b><span>هر کس روی دستگاه خودش؛ مدیر می‌گوید چه کسی شمارهٔ مالک را ببیند.</span></li>
+    <li>{{icon:cam}}<b>عکس فایل‌ها</b><span>از گوشی عکس بگیرید؛ روی همهٔ دستگاه‌های دفتر می‌رسد.</span></li>
+    <li>{{icon:print}}<b>برگهٔ چاپی فایل</b><span>یک برگهٔ مرتب برای دادن به مشتری یا زدن به ویترین.</span></li>
+    <li>{{icon:sync}}<b>همگام‌سازی خودکار</b><span>ویندوز، مک و گوشی همیشه همان اطلاعات را دارند.</span></li>
+  </ul>
 </section>
 
 <section class="night" id="offline" aria-labelledby="off-t">
@@ -198,44 +222,48 @@
   </div>
 </section>
 
-<section class="sec wrap" id="how" aria-labelledby="how-t">
-  <p class="eb">شروع کار</p>
-  <h2 id="how-t">سه قدم تا دفتری مرتب.</h2>
-  <ol class="steps">
-    <li><span class="n">۱</span><h3>کلید را نصب کنید</h3><p>روی ویندوز دانلود کنید، یا روی گوشی از مرورگر به صفحهٔ اصلی اضافه کنید.</p></li>
-    <li><span class="n">۲</span><h3>دفترتان را بسازید</h3><p>با شمارهٔ موبایل ثبت‌نام کنید و همکارانتان را دعوت کنید.</p></li>
-    <li><span class="n">۳</span><h3>اولین فایل را ثبت کنید</h3><p>چند ثانیه کار است؛ پلاکش را می‌گیرد و مشتری‌های جورش پیدا می‌شوند.</p></li>
-  </ol>
-</section>
-
-<section class="sec wrap" id="download" aria-labelledby="dl-t">
-  <div class="dl">
-    <div class="dl-tx">
-      <p class="eb">دانلود</p>
-      <h2 id="dl-t">کلید را همین حالا <span class="mute">رایگان نصب کنید.</span></h2>
-      <p class="lead">{{trial}} روز همهٔ امکانات، بدون کارت بانکی. اطلاعات هر دستگاه با بقیه هماهنگ می‌ماند.</p>
-      <div class="dl-list">
-        <a class="dl-card pri" href="{{windows}}" download>{{icon:pc l}}<span><b>ویندوز</b><small>ویندوز ۱۰ و ۱۱ · نصب در یک دقیقه</small></span>{{icon:download}}</a>
-        <a class="dl-card" href="{{app}}" rel="noopener">{{icon:mobile l}}<span><b>اندروید و آیفون</b><small>در مرورگر باز کنید و «افزودن به صفحهٔ اصلی» را بزنید</small></span>{{icon:chl}}</a>
-        <a class="dl-card" href="{{app}}" rel="noopener">{{icon:show l}}<span><b>نسخهٔ وب</b><small>بی نصب، در هر مرورگری</small></span>{{icon:chl}}</a>
-      </div>
+<section class="sec wrap dlx" id="download" aria-labelledby="dl-t">
+  <div class="dlx-art" aria-hidden="true">
+    <!--@iphone-->
+    <span class="float d1">{{icon:check}}<b>روی صفحهٔ اصلی نصب شد</b><small>مثل یک برنامهٔ واقعی</small></span>
+    <span class="float d2">{{icon:sync}}<b>با ویندوز و مک هماهنگ</b><small>همین حالا</small></span>
+  </div>
+  <div class="dlx-main">
+    <p class="eb">دانلود رایگان</p>
+    <h2 id="dl-t">کلید را روی دستگاه خودتان نصب کنید.</h2>
+    <p class="lead">{{trial}} روز همهٔ امکانات رایگان است و کارت بانکی نمی‌خواهد. روی هر دستگاهی نصب کنید؛ همه با هم هماهنگ می‌مانند.</p>
+    <div class="plat">
+      <a class="pc p-win" href="{{windows}}" download>{{brand:win}}<span><b>ویندوز</b><small>ویندوز ۱۰ و ۱۱ · فایل نصب</small></span><em>دستگاه شما</em><span class="pc-go">{{icon:download s}}دانلود</span></a>
+      <a class="pc p-mac" href="{{mac}}" download>{{brand:mac}}<span><b>مک</b><small>مک‌بوک و iMac · Apple Silicon و Intel</small></span><em>دستگاه شما</em><span class="pc-go">{{icon:download s}}دانلود</span></a>
+      <a class="pc p-ios" href="{{app}}" rel="noopener">{{brand:mac}}<span><b>آیفون و آیپد</b><small>در Safari باز کنید و به صفحهٔ اصلی اضافه کنید</small></span><em>دستگاه شما</em><span class="pc-go">{{icon:plus s}}نصب</span></a>
+      <a class="pc p-and" href="{{app}}" rel="noopener">{{brand:and}}<span><b>اندروید</b><small>در Chrome باز کنید و «نصب برنامه» را بزنید</small></span><em>دستگاه شما</em><span class="pc-go">{{icon:plus s}}نصب</span></a>
     </div>
-    <div class="dl-art" aria-hidden="true">
-      <div class="phone"><!--@phone--></div>
-    </div>
+    <a class="dl-web" href="{{app}}" rel="noopener">{{icon:show s}}نمی‌خواهید نصب کنید؟ نسخهٔ وب را در مرورگر باز کنید{{icon:chl s}}</a>
+    <ol class="ios-steps" aria-label="نصب روی آیفون">
+      <li><span>۱</span>نشانی برنامه را در Safari باز کنید</li>
+      <li><span>۲</span>دکمهٔ اشتراک‌گذاری {{icon:up s}} را بزنید</li>
+      <li><span>۳</span>«افزودن به صفحهٔ اصلی» را انتخاب کنید</li>
+    </ol>
   </div>
 </section>
 
 <section class="sec wrap" id="pricing" aria-labelledby="price-t">
-  <p class="eb">قیمت</p>
-  <h2 id="price-t">قیمت ساده؛ <span class="mute">همهٔ امکانات در همهٔ پلن‌ها.</span></h2>
-  <p class="lead">فرق پلن‌ها فقط تعداد همکاران دفتر است. {{trial}} روز اول رایگان است.</p>
+  <div class="sec-hd center">
+    <p class="eb">قیمت</p>
+    <h2 id="price-t">هزینهٔ یک سال کلید، <span class="mute">کمتر از کمیسیون یک معامله.</span></h2>
+    <p class="lead">همهٔ پلن‌ها همهٔ امکانات را دارند؛ فرقشان فقط تعداد همکاران دفتر است. {{trial}} روز اول رایگان است.</p>
+  </div>
   <div class="pricing">
     <div class="period" role="radiogroup" aria-label="دورهٔ پرداخت">
-      <input type="radio" name="period" id="p-m" checked><label for="p-m">ماهانه</label>
-      <input type="radio" name="period" id="p-y"><label for="p-y">سالانه <span class="tag ok">{{gift}} ماه هدیه</span></label>
+      <input type="radio" name="period" id="p-y" checked><label for="p-y">سالانه <span class="tag ok">{{gift}} ماه هدیه</span></label>
+      <input type="radio" name="period" id="p-m"><label for="p-m">ماهانه</label>
     </div>
     <div class="plans"><!--@plans--></div>
+    <ul class="assure">
+      <li>{{icon:card}}<span><b>بدون کارت بانکی</b>{{trial}} روز همه‌چیز رایگان؛ بعد اگر خواستید بخرید.</span></li>
+      <li>{{icon:shield}}<span><b>اطلاعاتتان می‌ماند</b>اگر تمدید نکنید هم چیزی پاک نمی‌شود.</span></li>
+      <li>{{icon:lock}}<span><b>پرداخت امن</b>از داخل برنامه، با درگاه زرین‌پال.</span></li>
+    </ul>
   </div>
 </section>
 
@@ -256,8 +284,10 @@
     <span class="plq xl">کلید</span>
     <h2 id="final-t">امشب که چراغ دفتر را خاموش می‌کنید،<br>همه‌چیز سر جایش است.</h2>
     <div class="cta">
-      <a class="btn btn-lg btn-gold desk" href="{{windows}}" download>{{icon:download}}دانلود رایگان برای ویندوز</a>
-      <a class="btn btn-lg btn-gold touch" href="{{app}}" rel="noopener">{{icon:mobile}}نصب رایگان روی گوشی</a>
+      <a class="btn btn-lg btn-gold os-win" href="{{windows}}" download>{{brand:win}}دانلود رایگان برای ویندوز</a>
+      <a class="btn btn-lg btn-gold os-mac" href="{{mac}}" download>{{brand:mac}}دانلود رایگان برای مک</a>
+      <a class="btn btn-lg btn-gold os-ios" href="#download">{{brand:mac}}نصب رایگان روی آیفون</a>
+      <a class="btn btn-lg btn-gold os-and" href="{{app}}" rel="noopener">{{brand:and}}نصب رایگان روی اندروید</a>
       <a class="btn btn-lg btn-ghost" href="#pricing">دیدن قیمت‌ها</a>
     </div>
   </div>
@@ -268,18 +298,19 @@
   <div class="wrap ftr-in">
     <div class="ftr-b">
       <span class="plq">کلید</span>
-      <p>نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک؛ فایل‌ها، مشتری‌ها، بازدیدها و قراردادها روی ویندوز، وب و گوشی.</p>
+      <p>نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک؛ فایل‌ها، مشتری‌ها، بازدیدها و قراردادها روی ویندوز، مک، وب و گوشی.</p>
     </div>
     <nav aria-label="پیوندهای پانویس">
+      <a href="#how">کلید چطور کار می‌کند</a>
       <a href="#features">امکانات نرم‌افزار املاک</a>
       <a href="#offline">کار بدون اینترنت</a>
       <a href="#download">دانلود کلید</a>
       <a href="#pricing">قیمت اشتراک</a>
       <a href="#faq">پرسش‌های پرتکرار</a>
-      <a href="{{app}}" rel="noopener">ورود به برنامه</a>
     </nav>
     <p class="ftr-c">© {{year}} کلید. همهٔ حقوق محفوظ است.</p>
   </div>
 </footer>
+<script>/* منوی گوشی با رفتن به یک بخش بسته می‌شود. */document.querySelectorAll('#menu a').forEach(function(a){a.addEventListener('click',function(){var m=document.getElementById('menu');if(m&&m.hidePopover)m.hidePopover()})})</script>
 </body>
 </html>

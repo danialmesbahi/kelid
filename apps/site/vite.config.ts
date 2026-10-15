@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { faYear, faqHtml, icon, jsonLd, phone, plans, skyline, trialDays, yearGift, type SiteConfig } from './build/render';
+import { brand, faYear, faqHtml, icon, iphone, jsonLd, menuIcon, plans, saveYear, skyline, trialDays, yearGift, type SiteConfig } from './build/render';
 
 // همان تصویر جایگزین عکس فایل در برنامه (Cover در packages/ui)
 const COVER = '<i class="y t2"></i><i class="y t1"></i><i class="y gd"></i><i class="x fl"></i><i class="x w"></i><i class="x lt"></i><i class="x so"></i>';
@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => {
     site: (env.VITE_SITE_URL ?? 'https://kelid.ir').replace(/\/$/, ''),
     app: env.VITE_SITE_APP_URL ?? 'https://app.kelid.ir',
     windows: env.VITE_SITE_WINDOWS_URL ?? '/download/Kelid-Setup.exe',
+    mac: env.VITE_SITE_MAC_URL ?? '/download/Kelid.dmg',
   };
   return {
     plugins: [site(cfg)],
@@ -24,8 +25,8 @@ export default defineConfig(({ mode }) => {
 });
 
 function site(cfg: SiteConfig): Plugin {
-  const parts: Record<string, () => string> = { skyline, phone, plans, faq: faqHtml, jsonld: () => jsonLd(cfg) };
-  const vars: Record<string, string> = { cover: COVER, site: cfg.site, app: cfg.app, windows: cfg.windows, trial: trialDays, gift: yearGift, year: faYear() };
+  const parts: Record<string, () => string> = { skyline, iphone, plans, faq: faqHtml, jsonld: () => jsonLd(cfg) };
+  const vars: Record<string, string> = { cover: COVER, site: cfg.site, app: cfg.app, windows: cfg.windows, mac: cfg.mac, menu: menuIcon, save: saveYear, trial: trialDays, gift: yearGift, year: faYear() };
   return {
     name: 'kelid-site',
     enforce: 'pre',
@@ -45,6 +46,7 @@ function site(cfg: SiteConfig): Plugin {
           return fn();
         })
         .replace(/\{\{icon:(\w+)(?: ([\w ]+))?\}\}/g, (_, n: string, c?: string) => icon(n, c))
+        .replace(/\{\{brand:(\w+)\}\}/g, (_, n: string) => brand(n))
         .replace(/\{\{(\w+)\}\}/g, (_, k: string) => {
           const v = vars[k];
           if (v === undefined) throw new Error(`unknown var: ${k}`);
