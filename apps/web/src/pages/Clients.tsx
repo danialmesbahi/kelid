@@ -6,6 +6,7 @@ import { useQuery, useStore } from '../data';
 import { clientsQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { useGoBack } from '../layout/useGoBack';
 import { CallLink } from '../layout/CallLink';
 import { VisitDialog } from '../visits/VisitDialog';
 import { coverUrl, useCoverThumbs } from '../photos/photos';
@@ -44,6 +45,7 @@ function budgetText(c: Client): string {
 
 export function ClientsPage() {
   const [params, setParams] = useSearchParams();
+  const goBack = useGoBack();
   const [kind, setKind] = useState<Kind>('all');
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const store = useStore();
@@ -101,8 +103,8 @@ export function ClientsPage() {
         {cur && showProfile && (
           <section key={cur.id} aria-label="پروفایل مشتری" className="col enter" style={{ flex: '999 1 520px', minWidth: 0, padding: '24px 30px 36px', gap: 24 }}>
             {phone && (
-              <button type="button" className="btn btn-g" onClick={() => setParams({})} style={{ alignSelf: 'flex-start', padding: '0 12px' }}>
-                <Icon name="back" size="s" />مشتری‌ها
+              <button type="button" className="btn btn-g" onClick={() => goBack('/clients')} style={{ alignSelf: 'flex-start', padding: '0 12px' }}>
+                <Icon name="back" size="s" />برگشت
               </button>
             )}
             <div className="rw" style={{ flexWrap: 'wrap', gap: 14 }}>
