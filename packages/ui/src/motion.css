@@ -107,7 +107,7 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
   position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
   background: var(--bg); animation: kl-fadein 300ms 150ms both;
 }
-.splash .plq { height: 64px; padding: 0 22px; font-size: 28px; border-radius: 14px; box-shadow: inset 0 0 0 4px var(--pc), inset 0 0 0 7px rgba(255,255,255,.92), var(--sh-lg); animation: kl-breathe 1.6s ease-in-out infinite; }
+.splash .logo img { box-shadow: var(--sh-lg); animation: kl-breathe 1.6s ease-in-out infinite; }
 .splash .line { width: 120px; height: 3px; border-radius: 3px; background: var(--line); overflow: hidden; position: relative; }
 .splash .line::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--pri); border-radius: 3px; animation: kl-slide 1.1s var(--ease-out) infinite; }
 @keyframes kl-breathe { 50% { transform: scale(1.04); } }
