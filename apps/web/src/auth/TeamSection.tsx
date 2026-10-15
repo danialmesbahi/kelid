@@ -150,7 +150,7 @@ export function TeamSection() {
           <span style={{ width: `${Math.min(100, (used / team.seats) * 100)}%` }} className={full ? 'full' : ''} />
         </span>
       )}
-      {manager && full && team && PLANS.some((p) => p.seats > team.seats) && (
+      {manager && full && team && PLANS.some((p) => (p.extra?.max ?? p.seats) > team.seats) && (
         <span className="sm mute">
           همهٔ جاهای دفتر پر است. برای همکار بیشتر،{' '}
           <Link className="b" style={{ color: 'var(--pri-text)' }} to="/plans" viewTransition>پلن بزرگ‌تر</Link> بگیرید.

@@ -278,10 +278,11 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
         if (!found.rowCount) return 'not_found' as const;
         if (plan.seats < (await seatsUsed(db, id))) return 'too_small' as const;
         await db.query(
-          `update offices set plan = $2, seats = $3, trial = $4,
+          // نفرات اضافهٔ خریده‌شدهٔ «دفتر بزرگ» با تمدید دستی از دست نمی‌رود.
+          `update offices set plan = $2, seats = least($6, greatest($3, seats)), trial = $4,
                   expires_at = greatest(expires_at, now()) + make_interval(days => $5)
             where id = $1`,
-          [id, plan.id, plan.seats, b.trial, b.days],
+          [id, plan.id, plan.seats, b.trial, b.days, plan.extra?.max ?? plan.seats],
         );
         const text = `تمدید ${toFaDigits(b.days)} روزه، پلن ${plan.name}${b.trial ? ' (آزمایشی)' : ''}: ${note}`;
         await addNote(db, id, req.vendor!.id, 'extend', text);

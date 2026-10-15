@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from 'react-router';
 import { Icon, Skeleton } from '@kelid/ui';
-import { formatGrouped, toFaDigits } from '@kelid/core';
+import { formatGrouped, termOf, toFaDigits } from '@kelid/core';
 import type { PaymentStatus } from '../api';
 import { useFlash } from '../live';
 import { dateText, errorText, payTag, planName, useLoad, useSlow } from '../ui';
@@ -96,7 +96,7 @@ export function Payments() {
                     {p.office.name}
                   </span>
                   <span className="sm">
-                    {planName(p.plan)}، {p.period === 'year' ? 'یک‌ساله' : 'یک‌ماهه'}
+                    {planName(p.plan)}، {termOf(p.period).name}
                   </span>
                   <span className="sm num b">
                     {formatGrouped(p.amount)} <span className="xs mute">تومان</span>
