@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useBlocker } from 'react-router';
 import { useGoBack } from '../layout/useGoBack';
-import { FieldError, Req } from '../layout/Field';
+import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
 import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
 import { dealLabel, formatGrouped, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
@@ -112,7 +112,7 @@ function AmountField({ label, value, onChange }: { label: string; value: string;
   return (
     <label className="lbl">
       {label}
-      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder="به تومان" style={{ fontSize: 19 }} />
+      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(onlyAmount(e.target.value))} placeholder="به تومان" style={{ fontSize: 19 }} />
       <span className="hint">{n ? `${formatToman(n)} تومان` : ' '}</span>
     </label>
   );
@@ -285,13 +285,13 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             <div style={grid(120)}>
               <label className="lbl">
                 <span>متراژ<Req /></span>
-                <input className="fld num" inputMode="numeric" value={f.area} onChange={(e) => set('area')(e.target.value)} aria-required="true" aria-invalid={!!errs.area} aria-describedby={errs.area ? 'err-area' : undefined} />
+                <input className="fld num" inputMode="numeric" value={f.area} onChange={(e) => set('area')(onlyDigits(e.target.value, 6))} aria-required="true" aria-invalid={!!errs.area} aria-describedby={errs.area ? 'err-area' : undefined} />
                 <FieldError id="err-area" text={errs.area} />
               </label>
-              <label className="lbl">خواب<input className="fld num" inputMode="numeric" value={f.bedrooms} onChange={(e) => set('bedrooms')(e.target.value)} /></label>
-              <label className="lbl">طبقه<input className="fld num" inputMode="numeric" value={f.floor} onChange={(e) => set('floor')(e.target.value)} /></label>
-              <label className="lbl">تعداد طبقات<input className="fld num" inputMode="numeric" value={f.floorsTotal} onChange={(e) => set('floorsTotal')(e.target.value)} /></label>
-              <label className="lbl">سال ساخت<input className="fld num" inputMode="numeric" value={f.yearBuilt} onChange={(e) => set('yearBuilt')(e.target.value)} placeholder="۱۴۰۳" /></label>
+              <label className="lbl">خواب<input className="fld num" inputMode="numeric" value={f.bedrooms} onChange={(e) => set('bedrooms')(onlyDigits(e.target.value, 2))} /></label>
+              <label className="lbl">طبقه<input className="fld num" inputMode="numeric" value={f.floor} onChange={(e) => set('floor')(onlyDigits(e.target.value, 3))} /></label>
+              <label className="lbl">تعداد طبقات<input className="fld num" inputMode="numeric" value={f.floorsTotal} onChange={(e) => set('floorsTotal')(onlyDigits(e.target.value, 3))} /></label>
+              <label className="lbl">سال ساخت<input className="fld num" inputMode="numeric" value={f.yearBuilt} onChange={(e) => set('yearBuilt')(onlyDigits(e.target.value, 4))} placeholder="۱۴۰۳" /></label>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
               {allFeatures.map((x) => (
@@ -343,7 +343,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
               ) : (
                 <label className="lbl">
                   شمارهٔ مالک
-                  <input className="fld num" inputMode="tel" value={f.ownerPhone} onChange={(e) => set('ownerPhone')(e.target.value)} style={{ direction: 'ltr', textAlign: 'right' }} aria-describedby={ownerPhones ? undefined : 'phone-hidden'} />
+                  <input className="fld num" inputMode="tel" value={f.ownerPhone} onChange={(e) => set('ownerPhone')(onlyDigits(e.target.value))} style={{ direction: 'ltr', textAlign: 'right' }} aria-describedby={ownerPhones ? undefined : 'phone-hidden'} />
                   {!ownerPhones && <span id="phone-hidden" className="xs mute">بعد از ثبت، شماره فقط برای مدیر دفتر دیده می‌شود.</span>}
                 </label>
               )}

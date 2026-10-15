@@ -9,7 +9,7 @@ import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { useGoBack } from '../layout/useGoBack';
-import { FieldError, Req } from '../layout/Field';
+import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 
 const KINDS: Array<{ value: PropertyKind; label: string }> = [
   { value: 'apartment', label: 'آپارتمان' },
@@ -74,7 +74,7 @@ function AmountField({ label, value, onChange }: { label: string; value: string;
   return (
     <label className="lbl">
       {label}
-      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder="به تومان" style={{ fontSize: 19 }} />
+      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(onlyAmount(e.target.value))} placeholder="به تومان" style={{ fontSize: 19 }} />
       <span className="hint">{n ? `${formatToman(n)} تومان` : ' '}</span>
     </label>
   );
@@ -219,7 +219,7 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
               </label>
               <label className="lbl">
                 شماره تماس
-                <input className="fld num" inputMode="tel" value={f.phone} onChange={(e) => set('phone')(e.target.value)} style={{ direction: 'ltr', textAlign: 'right' }} />
+                <input className="fld num" inputMode="tel" value={f.phone} onChange={(e) => set('phone')(onlyDigits(e.target.value))} style={{ direction: 'ltr', textAlign: 'right' }} />
               </label>
             </div>
             {duplicate && (
@@ -283,9 +283,9 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
 
           <Section legend="۴. اندازه">
             <div style={grid(140)}>
-              <label className="lbl">متراژ از<input className="fld num" inputMode="numeric" value={f.areaMin} onChange={(e) => set('areaMin')(e.target.value)} /></label>
-              <label className="lbl">متراژ تا<input className="fld num" inputMode="numeric" value={f.areaMax} onChange={(e) => set('areaMax')(e.target.value)} /></label>
-              <label className="lbl">حداقل خواب<input className="fld num" inputMode="numeric" value={f.bedroomsMin} onChange={(e) => set('bedroomsMin')(e.target.value)} /></label>
+              <label className="lbl">متراژ از<input className="fld num" inputMode="numeric" value={f.areaMin} onChange={(e) => set('areaMin')(onlyDigits(e.target.value, 6))} /></label>
+              <label className="lbl">متراژ تا<input className="fld num" inputMode="numeric" value={f.areaMax} onChange={(e) => set('areaMax')(onlyDigits(e.target.value, 6))} /></label>
+              <label className="lbl">حداقل خواب<input className="fld num" inputMode="numeric" value={f.bedroomsMin} onChange={(e) => set('bedroomsMin')(onlyDigits(e.target.value, 2))} /></label>
             </div>
           </Section>
 
