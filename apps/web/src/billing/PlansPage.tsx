@@ -8,7 +8,7 @@ import { useToast } from '../layout/Toasts';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import { adoptLicense, useLicense } from './license';
 import { daysLeftText, payError, phaseTag, planName, untilText, useBilling } from './useBilling';
-import { MySubscription } from './MySubscription';
+import { FEATURES, MySubscription } from './MySubscription';
 import './billing.css';
 
 type Flow =
@@ -18,14 +18,6 @@ type Flow =
   | { step: 'paid'; receipt: Receipt }
   | { step: 'failed'; status: PaymentStatus };
 
-const FEATURES = [
-  'فایل، مشتری، بازدید و قرارداد بی‌شمار',
-  'همگام روی کامپیوتر، گوشی و مرورگر',
-  'کار کامل بدون اینترنت',
-  'پشتیبان امن روی سرور دفتر',
-  'عکس فایل‌ها با کیفیت کامل',
-  'به‌روزرسانی رایگان',
-];
 const TERM_LABEL: Record<Period, string> = { month: 'یک ماه', half: 'شش ماه', year: 'یک سال' };
 /** پلنی که برجسته نشان داده می‌شود. */
 const BEST: PlanId = 'office';
@@ -66,6 +58,8 @@ export function PlansPage() {
   const [period, setPeriod] = useState<Period>('year');
   const [picked, setPicked] = useState<PlanId | null>(null);
   const [wantSeats, setWantSeats] = useState<number | null>(null);
+  // تیک‌های پیش از خرید به همین انتخاب بسته‌اند؛ با عوض شدن پلن، نفرات یا مدت از نو زده می‌شوند.
+  const [agreed, setAgreed] = useState<{ sel: string; ids: number[] }>({ sel: '', ids: [] });
   const [flow, setFlowState] = useState<Flow>(savedFlow);
   const office = session?.office.id;
   const setFlow = (f: Flow) => {
@@ -257,7 +251,21 @@ export function PlansPage() {
   }
 
   const tag = lic ? phaseTag[lic.phase] : null;
-  const canPay = manager && !!plan && (billing ? billing.canPay : !failed);
+  const sel = `${plan?.id}|${seats}|${period}`;
+  const terms = plan
+    ? [
+        `پلن ${plan.name}${plan.extra ? ` برای ${toFaDigits(seats)} نفر` : ''} و مدت ${term.name} را خودم انتخاب کرده‌ام و مبلغ ${formatGrouped(amount)} تومان را تأیید می‌کنم.`,
+        `اعتبار اشتراک${until ? ` تا ${untilText(until)}` : ''} است؛ بعد از آن تا تمدید نشود برنامه فقط‌خواندنی می‌شود و اطلاعات پاک نمی‌شود.`,
+        'بعد از خرید، تمدید، ارتقا یا تغییر پلن در برنامه نیست و فقط با پیام به پشتیبانی کلید انجام می‌شود.',
+      ]
+    : [];
+  const ticked = (i: number) => agreed.sel === sel && agreed.ids.includes(i);
+  const tick = (i: number, on: boolean) => {
+    const ids = agreed.sel === sel ? agreed.ids.filter((x) => x !== i) : [];
+    setAgreed({ sel, ids: on ? [...ids, i] : ids });
+  };
+  const allTicked = terms.every((_, i) => ticked(i));
+  const canPay = manager && !!plan && allTicked && (billing ? billing.canPay : !failed);
   const payNote =
     failed && !billing ? (
       <>
@@ -275,32 +283,18 @@ export function PlansPage() {
       </>
     );
 
-  // دفتری که اشتراک خریده فهرست پلن‌ها نمی‌بیند؛ فقط اشتراک خودش و تمدید همان پلن.
+  // دفتری که اشتراک خریده فهرست پلن‌ها نمی‌بیند؛ فقط اشتراک خودش. تمدید و تغییر پلن از راه پشتیبانی است.
   const mineOf = current && !current.trial ? plans.find((p) => p.id === current.plan) : undefined;
   if (mineOf && current) {
     return (
       <MySubscription
         mine={mineOf}
         mineSeats={curSeats ?? mineOf.seats}
-        target={plan ?? mineOf}
-        targetSeats={plan ? seats : (curSeats ?? mineOf.seats)}
-        plans={plans}
-        onTarget={(id, n) => {
-          setPicked(id);
-          setWantSeats(n);
-        }}
         used={used}
         expiresAt={current.expiresAt}
         lic={lic}
         billing={billing}
         manager={manager}
-        period={period}
-        onPeriod={setPeriod}
-        until={until}
-        canPay={canPay}
-        opening={flow.step === 'opening'}
-        onPay={() => void pay()}
-        note={payNote}
         first={first}
       />
     );
@@ -441,6 +435,23 @@ export function PlansPage() {
         </ul>
       </section>
 
+      {manager && plan && (
+        <section className="card pl-agree" aria-labelledby="pl-agree">
+          <h2 id="pl-agree" className="sm sb">
+            پیش از پرداخت، این‌ها را بخوانید و تیک بزنید
+          </h2>
+          {terms.map((t, i) => (
+            <label key={i} className={ticked(i) ? 'pl-tick on' : 'pl-tick'}>
+              <input type="checkbox" className="visually-hidden" checked={ticked(i)} onChange={(e) => tick(i, e.target.checked)} />
+              <span className="pl-box" aria-hidden="true">
+                <Icon name="check" size="s" thick />
+              </span>
+              <span className="sm">{t}</span>
+            </label>
+          ))}
+        </section>
+      )}
+
       <section className="pl-sum" aria-label="خلاصهٔ پرداخت">
         {manager ? (
           <>
@@ -470,7 +481,7 @@ export function PlansPage() {
                 )}
               </button>
               <span className="xs mute rw pl-trust">
-                {payNote}
+                {plan && !allTicked ? 'برای پرداخت، همهٔ موارد بالا را تیک بزنید.' : payNote}
               </span>
             </div>
           </>

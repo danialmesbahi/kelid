@@ -787,126 +787,83 @@
   background: var(--warn);
 }
 
-.ms-renew {
+
+.ms-incl {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 24px;
-  border-radius: 22px;
-}
-.ms-terms {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  padding: 20px 22px;
+  border-radius: 20px;
 }
-.ms-term {
-  position: relative;
+.ms-help {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 12px 14px;
-  padding: 16px;
-  border-radius: 16px;
+  gap: 14px;
+  padding: 18px 22px;
+  border-radius: 20px;
+}
+.ms-help > .ms-stat-ic {
+  margin-bottom: 0;
+  flex: none;
+}
+.ms-help > .btn {
+  flex: none;
+  margin-inline-start: auto;
+}
+.ms-help.on {
+  border-color: var(--pri);
+  background: var(--sel);
+}
+
+.pl-agree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 22px;
+  border-radius: 20px;
+}
+.pl-tick {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
   border: 1px solid var(--line);
   cursor: pointer;
+  line-height: 1.8;
   transition:
     border-color 0.15s,
     background 0.15s;
 }
-.ms-term:hover {
+.pl-tick:hover {
   border-color: var(--line2);
 }
-.ms-term.on {
+.pl-tick.on {
   border-color: var(--pri);
   background: var(--sel);
-  box-shadow: 0 0 0 1px var(--pri);
 }
-.ms-term:has(input:focus-visible) {
+.pl-tick:has(input:focus-visible) {
   outline: 2px solid var(--pri-text);
   outline-offset: 2px;
 }
-.ms-dot {
+.pl-box {
+  display: grid;
+  place-items: center;
   width: 22px;
   height: 22px;
   flex: none;
-  border-radius: 50%;
+  margin-top: 3px;
+  border-radius: 7px;
   border: 2px solid var(--line2);
-  transition: border 0.15s;
+  color: transparent;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
-.ms-term.on .ms-dot {
-  border: 7px solid var(--pri);
-}
-.ms-term-price {
-  flex-basis: 100%;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--line);
-}
-.ms-term-price > b {
-  font-size: 20px;
-  font-weight: 800;
-}
-.ms-renew-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 20px;
-}
-.ms-ups {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.ms-ups .ms-term {
-  flex-wrap: nowrap;
-}
-.ms-ups .ms-term-price {
-  flex-basis: auto;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0;
-  margin-inline-start: auto;
-  padding-top: 0;
-  border-top: 0;
-  text-align: end;
-}
-.ms-ups .ms-term-price > b {
-  font-size: 17px;
-}
-.ms-ups .pl-seatbox {
-  margin-top: 2px;
-}
-.ms-compare {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  background: var(--sunk);
-}
-.ms-compare > .col {
-  gap: 2px;
-}
-.ms-compare > .col:last-child > b,
-.ms-compare > .col:last-child > .sb {
-  color: var(--pri-text);
-}
-.ms-compare > svg {
-  flex: none;
-  color: var(--ink2);
-}
-.ms-pay {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+.pl-tick.on .pl-box {
+  border-color: var(--pri);
+  background: var(--pri);
+  color: var(--pri-ink);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -946,44 +903,16 @@
   .ms-link > b {
     margin-inline-start: auto;
   }
-  .ms-renew {
-    padding: 20px 16px;
+  .ms-help {
+    flex-wrap: wrap;
+    padding: 18px 16px;
   }
-  .ms-terms {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-  }
-  .ms-term {
-    flex-wrap: nowrap;
-  }
-  .ms-term-price {
-    flex-basis: auto;
-    flex-direction: column;
-    align-items: flex-end;
-    margin-inline-start: auto;
-    padding-top: 0;
-    border-top: 0;
-    text-align: end;
-  }
-  .ms-term-price > b {
-    font-size: 17px;
-  }
-  .ms-renew-head > .seg {
-    width: 100%;
-  }
-  .ms-renew-head > .seg > button {
-    flex: 1;
-    justify-content: center;
-  }
-  .ms-compare {
-    justify-content: space-between;
-  }
-  .ms-pay {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .ms-pay .btn {
+  .ms-help > .btn {
     width: 100%;
     justify-content: center;
+  }
+  .pl-agree,
+  .ms-incl {
+    padding: 18px 16px;
   }
 }
