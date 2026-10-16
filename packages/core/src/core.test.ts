@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { floorLabel, listingPlace, formatPlaque, formatToman, matchListing, normalizeForSearch, filterListings, seedListings, seedClients, newId } from './index';
+import { bedroomsLabel, floorLabel, listingPlace, formatPlaque, formatToman, matchListing, normalizeForSearch, filterListings, seedListings, seedClients, newId } from './index';
 
 describe('persian', () => {
   it('normalizes spacing, letters and digits for search', () => {
@@ -33,10 +33,25 @@ describe('format', () => {
   });
 });
 
+describe('bedrooms', () => {
+  it('shows a dash for shops, land and unknown bedroom counts', () => {
+    expect(bedroomsLabel({ kind: 'apartment', bedrooms: 2 })).toBe('۲');
+    expect(bedroomsLabel({ kind: 'apartment', bedrooms: 0 })).toBe('—');
+    expect(bedroomsLabel({ kind: 'shop', bedrooms: 3 })).toBe('—');
+  });
+});
+
 describe('search', () => {
   it('finds listings by plaque code and neighborhood', () => {
     expect(filterListings(seedListings, { query: '۰۲۷' }).map((l) => l.plaque)).toEqual([27]);
     expect(filterListings(seedListings, { query: 'سعادت آباد' }).length).toBe(2);
+  });
+
+  it('puts whole-word matches before matches inside another word', () => {
+    const base = seedListings[0]!;
+    const punak = { ...base, id: 'p', plaque: 1, neighborhood: 'پونک' };
+    const vanak = { ...base, id: 'v', plaque: 2, neighborhood: 'ونک' };
+    expect(filterListings([punak, vanak], { query: 'ونک' }).map((l) => l.id)).toEqual(['v', 'p']);
   });
 });
 

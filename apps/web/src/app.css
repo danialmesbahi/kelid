@@ -225,6 +225,8 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
 
   .toasts { left: 12px; right: 12px; bottom: calc(84px + env(safe-area-inset-bottom)); }
   .toast { min-width: 0; max-width: none; }
+  /* گوشی تقویم را در نوار پایین دارد؛ سرِ «برنامهٔ امروز» جا برای هر دو نیست. */
+  .ag-cal { display: none !important; }
 
 }
 

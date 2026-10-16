@@ -19,9 +19,12 @@ export function initial(name: string): string {
   return name.replace(/^(آقای|خانم|خانوادهٔ)\s*/, '').charAt(0);
 }
 
+// مشتریِ فایل فروشی خریدار است؛ «فروش» برای او برعکس خوانده می‌شود.
+const needDeal: Record<Client['need']['deal'], string> = { ...dealLabel, sale: 'خرید' };
+
 function needSummary(c: Client, short = false): string {
   const n = c.need;
-  const parts = [dealLabel[n.deal]];
+  const parts = [needDeal[n.deal]];
   if (n.bedroomsMin) parts.push(`${toFaDigits(n.bedroomsMin)} خواب`);
   if (n.neighborhoods[0]) parts.push(n.neighborhoods[0]);
   if (n.budgetMax) parts.push(`تا ${formatToman(n.budgetMax, short)}`);
@@ -133,7 +136,7 @@ export function ClientsPage() {
             <section aria-labelledby="nd" className="col" style={{ gap: 10 }}>
               <h3 id="nd" className="t3">دنبال چه می‌گردد</h3>
               <div className="facts" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
-                <div><small>معامله</small><b>{dealLabel[cur.need.deal]}</b></div>
+                <div><small>معامله</small><b>{needDeal[cur.need.deal]}</b></div>
                 <div><small>محله‌ها</small><b style={{ fontSize: 15 }}>{cur.need.neighborhoods.join('، ') || 'فرقی ندارد'}</b></div>
                 <div><small>متراژ</small><b>{areaText(cur)}</b></div>
                 <div><small>بودجه</small><b style={{ fontSize: cur.need.rentMax ? 15 : undefined }}>{budgetText(cur)}</b></div>

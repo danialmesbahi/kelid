@@ -56,6 +56,16 @@ export function floorLabel(l: Listing): string {
   return floor;
 }
 
+/** مغازه، دفتر کار و زمین اتاق خواب ندارند؛ «۰ خواب» برایشان غلط خوانده می‌شود. */
+export function hasBedrooms(l: Pick<Listing, 'kind'>): boolean {
+  return l.kind === 'apartment' || l.kind === 'villa';
+}
+
+export function bedroomsLabel(l: Pick<Listing, 'kind' | 'bedrooms'>): string {
+  // خالی ماندن خواب در فرم صفر ذخیره می‌شود؛ «۰» را مشاور «نامعلوم» می‌خواند نه «بی‌خواب».
+  return hasBedrooms(l) && l.bedrooms > 0 ? toFaDigits(l.bedrooms) : '—';
+}
+
 /** ساعت به وقت تهران، مثل ۱۰:۳۰ */
 // ساختن Intl.DateTimeFormat گران است (ده‌ها برابر خود format)؛ یک بار ساخته و بارها استفاده می‌شود.
 const timeFmt = new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tehran' });

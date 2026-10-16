@@ -71,13 +71,13 @@ export function TodayPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
           <section aria-labelledby="ag" className="card" style={{ flex: '3 1 480px', minWidth: 0, padding: '20px 22px' }}>
             <div className="rw" style={{ gap: 10, marginBottom: 8 }}>
-              <h2 id="ag" className="t2">برنامهٔ امروز</h2>
+              <h2 id="ag" className="t2" style={{ whiteSpace: 'nowrap' }}>برنامهٔ امروز</h2>
               <span className="sp" />
               <button type="button" className="btn btn-s" onClick={() => setDialog({})} style={{ height: 38, padding: '0 12px' }}>
                 <Icon name="plus" size="s" />
                 بازدید جدید
               </button>
-              <Link viewTransition className="lnk sm" to="/calendar" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>تقویم کامل</Link>
+              <Link viewTransition className="lnk sm ag-cal" to="/calendar" style={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>تقویم کامل</Link>
             </div>
             {visits.length === 0 && <p className="mute">برای امروز قراری ثبت نشده.</p>}
             {visits.map((v) => (

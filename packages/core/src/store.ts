@@ -151,7 +151,12 @@ export function applyDealPatch(cur: Deal, patch: DealPatch, now: string): { next
 
 export function filterListings(all: Listing[], filter: ListingFilter = {}): Listing[] {
   const q = filter.query ? normalizeForSearch(filter.query) : '';
-  return all.filter((l) => (!filter.deal || l.deal === filter.deal) && (!q || searchText(l).includes(q)));
+  const found = all.filter((l) => (!filter.deal || l.deal === filter.deal) && (!q || searchText(l).includes(q)));
+  if (!q) return found;
+  // «ونک» اول خود ونک را بیاورد، بعد پونک را که فقط وسطش «ونک» دارد.
+  // متن جستجو بی‌فاصله است؛ آغاز کلمه را از کلمه‌های خود فایل می‌فهمیم.
+  const wordStart = (l: Listing) => (`${listingTitle(l)} ${l.neighborhood} ${l.street}`.split(/[\s،,]+/).some((w) => normalizeForSearch(w).startsWith(q)) ? 0 : 1);
+  return found.map((l) => ({ l, r: wordStart(l) })).sort((a, b) => a.r - b.r).map((x) => x.l);
 }
 
 /** نسخهٔ در حافظه؛ برای تست‌ها و وقتی مرورگر حافظهٔ ماندگار ندارد. */

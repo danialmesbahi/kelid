@@ -121,8 +121,25 @@ export function httpSyncApi(base: string): SyncApi {
 
 /** سرور خیالی پیش‌نمایش: همان ادغام سرور واقعی، در حافظهٔ همین صفحه. */
 export function demoSyncApi(): SyncApi {
-  const rows = new Map<string, { kind: IncomingEntity['kind']; id: string; state: EntityState; version: number }>();
-  let version = 0;
+  type DemoRow = { kind: IncomingEntity['kind']; id: string; state: EntityState; version: number };
+  // داده‌های سرور خیالی با تازه کردن صفحه نمی‌پرند؛ وگرنه ویرایش بعدی، فایل را تازه می‌دید و پلاکش را عوض می‌کرد.
+  const KEY = 'kelid.demo.sync';
+  const saved = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) ?? 'null') as { rows: DemoRow[]; version: number } | null;
+    } catch {
+      return null;
+    }
+  })();
+  const rows = new Map<string, DemoRow>((saved?.rows ?? []).map((r) => [`${r.kind}:${r.id}`, r]));
+  let version = saved?.version ?? 0;
+  const save = () => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ rows: [...rows.values()], version }));
+    } catch {
+      /* جای localStorage پر است؛ پیش‌نمایش در حافظه ادامه می‌دهد */
+    }
+  };
   const photos = new Map<string, PhotoBlob>();
   const live = new Set<LiveEvents>();
   return {
@@ -148,6 +165,7 @@ export function demoSyncApi(): SyncApi {
         const { state, changed } = applyServerChange(rows.get(key)?.state, c, (p) => (p !== null && !taken.has(p) ? p : Math.max(0, ...taken) + 1));
         if (changed) rows.set(key, { kind: c.kind, id: c.id, state, version: ++version });
       }
+      save();
       for (const l of live) l.change();
       return { hlc: null };
     },

@@ -88,6 +88,8 @@
   border-radius: 24px; background: var(--paper); box-shadow: var(--sh-lg), 0 0 0 1px var(--line); animation: kl-dl-in 340ms var(--ease-expo) both;
 }
 .dl-panel:focus { outline: none; }
+/* پیام پایین صفحه روی دکمه‌های پایین پرونده نیفتد؛ کنار پرونده می‌نشیند. */
+@media (min-width: 768px) { .app:has(.dl-panel) .toasts { left: calc(min(500px, 100% - 16px) + 24px); } }
 @keyframes kl-dl-in { from { opacity: 0; transform: translateX(-36px); } }
 .dl-p-hd { display: flex; align-items: center; gap: 12px; padding: 14px 16px 14px 12px; border-bottom: 1px solid var(--line); }
 .dl-p-cover { position: relative; flex: none; width: 60px; height: 60px; overflow: hidden; border-radius: 14px; background: var(--sunk); }

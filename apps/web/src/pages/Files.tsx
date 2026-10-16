@@ -1,7 +1,7 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
-import { listingPlace, dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
+import { bedroomsLabel, listingPlace, dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
 import { useQuery } from '../data';
 import { filesQuery } from '../queries';
 import { PageSkeleton } from '../layout/PageSkeleton';
@@ -142,7 +142,7 @@ export function FilesPage() {
             </div>
             <div className="facts" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', background: 'var(--paper)' }}>
               <div><small>متراژ</small><b>{toFaDigits(sel.area)} متر</b></div>
-              <div><small>خواب</small><b>{toFaDigits(sel.bedrooms)}</b></div>
+              <div><small>خواب</small><b>{bedroomsLabel(sel)}</b></div>
               <div><small>طبقه</small><b>{floorLabel(sel)}</b></div>
             </div>
             {sel.features.length > 0 && <span className="sm" style={{ color: 'var(--ink2)' }}>{sel.features.join(' · ')}</span>}
@@ -180,7 +180,7 @@ const FileRow = memo(function FileRow({ l, selected, cover, onOpen, onEnter }: R
         </span>
       </span>
       <span className="num">{toFaDigits(l.area)} م</span>
-      <span className="num">{toFaDigits(l.bedrooms)}</span>
+      <span className="num">{bedroomsLabel(l)}</span>
       <span className="col" style={{ lineHeight: 1.5 }}>
         <span className="num b">{headlinePrice(l)}</span>
         <span className="xs mute">{secondaryPrice(l)}</span>

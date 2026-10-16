@@ -1,5 +1,5 @@
 import { Cover, Icon, Plaque } from '@kelid/ui';
-import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
+import { dealLabel, floorLabel, hasBedrooms, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
 
 /**
  * محتوای کارت فایل (عکس + جزئیات) که امروز و فایل‌ها هر دو استفاده می‌کنند؛ قاب بیرونی (لینک یا دکمه) با خود صفحه است.
@@ -35,7 +35,13 @@ export function ListingCardContent({ l, cover, badge, flyName }: { l: Listing; c
           </span>
         </span>
         <span className="pcard-facts">
-          <b className="num">{toFaDigits(l.area)}</b> متر · <b className="num">{toFaDigits(l.bedrooms)}</b> خواب
+          <b className="num">{toFaDigits(l.area)}</b> متر
+          {hasBedrooms(l) && l.bedrooms > 0 && (
+            <>
+              {' '}
+              · <b className="num">{toFaDigits(l.bedrooms)}</b> خواب
+            </>
+          )}
           {l.floor !== undefined && (
             <>
               {' '}
