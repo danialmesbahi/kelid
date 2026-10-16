@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { Icon } from '@kelid/ui';
+import { Icon, Logo } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { DEMO } from './api';
 import { useAuth } from './auth';
@@ -26,9 +26,7 @@ export function Shell() {
     <div className="shell ad-shell">
       <aside className="side ad-side" aria-label="منوی پنل">
         <div className="brand">
-          <span className="plq" style={{ height: 34, padding: '0 11px', fontSize: 16 }}>
-            کلید
-          </span>
+          <Logo size={36} />
           <span className="col" style={{ lineHeight: 1.35 }}>
             <span className="b sm">پنل فروشنده</span>
             {DEMO ? (

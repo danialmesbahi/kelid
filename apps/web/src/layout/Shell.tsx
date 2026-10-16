@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
-import { Icon, Kbd, type IconName } from '@kelid/ui';
+import { Icon, Kbd, Logo, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { prefetchQuery, useQuery, useStorageInfo, useStore } from '../data';
 import { syncText, toneColor, useSyncStatus } from '../sync/state';
@@ -118,7 +118,7 @@ export function Shell() {
     <div className="shell">
       <aside className="side">
         <div className="brand">
-          <span className="plq" style={{ height: 34, padding: '0 12px', fontSize: 16 }}>کلید</span>
+          <Logo size={36} />
           <span className="col" style={{ lineHeight: 1.45, minWidth: 0 }}>
             <span className="sm b" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{officeName || 'دفتر املاک'}</span>
             {userName && <span className="xs mute" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</span>}
@@ -164,7 +164,7 @@ export function Shell() {
 
       <main className="main">
         <div className="top">
-          <span className="plq mbrand" style={{ height: 32, padding: '0 10px', fontSize: 15 }}>کلید</span>
+          <span className="mbrand"><Logo size={32} word /></span>
           <button type="button" className="gs" onClick={() => setPaletteOpen(true)}>
             <Icon name="search" />
             <span className="sp" style={{ textAlign: 'right' }}>جستجو در فایل‌ها، مشتری‌ها و کارها…</span>

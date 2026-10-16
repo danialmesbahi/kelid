@@ -1,4 +1,4 @@
-// ساخت آیکون‌ها و تصویرهای نصب‌کننده از روی طرح پلاک «کلید».
+// ساخت آیکون‌ها و تصویرهای نصب‌کننده از روی نشان «کلید شمسه» (packages/ui/src/logo.svg).
 // اجرا: npm run icons   (با Electron خود پروژه؛ کتابخانهٔ تصویر لازم نیست)
 // خروجی‌ها در مخزن ثبت می‌شوند؛ فقط وقتی طرح عوض شد دوباره اجرا کنید.
 const { app, BrowserWindow } = require('electron');
@@ -8,25 +8,15 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const font = fs.readFileSync(path.join(root, 'node_modules/vazirmatn/fonts/webfonts/Vazirmatn-Black.woff2')).toString('base64');
 const EMERALD = '#0E4D3F';
-const BRASS = '#C9A86F';
+const logo = fs.readFileSync(path.join(root, 'packages/ui/src/logo.svg'), 'utf8');
 
-/** پلاک: مربع گرد زمردی با قاب سفید درونی، نوشتهٔ «کلید» و خط برنجی. کوچک‌ها فقط «ک». */
+/** نشان «کلید شمسه» از روی packages/ui/src/logo.svg. full: زمینه تا لبه (maskable/apple)، safe: اندازهٔ نشان داخل زمینه. */
 function plaque(s, { full = false, safe = 1 } = {}) {
-  const small = s <= 32;
-  const inner = s * safe;
-  const ring = Math.max(1, Math.round(inner * (small ? 0.06 : 0.028)));
-  const word = small ? 'ک' : 'کلید';
-  const fontSize = inner * (small ? 0.62 : 0.3);
-  return `
-  <div style="width:${s}px;height:${s}px;position:relative;border-radius:${full ? 0 : s * 0.22}px;overflow:hidden;
-    background:linear-gradient(160deg,#17654F 0%,${EMERALD} 55%,#0A3A30 100%)">
-    <div style="position:absolute;left:50%;top:50%;width:${inner * (small ? 0.84 : 0.8)}px;height:${inner * (small ? 0.84 : 0.8)}px;transform:translate(-50%,-50%);
-      border-radius:${inner * 0.15}px;box-shadow:inset 0 0 0 ${ring}px rgba(255,255,255,.93)"></div>
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${inner * 0.04}px">
-      <span style="font:900 ${fontSize}px/1 Vazirmatn;color:#fff;margin-top:${small ? inner * -0.06 : inner * -0.03}px">${word}</span>
-      ${small ? '' : `<span style="width:${inner * 0.22}px;height:${Math.max(2, inner * 0.03)}px;border-radius:9px;background:${BRASS}"></span>`}
-    </div>
-  </div>`;
+  const off = 32 - 32 * safe;
+  const svg = logo
+    .replace('rx="15"', `rx="${full ? 0 : 15}"`)
+    .replace(/(<rect[^>]*\/>)([\s\S]*)<\/svg>/, `$1<g transform="translate(${off} ${off}) scale(${safe})">$2</g></svg>`);
+  return `<img width="${s}" height="${s}" style="display:block" src="data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}">`;
 }
 
 /** نوار کنار پنجرهٔ نصب (۱۶۴×۳۱۴) */
@@ -136,6 +126,7 @@ app.whenReady().then(async () => {
   for (const size of [16, 24, 32, 48, 64, 128, 256]) frames.push({ size, img: await render(plaque(size), size) });
   write('apps/desktop/build/icon.ico', ico(frames));
   write('apps/web/public/favicon.ico', ico(frames.filter((f) => f.size <= 48)));
+  write('apps/admin/public/favicon.ico', ico(frames.filter((f) => f.size <= 48)));
   write('apps/desktop/build/installerSidebar.bmp', bmp24(await render(sidebar(), 164, 314)));
   write('apps/desktop/build/installerHeader.bmp', bmp24(await render(header(), 150, 57)));
 

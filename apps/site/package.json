@@ -1,0 +1,20 @@
+{
+  "name": "@kelid/site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "کلید — سایت معرفی (kelid.ir): صفحهٔ ایستا، بدون جاوااسکریپت",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@kelid/core": "*",
+    "@kelid/ui": "*",
+    "vazirmatn": "^33.0.3"
+  },
+  "devDependencies": {
+    "vite": "^8.3.2"
+  }
+}
