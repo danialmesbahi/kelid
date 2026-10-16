@@ -1,13 +1,22 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
-import { Icon, Segmented, Switch } from '@kelid/ui';
+import { Icon, Segmented, Switch, type IconName } from '@kelid/ui';
 import {
-  bestMatches, dealLabel, formatGrouped, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
+  bestMatches, formatGrouped, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
   type Client, type ClientTemperature, type DealType, type NewClient, type PropertyKind,
 } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
+import { useGoBack } from '../layout/useGoBack';
+import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
+
+// همان کارت‌های فرم فایل، با زبان مشتری: او می‌خرد یا اجاره می‌کند.
+const DEALS: Array<{ value: DealType; cls: string; icon: IconName; label: string; hint: string }> = [
+  { value: 'sale', cls: '', icon: 'dealSale', label: 'خرید', hint: 'دنبال ملک برای خرید' },
+  { value: 'rent', cls: 'r', icon: 'dealRent', label: 'رهن و اجاره', hint: 'ودیعه و اجارهٔ ماهانه' },
+  { value: 'full', cls: 'f', icon: 'dealFull', label: 'رهن کامل', hint: 'فقط ودیعه، بی اجاره' },
+];
 
 const KINDS: Array<{ value: PropertyKind; label: string }> = [
   { value: 'apartment', label: 'آپارتمان' },
@@ -49,8 +58,10 @@ function toState(c?: Client): FormState {
   };
 }
 
+const NAME_MSG = 'نام مشتری را بنویسید.';
+
 function toClient(f: FormState): NewClient | string {
-  if (!f.name.trim()) return 'نام مشتری را بنویسید.';
+  if (!f.name.trim()) return NAME_MSG;
   return {
     name: f.name.trim(),
     phone: normalizePhone(f.phone),
@@ -70,7 +81,7 @@ function AmountField({ label, value, onChange }: { label: string; value: string;
   return (
     <label className="lbl">
       {label}
-      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder="به تومان" style={{ fontSize: 19 }} />
+      <input className="fld num" inputMode="numeric" value={value} onChange={(e) => onChange(onlyAmount(e.target.value))} placeholder="به تومان" style={{ fontSize: 19 }} />
       <span className="hint">{n ? `${formatToman(n)} تومان` : ' '}</span>
     </label>
   );
@@ -95,9 +106,11 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
   const [initial] = useState(() => JSON.stringify(toState(client)));
   const [hood, setHood] = useState('');
   const [error, setError] = useState('');
+  const [nameErr, setNameErr] = useState(false);
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
+  const goBack = useGoBack();
   const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
   const dirty = JSON.stringify(f) !== initial;
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !saving.current && currentLocation.pathname !== nextLocation.pathname);
@@ -144,6 +157,14 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
     const input = toClient(f);
     if (typeof input === 'string') {
       setError(input);
+      if (input === NAME_MSG) {
+        setNameErr(true);
+        requestAnimationFrame(() => {
+          const el = formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]');
+          el?.focus({ preventScroll: true });
+          el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
+      }
       return;
     }
     setError('');
@@ -161,7 +182,7 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
 
   return (
     <div style={{ padding: 8, minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
-      <form ref={formRef} onSubmit={submit} className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
+      <form ref={formRef} onSubmit={submit} noValidate className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
         <header className="top" style={{ position: 'sticky', top: 0, background: 'var(--paper)', borderRadius: '20px 20px 0 0', zIndex: 2 }}>
           {blocker.state === 'blocked' ? (
             <>
@@ -172,22 +193,37 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
             </>
           ) : (
             <>
-              <Link viewTransition className="btn btn-g" to={client ? `/clients?c=${client.id}` : '/clients'} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</Link>
+              <button type="button" className="btn btn-g" onClick={() => goBack(client ? `/clients?c=${client.id}` : '/clients')} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
               <span className="b" style={{ fontSize: 18 }}>{client ? `ویرایش ${client.name}` : 'مشتری جدید'}</span>
-              <span className="sp" />
-              {error && <span role="alert" className="tag bad">{error}</span>}
-              <button type="submit" className="btn btn-p">{client ? 'ذخیرهٔ تغییرات' : 'ثبت مشتری'}</button>
             </>
           )}
         </header>
 
-        <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 80px', gap: 36 }}>
+        <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
           <Section legend="۱. چه کسی است؟">
             <div style={grid(220)}>
-              <label className="lbl">نام<input className="fld" value={f.name} onChange={(e) => set('name')(e.target.value)} placeholder="مثلاً آقای کریمی" required /></label>
+              <label className="lbl">
+                <span>نام<Req /></span>
+                <input
+                  className="fld"
+                  value={f.name}
+                  onChange={(e) => {
+                    set('name')(e.target.value);
+                    if (nameErr) {
+                      setNameErr(false);
+                      setError('');
+                    }
+                  }}
+                  placeholder="مثلاً آقای کریمی"
+                  aria-required="true"
+                  aria-invalid={nameErr}
+                  aria-describedby={nameErr ? 'err-name' : undefined}
+                />
+                <FieldError id="err-name" text={nameErr ? NAME_MSG : undefined} />
+              </label>
               <label className="lbl">
                 شماره تماس
-                <input className="fld num" inputMode="tel" value={f.phone} onChange={(e) => set('phone')(e.target.value)} style={{ direction: 'ltr', textAlign: 'right' }} />
+                <input className="fld num" inputMode="tel" value={f.phone} onChange={(e) => set('phone')(onlyDigits(e.target.value))} style={{ direction: 'ltr', textAlign: 'right' }} />
               </label>
             </div>
             {duplicate && (
@@ -200,12 +236,15 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
           </Section>
 
           <Section legend="۲. دنبال چه می‌گردد؟">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-              {(['sale', 'rent', 'full'] as const).map((d) => (
-                <button key={d} type="button" aria-pressed={f.deal === d} onClick={() => set('deal')(d)} className={`col ${f.deal === d ? 'sel' : ''}`}
-                  style={{ minHeight: 80, borderRadius: 16, border: '1px solid var(--line2)', background: 'var(--paper)', padding: '14px 16px', alignItems: 'flex-start', gap: 8, textAlign: 'right' }}>
-                  <span className={`plq s ${d === 'rent' ? 'r' : d === 'full' ? 'f' : ''}`}>{d === 'sale' ? 'خرید' : d === 'rent' ? 'اجاره' : 'رهن'}</span>
-                  <span className="b">{dealLabel[d]}</span>
+            <div className="dealpick">
+              {DEALS.map((d) => (
+                <button key={d.value} type="button" aria-pressed={f.deal === d.value} onClick={() => set('deal')(d.value)} className={`dealopt ${d.cls}`}>
+                  <span className="dealopt-ic"><Icon name={d.icon} size="l" /></span>
+                  <span className="col" style={{ gap: 2, minWidth: 0 }}>
+                    <span className="b" style={{ fontSize: 16 }}>{d.label}</span>
+                    <span className="xs mute">{d.hint}</span>
+                  </span>
+                  {f.deal === d.value && <span className="dealopt-ok pop-in" aria-hidden="true"><Icon name="check" size="s" thick /></span>}
                 </button>
               ))}
             </div>
@@ -251,9 +290,9 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
 
           <Section legend="۴. اندازه">
             <div style={grid(140)}>
-              <label className="lbl">متراژ از<input className="fld num" inputMode="numeric" value={f.areaMin} onChange={(e) => set('areaMin')(e.target.value)} /></label>
-              <label className="lbl">متراژ تا<input className="fld num" inputMode="numeric" value={f.areaMax} onChange={(e) => set('areaMax')(e.target.value)} /></label>
-              <label className="lbl">حداقل خواب<input className="fld num" inputMode="numeric" value={f.bedroomsMin} onChange={(e) => set('bedroomsMin')(e.target.value)} /></label>
+              <label className="lbl">متراژ از<input className="fld num" inputMode="numeric" value={f.areaMin} onChange={(e) => set('areaMin')(onlyDigits(e.target.value, 6))} /></label>
+              <label className="lbl">متراژ تا<input className="fld num" inputMode="numeric" value={f.areaMax} onChange={(e) => set('areaMax')(onlyDigits(e.target.value, 6))} /></label>
+              <label className="lbl">حداقل خواب<input className="fld num" inputMode="numeric" value={f.bedroomsMin} onChange={(e) => set('bedroomsMin')(onlyDigits(e.target.value, 2))} /></label>
             </div>
           </Section>
 
@@ -283,6 +322,15 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
             </label>
           </Section>
         </div>
+
+        {/* مثل فرم فایل: دکمهٔ ثبت همیشه پایین فرم و زیر دست است. */}
+        <footer className="lf-foot">
+          <div className="lf-foot-in">
+            {error ? <span role="alert" className="tag bad">{error}</span> : <span className="xs mute lf-kbd"><span className="req" style={{ marginInlineStart: 0 }}>*</span> ضروری · ذخیرهٔ سریع: Ctrl+S</span>}
+            <span className="sp" />
+            <button type="submit" className="btn btn-p btn-lg lf-save"><Icon name="check" size="s" thick />{client ? 'ذخیرهٔ تغییرات' : 'ثبت مشتری'}</button>
+          </div>
+        </footer>
       </form>
     </div>
   );
@@ -303,7 +351,7 @@ export function NewClientPage() {
 
 export function EditClientPage() {
   const { id = '' } = useParams();
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const toast = useToast();
   const data = useQuery(`client-edit:${id}`, async (s) => ({ c: await s.getClient(id) }));
   if (!data) return <PageSkeleton />;
@@ -320,7 +368,8 @@ export function EditClientPage() {
       key={data.c.id}
       client={data.c}
       onSaved={(c) => {
-        navigate(`/clients?c=${c.id}`, { replace: true, viewTransition: true });
+        // ویرایش از پروندهٔ همین مشتری باز می‌شود؛ برگشت به همان.
+        goBack(`/clients?c=${c.id}`);
         toast(`تغییرات ${c.name} ذخیره شد`);
       }}
     />

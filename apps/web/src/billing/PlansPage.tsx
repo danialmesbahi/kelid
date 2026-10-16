@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Icon, Segmented } from '@kelid/ui';
-import { formatGrouped, nextExpiry, PLANS, priceOf, toFaDigits, type Period, type Plan, type PlanId } from '@kelid/core';
+import { Icon } from '@kelid/ui';
+import { formatGrouped, monthlyOf, nextExpiry, perMonthOf, PLANS, priceOf, seatsFor, TERMS, termOf, toFaDigits, type Period, type Plan, type PlanId } from '@kelid/core';
 import { API_URL, type PaymentStatus, type Receipt } from '../auth/api';
 import { useAuth, useMember } from '../auth/AuthContext';
 import { useToast } from '../layout/Toasts';
@@ -25,7 +25,9 @@ const FEATURES = [
   'عکس فایل‌ها با کیفیت کامل',
   'به‌روزرسانی رایگان',
 ];
-const PERIOD_NAME = { month: 'یک‌ماهه', year: 'یک‌ساله' } as const;
+const TERM_LABEL: Record<Period, string> = { month: 'یک ماه', half: 'شش ماه', year: 'یک سال' };
+/** پلنی که برجسته نشان داده می‌شود. */
+const BEST: PlanId = 'office';
 const DEMO = API_URL === 'demo';
 // پرداختی که منتظرش هستیم با تازه‌شدن صفحه گم نمی‌شود.
 const PENDING = 'kelid.pay';
@@ -62,6 +64,7 @@ export function PlansPage() {
   const { billing, failed, reload } = useBilling();
   const [period, setPeriod] = useState<Period>('year');
   const [picked, setPicked] = useState<PlanId | null>(null);
+  const [wantSeats, setWantSeats] = useState<number | null>(null);
   const [flow, setFlowState] = useState<Flow>(savedFlow);
   const office = session?.office.id;
   const setFlow = (f: Flow) => {
@@ -121,18 +124,24 @@ export function PlansPage() {
       ? { plan: lic.plan, trial: lic.trial, expiresAt: new Date(lic.expiresAt).toISOString() }
       : null;
   const used = billing?.used ?? 1;
-  const fits = (p: Plan) => p.seats >= used;
-  const fallback = plans.find((p) => p.id === current?.plan && fits(p)) ?? plans.find((p) => p.id === 'office' && fits(p)) ?? plans.find(fits);
+  const curSeats = billing?.seats ?? lic?.seats;
+  const fits = (p: Plan) => (p.extra?.max ?? p.seats) >= used;
+  // پلن با نفر اضافه: کمتر از نفرات فعلی دفتر نمی‌شود؛ پیش‌فرض همان تعدادی که الان خریده.
+  const seatsOf = (p: Plan) => seatsFor(p, Math.max(used, wantSeats ?? (current?.plan === p.id ? (curSeats ?? 0) : 0)));
+  const fallback = plans.find((p) => p.id === current?.plan && fits(p)) ?? plans.find((p) => p.id === BEST && fits(p)) ?? plans.find(fits);
   const plan = plans.find((p) => p.id === picked && fits(p)) ?? fallback;
-  const amount = plan ? priceOf(plan, period) : 0;
-  const until = plan && current ? nextExpiry(current, plan, period, Date.now()) : null;
+  const seats = plan ? seatsOf(plan) : 0;
+  const amount = plan ? priceOf(plan, period, seats) : 0;
+  const term = termOf(period);
+  const termMonths = term.months + term.gift;
+  const until = plan && current ? nextExpiry({ ...current, seats: curSeats }, plan, period, Date.now(), seats) : null;
   const left = current ? Date.parse(current.expiresAt) - Date.now() : 0;
   const carryNote =
     !current || left <= 0 || !plan
       ? null
       : current.trial
         ? 'روزهای باقی‌ماندهٔ دورهٔ آزمایشی هم سر جایش می‌ماند.'
-        : current.plan === plan.id
+        : current.plan === plan.id && (!plan.extra || curSeats === seats)
           ? 'روزهای باقی‌ماندهٔ اشتراک فعلی به آن اضافه می‌شود.'
           : 'ارزش روزهای باقی‌ماندهٔ پلن فعلی به این پلن منتقل می‌شود.';
 
@@ -149,7 +158,7 @@ export function PlansPage() {
     }
     setFlow({ step: 'opening' });
     try {
-      const r = await withToken((t) => api.checkout(t, plan.id, period));
+      const r = await withToken((t) => api.checkout(t, plan.id, period, plan.extra ? seats : undefined));
       if (r.payUrl && tab) tab.location.href = r.payUrl;
       else if (r.payUrl && window.kelid) window.open(r.payUrl, '_blank');
       setFlow({ step: 'waiting', id: r.id, payUrl: r.payUrl, at: Date.now(), blocked: !!r.payUrl && !tab && !window.kelid });
@@ -251,9 +260,9 @@ export function PlansPage() {
 
   return (
     <div className={first ? 'bd enter pl-page' : 'bd pl-page'} style={{ paddingTop: 26 }}>
-      <header className="col" style={{ gap: 6 }}>
+      <header className="col pl-head">
         <span className="eb">اشتراک</span>
-        <h1 className="t1">پلن دفتر را انتخاب کنید</h1>
+        <h1 className="t1">پلن دفترتان را انتخاب کنید</h1>
         <p className="mute" style={{ margin: 0 }}>
           همهٔ امکانات کلید در همهٔ پلن‌ها هست؛ فرقشان فقط در تعداد همکاران است.
         </p>
@@ -268,23 +277,15 @@ export function PlansPage() {
         )}
       </header>
 
-      <div className="rw pl-period">
-        <Segmented<Period>
-          label="مدت اشتراک"
-          value={period}
-          onChange={setPeriod}
-          options={[
-            { value: 'month', label: 'ماهانه' },
-            {
-              value: 'year',
-              label: (
-                <>
-                  سالانه<span className="pl-gift">۲ ماه هدیه</span>
-                </>
-              ),
-            },
-          ]}
-        />
+      <div className="pl-terms" role="radiogroup" aria-label="مدت اشتراک">
+        {TERMS.map((t) => (
+          <label key={t.id} className={`pl-term${t.id === period ? ' on' : ''}`}>
+            <input type="radio" name="term" className="visually-hidden" checked={t.id === period} onChange={() => setPeriod(t.id)} />
+            {t.id === 'year' && <span className="pl-flag">بیشترین تخفیف</span>}
+            <span className="pl-term-name">{TERM_LABEL[t.id]}</span>
+            <span className={t.gift ? 'pl-gift' : 'xs mute'}>{t.gift ? `${toFaDigits(t.gift)} ماه هدیه` : 'ماه به ماه'}</span>
+          </label>
+        ))}
       </div>
 
       <div className="pl-grid stagger" role="radiogroup" aria-label="پلن">
@@ -292,48 +293,113 @@ export function PlansPage() {
           const ok = fits(p);
           const on = p.id === plan?.id;
           const isCurrent = !!current && !current.trial && current.plan === p.id;
+          const n = seatsOf(p);
+          const total = priceOf(p, period, n);
+          const full = monthlyOf(p, n);
+          const perMonth = perMonthOf(p, period, n);
+          const save = Math.round((1 - total / (full * termMonths)) * 100);
+          const step = (d: number) => {
+            setPicked(p.id);
+            setWantSeats(seatsFor(p, Math.max(used, n + d)));
+          };
           return (
-            <label key={p.id} className={`pl-card${on ? ' on' : ''}${ok ? '' : ' off'}`}>
+            <label key={p.id} className={`pl-card${on ? ' on' : ''}${ok ? '' : ' off'}${p.id === BEST ? ' best' : ''}`}>
               <input type="radio" name="plan" className="visually-hidden" checked={on} disabled={!ok} onChange={() => setPicked(p.id)} />
+              {isCurrent ? <span className="pl-ribbon cur">پلن فعلی شما</span> : p.id === BEST ? <span className="pl-ribbon">محبوب‌ترین</span> : null}
               <span className="pl-top">
-                <span className="pl-radio" aria-hidden="true" />
-                <span className="t2">{p.name}</span>
-                {isCurrent ? <span className="tag">پلن فعلی</span> : p.id === 'office' ? <span className="tag ok">پیشنهاد ما</span> : null}
+                <span className="pl-ic" aria-hidden="true">
+                  <Icon name={p.seats > 1 ? 'users' : 'user'} />
+                </span>
+                <span className="col" style={{ gap: 0, minWidth: 0 }}>
+                  <span className="t2">{p.name}</span>
+                  <span className="sm mute">{p.extra ? `تا ${toFaDigits(p.seats)} نفر، بیشتر هم می‌شود` : p.seats > 1 ? `تا ${toFaDigits(p.seats)} نفر` : 'فقط یک نفر'}</span>
+                </span>
+                <span className="pl-check" aria-hidden="true">
+                  <Icon name="check" size="s" thick />
+                </span>
               </span>
-              <span className="mute sm">{p.blurb}</span>
+
               <span className="pl-price">
-                <span className="num">{formatGrouped(priceOf(p, period))}</span>
-                <span className="mute sm">{period === 'year' ? 'تومان برای یک سال' : 'تومان در ماه'}</span>
+                {save > 0 && (
+                  <span className="pl-was">
+                    <s className="num">{formatGrouped(full)}</s>
+                    <span className="pl-save">{toFaDigits(save)}٪ ارزان‌تر</span>
+                  </span>
+                )}
+                <span className="pl-big">
+                  <span className="num">{formatGrouped(perMonth)}</span>
+                  <span className="sm mute">تومان در ماه</span>
+                </span>
               </span>
-              <span className="xs mute pl-sub">
-                {period === 'year'
-                  ? `ماهی حدود ${formatGrouped(Math.round(priceOf(p, 'year') / 12 / 1000) * 1000)} تومان`
-                  : `سالانه ${formatGrouped(priceOf(p, 'year'))} تومان`}
+
+              <span className="pl-bill sm">
+                {term.gift ? (
+                  <>
+                    <span>
+                      یک‌جا <b className="num">{formatGrouped(total)}</b> تومان
+                    </span>
+                    <span className="pl-giftline">
+                      <Icon name="gem" size="s" />
+                      {toFaDigits(term.months)} ماه + {toFaDigits(term.gift)} ماه هدیه
+                    </span>
+                  </>
+                ) : (
+                  <span className="mute">
+                    با اشتراک یک‌ساله ماهی <b className="num">{formatGrouped(perMonthOf(p, 'year', n))}</b> تومان
+                  </span>
+                )}
               </span>
-              <span className="rw sm sb pl-seats">
-                <Icon name={p.seats > 1 ? 'users' : 'user'} size="s" />
-                {p.seats > 1 ? `تا ${toFaDigits(p.seats)} نفر در دفتر` : 'فقط یک نفر'}
-              </span>
+
+              {p.extra && (
+                <span className="pl-seatbox">
+                  <span className="pl-step">
+                    <span className="sm sb">تعداد نفرات</span>
+                    <span className="pl-stepper">
+                      <button type="button" aria-label="یک نفر بیشتر" disabled={!ok || n >= p.extra.max} onClick={() => step(1)}>
+                        <Icon name="plus" size="s" />
+                      </button>
+                      <span className="num" aria-live="polite">
+                        {toFaDigits(n)}
+                      </span>
+                      <button type="button" aria-label="یک نفر کمتر" disabled={!ok || n <= Math.max(p.seats, used)} onClick={() => step(-1)}>
+                        <span className="pl-minus" />
+                      </button>
+                    </span>
+                  </span>
+                  <span className="xs mute">
+                    {n > p.seats
+                      ? `${toFaDigits(n - p.seats)} نفر بیشتر از ${toFaDigits(p.seats)} نفر پایه، هر نفر ماهی ${formatGrouped(p.extra.monthly)} تومان`
+                      : `هر نفر بیشتر از ${toFaDigits(p.seats)}، ماهی ${formatGrouped(p.extra.monthly)} تومان`}
+                  </span>
+                </span>
+              )}
               {!ok && <span className="xs pl-why">دفتر شما {toFaDigits(used)} نفر دارد</span>}
             </label>
           );
         })}
       </div>
 
-      <ul className="pl-feat" aria-label="در همهٔ پلن‌ها">
-        {FEATURES.map((f) => (
-          <li key={f}>
-            <Icon name="check" size="s" />
-            {f}
-          </li>
-        ))}
-      </ul>
+      <section className="pl-incl" aria-labelledby="pl-incl">
+        <h2 id="pl-incl" className="sm sb">
+          در همهٔ پلن‌ها
+        </h2>
+        <ul className="pl-feat">
+          {FEATURES.map((f) => (
+            <li key={f}>
+              <Icon name="check" size="s" />
+              {f}
+            </li>
+          ))}
+        </ul>
+      </section>
 
-      <section className="pl-sum soft" aria-label="خلاصهٔ پرداخت">
+      <section className="pl-sum" aria-label="خلاصهٔ پرداخت">
         {manager ? (
           <>
-            <div className="col" style={{ gap: 2, minWidth: 0 }}>
-              <span className="sm mute">{plan ? `پلن ${plan.name}، ${PERIOD_NAME[period]}` : 'پلنی انتخاب نشده'}</span>
+            <div className="col pl-sum-text">
+              <span className="sm mute">
+                {plan ? `پلن ${plan.name}${plan.extra ? ` برای ${toFaDigits(seats)} نفر` : ''}، ${term.name}` : 'پلنی انتخاب نشده'}
+              </span>
               <span className="pl-total">
                 <span className="num">{formatGrouped(amount)}</span> <span className="sm mute">تومان</span>
               </span>
@@ -342,14 +408,20 @@ export function PlansPage() {
                   اعتبار تا <b>{untilText(until)}</b>
                 </span>
               )}
-              {carryNote && <span className="xs mute">{carryNote}</span>}
+              {carryNote && <span className="xs mute pl-carry">{carryNote}</span>}
             </div>
             <div className="col pl-pay">
               <button type="button" className="btn btn-p btn-lg" disabled={!canPay || flow.step === 'opening'} onClick={() => void pay()}>
                 <Icon name="card" size="s" />
-                {flow.step === 'opening' ? 'در حال رفتن به بانک…' : 'پرداخت و فعال‌سازی'}
+                {flow.step === 'opening' ? (
+                  'در حال رفتن به بانک…'
+                ) : (
+                  <>
+                    پرداخت<span className="pl-long"> و فعال‌سازی</span>
+                  </>
+                )}
               </button>
-              <span className="xs mute">
+              <span className="xs mute rw pl-trust">
                 {failed && !billing ? (
                   <>
                     به سرور وصل نشد.{' '}
@@ -360,7 +432,10 @@ export function PlansPage() {
                 ) : billing && !billing.canPay ? (
                   'پرداخت آنلاین هنوز روی سرور فعال نشده است.'
                 ) : (
-                  'پرداخت امن از درگاه بانکی زرین‌پال'
+                  <>
+                    <Icon name="shield" size="s" />
+                    پرداخت امن از درگاه بانکی زرین‌پال
+                  </>
                 )}
               </span>
             </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react';
 import { Cover, Icon } from '@kelid/ui';
 import { toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
 import { useQuery, useStore } from '../data';
@@ -95,21 +95,16 @@ export function PhotoGallery({ listing }: { listing: Listing }) {
 
 function PhotoGrid({ listing, photos, loaded, onOpen, onPick }: { listing: Listing; photos: PhotoThumb[]; loaded: boolean; onOpen: (i: number) => void; onPick: () => void }) {
   const thumbs = useCoverThumbs();
-  const [first, ...rest] = photos;
-  const small = rest.slice(0, 4);
-  const more = photos.length - 5;
+  const first = photos[0];
 
   if (!first) {
-    // هنوز عکسی نیست: همان چیدمان با تصویرسازی، و دعوت به افزودن عکس.
+    // هنوز عکسی نیست: تصویرسازی و دعوت به افزودن عکس.
     // تا فهرست عکس‌ها برسد، کاور کوچکِ آماده نشان داده می‌شود تا عکسِ در حال پرواز جای خالی نبیند.
     return (
-      <div className="gallery">
-        <span className="hero vt-cover" style={{ viewTransitionName: `cover-${listing.id}` }}>
-          <Cover variant={listing.cover} src={loaded ? undefined : coverUrl(thumbs, listing.id)} style={{ height: '100%' }} />
-        </span>
-        {(['i', 'j', 'g', 'i'] as const).map((v, i) => <Cover key={i} variant={v} style={{ borderRadius: 14 }} />)}
+      <div className="pgal-empty vt-cover" style={{ viewTransitionName: `cover-${listing.id}` }}>
+        <Cover variant={listing.cover} src={loaded ? undefined : coverUrl(thumbs, listing.id)} style={{ height: '100%' }} />
         {loaded && (
-          <button type="button" onClick={onPick} className="col" style={{ position: 'absolute', inset: 0, border: 0, borderRadius: 18, background: 'color-mix(in srgb, var(--deep) 58%, transparent)', color: '#FFFFFF', alignItems: 'center', justifyContent: 'center', gap: 6, textAlign: 'center', padding: 16 }}>
+          <button type="button" onClick={onPick} className="col" style={{ position: 'absolute', inset: 0, border: 0, background: 'color-mix(in srgb, var(--deep) 58%, transparent)', color: '#FFFFFF', alignItems: 'center', justifyContent: 'center', gap: 6, textAlign: 'center', padding: 16 }}>
             <Icon name="cam" size="l" />
             <span className="b" style={{ fontSize: 17 }}>هنوز عکسی نیست</span>
             <span className="sm" style={{ opacity: 0.85 }}>عکس‌ها را اینجا بکشید یا برای انتخاب بزنید</span>
@@ -119,36 +114,111 @@ function PhotoGrid({ listing, photos, loaded, onOpen, onPick }: { listing: Listi
     );
   }
 
+  return <PhotoStage listing={listing} photos={photos} onOpen={onOpen} />;
+}
+
+/**
+ * عکس کامل و بی‌برش، روی نسخهٔ محو خودش (مثل حالت نمایش به مشتری). ورق زدن: کشیدن انگشت، فلش‌ها
+ * یا بندانگشتی‌های پایین؛ زدن روی عکس، نمایش تمام‌صفحه. نسخهٔ کامل فقط برای عکس جاری و بعدی بارگذاری می‌شود.
+ */
+function PhotoStage({ listing, photos, onOpen }: { listing: Listing; photos: PhotoThumb[]; onOpen: (i: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const frame = useRef(0);
+  const [at, setAt] = useState(0);
+  const [reach, setReach] = useState(1);
+  const n = photos.length;
+  const cur = Math.min(at, n - 1);
+
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  useEffect(() => {
+    const strip = stripRef.current;
+    const th = strip?.children[cur] as HTMLElement | undefined;
+    // فقط نوار بندانگشتی اسکرول می‌خورد، نه خود صفحه
+    if (th && strip) strip.scrollTo({ left: th.offsetLeft - (strip.clientWidth - th.offsetWidth) / 2, behavior: 'smooth' });
+  }, [cur]);
+
+  const go = (k: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // راست‌به‌چپ: جلو رفتن یعنی scrollLeft منفی‌تر
+    el.scrollTo({ left: -((k + n) % n) * el.clientWidth, behavior: smooth ? 'smooth' : 'instant' });
+  };
+
+  const onScroll = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const el = trackRef.current;
+      if (!el || !el.clientWidth) return;
+      const k = Math.min(n - 1, Math.round(Math.abs(el.scrollLeft) / el.clientWidth));
+      setAt(k);
+      setReach((r) => Math.max(r, k + 1));
+    });
+  };
+
   return (
-    <div className="gallery">
-      <button type="button" className="hero vt-cover" onClick={() => onOpen(0)} aria-label="نمایش عکس‌ها" style={{ viewTransitionName: `cover-${listing.id}` }}>
-        <Cover variant={listing.cover} src={thumbSrc(first)} style={{ height: '100%' }}>
-          <FullPhotoLayer photoId={first.id} />
-        </Cover>
-      </button>
-      {small.map((p, i) => (
-        <button key={p.id} type="button" onClick={() => onOpen(i + 1)} aria-label={`عکس ${toFaDigits(i + 2)}`} style={{ padding: 0, border: 0, borderRadius: 14, overflow: 'hidden' }}>
-          <Cover variant={listing.cover} src={thumbSrc(p)} style={{ height: '100%' }}>
-            {i === 3 && more > 0 && (
-              <span className="col" style={{ position: 'absolute', inset: 0, background: 'rgba(12,13,12,.55)', color: '#FFFFFF', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
-                همهٔ {toFaDigits(photos.length)} عکس
-              </span>
-            )}
-          </Cover>
-        </button>
-      ))}
+    <div className="pstage-wrap">
+      <div className="pstage">
+        <div ref={trackRef} className="pstage-track" onScroll={onScroll}>
+          {photos.map((p, i) => (
+            <button
+              key={p.id}
+              type="button"
+              className={i === 0 ? 'pstage-slide vt-cover' : 'pstage-slide'}
+              onClick={() => onOpen(i)}
+              aria-label={`نمایش بزرگ عکس ${toFaDigits(i + 1)} از ${toFaDigits(n)}`}
+              style={i === 0 ? { viewTransitionName: `cover-${listing.id}` } : undefined}
+            >
+              <StagePhoto photo={p} load={i <= reach} />
+            </button>
+          ))}
+        </div>
+        {n > 1 && (
+          <>
+            <button type="button" className="pstage-nav pstage-prev" aria-label="عکس قبلی" onClick={() => go(cur - 1)}><Icon name="chr" /></button>
+            <button type="button" className="pstage-nav pstage-next" aria-label="عکس بعدی" onClick={() => go(cur + 1)}><Icon name="chl" /></button>
+            <span className="pstage-count num" aria-hidden="true">{toFaDigits(cur + 1)} / {toFaDigits(n)}</span>
+          </>
+        )}
+      </div>
+      {n > 1 && (
+        <div ref={stripRef} className="pstage-strip" aria-label="عکس‌های فایل">
+          {photos.map((p, i) => (
+            <button key={p.id} type="button" className="pstage-th" aria-current={i === cur} aria-label={`عکس ${toFaDigits(i + 1)}`} onClick={() => go(i)}>
+              <img src={thumbSrc(p)} alt="" draggable={false} loading="lazy" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** پس‌زمینهٔ محو + عکس کامل بی‌برش؛ بندانگشتی تا رسیدن نسخهٔ کامل جای آن را نگه می‌دارد. */
+function StagePhoto({ photo, load }: { photo: PhotoThumb; load: boolean }) {
+  const full = useFullPhotoUrl(load ? photo.id : undefined);
+  const [ready, setReady] = useState<string>();
+  const sharp = !!full && ready === full;
+  const thumb = thumbSrc(photo);
+  return (
+    <>
+      <img className="pstage-bg" src={thumb} alt="" draggable={false} />
+      <img className="pstage-img" src={thumb} alt="" draggable={false} style={{ opacity: sharp ? 0 : 1 }} />
+      {full && <img className="pstage-img" src={full} alt="" draggable={false} decoding="async" onLoad={() => setReady(full)} style={{ opacity: sharp ? 1 : 0 }} />}
+    </>
   );
 }
 
 /**
  * برای سطح‌های بزرگ: داخل یک Cover که تصویر کوچک را نشان می‌دهد قرار می‌گیرد
- * و وقتی نسخهٔ کامل آماده شد روی آن می‌نشیند.
+ * و وقتی نسخهٔ کامل بارگذاری و آماده شد، نرم روی آن ظاهر می‌شود (بدون چشمک و نیمه‌کاره دیده شدن).
  */
 export function FullPhotoLayer({ photoId }: { photoId: string | undefined }) {
   const full = useFullPhotoUrl(photoId);
+  const [ready, setReady] = useState<string>();
   if (!full) return null;
-  return <img className="photo fade" src={full} alt="" draggable={false} />;
+  return <img className="photo" src={full} alt="" draggable={false} decoding="async" onLoad={() => setReady(full)} style={{ opacity: ready === full ? 1 : 0, transition: 'opacity .25s ease' }} />;
 }
 
 function PhotoManager({ listing, photos }: { listing: Listing; photos: PhotoThumb[] }) {
@@ -214,56 +284,118 @@ function PhotoManager({ listing, photos }: { listing: Listing; photos: PhotoThum
   );
 }
 
-/** نمایش تمام‌صفحهٔ عکس‌ها؛ ←/→ ورق می‌زند و Esc می‌بندد. */
+/**
+ * نمایش تمام‌صفحهٔ عکس‌ها. گوشی: با کشیدن انگشت ورق می‌خورد؛ کامپیوتر: دکمه‌ها و ←/→. Esc می‌بندد.
+ * فقط عکس جاری و دو همسایه‌اش با کیفیت کامل بارگذاری می‌شوند.
+ */
 function Lightbox({ photos, start, onClose }: { photos: PhotoThumb[]; start: number; onClose: () => void }) {
   const store = useStore();
   const [i, setI] = useState(start);
+  const [seen, setSeen] = useState(() => new Set([start]));
   const closeRef = useRef<HTMLButtonElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const frame = useRef(0);
   const n = photos.length;
   const idx = Math.min(i, n - 1);
-  const p = photos[idx];
-  const full = useFullPhotoUrl(p?.id);
+
+  const slideAt = (k: number) => trackRef.current?.children[k] as HTMLElement | undefined;
+  const go = (k: number) => {
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    slideAt((k + n) % n)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant', inline: 'center', block: 'nearest' });
+  };
+
+  useLayoutEffect(() => {
+    slideAt(start)?.scrollIntoView({ behavior: 'instant', inline: 'center', block: 'nearest' });
+    // فقط بار اول؛ بعد از آن جای عکس با اسکرول خود کاربر عوض می‌شود.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
-    return () => prev?.focus();
+    return () => {
+      cancelAnimationFrame(frame.current);
+      prev?.focus();
+    };
   }, []);
 
   useEffect(() => {
     prefetchFullPhoto(store, photos[(idx + 1) % n]?.id);
+    prefetchFullPhoto(store, photos[(idx - 1 + n) % n]?.id);
+    stripRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [store, photos, idx, n]);
+
+  const onScroll = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const el = trackRef.current;
+      if (!el || !el.clientWidth) return;
+      const k = Math.min(n - 1, Math.round(Math.abs(el.scrollLeft) / el.clientWidth));
+      setI(k);
+      setSeen((s) => (s.has(k) ? s : new Set(s).add(k)));
+    });
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowLeft') setI((x) => (x + 1) % n);
-      else if (e.key === 'ArrowRight') setI((x) => (x - 1 + n) % n);
+      else if (e.key === 'ArrowLeft') go(idx + 1);
+      else if (e.key === 'ArrowRight') go(idx - 1);
+      else return;
+      e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [n, onClose]);
-
-  if (!p) return null;
-  const navBtn = { width: 52, height: 52, borderRadius: '50%', border: '1px solid rgba(255,255,255,.2)', background: 'rgba(18,20,18,.55)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' } as const;
+  });
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="عکس‌های فایل" className="overlay col" style={{ background: 'rgba(10,11,10,.97)', alignItems: 'stretch', justifyContent: 'stretch' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="rw" style={{ gap: 12, padding: '14px 18px', color: '#FFFFFF' }}>
+    <div role="dialog" aria-modal="true" aria-label="عکس‌های فایل" className="overlay lb">
+      <div className="lb-top">
         <span className="num sm" style={{ opacity: 0.8 }}>{toFaDigits(idx + 1)} از {toFaDigits(n)}</span>
         <span className="sp" />
-        <button ref={closeRef} type="button" onClick={onClose} className="rw sb sm" style={{ gap: 8, height: 44, padding: '0 16px', borderRadius: 12, background: 'rgba(18,20,18,.55)', border: '1px solid rgba(255,255,255,.14)', color: '#FFFFFF' }}>
+        <button ref={closeRef} type="button" onClick={onClose} className="lb-close">
           <Icon name="x" size="s" />
           بستن
         </button>
       </div>
-      <div className="rw" style={{ flex: 1, minHeight: 0, gap: 12, padding: '0 14px 20px' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-        {n > 1 && <button type="button" aria-label="عکس قبلی" onClick={() => setI((idx - 1 + n) % n)} style={navBtn}><Icon name="chr" size="l" /></button>}
-        <span className="sp" style={{ height: '100%', position: 'relative' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-          <img key={p.id} src={full ?? thumbSrc(p)} alt="" className="fade" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', filter: full ? 'none' : 'blur(6px)' }} />
-        </span>
-        {n > 1 && <button type="button" aria-label="عکس بعدی" onClick={() => setI((idx + 1) % n)} style={navBtn}><Icon name="chl" size="l" /></button>}
+      <div className="lb-stage">
+        <div ref={trackRef} className="lb-track" onScroll={onScroll}>
+          {photos.map((p, k) => (
+            <div key={p.id} className="lb-slide" onClick={(e) => e.target === e.currentTarget && onClose()}>
+              <LightboxPhoto photo={p} load={Math.abs(k - idx) <= 1 || seen.has(k)} alt={`عکس ${toFaDigits(k + 1)} از ${toFaDigits(n)}`} />
+            </div>
+          ))}
+        </div>
+        {n > 1 && (
+          <>
+            <button type="button" className="lb-nav lb-prev" aria-label="عکس قبلی" onClick={() => go(idx - 1)}><Icon name="chr" size="l" /></button>
+            <button type="button" className="lb-nav lb-next" aria-label="عکس بعدی" onClick={() => go(idx + 1)}><Icon name="chl" size="l" /></button>
+          </>
+        )}
       </div>
+      {n > 1 && (
+        <div ref={stripRef} className="lb-strip" aria-label="همهٔ عکس‌ها">
+          {photos.map((p, k) => (
+            <button key={p.id} type="button" className="lb-th" aria-current={k === idx} aria-label={`عکس ${toFaDigits(k + 1)}`} onClick={() => go(k)}>
+              <img src={thumbSrc(p)} alt="" draggable={false} loading="lazy" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** بندانگشتیِ محو تا نسخهٔ کامل برسد؛ بعد فقط عکس واضح می‌ماند (بی هالهٔ محو دورش). */
+function LightboxPhoto({ photo, load, alt }: { photo: PhotoThumb; load: boolean; alt: string }) {
+  const full = useFullPhotoUrl(load ? photo.id : undefined);
+  const [ready, setReady] = useState<string>();
+  const sharp = !!full && ready === full;
+  return (
+    <>
+      <img className="lb-img lb-thumb" src={thumbSrc(photo)} alt="" draggable={false} style={{ opacity: sharp ? 0 : 1 }} />
+      {full && <img className="lb-img" src={full} alt={alt} draggable={false} decoding="async" onLoad={() => setReady(full)} style={{ opacity: sharp ? 1 : 0 }} />}
+    </>
   );
 }

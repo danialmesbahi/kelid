@@ -1,6 +1,7 @@
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { formatPlaque } from '@kelid/core';
 import { useQuery, useStore } from '../data';
+import { useGoBack } from '../layout/useGoBack';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { ListingForm } from './ListingForm';
@@ -9,7 +10,7 @@ import { ListingForm } from './ListingForm';
 export function EditListingPage() {
   const { id = '' } = useParams();
   const store = useStore();
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const toast = useToast();
   const data = useQuery(`file-edit:${id}`, async (s) => ({ l: await s.getListing(id) }));
 
@@ -34,7 +35,8 @@ export function EditListingPage() {
       cancelTo={`/files/${l.id}`}
       onSubmit={async (_fields, edited) => {
         await store.updateListing(l.id, edited);
-        navigate(`/files/${l.id}`, { replace: true, viewTransition: true });
+        // ویرایش از صفحهٔ فایل باز می‌شود؛ برگشت به همان، تا «برگشت» بعدی دو بار روی یک فایل نماند.
+        goBack(`/files/${l.id}`);
         toast(`تغییرات فایل ${formatPlaque(l.plaque)} ذخیره شد`);
       }}
     />

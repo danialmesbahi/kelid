@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { Icon, Skeleton, Switch } from '@kelid/ui';
-import { formatGrouped, PLANS, toFaDigits, type PlanId } from '@kelid/core';
+import { formatGrouped, PLANS, termOf, toFaDigits, type PlanId } from '@kelid/core';
 import type { Note, OfficeDetail } from '../api';
 import { useAuth } from '../auth';
 import { ago, dateText, Dialog, errorText, leftText, payTag, Phone, planName, statusTag, toman, useLoad, useSlow, useToast } from '../ui';
@@ -252,7 +252,7 @@ export function OfficePage() {
                     <li key={p.id}>
                       <span className="col sp" style={{ minWidth: 0 }}>
                         <span className="sm sb">
-                          پلن {planName(p.plan)}، {p.period === 'year' ? 'یک‌ساله' : 'یک‌ماهه'}
+                          پلن {planName(p.plan)}، {termOf(p.period).name}
                         </span>
                         <span className="xs mute">
                           {dateText(p.paidAt ?? p.createdAt)}

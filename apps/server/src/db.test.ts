@@ -9,7 +9,7 @@ import { assertSafeRole, createPool, withOffice, type Pool, type Queryable } fro
 import { migrate, migrations } from './migrations';
 import { DEV_LICENSE_SEED, licenseKey, publicKeyOf, verifyLicense } from './billing/license';
 import { DevGateway } from './billing/gateway';
-import { decodeLicense, planById } from '@kelid/core/plans';
+import { decodeLicense, planById, priceOf, termDays } from '@kelid/core/plans';
 import { hashPassword } from './auth/password';
 import { newTotpSecret, totpAt, totpStep } from './admin/totp';
 import { withVendor } from './db';
@@ -800,10 +800,10 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const a = billApp();
       const s = await signUp(a, freshPhone());
       const before = decodeLicense(s.license)!.payload.exp * 1000;
-      const c = await post(a, '/billing/checkout', { plan: 'pro', period: 'year' }, s.accessToken);
+      const c = await post(a, '/billing/checkout', { plan: 'pro', period: 'year', seats: 14 }, s.accessToken);
       expect(c.statusCode).toBe(200);
       const { id, payUrl } = c.json();
-      expect((await get(a, `/billing/payments/${id}`, s.accessToken)).json()).toMatchObject({ status: 'pending', amount: planById('pro')!.monthly * 10, license: null });
+      expect((await get(a, `/billing/payments/${id}`, s.accessToken)).json()).toMatchObject({ status: 'pending', amount: priceOf(planById('pro')!, 'year', 14), seats: 14, license: null });
 
       const gate = await get(a, local(payUrl));
       expect(gate.statusCode).toBe(200);
@@ -820,14 +820,14 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(r).toMatchObject({ status: 'paid', plan: 'pro', period: 'year' });
       expect(r.refId).toMatch(/^\d+$/);
       const lic = decodeLicense(r.license)!.payload;
-      expect(lic).toMatchObject({ plan: 'pro', seats: 15, trial: false });
-      // ۱۴ روز آزمایشی + ۳۶۵ روز
-      expect(Math.abs(lic.exp * 1000 - (before + 365 * DAY))).toBeLessThan(60_000);
+      expect(lic).toMatchObject({ plan: 'pro', seats: 14, trial: false });
+      // ۱۴ روز آزمایشی + ۱۲ ماه + ۲ ماه هدیه
+      expect(Math.abs(lic.exp * 1000 - (before + termDays('year') * DAY))).toBeLessThan(60_000);
 
       // برگشت دوباره از درگاه دوباره تمدید نمی‌کند.
       expect((await get(a, local(ok))).body).toContain('پرداخت انجام شد');
       const b = (await get(a, '/billing', s.accessToken)).json();
-      expect(b).toMatchObject({ plan: 'pro', trial: false, seats: 15 });
+      expect(b).toMatchObject({ plan: 'pro', trial: false, seats: 14 });
       expect(b.payments).toHaveLength(1);
       expect(Math.abs(Date.parse(b.expiresAt) - lic.exp * 1000)).toBeLessThan(1000);
       await a.close();
@@ -869,6 +869,9 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       // مبلغ فقط از فهرست سرور است؛ عددی که برنامه بفرستد دور ریخته می‌شود.
       const cheap = (await post(a, '/billing/checkout', { plan: 'office', period: 'month', amount: 1 }, m.accessToken)).json();
       expect((await get(a, `/billing/payments/${cheap.id}`, m.accessToken)).json().amount).toBe(planById('office')!.monthly);
+      // پلن بی‌نفر اضافه همان جای خودش را می‌فروشد، هرچه برنامه بخواهد.
+      const half = (await post(a, '/billing/checkout', { plan: 'office', period: 'half', seats: 40 }, m.accessToken)).json();
+      expect((await get(a, `/billing/payments/${half.id}`, m.accessToken)).json()).toMatchObject({ amount: priceOf(planById('office')!, 'half'), seats: 5, period: 'half' });
       await a.close();
     });
 
@@ -1003,7 +1006,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const ext = await post(a, `/admin/offices/${s.office.id}/extend`, { days: 30, plan: 'pro', trial: false, note: 'کارت به کارت، رسید ۱۲۳' }, token);
       expect(ext.statusCode).toBe(200);
       const e = ext.json();
-      expect(e.office).toMatchObject({ plan: 'pro', seats: 15, trial: false, status: 'active' });
+      expect(e.office).toMatchObject({ plan: 'pro', seats: 10, trial: false, status: 'active' });
       expect(Math.abs(Date.parse(e.office.expiresAt) - (before + 30 * 86_400_000))).toBeLessThan(60_000);
       expect(e.notes[0]).toMatchObject({ kind: 'extend', admin: 'پشتیبان کلید' });
       expect(e.notes[0].body).toContain('کارت به کارت');

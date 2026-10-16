@@ -23,8 +23,10 @@
 .dl-col.done .dl-step { border-color: transparent; background: var(--brass); color: #FFFFFF; }
 .dl-col-bd { display: flex; flex-direction: column; gap: 10px; }
 .dl-col-bd > [data-deal] { position: relative; }
-.dl-drag { z-index: 30; pointer-events: none; transition: none; }
-.dl-drag .dl-card { box-shadow: 0 0 0 2px var(--pri-text), 0 30px 50px -20px rgba(18, 20, 18, .5); cursor: grabbing; }
+.dl-drag { z-index: 30; pointer-events: none; transition: none; will-change: transform; }
+/* کارت در دست: کمی بزرگ‌تر و بی اثرهای hover/active تا با حرکت موس نلرزد */
+.dl-col-bd > .dl-drag .dl-card { transform: scale(1.03); box-shadow: 0 0 0 2px var(--pri-text), 0 30px 50px -20px rgba(18, 20, 18, .5); cursor: grabbing; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) ease; }
+.dl-col-bd > .dl-drag .dl-thumb .ph { transform: none; }
 .dl-empty { margin: 4px 6px; padding: 14px 12px; border: 1.5px dashed var(--line2); border-radius: 14px; text-align: center; line-height: 1.7; }
 
 /* ── کارت معامله ── */
