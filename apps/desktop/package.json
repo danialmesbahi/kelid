@@ -33,7 +33,11 @@
     "extraResources": [
       {
         "from": "../web/dist",
-        "to": "web"
+        "to": "web",
+        "filter": [
+          "**/*",
+          "!map/**"
+        ]
       },
       {
         "from": "build/update.json",

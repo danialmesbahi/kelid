@@ -15,13 +15,14 @@ import { cachedListing } from '../queries';
 import { useGoBack } from '../layout/useGoBack';
 import { MapView } from '../map/MapView';
 import { PinShape } from '../map/Pin';
-import { mapEnabled } from '../map/provider';
+import { useMapAvailable } from '../map/useMapAvailable';
 
 export function FileDetailPage() {
   const { id = '' } = useParams();
   const [showPhone, setShowPhone] = useState(false);
   const { ownerPhones } = useMember();
   const [visitOpen, setVisitOpen] = useState(false);
+  const mapEnabled = useMapAvailable();
   const store = useStore();
   const toast = useToast();
   const goBack = useGoBack();

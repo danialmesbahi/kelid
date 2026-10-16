@@ -108,7 +108,9 @@ export function FilesMap({ list, selId, onSelect, phone, cover }: Props) {
           <Link viewTransition to={`/files/${sel.id}`} className="fmap-card enter">
             <Cover variant={sel.cover} src={cover(sel.id)} style={{ flex: '0 0 76px', height: 62, borderRadius: 12 }} />
             <span className="col sp" style={{ minWidth: 0, gap: 2 }}>
-              <span className="sb" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{listingTitle(sel)}</span>
+              <span className="sb" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {listingTitle(sel)}
+              </span>
               <span className="xs mute">{listingPlace(sel)}</span>
               <span className="num b sm">{headlinePrice(sel)}</span>
             </span>

@@ -20,6 +20,7 @@ describe('loadConfig', () => {
       sms: { provider: 'console' },
       corsOrigins: [],
       s3: null,
+      mapDir: null,
       billing: { licenseSeed: DEV_LICENSE_SEED, gateway: { provider: 'dev' }, publicUrl: 'http://localhost:3000' },
     });
   });

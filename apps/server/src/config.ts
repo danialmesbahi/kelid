@@ -20,6 +20,8 @@ export interface Config {
   corsOrigins: string[];
   /** فضای ذخیره‌سازی عکس‌ها (آروان، لیارا، MinIO)؛ null = بایت عکس‌ها در خود دیتابیس. */
   s3: S3Config | null;
+  /** پوشهٔ فایل نقشه (‎kelid.pmtiles‎)؛ null = نقشه از این سرور داده نمی‌شود. */
+  mapDir: string | null;
   billing: BillingConfig;
 }
 
@@ -113,7 +115,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!isWebUrl(publicUrl, production)) problems.push(production ? 'PUBLIC_URL باید نشانی https:// همین سرور باشد' : 'PUBLIC_URL باید نشانی http(s):// همین سرور باشد');
 
   if (problems.length) throw new ConfigError(`تنظیمات سرور ناقص است:\n- ${problems.join('\n- ')}`);
-  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3, billing: { licenseSeed, gateway, publicUrl } };
+  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3, mapDir: env.MAP_TILES_DIR || null, billing: { licenseSeed, gateway, publicUrl } };
 }
 
 function isWebUrl(url: string, httpsOnly: boolean): boolean {

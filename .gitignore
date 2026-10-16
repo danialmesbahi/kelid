@@ -29,3 +29,7 @@ graphify-out/[0-9][0-9][0-9][0-9]-*/
 test-results/
 playwright-report/
 blob-report/
+
+# فایل نقشه بزرگ است و جدا ساخته می‌شود
+apps/web/public/map/
+*.pmtiles

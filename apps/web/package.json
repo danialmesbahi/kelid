@@ -11,8 +11,11 @@
   "dependencies": {
     "@kelid/core": "*",
     "@kelid/ui": "*",
-    "@neshan-maps-platform/maplibre-sdk": "^5.24.4",
+    "@mapbox/mapbox-gl-rtl-text": "^0.3.0",
+    "@protomaps/basemaps": "^5.7.2",
     "@sqlite.org/sqlite-wasm": "^3.53.4-build2",
+    "maplibre-gl": "^5.24.0",
+    "pmtiles": "^4.5.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router": "^7.9.0",

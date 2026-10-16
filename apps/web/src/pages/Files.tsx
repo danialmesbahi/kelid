@@ -12,7 +12,7 @@ import { useProgressive } from '../layout/useProgressive';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import { ListingCardContent } from '../layout/ListingCard';
 import { FilesMap } from '../map/FilesMap';
-import { mapEnabled } from '../map/provider';
+import { useMapAvailable } from '../map/useMapAvailable';
 
 type DealFilter = 'all' | DealType;
 type View = 'list' | 'cards' | 'map';
@@ -38,6 +38,7 @@ export function FilesPage() {
   const list = useMemo(() => (data ? data.all.filter((l) => deal === 'all' || l.deal === deal) : []), [data, deal]);
   const shown = useProgressive(list.length);
   const first = useFirstVisit('files');
+  const mapEnabled = useMapAvailable();
   if (!data) return <PageSkeleton rows={8} aside />;
 
   const sel = list.find((l) => l.id === selId) ?? list[0];

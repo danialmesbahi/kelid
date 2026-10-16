@@ -9,6 +9,7 @@ import { betaRoutes } from './beta/routes';
 import type { Queryable } from './db';
 import { PhotoBlobs } from './storage/photos';
 import { S3, type S3Config } from './storage/s3';
+import { mapRoutes } from './map/routes';
 
 export interface AppOptions {
   db: Queryable;
@@ -21,9 +22,11 @@ export interface AppOptions {
   s3?: S3Config | null;
   /** اشتراک و پرداخت؛ کنار auth ثبت می‌شود. */
   billing?: Omit<BillingOptions, 'pool' | 'jwtSecret'>;
+  /** پوشهٔ فایل نقشه؛ بی آن، مسیر نقشه ثبت نمی‌شود. */
+  mapDir?: string | null;
 }
 
-export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [], s3 = null, billing }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [], s3 = null, billing, mapDir = null }: AppOptions): FastifyInstance {
   const app = Fastify({
     trustProxy,
     bodyLimit: 1_048_576,
@@ -37,7 +40,10 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
   app.addHook('onSend', async (_req, reply) => {
     // صفحه‌های HTML برگشت از درگاه استایل درون‌خطی دارند؛ هیچ اسکریپتی هیچ‌جا اجرا نمی‌شود.
     const html = String(reply.getHeader('content-type') ?? '').startsWith('text/html');
-    reply.headers(html ? { ...securityHeaders, 'content-security-policy': pageCsp } : securityHeaders);
+    const headers: Record<string, string> = html ? { ...securityHeaders, 'content-security-policy': pageCsp } : { ...securityHeaders };
+    // فایل نقشه عمومی است و باید در مرورگر بماند؛ مسیرش خودش cache-control می‌گذارد.
+    if (reply.getHeader('cache-control')) delete headers['cache-control'];
+    reply.headers(headers);
   });
 
   // فقط مبدأهای فهرست‌شده؛ بقیهٔ سایت‌ها پاسخ را نمی‌توانند بخوانند.
@@ -45,12 +51,12 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
     app.addHook('onRequest', async (req, reply) => {
       const origin = req.headers.origin;
       if (!origin || !corsOrigins.includes(origin)) return;
-      reply.header('access-control-allow-origin', origin).header('vary', 'Origin').header('access-control-expose-headers', 'retry-after');
+      reply.header('access-control-allow-origin', origin).header('vary', 'Origin').header('access-control-expose-headers', 'retry-after, etag, content-range');
       if (req.method === 'OPTIONS') {
         return reply
           .status(204)
           .header('access-control-allow-methods', 'GET, POST, DELETE')
-          .header('access-control-allow-headers', 'authorization, content-type')
+          .header('access-control-allow-headers', 'authorization, content-type, range, if-match')
           .header('access-control-max-age', '600')
           .send();
       }
@@ -76,6 +82,8 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
       return reply.status(503).send({ status: 'unavailable' });
     }
   });
+
+  if (mapDir) void app.register(mapRoutes, { dir: mapDir });
 
   app.decorateRequest('auth', null);
   app.decorateRequest('member', null);

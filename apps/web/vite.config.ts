@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { defineConfig, loadEnv, type UserConfig } from 'vite';
+import { defineConfig, loadEnv, type Plugin, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -15,11 +16,23 @@ export default defineConfig(({ command, mode }) => {
   return config;
 });
 
+// افزونهٔ راست‌به‌چپ نقشه فایل آماده‌اش را در exports نیاورده و پیش‌بسته‌بندی Vite خرابش می‌کند؛ متنش را خودمان می‌دهیم
+function rtlText(): Plugin {
+  const id = 'kelid-rtl-text';
+  const file = createRequire(import.meta.url).resolve('@mapbox/mapbox-gl-rtl-text').replace(/src[\\/]index\.js$/, 'dist/mapbox-gl-rtl-text.js');
+  return {
+    name: id,
+    resolveId: (s) => (s === id ? '\0' + id : undefined),
+    load: (s) => (s === '\0' + id ? `export default ${JSON.stringify(readFileSync(file, 'utf8'))};` : undefined),
+  };
+}
+
 const config = {
   // نسخهٔ برنامه برای گزارش خطا و نظر کاربر
   define: { __KELID_VERSION__: JSON.stringify((JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8')) as { version: string }).version) },
   plugins: [
     react(),
+    rtlText(),
     // نصب روی گوشی و کار بدون اینترنت. Service Worker را خود برنامه فقط در وب ثبت می‌کند (main.tsx)، نه در ویندوز.
     VitePWA({
       injectRegister: false,

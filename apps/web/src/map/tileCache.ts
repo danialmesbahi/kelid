@@ -1,26 +1,28 @@
-/**
- * نقشهٔ آفلاین: هر کاشی، استایل و فونتی که نقشه از سرور نقشه می‌گیرد روی همین دستگاه (IndexedDB) هم می‌ماند.
- * بی‌اینترنت، جاهایی که قبلاً دیده شده‌اند باز هم دیده می‌شوند. این کار جدا از دادهٔ دفتر است و همگام نمی‌شود.
- *
- * چرا fetch و نه Service Worker: نسخهٔ ویندوز از file:// باز می‌شود و Service Worker ندارد؛ این راه هر دو را می‌پوشاند.
- * فقط نشانی‌های سرور نقشه دست می‌خورند؛ بقیهٔ درخواست‌های برنامه همان fetch اصلی‌اند.
- */
-const TILE_HOST = /^https:\/\/(?!api\.)([a-z0-9-]+\.)*neshan\.org\//i;
-const DB_NAME = 'kelid-map';
-const STORE = 'files';
-/** حدود ۱۵۰ مگابایت؛ بیشتر از آن قدیمی‌ترها پاک می‌شوند. */
-const MAX_ITEMS = 5000;
-/** کاشی‌ها کم عوض می‌شوند؛ بعد از دو هفته در پس‌زمینه تازه می‌شوند. */
-const FRESH_MS = 14 * 24 * 3600_000;
+import { FetchSource, PMTiles, type RangeResponse, type Source } from 'pmtiles';
+import { tilesUrl } from './provider';
 
-type Item = { url: string; body: ArrayBuffer; type: string; t: number };
+/**
+ * نقشهٔ آفلاین: هر تکه‌ای از فایل نقشه که یک بار خوانده شد روی همین دستگاه (IndexedDB) می‌ماند،
+ * پس بی‌اینترنت جاهایی که قبلاً دیده شده‌اند باز هم کامل دیده می‌شوند. جدا از دادهٔ دفتر است و همگام نمی‌شود.
+ * سرصفحهٔ فایل (اولین تکه) با اینترنت همیشه از سرور تازه می‌شود؛ اگر فایل نقشه روی سرور عوض شده باشد، کش قدیمی پاک می‌شود.
+ */
+const DB_NAME = 'kelid-map';
+const STORE = 'bytes';
+/** حدود ۲۰۰ مگابایت؛ بیشتر از آن قدیمی‌ترها پاک می‌شوند. */
+const MAX_ITEMS = 6000;
+
+type Item = { k: string; data: ArrayBuffer; t: number };
 
 let dbp: Promise<IDBDatabase | null> | undefined;
 function db(): Promise<IDBDatabase | null> {
   dbp ??= new Promise((resolve) => {
     try {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'url' }).createIndex('t', 't');
+      const req = indexedDB.open(DB_NAME, 2);
+      req.onupgradeneeded = () => {
+        const d = req.result;
+        for (const n of [...d.objectStoreNames]) d.deleteObjectStore(n);
+        d.createObjectStore(STORE, { keyPath: 'k' }).createIndex('t', 't');
+      };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
     } catch {
@@ -47,20 +49,7 @@ function tx<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<
   );
 }
 
-/** کلید API در نشانی است؛ بدون آن ذخیره می‌شود تا با عوض شدن کلید، نقشهٔ ذخیره‌شده از دست نرود. */
-export function cacheKey(url: string): string {
-  const u = new URL(url);
-  u.searchParams.delete('key');
-  return u.href;
-}
-
 let writes = 0;
-async function save(url: string, res: Response) {
-  const body = await res.arrayBuffer();
-  await tx('readwrite', (s) => s.put({ url, body, type: res.headers.get('content-type') ?? '', t: Date.now() } satisfies Item));
-  if (++writes % 200 === 0) void prune();
-}
-
 async function prune() {
   const count = await tx<number>('readonly', (s) => s.count());
   if (!count || count <= MAX_ITEMS) return;
@@ -76,37 +65,73 @@ async function prune() {
   });
 }
 
-const fromItem = (it: Item) => new Response(it.body.slice(0), { status: 200, headers: it.type ? { 'content-type': it.type } : {} });
+const same = (a: ArrayBuffer, b: ArrayBuffer) => {
+  if (a.byteLength !== b.byteLength) return false;
+  const x = new Uint8Array(a);
+  const y = new Uint8Array(b);
+  return x.every((v, i) => v === y[i]);
+};
 
-async function cachedFetch(net: typeof fetch, input: RequestInfo | URL, init: RequestInit | undefined, url: string): Promise<Response> {
-  const key = cacheKey(url);
-  const hit = await tx<Item | undefined>('readonly', (s) => s.get(key));
-  // استایل کوچک است و ممکن است عوض شود: اول از شبکه. کاشی‌ها اول از دستگاه، که نقشه فوری بیاید.
-  const styleLike = /\.json(\?|$)/.test(url);
-  if (hit && (!styleLike || !navigator.onLine)) {
-    if (navigator.onLine && Date.now() - hit.t > FRESH_MS) {
-      void net(url).then((r) => (r.ok ? save(key, r) : undefined)).catch(() => undefined);
-    }
-    return fromItem(hit);
+/** همان FetchSource خود pmtiles، با یک لایهٔ کش روی دستگاه. */
+export class CachedSource implements Source {
+  private net: FetchSource;
+  constructor(private url: string) {
+    this.net = new FetchSource(url);
   }
-  try {
-    const res = await net(input, init);
-    if (res.ok && res.status === 200) void save(key, res.clone());
-    return res;
-  } catch (err) {
-    if (hit) return fromItem(hit);
-    throw err;
+
+  getKey() {
+    return this.url;
+  }
+
+  async getBytes(offset: number, length: number, signal?: AbortSignal, etag?: string): Promise<RangeResponse> {
+    const k = `${this.url}|${offset}|${length}`;
+    const header = offset === 0;
+    const hit = await tx<Item | undefined>('readonly', (s) => s.get(k));
+    // تکه‌های داخل فایل هرگز عوض نمی‌شوند مگر کل فایل عوض شود؛ آن را سرصفحه می‌فهماند.
+    if (hit && (!header || !navigator.onLine)) return { data: hit.data };
+    try {
+      const r = await this.net.getBytes(offset, length, signal, etag);
+      if (header && hit && !same(hit.data, r.data)) await this.clear();
+      await tx('readwrite', (s) => s.put({ k, data: r.data, t: Date.now() } satisfies Item));
+      if (++writes % 200 === 0) void prune();
+      return r;
+    } catch (err) {
+      if (hit) return { data: hit.data };
+      throw err;
+    }
+  }
+
+  private async clear() {
+    const prefix = `${this.url}|`;
+    await tx('readwrite', (s) => {
+      const cur = s.openCursor(IDBKeyRange.bound(prefix, `${prefix}￿`));
+      cur.onsuccess = () => {
+        const c = cur.result;
+        if (!c) return;
+        c.delete();
+        c.continue();
+      };
+    });
   }
 }
 
-let installed = false;
-/** یک بار، پیش از ساختن اولین نقشه. */
-export function installTileCache() {
-  if (installed || typeof indexedDB === 'undefined') return;
-  installed = true;
-  const net = window.fetch.bind(window);
-  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    return TILE_HOST.test(url) ? cachedFetch(net, input, init, url) : net(input, init);
-  };
+let archive: PMTiles | undefined;
+/** یک فایل نقشه برای همهٔ نقشه‌های برنامه. */
+export function mapArchive(): PMTiles {
+  archive ??= new PMTiles(new CachedSource(tilesUrl()));
+  return archive;
+}
+
+let ready: Promise<boolean> | undefined;
+/** فایل نقشه هست و خوانده می‌شود (از سرور یا از کش دستگاه)؟ بی آن، فرم‌ها همان فرم ساده‌اند. */
+export function mapAvailable(): Promise<boolean> {
+  ready ??= mapArchive()
+    .getHeader()
+    .then(() => true)
+    .catch(() => {
+      // بار بعد (مثلاً وقتی اینترنت برگشت) دوباره امتحان شود
+      ready = undefined;
+      return false;
+    });
+  return ready;
 }

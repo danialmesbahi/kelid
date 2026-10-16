@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon, Skeleton } from '@kelid/ui';
-import { nearestPlace, type GeoPoint } from '@kelid/core';
+import { nearestPlace, normalizeForSearch, type GeoPoint } from '@kelid/core';
 import { useQuery } from '../data';
 import { filesQuery } from '../queries';
 import { MapView, type KMap } from './MapView';
 import { PinShape } from './Pin';
-import { DEFAULT_CENTER, reverse, search, type Place, type SearchHit } from './provider';
+import { DEFAULT_CENTER, type Place, type SearchHit } from './provider';
+import { placeAt, searchPlaces } from './places';
 
 export type Picked = { point: GeoPoint; place: Place | null };
 
@@ -58,77 +59,86 @@ export function LocationPicker({ mode, value, onPick, onClose }: Props) {
 
   const last = lastView();
   const start = useRef(
-    value ? { center: value, zoom: 17 } : last ? { center: last.center, zoom: mode === 'hood' ? Math.min(last.zoom, 14) : Math.max(last.zoom, 14) } : { center: DEFAULT_CENTER, zoom: 12 },
+    value
+      ? { center: value, zoom: 17 }
+      : last
+        ? { center: last.center, zoom: mode === 'hood' ? Math.min(last.zoom, 14) : Math.max(last.zoom, 14) }
+        : { center: DEFAULT_CENTER, zoom: 12 },
   );
 
   const [zoom, setZoom] = useState(start.current.zoom);
 
   // نشانیِ نقطهٔ زیر سنجاق: از سرویس نقشه، و بی‌اینترنت از نزدیک‌ترین فایل خود دفتر.
-  const lookup = useRef<{ timer?: number; ctl?: AbortController }>({});
+  const lookup = useRef<{ timer?: number }>({});
   const look = useCallback((p: GeoPoint) => {
     const l = lookup.current;
     window.clearTimeout(l.timer);
-    l.ctl?.abort();
     setLooking(true);
+    // کاشی‌های تازه کمی بعد از ایستادن نقشه می‌رسند؛ کمی صبر می‌کنیم تا نام خیابان هم در آن‌ها باشد
     l.timer = window.setTimeout(() => {
-      const ctl = new AbortController();
-      l.ctl = ctl;
-      void reverse(p, ctl.signal).then((r) => {
-        if (ctl.signal.aborted) return;
-        const guess = r ? null : nearestPlace(listings.current, p);
-        setPlace(r ?? (guess ? { ...guess, address: '' } : null));
-        setGuessed(!r && !!guess);
-        setLooking(false);
-      });
-    }, 280);
+      const map = mapRef.current;
+      const r = map ? placeAt(map, p) : null;
+      const guess = nearestPlace(listings.current, p);
+      // محله‌ای که دفتر خودش برای فایل‌های همین حوالی نوشته، از نام رسمی نقشه آشناتر است
+      const neighborhood = guess?.neighborhood || r?.neighborhood || '';
+      setPlace(neighborhood || r?.street ? { neighborhood, street: r?.street || guess?.street || '', address: r?.address ?? '' } : null);
+      setGuessed(!r && !!guess);
+      setLooking(false);
+    }, 450);
   }, []);
 
-  const onMap = useCallback((map: KMap) => {
-    mapRef.current = map;
-    let last: GeoPoint | undefined;
-    const settle = () => {
-      const c = map.getCenter();
-      setMoving(false);
-      setZoom(map.getZoom());
-      // تغییر اندازهٔ پنجره هم «جابه‌جایی» حساب می‌شود؛ وقتی نقطه همان است دوباره نمی‌پرسیم (وگرنه حلقه می‌شود)
-      if (last && Math.abs(last.lat - c.lat) < 1e-7 && Math.abs(last.lng - c.lng) < 1e-7) return;
-      last = { lat: c.lat, lng: c.lng };
-      setPoint(last);
-      look(last);
-    };
-    // فقط وقتی کاربر یا جستجو نقشه را می‌برد سنجاق بلند می‌شود، نه با تغییر اندازهٔ پنجره
-    const begin = (e: { originalEvent?: unknown }) => {
-      if (!e.originalEvent && !flying.current) return;
-      flying.current = false;
-      setMoving(true);
-      setTouched(true);
-    };
-    map.on('movestart', begin);
-    map.on('moveend', settle);
-    settle();
-    return () => {
-      saveView(map);
-      window.clearTimeout(lookup.current.timer);
-      lookup.current.ctl?.abort();
-    };
-  }, [look]);
+  const onMap = useCallback(
+    (map: KMap) => {
+      mapRef.current = map;
+      let last: GeoPoint | undefined;
+      const settle = () => {
+        const c = map.getCenter();
+        setMoving(false);
+        setZoom(map.getZoom());
+        // تغییر اندازهٔ پنجره هم «جابه‌جایی» حساب می‌شود؛ وقتی نقطه همان است دوباره نمی‌پرسیم (وگرنه حلقه می‌شود)
+        if (last && Math.abs(last.lat - c.lat) < 1e-7 && Math.abs(last.lng - c.lng) < 1e-7) return;
+        last = { lat: c.lat, lng: c.lng };
+        setPoint(last);
+        look(last);
+      };
+      // فقط وقتی کاربر یا جستجو نقشه را می‌برد سنجاق بلند می‌شود، نه با تغییر اندازهٔ پنجره
+      const begin = (e: { originalEvent?: unknown }) => {
+        if (!e.originalEvent && !flying.current) return;
+        flying.current = false;
+        setMoving(true);
+        setTouched(true);
+      };
+      map.on('movestart', begin);
+      map.on('moveend', settle);
+      settle();
+      return () => {
+        saveView(map);
+        window.clearTimeout(lookup.current.timer);
+      };
+    },
+    [look],
+  );
 
-  // جستجو کمی بعد از آخرین حرف، تا با هر حرف درخواست نرود
+  // جستجو در دادهٔ خود نقشه و محله‌های فایل‌های دفتر؛ کمی بعد از آخرین حرف
   useEffect(() => {
     const term = q.trim();
     if (term.length < 2) {
       setHits([]);
       return;
     }
-    const ctl = new AbortController();
     const t = window.setTimeout(() => {
-      const c = mapRef.current?.getCenter();
-      void search(term, c ? { lat: c.lat, lng: c.lng } : DEFAULT_CENTER, ctl.signal).then((h) => !ctl.signal.aborted && setHits(h));
-    }, 320);
-    return () => {
-      window.clearTimeout(t);
-      ctl.abort();
-    };
+      const map = mapRef.current;
+      const c = map?.getCenter();
+      const near = c ? { lat: c.lat, lng: c.lng } : DEFAULT_CENTER;
+      const nq = normalizeForSearch(term);
+      const own = new Map<string, SearchHit>();
+      for (const l of listings.current) {
+        if (l.location && normalizeForSearch(l.neighborhood).includes(nq) && !own.has(l.neighborhood))
+          own.set(l.neighborhood, { title: l.neighborhood, detail: 'از فایل‌های شما', point: l.location });
+      }
+      setHits([...own.values(), ...(map ? searchPlaces(map, term, near) : [])].slice(0, 8));
+    }, 200);
+    return () => window.clearTimeout(t);
   }, [q]);
 
   useEffect(() => {
@@ -151,7 +161,11 @@ export function LocationPicker({ mode, value, onPick, onClose }: Props) {
   // موقعیت گوشی؛ در نسخهٔ ویندوز معمولاً در دسترس نیست، پس دکمه‌اش آنجا نیست.
   const canLocate = !window.kelid && 'geolocation' in navigator;
   const locate = () =>
-    navigator.geolocation.getCurrentPosition((pos) => go({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 17), () => undefined, { enableHighAccuracy: true, timeout: 10_000 });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => go({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 17),
+      () => undefined,
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
 
   const tooFar = mode === 'home' && zoom < HOUSE_ZOOM;
   const confirm = () => {
@@ -174,26 +188,67 @@ export function LocationPicker({ mode, value, onPick, onClose }: Props) {
   const okLabel = tooFar ? 'نزدیک‌تر بروید' : mode === 'hood' ? 'افزودن این محله' : 'همین‌جاست';
 
   return createPortal(
-    <div className="overlay lp-ov" onMouseDown={(e) => { e.stopPropagation(); onClose(); }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="lp-title" tabIndex={-1} className="lp pop" onMouseDown={(e) => e.stopPropagation()} onKeyDown={onKeyDown}>
-        <h2 id="lp-title" className="visually-hidden">{mode === 'hood' ? 'انتخاب محله روی نقشه' : 'انتخاب جای ملک روی نقشه'}</h2>
+    <div
+      className="overlay lp-ov"
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lp-title"
+        tabIndex={-1}
+        className="lp pop"
+        onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={onKeyDown}
+      >
+        <h2 id="lp-title" className="visually-hidden">
+          {mode === 'hood' ? 'انتخاب محله روی نقشه' : 'انتخاب جای ملک روی نقشه'}
+        </h2>
         <MapView center={start.current.center} zoom={start.current.zoom} onMap={onMap} label="نقشه؛ نقشه را بکشید تا سنجاق روی جای درست بنشیند">
-          <span className={`kpin ${moving ? 'up' : ''}`} aria-hidden="true"><PinShape /></span>
-          <span className={`lp-hint ${touched ? 'gone' : ''}`} aria-hidden="true">{mode === 'hood' ? 'نقشه را بکشید تا سنجاق روی محله بنشیند' : 'نقشه را بکشید تا سنجاق روی خانه بنشیند'}</span>
+          <span className={`kpin ${moving ? 'up' : ''}`} aria-hidden="true">
+            <PinShape />
+          </span>
+          <span className={`lp-hint ${touched ? 'gone' : ''}`} aria-hidden="true">
+            {mode === 'hood' ? 'نقشه را بکشید تا سنجاق روی محله بنشیند' : 'نقشه را بکشید تا سنجاق روی خانه بنشیند'}
+          </span>
           {canLocate && (
-            <button type="button" className="kfab lp-me" aria-label="جای فعلی من" onClick={locate}><Icon name="nav" /></button>
+            <button type="button" className="kfab lp-me" aria-label="جای فعلی من" onClick={locate}>
+              <Icon name="nav" />
+            </button>
           )}
         </MapView>
 
         <div className="lp-top">
           <div className="lp-search">
             <Icon name="search" size="s" />
-            <input className="fld" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی محله، خیابان یا جای معروف" aria-label="جستجو در نقشه"
-              onKeyDown={(e) => { if (e.key === 'Enter' && hits[0]) { e.preventDefault(); pickHit(hits[0]); } }} />
+            <input
+              className="fld"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="جستجوی محله، خیابان یا جای معروف در همین حوالی"
+              aria-label="جستجو در نقشه"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && hits[0]) {
+                  e.preventDefault();
+                  pickHit(hits[0]);
+                }
+              }}
+            />
             {hits.length > 0 && (
               <div className="lp-hits enter" role="listbox" aria-label="نتیجه‌های جستجو">
                 {hits.map((h, i) => (
-                  <button key={`${h.point.lat},${h.point.lng},${i}`} type="button" role="option" aria-selected={false} className="lp-hit" onClick={() => pickHit(h)}>
+                  <button
+                    key={`${h.point.lat},${h.point.lng},${i}`}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className="lp-hit"
+                    onClick={() => pickHit(h)}
+                  >
                     <span className="sb">{h.title}</span>
                     {h.detail && <span className="xs mute">{h.detail}</span>}
                   </button>
@@ -201,7 +256,9 @@ export function LocationPicker({ mode, value, onPick, onClose }: Props) {
               </div>
             )}
           </div>
-          <button type="button" className="kfab lp-close" aria-label="بستن نقشه" onClick={onClose}><Icon name="x" /></button>
+          <button type="button" className="kfab lp-close" aria-label="بستن نقشه" onClick={onClose}>
+            <Icon name="x" />
+          </button>
         </div>
 
         <div className="lp-card">
@@ -215,7 +272,9 @@ export function LocationPicker({ mode, value, onPick, onClose }: Props) {
               <>
                 <span className="lp-hood">{hood || (mode === 'hood' ? 'محلهٔ این نقطه پیدا نشد' : 'جای ملک')}</span>
                 <span className="lp-street">
-                  {guessed ? [place?.street, 'حدس از فایل‌های نزدیک شما'].filter(Boolean).join(' · ') : place?.street || (hood ? '' : navigator.onLine ? 'نام محله را خودتان بنویسید' : 'بی‌اینترنت؛ نام محله را خودتان بنویسید')}
+                  {guessed
+                    ? [place?.street, 'حدس از فایل‌های نزدیک شما'].filter(Boolean).join(' · ')
+                    : place?.street || (hood ? '' : 'نام محله را خودتان بنویسید')}
                 </span>
               </>
             )}
