@@ -1,5 +1,4 @@
 /* ورود با موبایل؛ چیدمان و صحنه از welcome.css می‌آید، این‌جا فقط فیلد شماره، خانه‌های کد و پیام‌ها. */
-.lg-brand { height: 34px; padding: 0 14px; font-size: 17px; }
 
 .lg-field { max-width: 440px; }
 .lg-one { grid-template-columns: minmax(0, 1fr); max-width: 440px; }

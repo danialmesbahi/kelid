@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
-import { Icon } from '@kelid/ui';
+import { Icon, Logo } from '@kelid/ui';
 import { toEnDigits, toFaDigits } from '@kelid/core';
 import { usePrefsContext } from '../App';
 import { useStore } from '../data';
@@ -370,7 +370,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
 
       <form className="wl-main" onSubmit={submit} noValidate>
         <header className="wl-top">
-          <span className="plq lg-brand">کلید</span>
+          <Logo size={34} word className="lg-brand" />
           <span className="sp" />
           {steps.length > 0 && (
             <ol className="wl-dots" aria-label={`قدم ${toFaDigits(idx + 1)} از ${toFaDigits(steps.length)}`}>

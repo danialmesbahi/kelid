@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Cover, Icon } from '@kelid/ui';
+import { Cover, Icon, Logo } from '@kelid/ui';
 import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { coverUrl, photoUrl, prefetchFullPhoto, useCoverThumbs, useFullPhotoUrl } from '../photos/photos';
@@ -174,7 +174,7 @@ export function ShowPage() {
   return (
     <div className={`app dark sh${focus ? ' focus' : ''}`}>
       <header className="sh-top">
-        <span className="plq" style={{ height: 30, padding: '0 11px', fontSize: 14 }}>کلید</span>
+        <Logo size={30} word />
         {/* این صفحه جلوی مشتری است: نام واقعی دفتر، یا هیچ (نه متن نمونه). */}
         {officeName && <span className="sh-office">{officeName}</span>}
         <span className="sp" />

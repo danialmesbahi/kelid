@@ -2,11 +2,22 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { DealType } from '@kelid/core';
 import { formatPlaque } from '@kelid/core';
 import { iconPaths, type IconName } from './icons';
+import logoUrl from './logo.svg';
 
 export function Icon({ name, size = 'm', thick = false, className = '' }: { name: IconName; size?: 's' | 'm' | 'l'; thick?: boolean; className?: string }) {
   const cls = ['ic', size === 's' ? 's' : size === 'l' ? 'l' : '', thick ? 'th' : '', className].filter(Boolean).join(' ');
   // مسیرها ثابت‌های خود برنامه‌اند، نه ورودی کاربر.
   return <svg className={cls} viewBox="0 0 24 24" aria-hidden="true" dangerouslySetInnerHTML={{ __html: iconPaths[name] }} />;
+}
+
+/** نشان «کلید» (کلید شمسه). با word نام «کلید» کنارش می‌آید و تصویر فقط تزئینی می‌شود. */
+export function Logo({ size = 32, word = false, className = '' }: { size?: number; word?: boolean; className?: string }) {
+  return (
+    <span className={['logo', className].filter(Boolean).join(' ')} style={word ? { fontSize: Math.round(size * 0.6) } : undefined}>
+      <img src={logoUrl} width={size} height={size} alt={word ? '' : 'کلید'} draggable={false} />
+      {word && <b>کلید</b>}
+    </span>
+  );
 }
 
 const dealClass: Record<DealType, string> = { sale: '', rent: 'r', full: 'f' };

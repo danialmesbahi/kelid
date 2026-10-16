@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Icon } from '@kelid/ui';
+import { Icon, Logo } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { api, ApiError, DEMO } from './api';
 import { useAuth } from './auth';
@@ -47,9 +47,7 @@ export function Login() {
     <div className="ad-login">
       <form className="card ad-login-card enter" onSubmit={submit} noValidate aria-labelledby="ad-login-title">
         <div className="rw" style={{ gap: 12 }}>
-          <span className="plq l" aria-hidden="true">
-            کلید
-          </span>
+          <Logo size={44} />
           <span className="col">
             <h1 id="ad-login-title" className="t2">
               پنل فروشنده

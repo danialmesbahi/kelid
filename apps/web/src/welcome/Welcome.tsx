@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
-import { Icon, type IconName } from '@kelid/ui';
+import { Icon, Logo, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { usePrefsContext } from '../App';
 import { useQuery, useStore } from '../data';
@@ -99,7 +99,7 @@ export function Welcome({
       <form className="wl-main" onSubmit={next}>
         {signedUp ? (
           <header className="wl-top">
-            <span className="plq lg-brand">کلید</span>
+            <Logo size={34} word className="lg-brand" />
             <span className="sp" />
             <ol className="wl-dots" aria-label={`قدم ${toFaDigits(LOGIN_STEPS.length + at + 1)} از ${toFaDigits(LOGIN_STEPS.length + order.length)}`}>
               {LOGIN_STEPS.map((s) => <li key={s} className="past"><span className="visually-hidden">{s}</span></li>)}
@@ -160,7 +160,7 @@ export function Welcome({
                 <label className="lbl">نام دفتر<input className="fld wl-fld" value={office} onChange={(e) => setOffice(e.target.value)} enterKeyHint="next" placeholder="مثلاً املاک پارسا" autoComplete="organization" /></label>
               </div>
               <div className="wl-preview" aria-live="polite">
-                <span className="plq" style={{ height: 34, padding: '0 12px', fontSize: 16 }}>کلید</span>
+                <Logo size={36} />
                 <span className="col" style={{ minWidth: 0 }}>
                   <b className="wl-ell">{office.trim() || 'نام دفتر'}</b>
                   <span className="xs mute">{greetingNow()}{who ? `، ${who}` : ''}</span>
