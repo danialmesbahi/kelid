@@ -280,8 +280,15 @@ export function PlansPage() {
   if (mineOf && current) {
     return (
       <MySubscription
-        plan={mineOf}
-        seats={plan?.id === mineOf.id ? seats : (curSeats ?? mineOf.seats)}
+        mine={mineOf}
+        mineSeats={curSeats ?? mineOf.seats}
+        target={plan ?? mineOf}
+        targetSeats={plan ? seats : (curSeats ?? mineOf.seats)}
+        plans={plans}
+        onTarget={(id, n) => {
+          setPicked(id);
+          setWantSeats(n);
+        }}
         used={used}
         expiresAt={current.expiresAt}
         lic={lic}
@@ -289,8 +296,8 @@ export function PlansPage() {
         manager={manager}
         period={period}
         onPeriod={setPeriod}
-        until={plan?.id === mineOf.id ? until : null}
-        canPay={canPay && plan?.id === mineOf.id}
+        until={until}
+        canPay={canPay}
         opening={flow.step === 'opening'}
         onPay={() => void pay()}
         note={payNote}
