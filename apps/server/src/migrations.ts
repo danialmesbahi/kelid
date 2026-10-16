@@ -318,6 +318,12 @@ export const migrations: readonly string[] = [
   create trigger vendor_notify after insert or update or delete on feedback for each row execute function kelid_vendor_notify();
   create trigger vendor_notify after insert or update or delete on client_errors for each row execute function kelid_vendor_notify();
   `,
+  // اشتراک شش‌ماهه، و پلن «دفتر بزرگ» با نفر اضافه: هر پرداخت تعداد نفراتی را که خریده نگه می‌دارد (خالی = همان جای پلن).
+  `
+  alter table payments drop constraint payments_period_check;
+  alter table payments add constraint payments_period_check check (period in ('month', 'half', 'year'));
+  alter table payments add column seats int check (seats between 1 and 500);
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

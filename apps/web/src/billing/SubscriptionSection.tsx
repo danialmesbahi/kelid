@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { Icon } from '@kelid/ui';
-import { formatGrouped, planById, toFaDigits } from '@kelid/core';
+import { formatGrouped, planById, termOf, toFaDigits } from '@kelid/core';
 import { useAuth, useMember } from '../auth/AuthContext';
 import { useLicense } from './license';
 import { daysLeftText, phaseTag, planName, untilText, useBilling } from './useBilling';
@@ -80,7 +80,7 @@ export function SubscriptionSection() {
               <li key={p.id}>
                 <span className="col" style={{ minWidth: 0 }}>
                   <span className="sb">
-                    پلن {planName(p.plan)}، {p.period === 'year' ? 'یک‌ساله' : 'یک‌ماهه'}
+                    پلن {planName(p.plan)}، {termOf(p.period).name}
                   </span>
                   <span className="xs mute">
                     {p.paidAt ? untilText(p.paidAt) : ''}
