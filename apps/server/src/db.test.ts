@@ -24,7 +24,7 @@ if (process.env.KELID_REQUIRE_TEST_DB && !(appUrl && ownerUrl)) {
 }
 
 // جدول‌هایی که عمداً مال هیچ دفتری نیستند؛ هر جدول دیگری بدون RLS اجباری خطاست.
-const SHARED_TABLES = ['schema_migrations', 'users', 'devices', 'otp_codes', 'signup_tickets', 'invites'];
+const SHARED_TABLES = ['schema_migrations', 'users', 'devices', 'otp_codes', 'signup_tickets', 'invites', 'device_tickets'];
 
 describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
   let owner: Pool;
@@ -168,6 +168,59 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
 
       const devices = await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: `Bearer ${again.json().accessToken}` } });
       expect(devices.json().map((d: { name: string; current: boolean }) => [d.name, d.current])).toEqual([['گوشی', true], ['لپ‌تاپ', false]]);
+      await a.close();
+    });
+
+    it('caps signed-in devices of an office at its seats; a login past it must sign one out first', async () => {
+      const a = newApp();
+      const phone = freshPhone();
+      const s = await signUp(a, phone);
+      await withOffice(owner, s.office.id, (db) => db.query('update offices set seats = 2 where id = $1', [s.office.id]));
+      // یک حساب می‌تواند چند دستگاه داشته باشد، تا سقف نفرات دفتر
+      const second = await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'گوشی' });
+      expect(second.statusCode).toBe(200);
+
+      // رمز اشتباه هنوز همان جواب همیشگی است؛ فهرست دستگاه‌ها فقط بعد از رمز درست دیده می‌شود.
+      expect((await post(a, '/auth/login', { phone, password: 'nope-nope', deviceName: 'تبلت' })).json()).toEqual({ error: 'wrong' });
+      const full = await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'تبلت' });
+      expect(full.statusCode).toBe(409);
+      const limit = full.json();
+      expect(limit).toMatchObject({ error: 'device_limit', seats: 2 });
+      expect(limit.devices.map((d: { name: string; owner: string; mine: boolean }) => [d.name, d.owner, d.mine]).sort()).toEqual([
+        ['گوشی', 'علی رضایی', true],
+        ['لپ‌تاپ', 'علی رضایی', true],
+      ].sort());
+      expect((await owner.query('select count(*)::int as n from devices where user_id = $1 and revoked_at is null', [s.user.id])).rows[0].n).toBe(2);
+
+      // با کد پیامکی هم همین است
+      await allowResend(phone);
+      await post(a, '/auth/otp', { phone });
+      expect((await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'تبلت' })).statusCode).toBe(409);
+
+      expect((await post(a, '/auth/devices/replace', { ticket: 'nope', deviceId: s.deviceId })).json().error).toBe('expired');
+      const ok = await post(a, '/auth/devices/replace', { ticket: limit.ticket, deviceId: s.deviceId });
+      expect(ok.statusCode).toBe(200);
+      expect(ok.json()).toMatchObject({ user: { id: s.user.id }, office: { id: s.office.id } });
+      // دستگاه قبلی همان لحظه بیرون است و بلیت یک‌بار مصرف است
+      expect((await post(a, '/auth/refresh', { refreshToken: s.refreshToken })).statusCode).toBe(401);
+      expect((await post(a, '/auth/devices/replace', { ticket: limit.ticket, deviceId: second.json().deviceId })).json().error).toBe('expired');
+      const devices = await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: `Bearer ${ok.json().accessToken}` } });
+      expect(devices.json().map((d: { name: string; current: boolean }) => [d.name, d.current]).sort()).toEqual([['تبلت', true], ['گوشی', false]].sort());
+
+      // همکار دفتر هم در همین سقف است؛ دستگاه مدیر را نمی‌تواند بیرون کند، دستگاه‌های خودش را می‌تواند
+      const mate = freshPhone();
+      await owner.query(
+        "insert into users (id, office_id, phone, name, password_hash, role) select $2, office_id, $3, 'همکار', password_hash, 'agent' from users where id = $1",
+        [s.user.id, randomUUID(), mate],
+      );
+      const blocked = (await post(a, '/auth/login', { phone: mate, password: 'parsa-1404', deviceName: 'x' })).json();
+      expect(blocked.devices.every((d: { locked: boolean }) => d.locked)).toBe(true);
+      expect((await post(a, '/auth/devices/replace', { ticket: blocked.ticket, deviceId: ok.json().deviceId })).statusCode).toBe(409);
+      expect((await post(a, '/auth/refresh', { refreshToken: ok.json().refreshToken })).statusCode).toBe(200);
+
+      // دستگاهی که دیگر تمدید نمی‌شود (۱۸۰ روز سر نزده) جا نمی‌گیرد
+      await owner.query("update devices set last_seen_at = now() - interval '181 days' where user_id = $1", [s.user.id]);
+      expect((await post(a, '/auth/login', { phone: mate, password: 'parsa-1404', deviceName: 'x' })).statusCode).toBe(200);
       await a.close();
     });
 
@@ -743,9 +796,10 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const moved = await post(a, '/auth/invite/accept', {}, s.accessToken);
       expect(moved.statusCode).toBe(200);
       expect(moved.json()).toMatchObject({ office: { id: m.office.id }, user: { id: solo.user.id, role: 'agent', seeOwnerPhones: false }, invite: null });
-      // توکن دفتر قبلی دیگر کار نمی‌کند؛ دستگاه دیگرش با تمدید به دفتر تازه می‌رود
+      // توکن دفتر قبلی دیگر کار نمی‌کند؛ فقط همین دستگاه به دفتر تازه می‌رود و دستگاه دیگرش بیرون می‌افتد (سقف دستگاه دفتر)
       expect((await get(a, '/team', solo.accessToken)).statusCode).toBe(401);
-      expect((await post(a, '/auth/refresh', { refreshToken: solo.refreshToken })).json().office.id).toBe(m.office.id);
+      expect((await post(a, '/auth/refresh', { refreshToken: solo.refreshToken })).statusCode).toBe(401);
+      expect((await post(a, '/auth/refresh', { refreshToken: moved.json().refreshToken })).json().office.id).toBe(m.office.id);
 
       // مدیری که همکار دارد نمی‌تواند دفترش را رها کند؛ رد کردن دعوت آن را پاک می‌کند
       const busy = await signUp(a, freshPhone());

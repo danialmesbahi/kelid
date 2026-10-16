@@ -324,6 +324,25 @@ export const migrations: readonly string[] = [
   alter table payments add constraint payments_period_check check (period in ('month', 'half', 'year'));
   alter table payments add column seats int check (seats between 1 and 500);
   `,
+  // 13: سقف دستگاه‌های هر دفتر = تعداد نفرات اشتراکش (offices.seats)، وگرنه یک حساب می‌شد چند نفر.
+  // ورود از دستگاهی که جا ندارد بلیت کوتاه‌عمری می‌گیرد که با آن یکی از دستگاه‌های دفتر بیرون می‌رود و ورود ادامه پیدا می‌کند.
+  // دستگاه‌های اضافهٔ امروز هم بیرون می‌روند؛ تازه‌ترین‌های هر دفتر می‌مانند. جدول دفترها پشت RLS است، پس با پرچم فروشنده خوانده می‌شود.
+  `
+  create table device_tickets (
+    hash bytea primary key,
+    user_id uuid not null references users (id),
+    name text not null check (length(name) between 1 and 100),
+    via_otp boolean not null,
+    expires_at timestamptz not null
+  );
+  select set_config('kelid.vendor', 'on', true);
+  update devices d set revoked_at = now()
+    from (select d2.id, o.seats, row_number() over (partition by u.office_id order by d2.last_seen_at desc, d2.id desc) as n
+            from devices d2 join users u on u.id = d2.user_id join offices o on o.id = u.office_id
+           where d2.revoked_at is null) r
+   where r.id = d.id and r.n > r.seats;
+  select set_config('kelid.vendor', '', true);
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */
