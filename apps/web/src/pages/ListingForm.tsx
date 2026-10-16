@@ -4,7 +4,7 @@ import { useGoBack } from '../layout/useGoBack';
 import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
 import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
-import { dealLabel, formatGrouped, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { dealLabel, formatGrouped, hasBedrooms, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
@@ -288,7 +288,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
                 <input className="fld num" inputMode="numeric" value={f.area} onChange={(e) => set('area')(onlyDigits(e.target.value, 6))} aria-required="true" aria-invalid={!!errs.area} aria-describedby={errs.area ? 'err-area' : undefined} />
                 <FieldError id="err-area" text={errs.area} />
               </label>
-              <label className="lbl">خواب<input className="fld num" inputMode="numeric" value={f.bedrooms} onChange={(e) => set('bedrooms')(onlyDigits(e.target.value, 2))} /></label>
+              {hasBedrooms(f) && <label className="lbl">خواب<input className="fld num" inputMode="numeric" value={f.bedrooms} onChange={(e) => set('bedrooms')(onlyDigits(e.target.value, 2))} /></label>}
               <label className="lbl">طبقه<input className="fld num" inputMode="numeric" value={f.floor} onChange={(e) => set('floor')(onlyDigits(e.target.value, 3))} /></label>
               <label className="lbl">تعداد طبقات<input className="fld num" inputMode="numeric" value={f.floorsTotal} onChange={(e) => set('floorsTotal')(onlyDigits(e.target.value, 3))} /></label>
               <label className="lbl">سال ساخت<input className="fld num" inputMode="numeric" value={f.yearBuilt} onChange={(e) => set('yearBuilt')(onlyDigits(e.target.value, 4))} placeholder="۱۴۰۳" /></label>

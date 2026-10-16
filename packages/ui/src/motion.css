@@ -44,17 +44,18 @@ a.card:hover, button.card:hover { box-shadow: var(--sh-lg); border-color: var(--
 
 /* ── ورود محتوا ─────────────────────────────────────── */
 /* کوتاه نگه داشته شده: محتوا باید تقریباً فوراً سر جایش باشد، حرکت فقط حس نرمی بدهد نه انتظار. */
-.enter > * { animation: kl-rise 240ms var(--ease-out) both; }
+/* backwards نه both: بعد از ورود، انیمیشن کنار می‌رود تا هاور و لمس دوباره نرم جابه‌جا شوند. */
+.enter > * { animation: kl-rise 240ms var(--ease-out) backwards; }
 .enter > *:nth-child(2) { animation-delay: 30ms; }
 .enter > *:nth-child(n+3) { animation-delay: 60ms; }
 @keyframes kl-rise { from { opacity: 0; transform: translateY(6px); } }
 
 /* جزئیات پرونده هر بار که باز می‌شود: کمی دیرتر از عکس و با فاصلهٔ بیشتر، تا چشم اول عکس را دنبال کند. */
-.arrive > * { animation: kl-arrive 420ms var(--ease-expo) 70ms both; }
+.arrive > * { animation: kl-arrive 420ms var(--ease-expo) 70ms backwards; }
 .arrive > *:nth-child(2) { animation-delay: 120ms; }
 @keyframes kl-arrive { from { opacity: 0; transform: translateY(16px); } }
 
-.stagger > * { animation: kl-rise 220ms var(--ease-out) both; }
+.stagger > * { animation: kl-rise 220ms var(--ease-out) backwards; }
 .stagger > *:nth-child(2) { animation-delay: 15ms; }
 .stagger > *:nth-child(3) { animation-delay: 30ms; }
 .stagger > *:nth-child(4) { animation-delay: 45ms; }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Icon, Plaque, Segmented } from '@kelid/ui';
-import { listingPlace, dealLabel, floorLabel, formatPlaque, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
+import { bedroomsLabel, hasBedrooms, listingPlace, dealLabel, floorLabel, formatPlaque, headlinePrice, listingTitle, matchListing, secondaryPrice, toFaDigits, type Listing } from '@kelid/core';
 import { usePrefsContext } from '../App';
 import { useMember } from '../auth/AuthContext';
 import { useQuery, useStore } from '../data';
@@ -103,7 +103,7 @@ export function FileDetailPage() {
             <h2 id="fx" className="t2">مشخصات</h2>
             <div className="facts">
               <div><small>متراژ</small><b>{toFaDigits(l.area)} متر</b></div>
-              <div><small>اتاق خواب</small><b>{toFaDigits(l.bedrooms)}</b></div>
+              <div><small>اتاق خواب</small><b>{bedroomsLabel(l)}</b></div>
               <div><small>طبقه</small><b>{floorLabel(l)}</b></div>
               <div><small>سال ساخت</small><b>{l.yearBuilt ? toFaDigits(l.yearBuilt) : '—'}</b></div>
             </div>
@@ -173,7 +173,8 @@ export function FileDetailPage() {
 
 /** متن کوتاه فایل برای مشتری (بدون اطلاعات مالک)؛ برای پیام‌رسان‌ها و پیامک. */
 function listingShareText(l: Listing, officeName: string): string {
-  const facts = [`${toFaDigits(l.area)} متر`, `${toFaDigits(l.bedrooms)} خواب`];
+  const facts = [`${toFaDigits(l.area)} متر`];
+  if (hasBedrooms(l) && l.bedrooms > 0) facts.push(`${toFaDigits(l.bedrooms)} خواب`);
   if (l.floor !== undefined) facts.push(`طبقهٔ ${floorLabel(l)}`);
   const second = secondaryPrice(l);
   return [

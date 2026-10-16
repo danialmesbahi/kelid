@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Cover, Icon, Logo } from '@kelid/ui';
-import { dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
+import { bedroomsLabel, dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, type Listing, type PhotoThumb } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { coverUrl, photoUrl, prefetchFullPhoto, useCoverThumbs, useFullPhotoUrl } from '../photos/photos';
 import { usePrefsContext } from '../App';
@@ -281,7 +281,7 @@ function InfoBody({ p }: { p: Listing }) {
       </div>
       <dl className="sh-specs">
         <div><dt>متراژ</dt><dd className="num">{toFaDigits(p.area)} متر</dd></div>
-        <div><dt>اتاق خواب</dt><dd className="num">{toFaDigits(p.bedrooms)}</dd></div>
+        <div><dt>اتاق خواب</dt><dd className="num">{bedroomsLabel(p)}</dd></div>
         <div><dt>طبقه</dt><dd className="num">{floorLabel(p)}</dd></div>
         <div><dt>سال ساخت</dt><dd className="num">{p.yearBuilt ? toFaDigits(p.yearBuilt) : '—'}</dd></div>
       </dl>
