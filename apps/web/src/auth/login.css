@@ -63,10 +63,25 @@ html[dir="rtl"] .lg-otp { justify-content: end; }
 .lg-alt:hover { border-style: solid; border-color: color-mix(in srgb, var(--pri-text) 40%, var(--line2)); background: color-mix(in srgb, var(--pri-tint) 35%, transparent); color: var(--ink); }
 .lg-alt:focus-visible { outline: 2px solid var(--pri-text); outline-offset: 2px; }
 .lg-demo { align-self: flex-start; padding: 6px 12px; border-radius: 10px; background: var(--warn-tint); color: var(--warn); font-size: 13.5px; }
+/* سقف دستگاه: دستگاه‌های باز حساب، یکی انتخاب می‌شود تا خارج شود. همان قاب فیلد شماره. */
+.lg-devs { display: flex; flex-direction: column; gap: 10px; max-width: 440px; }
+.lg-dev {
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  padding: 14px 18px; border: 1.5px solid var(--line2); border-radius: 18px; background: var(--paper); color: var(--mute); cursor: pointer;
+  transition: border-color var(--t-fast) ease, box-shadow var(--t-med) ease, background-color var(--t-fast) ease;
+}
+.lg-dev input { position: absolute; opacity: 0; pointer-events: none; }
+.lg-dev-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lg-dev-t b { color: var(--ink); font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-dev-ok { opacity: 0; color: var(--pri-text); transition: opacity var(--t-fast) ease; }
+.lg-dev:hover { border-color: color-mix(in srgb, var(--pri-text) 35%, var(--line2)); }
+.lg-dev.on { border-color: var(--pri-text); background: color-mix(in srgb, var(--pri-tint) 35%, var(--paper)); color: var(--pri-text); }
+.lg-dev.on .lg-dev-ok { opacity: 1; }
+.lg-dev:has(input:focus-visible) { box-shadow: 0 0 0 5px var(--pri-tint); }
 
 @media (prefers-reduced-motion: reduce) {
   .lg-otp.shake, .lg-phone.shake { animation: none; }
-  .lg-cell, .lg-alt { transition: none; }
+  .lg-cell, .lg-alt, .lg-dev, .lg-dev-ok { transition: none; }
 }
 
 @media (max-width: 767px) {

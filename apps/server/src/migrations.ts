@@ -324,6 +324,20 @@ export const migrations: readonly string[] = [
   alter table payments add constraint payments_period_check check (period in ('month', 'half', 'year'));
   alter table payments add column seats int check (seats between 1 and 500);
   `,
+  // 13: هر نفر یک دستگاه (هر نفرِ اشتراک = یک صندلی). ورود از دستگاه دوم بلیت کوتاه‌عمری می‌گیرد که با آن یکی از
+  // دستگاه‌های قبلی بیرون می‌رود و ورود ادامه پیدا می‌کند. دستگاه‌های اضافهٔ امروز هم بیرون می‌روند؛ تازه‌ترین می‌ماند.
+  `
+  create table device_tickets (
+    hash bytea primary key,
+    user_id uuid not null references users (id),
+    name text not null check (length(name) between 1 and 100),
+    via_otp boolean not null,
+    expires_at timestamptz not null
+  );
+  update devices d set revoked_at = now()
+   where revoked_at is null
+     and exists (select 1 from devices n where n.user_id = d.user_id and n.revoked_at is null and (n.last_seen_at, n.id) > (d.last_seen_at, d.id));
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

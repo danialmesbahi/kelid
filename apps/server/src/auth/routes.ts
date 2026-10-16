@@ -21,6 +21,9 @@ const REUSE_GRACE = 60; // ثانیه؛ تکرار درخواست تمدیدی �
 const MAX_PASSWORD_FAILS = 5; // برای هر شماره؛ بعدش قفل موقت
 const LOCK_MINUTES = 15;
 const RESET_WINDOW = 10 * 60; // ثانیه بعد از ورود با کد که بدون رمز قبلی می‌شود رمز تازه گذاشت
+/** هر نفرِ دفتر یک صندلی اشتراک است و یک دستگاه؛ وگرنه یک حساب می‌شد چند نفر. */
+export const DEVICES_PER_USER = 1;
+const DEVICE_TICKET_TTL = 10 * 60; // ثانیه برای انتخاب دستگاهی که بیرون برود
 
 export interface AuthOptions {
   pool: Pool;
@@ -33,6 +36,13 @@ export interface AuthOptions {
 }
 
 export type { InviteInfo, Role };
+
+/** حساب به سقف دستگاه رسیده: با ticket یکی از این دستگاه‌ها بیرون می‌رود و ورود ادامه پیدا می‌کند (POST /auth/devices/replace). */
+export interface DeviceLimit {
+  error: 'device_limit';
+  ticket: string;
+  devices: Array<{ id: string; name: string; createdAt: string; lastSeenAt: string }>;
+}
 
 export interface Session {
   accessToken: string;
@@ -171,7 +181,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
         return { signupToken: ticket, invite: await pendingInvite(db, phone, null) };
       });
       if ('error' in result) return reply.status(400).send(result);
-      return 'session' in result ? result.session : result;
+      return 'session' in result && result.session ? sendSession(reply, result.session) : result;
     },
   );
 
@@ -207,7 +217,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
         return startSession(db, userId, officeId, body.deviceName, true);
       });
       if (!session) return reply.status(400).send({ error: 'expired' });
-      return session;
+      return sendSession(reply, session);
     },
   );
 
@@ -241,7 +251,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
       await db.query('update users set failed_logins = 0, locked_until = null where id = $1', [u.id]);
       return startSession(db, u.id, u.office_id, body.deviceName, false);
     });
-    return session;
+    return sendSession(reply, session);
   });
 
   /** رمز تازه: با رمز فعلی، یا بدون آن تا چند دقیقه بعد از ورود با کد پیامکی روی همین دستگاه (فراموشی رمز). */
@@ -334,6 +344,32 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     },
   );
 
+  /** ورودی که به سقف دستگاه خورد: دستگاهِ انتخاب‌شده بیرون می‌رود و همین دستگاه وارد می‌شود. بلیت یک‌بار مصرف است. */
+  app.post(
+    '/auth/devices/replace',
+    { schema: bodySchema({ ticket: { type: 'string', maxLength: 100 }, deviceId: { type: 'string', format: 'uuid' } }, ['ticket', 'deviceId']) },
+    async (req, reply) => {
+      const body = req.body as { ticket: string; deviceId: string };
+      const session = await tx(pool, async (db) => {
+        const t = await db.query<{ user_id: string; name: string; via_otp: boolean }>(
+          'delete from device_tickets where hash = $1 and expires_at > now() returning user_id, name, via_otp',
+          [sha256(body.ticket)],
+        );
+        const k = t.rows[0];
+        if (!k) return null;
+        const u = await db.query<{ office_id: string }>('select office_id from users where id = $1 and removed_at is null', [k.user_id]);
+        const officeId = u.rows[0]?.office_id;
+        if (!officeId) return null;
+        const { rowCount } = await db.query('update devices set revoked_at = now() where id = $1 and user_id = $2 and revoked_at is null', [body.deviceId, k.user_id]);
+        if (rowCount) await kickDevice(db, body.deviceId);
+        // اگر در این فاصله دستگاه دیگری وارد شده باشد، دوباره فهرست و بلیت تازه برمی‌گردد.
+        return startSession(db, k.user_id, officeId, k.name, k.via_otp);
+      });
+      if (!session) return reply.status(400).send({ error: 'expired' });
+      return sendSession(reply, session);
+    },
+  );
+
   /** شمارهٔ تازه‌ای که دعوت شده، بعد از کد درست: نام و رمز، و عضو همان دفتر می‌شود (جا از وقت دعوت برایش نگه داشته شده). */
   app.post(
     '/auth/join',
@@ -366,7 +402,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
         return { session: await startSession(db, userId, invite.office_id, body.deviceName, true) };
       });
       if ('error' in result) return reply.status(result.error === 'no_seat' ? 409 : 400).send(result);
-      return result.session;
+      return sendSession(reply, result.session);
     },
   );
 
@@ -404,10 +440,35 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
 
   teamRoutes(app, pool, requireAuth, requireActive(pool));
 
-  async function startSession(db: Db, userId: string, officeId: string, name: string, viaOtp: boolean): Promise<Session> {
+  async function startSession(db: Db, userId: string, officeId: string, name: string, viaOtp: boolean): Promise<Session | DeviceLimit> {
+    const label = name.trim() || 'دستگاه';
+    // دو ورود هم‌زمان یک حساب پشت هم می‌افتند تا هر دو از سقف رد نشوند.
+    await db.query('select 1 from users where id = $1 for update', [userId]);
+    // دستگاهی که آن‌قدر سر نزده که دیگر تمدید نمی‌شود، جا نمی‌گیرد.
+    await db.query('update devices set revoked_at = now() where user_id = $1 and revoked_at is null and last_seen_at < now() - make_interval(days => $2)', [userId, REFRESH_IDLE_DAYS]);
+    const live = await db.query<{ id: string; name: string; created_at: Date; last_seen_at: Date }>(
+      'select id, name, created_at, last_seen_at from devices where user_id = $1 and revoked_at is null order by last_seen_at desc',
+      [userId],
+    );
+    if (live.rows.length >= DEVICES_PER_USER) {
+      const ticket = randomToken();
+      await db.query('delete from device_tickets where expires_at < now()');
+      await db.query('insert into device_tickets (hash, user_id, name, via_otp, expires_at) values ($1, $2, $3, $4, now() + make_interval(secs => $5))', [
+        sha256(ticket),
+        userId,
+        label,
+        viaOtp,
+        DEVICE_TICKET_TTL,
+      ]);
+      return {
+        error: 'device_limit',
+        ticket,
+        devices: live.rows.map((r) => ({ id: r.id, name: r.name, createdAt: r.created_at.toISOString(), lastSeenAt: r.last_seen_at.toISOString() })),
+      };
+    }
     const deviceId = randomUUID();
     const refresh = randomToken();
-    await db.query('insert into devices (id, user_id, name, refresh_hash, otp_at) values ($1, $2, $3, $4, $5)', [deviceId, userId, name.trim() || 'دستگاه', sha256(refresh), viaOtp ? new Date() : null]);
+    await db.query('insert into devices (id, user_id, name, refresh_hash, otp_at) values ($1, $2, $3, $4, $5)', [deviceId, userId, label, sha256(refresh), viaOtp ? new Date() : null]);
     return session(db, deviceId, userId, officeId, refresh);
   }
 
@@ -442,6 +503,11 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
       ...(licenseKey && sub ? { license: licenseOf(licenseKey, officeId, sub) } : {}),
     };
   }
+}
+
+/** نشست، یا 409 با فهرست دستگاه‌های فعال وقتی حساب به سقف دستگاه رسیده است. */
+function sendSession(reply: FastifyReply, s: Session | DeviceLimit) {
+  return 'error' in s ? reply.status(409).send(s) : s;
 }
 
 function toAsciiDigits(s: string): string {
