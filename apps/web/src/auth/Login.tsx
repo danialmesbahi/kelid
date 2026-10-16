@@ -16,7 +16,7 @@ import './login.css';
 export type AuthMode = 'login' | 'signup' | 'join';
 /** password: شماره و رمز (راه اصلی). code: ورود با کد پیامکی یا فراموشی رمز. signup: دفتر تازه. */
 type Flow = 'password' | 'code' | 'signup';
-/** join: شماره‌ای که دفتری دعوتش کرده، بعد از کد درست. devices: حساب روی دستگاه دیگری باز است (هر نفر یک دستگاه). */
+/** join: شماره‌ای که دفتری دعوتش کرده، بعد از کد درست. devices: دستگاه‌های دفتر به سقف نفرات اشتراک رسیده. */
 type Step = 'phone' | 'otp' | 'details' | 'code' | 'nouser' | 'newpass' | 'join' | 'devices';
 const LEN = 6;
 const MIN_PASSWORD = 8;
@@ -143,7 +143,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   const askDevice = (e: unknown, then: (s: Session) => Promise<void>) => {
     if (!(e instanceof ApiError) || e.code !== 'device_limit' || !e.limit) return false;
     setLimit({ ...e.limit, then });
-    setPick(e.limit.devices[0]?.id ?? '');
+    setPick(e.limit.devices.find((d) => !d.locked)?.id ?? '');
     go('devices');
     return true;
   };
@@ -615,19 +615,21 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
 
           {step === 'devices' && limit && (
             <>
-              <span className="eb">هر نفر، یک دستگاه</span>
-              <h1 id="lg-title" className="wl-h">این حساب روی دستگاه دیگری باز است</h1>
+              <span className="eb">دستگاه‌های دفتر پر است</span>
+              <h1 id="lg-title" className="wl-h">همهٔ دستگاه‌های دفتر وارد شده‌اند</h1>
               <p className="wl-lead">
-                هر نفر در اشتراک کلید با یک دستگاه کار می‌کند. برای ورود از این‌جا، {limit.devices.length > 1 ? 'یکی از دستگاه‌های قبلی' : 'دستگاه قبلی'} را خارج کنید؛ فایل‌ها و اطلاعات دفتر سر جایشان می‌مانند.
+                اشتراک دفترتان برای {toFaDigits(limit.seats)} نفر است و همین تعداد دستگاه در کلید وارد شده. برای ورود از این‌جا، یکی را خارج کنید؛ فایل‌ها و اطلاعات دفتر سر جایشان می‌مانند.
               </p>
               <div className="lg-devs" role="radiogroup" aria-label="دستگاهی که خارج می‌شود">
                 {limit.devices.map((d) => (
-                  <label key={d.id} className={`lg-dev${pick === d.id ? ' on' : ''}`}>
-                    <input type="radio" name="lg-dev" value={d.id} checked={pick === d.id} onChange={() => setPick(d.id)} />
+                  <label key={d.id} className={`lg-dev${pick === d.id ? ' on' : ''}${d.locked ? ' off' : ''}`}>
+                    <input type="radio" name="lg-dev" value={d.id} checked={pick === d.id} disabled={d.locked} onChange={() => setPick(d.id)} />
                     <Icon name={isMobile(d.name) ? 'mobile' : 'pc'} />
                     <span className="lg-dev-t">
                       <b>{d.name}</b>
-                      <span className="xs mute">آخرین استفاده: {seen(d.lastSeenAt)}</span>
+                      <span className="xs mute">
+                        {d.mine ? 'دستگاه خودتان' : d.owner} · {d.locked ? 'فقط مدیر می‌تواند خارجش کند' : `آخرین استفاده: ${seen(d.lastSeenAt)}`}
+                      </span>
                     </span>
                     <Icon name="check" size="s" className="lg-dev-ok" />
                   </label>
@@ -635,7 +637,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
               </div>
               <Message id="lg-msg" error={error}>
                 <Icon name="users" size="s" />
-                همکار دیگری می‌خواهد از آن دستگاه کار کند؟ مدیر دفتر از «تنظیمات ← همکاران» با شمارهٔ خودش دعوتش کند.
+                دستگاه بیشتری لازم دارید؟ مدیر دفتر می‌تواند نفرات اشتراک را بیشتر کند.
               </Message>
             </>
           )}
@@ -672,7 +674,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
           {step === 'newpass' && <button type="button" className="btn btn-g btn-lg" onClick={() => void saveNewPassword(true)} disabled={busy}>بعداً</button>}
           {step === 'join' && invite && <button type="button" className="btn btn-g btn-lg" onClick={() => go('details', 'signup')} disabled={busy}>دفتر جدا می‌سازم</button>}
           <span className="sp" />
-          <button type="submit" className="btn btn-p btn-lg wl-primary" disabled={busy || (step === 'code' && code.length < LEN)} aria-busy={busy}>
+          <button type="submit" className="btn btn-p btn-lg wl-primary" disabled={busy || (step === 'code' && code.length < LEN) || (step === 'devices' && !pick)} aria-busy={busy}>
             {busy
               ? step === 'otp' || (step === 'details' && !ticket) ? 'در حال فرستادن…' : 'لحظه‌ای صبر کنید…'
               : step === 'phone' ? 'ورود'

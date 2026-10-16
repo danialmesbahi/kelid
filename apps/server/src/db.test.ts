@@ -140,8 +140,6 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
     a.inject({ method: 'POST', url, payload, headers: token ? { authorization: `Bearer ${token}` } : {} });
   const allowResend = (phone: string) => owner.query("update otp_codes set last_sent_at = now() - interval '2 minutes' where phone = $1", [phone]);
 
-  const logOut = (a: ReturnType<typeof newApp>, token: string) => post(a, '/auth/logout', {}, token);
-
   async function signUp(a: ReturnType<typeof newApp>, phone: string) {
     expect((await post(a, '/auth/otp', { phone })).statusCode).toBe(200);
     const v = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'لپ‌تاپ' });
@@ -152,7 +150,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
   }
 
   describe('phone login', () => {
-    it('signs up a new office, then logs the same phone straight in on a free device', async () => {
+    it('signs up a new office, then logs the same phone straight in', async () => {
       const a = newApp();
       const phone = freshPhone();
       const s = await signUp(a, phone);
@@ -163,35 +161,41 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       // دفتر تازه پشت RLS است: فقط با شناسهٔ خودش دیده می‌شود.
       expect(await withOffice(app, s.office.id, async (db) => (await db.query('select name from offices')).rows)).toEqual([{ name: 'املاک پارسا' }]);
 
-      expect((await logOut(a, s.accessToken)).statusCode).toBe(204);
       await allowResend(phone);
       expect((await post(a, '/auth/otp', { phone: phone.replace(/^0/, '+98') })).statusCode).toBe(200);
       const again = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'گوشی' });
       expect(again.json()).toMatchObject({ user: { id: s.user.id }, office: { id: s.office.id } });
 
       const devices = await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: `Bearer ${again.json().accessToken}` } });
-      expect(devices.json().map((d: { name: string; current: boolean }) => [d.name, d.current])).toEqual([['گوشی', true]]);
+      expect(devices.json().map((d: { name: string; current: boolean }) => [d.name, d.current])).toEqual([['گوشی', true], ['لپ‌تاپ', false]]);
       await a.close();
     });
 
-    it('allows one device per person: a second login must sign one out first', async () => {
+    it('caps signed-in devices of an office at its seats; a login past it must sign one out first', async () => {
       const a = newApp();
       const phone = freshPhone();
       const s = await signUp(a, phone);
+      await withOffice(owner, s.office.id, (db) => db.query('update offices set seats = 2 where id = $1', [s.office.id]));
+      // یک حساب می‌تواند چند دستگاه داشته باشد، تا سقف نفرات دفتر
+      const second = await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'گوشی' });
+      expect(second.statusCode).toBe(200);
 
       // رمز اشتباه هنوز همان جواب همیشگی است؛ فهرست دستگاه‌ها فقط بعد از رمز درست دیده می‌شود.
-      expect((await post(a, '/auth/login', { phone, password: 'nope-nope', deviceName: 'گوشی' })).json()).toEqual({ error: 'wrong' });
-      const full = await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'گوشی' });
+      expect((await post(a, '/auth/login', { phone, password: 'nope-nope', deviceName: 'تبلت' })).json()).toEqual({ error: 'wrong' });
+      const full = await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'تبلت' });
       expect(full.statusCode).toBe(409);
       const limit = full.json();
-      expect(limit.error).toBe('device_limit');
-      expect(limit.devices.map((d: { id: string; name: string }) => [d.id, d.name])).toEqual([[s.deviceId, 'لپ‌تاپ']]);
-      expect((await owner.query('select count(*)::int as n from devices where user_id = $1 and revoked_at is null', [s.user.id])).rows[0].n).toBe(1);
+      expect(limit).toMatchObject({ error: 'device_limit', seats: 2 });
+      expect(limit.devices.map((d: { name: string; owner: string; mine: boolean }) => [d.name, d.owner, d.mine]).sort()).toEqual([
+        ['گوشی', 'علی رضایی', true],
+        ['لپ‌تاپ', 'علی رضایی', true],
+      ].sort());
+      expect((await owner.query('select count(*)::int as n from devices where user_id = $1 and revoked_at is null', [s.user.id])).rows[0].n).toBe(2);
 
       // با کد پیامکی هم همین است
       await allowResend(phone);
       await post(a, '/auth/otp', { phone });
-      expect((await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'گوشی' })).statusCode).toBe(409);
+      expect((await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'تبلت' })).statusCode).toBe(409);
 
       expect((await post(a, '/auth/devices/replace', { ticket: 'nope', deviceId: s.deviceId })).json().error).toBe('expired');
       const ok = await post(a, '/auth/devices/replace', { ticket: limit.ticket, deviceId: s.deviceId });
@@ -199,13 +203,24 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(ok.json()).toMatchObject({ user: { id: s.user.id }, office: { id: s.office.id } });
       // دستگاه قبلی همان لحظه بیرون است و بلیت یک‌بار مصرف است
       expect((await post(a, '/auth/refresh', { refreshToken: s.refreshToken })).statusCode).toBe(401);
-      expect((await post(a, '/auth/devices/replace', { ticket: limit.ticket, deviceId: s.deviceId })).json().error).toBe('expired');
+      expect((await post(a, '/auth/devices/replace', { ticket: limit.ticket, deviceId: second.json().deviceId })).json().error).toBe('expired');
       const devices = await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: `Bearer ${ok.json().accessToken}` } });
-      expect(devices.json().map((d: { name: string; current: boolean }) => [d.name, d.current])).toEqual([['گوشی', true]]);
+      expect(devices.json().map((d: { name: string; current: boolean }) => [d.name, d.current]).sort()).toEqual([['تبلت', true], ['گوشی', false]].sort());
+
+      // همکار دفتر هم در همین سقف است؛ دستگاه مدیر را نمی‌تواند بیرون کند، دستگاه‌های خودش را می‌تواند
+      const mate = freshPhone();
+      await owner.query(
+        "insert into users (id, office_id, phone, name, password_hash, role) select $2, office_id, $3, 'همکار', password_hash, 'agent' from users where id = $1",
+        [s.user.id, randomUUID(), mate],
+      );
+      const blocked = (await post(a, '/auth/login', { phone: mate, password: 'parsa-1404', deviceName: 'x' })).json();
+      expect(blocked.devices.every((d: { locked: boolean }) => d.locked)).toBe(true);
+      expect((await post(a, '/auth/devices/replace', { ticket: blocked.ticket, deviceId: ok.json().deviceId })).statusCode).toBe(409);
+      expect((await post(a, '/auth/refresh', { refreshToken: ok.json().refreshToken })).statusCode).toBe(200);
 
       // دستگاهی که دیگر تمدید نمی‌شود (۱۸۰ روز سر نزده) جا نمی‌گیرد
       await owner.query("update devices set last_seen_at = now() - interval '181 days' where user_id = $1", [s.user.id]);
-      expect((await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'تبلت' })).statusCode).toBe(200);
+      expect((await post(a, '/auth/login', { phone: mate, password: 'parsa-1404', deviceName: 'x' })).statusCode).toBe(200);
       await a.close();
     });
 
@@ -315,7 +330,6 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(rows[0].password_hash).toMatch(/^scrypt\$/);
       expect(rows[0].password_hash).not.toContain('parsa-1404');
 
-      await logOut(a, s.accessToken);
       const ok = await post(a, '/auth/login', { phone: phone.replace(/^0/, '+98'), password: 'parsa-1404', deviceName: 'گوشی' });
       expect(ok.statusCode).toBe(200);
       expect(ok.json()).toMatchObject({ user: { id: s.user.id, hasPassword: true }, office: { id: s.office.id } });
@@ -329,7 +343,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
     it('locks a phone for a while after five wrong passwords', async () => {
       const a = newApp();
       const phone = freshPhone();
-      await logOut(a, (await signUp(a, phone)).accessToken);
+      await signUp(a, phone);
       for (let i = 0; i < 5; i++) expect((await post(a, '/auth/login', { phone, password: 'nope-nope', deviceName: 'x' })).json().error).toBe('wrong');
       const locked = await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'x' });
       expect(locked.statusCode).toBe(429);
@@ -342,16 +356,13 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
     it('changes the password with the current one, or without it right after an SMS login', async () => {
       const a = newApp();
       const phone = freshPhone();
-      await logOut(a, (await signUp(a, phone)).accessToken);
+      await signUp(a, phone);
       const pwd = (await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'x' })).json();
       expect((await post(a, '/auth/password', { password: 'new-pass-1' }, pwd.accessToken)).json().error).toBe('wrong');
       expect((await post(a, '/auth/password', { password: 'new-pass-1', current: 'bad-guess' }, pwd.accessToken)).json().error).toBe('wrong');
       expect((await post(a, '/auth/password', { password: 'short', current: 'parsa-1404' }, pwd.accessToken)).json().error).toBe('bad_password');
       expect((await post(a, '/auth/password', { password: 'new-pass-1', current: 'parsa-1404' }, pwd.accessToken)).statusCode).toBe(204);
-      await logOut(a, pwd.accessToken);
-      const fresh = await post(a, '/auth/login', { phone, password: 'new-pass-1', deviceName: 'x' });
-      expect(fresh.statusCode).toBe(200);
-      await logOut(a, fresh.json().accessToken);
+      expect((await post(a, '/auth/login', { phone, password: 'new-pass-1', deviceName: 'x' })).statusCode).toBe(200);
 
       // رمز فراموش شد: ورود با کد پیامکی، بعد رمز تازه بدون رمز قبلی — فقط یک بار.
       await allowResend(phone);
@@ -359,7 +370,6 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const otp = (await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'گوشی' })).json();
       expect((await post(a, '/auth/password', { password: 'forgot-1404' }, otp.accessToken)).statusCode).toBe(204);
       expect((await post(a, '/auth/password', { password: 'again-1404' }, otp.accessToken)).json().error).toBe('wrong');
-      await logOut(a, otp.accessToken);
       expect((await post(a, '/auth/login', { phone, password: 'forgot-1404', deviceName: 'x' })).statusCode).toBe(200);
       expect((await post(a, '/auth/password', { password: 'x'.repeat(8) })).statusCode).toBe(401);
       await a.close();
@@ -504,13 +514,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const base = `http://127.0.0.1:${(a.server.address() as AddressInfo).port}`;
       const phone = freshPhone();
       const s1 = await signUp(a, phone);
-      // دستگاه دوم دفتر = همکاری در همان دفتر (هر نفر یک دستگاه)
-      const mate = freshPhone();
-      await owner.query(
-        "insert into users (id, office_id, phone, name, password_hash, role) select $2, office_id, $3, 'همکار', password_hash, 'agent' from users where id = $1",
-        [s1.user.id, randomUUID(), mate],
-      );
-      const s2 = (await post(a, '/auth/login', { phone: mate, password: 'parsa-1404', deviceName: 'گوشی' })).json();
+      const s2 = (await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'گوشی' })).json();
       const other = await signUp(a, freshPhone());
       const open = async (token: string) => {
         const ctl = new AbortController();
@@ -551,7 +555,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(eo.state.text).not.toContain('data: change');
 
       // دستگاهِ بیرون‌شده همان لحظه قطع می‌شود
-      expect((await logOut(a, s2.accessToken)).statusCode).toBe(204);
+      expect((await a.inject({ method: 'DELETE', url: `/auth/devices/${s2.deviceId}`, headers: { authorization: `Bearer ${s1.accessToken}` } })).statusCode).toBe(204);
       expect(await until(() => e2.state.ended)).toBe(true);
       // یک دستگاه بیش از سه اتصال باز نگه نمی‌دارد؛ قدیمی‌ترین بسته می‌شود
       const more = [await open(s1.accessToken), await open(s1.accessToken), await open(s1.accessToken)];
@@ -677,11 +681,9 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(session.office.id).toBe(m.office.id);
       expect(session.user).toMatchObject({ name: 'سارا مشاور', role: 'agent', seeOwnerPhones: false });
       // ورود بعدی با رمز خودش
-      await logOut(a, session.accessToken);
-      const again = (await post(a, '/auth/login', { phone, password: 'agent-1404', deviceName: 'x' })).json();
-      expect(again.office.id).toBe(m.office.id);
+      expect((await post(a, '/auth/login', { phone, password: 'agent-1404', deviceName: 'x' })).json().office.id).toBe(m.office.id);
 
-      const team = (await get(a, '/team', again.accessToken)).json();
+      const team = (await get(a, '/team', session.accessToken)).json();
       expect(team.seats).toBe(5);
       expect(team.members.map((x: { name: string; role: string }) => [x.name, x.role])).toEqual([['علی رضایی', 'manager'], ['سارا مشاور', 'agent']]);
       expect(team.invites).toEqual([]);
@@ -787,15 +789,16 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const phone = freshPhone();
       const solo = await signUp(a, phone);
       await post(a, '/team/invites', { phone, name: 'رضا', role: 'agent' }, m.accessToken);
-      const s = (await post(a, '/auth/refresh', { refreshToken: solo.refreshToken })).json();
+      const s = (await post(a, '/auth/login', { phone, password: 'parsa-1404', deviceName: 'x' })).json();
       expect(s.invite).toMatchObject({ officeName: 'املاک پارسا', role: 'agent' });
       expect(s.office.id).toBe(solo.office.id);
 
       const moved = await post(a, '/auth/invite/accept', {}, s.accessToken);
       expect(moved.statusCode).toBe(200);
       expect(moved.json()).toMatchObject({ office: { id: m.office.id }, user: { id: solo.user.id, role: 'agent', seeOwnerPhones: false }, invite: null });
-      // توکن دفتر قبلی دیگر کار نمی‌کند؛ تمدید بعدی در دفتر تازه است
-      expect((await get(a, '/team', s.accessToken)).statusCode).toBe(401);
+      // توکن دفتر قبلی دیگر کار نمی‌کند؛ فقط همین دستگاه به دفتر تازه می‌رود و دستگاه دیگرش بیرون می‌افتد (سقف دستگاه دفتر)
+      expect((await get(a, '/team', solo.accessToken)).statusCode).toBe(401);
+      expect((await post(a, '/auth/refresh', { refreshToken: solo.refreshToken })).statusCode).toBe(401);
       expect((await post(a, '/auth/refresh', { refreshToken: moved.json().refreshToken })).json().office.id).toBe(m.office.id);
 
       // مدیری که همکار دارد نمی‌تواند دفترش را رها کند؛ رد کردن دعوت آن را پاک می‌کند
