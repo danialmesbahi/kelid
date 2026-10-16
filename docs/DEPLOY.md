@@ -7,7 +7,7 @@
 | چه | برای چه | نکته |
 |---|---|---|
 | سرور لینوکس با Node 22 و PostgreSQL 16 | API و دیتابیس | سرور در ایران تا برای کاربر سریع و در دسترس باشد |
-| سه دامنه با گواهی HTTPS | `app.` برنامهٔ وب، `api.` سرور، `admin.` پنل فروشنده | مثلاً app.kelid.ir، api.kelid.ir، admin.kelid.ir |
+| چهار دامنه با گواهی HTTPS | دامنهٔ اصلی سایت معرفی، `app.` برنامهٔ وب، `api.` سرور، `admin.` پنل فروشنده | مثلاً kelid.ir، app.kelid.ir، api.kelid.ir، admin.kelid.ir |
 | حساب کاوه‌نگار + یک قالب «تأیید» با یک `%token` | پیامک کد ورود | قالب باید پیش از انتشار تأیید شده باشد |
 | مرچنت زرین‌پال (با اینماد) | پرداخت اشتراک | نشانی بازگشت = `PUBLIC_URL` همان سرور |
 | فضای ذخیره‌سازی S3 (آروان، لیارا…) با سطل **خصوصی** | عکس فایل‌ها | بدون آن عکس‌ها در PostgreSQL می‌مانند؛ برای شروع هم کار می‌کند |
@@ -35,8 +35,10 @@ NODE_ENV=production node --enable-source-maps apps/server/dist/main.js   # با 
 ```sh
 VITE_KELID_API_URL=https://api.kelid.ir VITE_KELID_LICENSE_KEY=… npm run build -w @kelid/web     # خروجی: apps/web/dist
 VITE_ADMIN_API_URL=https://api.kelid.ir npm run build -w @kelid/admin                              # خروجی: apps/admin/dist
+npm run build -w @kelid/site                                                                       # سایت معرفی kelid.ir، خروجی: apps/site/dist
 ```
-هر دو پوشهٔ ایستا هستند و nginx همان‌ها را سرو می‌کند. برنامهٔ ویندوز هم با همین دو متغیر ساخته می‌شود (`npm run dist:win`).
+سایت معرفی پیش‌فرض‌هایش را دارد (`VITE_SITE_*` در `.env.example`)؛ نصب‌کنندهٔ ویندوز را کنار آن در `download/Kelid-Setup.exe` بگذارید.
+هر سه پوشه ایستا هستند و nginx همان‌ها را سرو می‌کند. برنامهٔ ویندوز هم با همین دو متغیر ساخته می‌شود (`npm run dist:win`).
 
 ## ۵. nginx
 ```nginx

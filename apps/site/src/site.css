@@ -1,0 +1,571 @@
+/* سایت معرفی کلید: همان توکن‌ها و پلاک برنامه، بی هیچ جاوااسکریپتی. حرکت‌ها با CSS و فقط وقتی کاربر کاهش حرکت نخواسته. */
+@import 'vazirmatn/Vazirmatn-Variable-font-face.css';
+@import '@kelid/ui/kelid.css';
+@import '@kelid/ui/motion.css';
+/*@dark*/
+
+/* شب شهر در هر دو پوسته شب است؛ مثل صحنهٔ آشنایی برنامه (welcome.css) چند رنگ صحنه ثابت نوشته شده‌اند. */
+.app { --lit: #F6CF7C; --night-ink: #FFFFFF; --night-mute: rgba(255, 255, 255, .74); --hdr: 64px; scroll-behavior: smooth; scroll-padding-top: calc(var(--hdr) + 20px); }
+@media (prefers-reduced-motion: reduce) { .app { scroll-behavior: auto; } }
+body, main { overflow-x: clip; }
+.wrap { width: 100%; max-width: 1200px; margin-inline: auto; padding-inline: 24px; }
+.skip { position: absolute; top: -60px; right: 16px; z-index: 50; padding: 10px 16px; border-radius: 10px; background: var(--ink); color: var(--paper) !important; }
+.skip:focus { top: 12px; }
+h1, h2, h3, p { margin: 0; }
+h2 { font-size: clamp(28px, 4.2vw, 46px); font-weight: 800; line-height: 1.3; letter-spacing: -.01em; text-wrap: balance; }
+h2 .mute { font-weight: 700; }
+.lead { font-size: clamp(16px, 1.5vw, 18.5px); line-height: 1.9; color: var(--ink2); max-width: 640px; text-wrap: pretty; }
+.eb { margin-bottom: 14px; font-size: 14px; color: var(--brass-text); }
+.sec { padding-block: clamp(72px, 10vw, 128px) 0; }
+/* پرش از منو باید سر خود بخش بنشیند، نه فاصلهٔ خالی بالای آن */
+.sec[id] { scroll-margin-top: calc(-1 * clamp(72px, 10vw, 128px)); }
+.sec > h2 { max-width: 820px; }
+.sec > .lead { margin-top: 16px; }
+
+/* ── سربرگ: شفاف روی آسمان، با اسکرول شیشه‌ای تیره؛ مرورگری که نمی‌تواند، از اول شیشه‌ای نشان می‌دهد. ── */
+.hdr { position: fixed; inset: 0 0 auto; z-index: 20; color: var(--night-ink); }
+.hdr::before { content: ""; position: absolute; inset: 0; z-index: -1; background: rgba(6, 20, 15, .8); border-bottom: 1px solid rgba(255, 255, 255, .08); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5); }
+@supports (animation-timeline: scroll()) {
+  .hdr::before { animation: kl-hdr linear both; animation-timeline: scroll(); animation-range: 0 120px; }
+  @keyframes kl-hdr { from { opacity: 0; } }
+}
+.hdr-in {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; height: var(--hdr); max-width: 1248px; margin-inline: auto;
+  padding-right: max(24px, env(safe-area-inset-right, 0px)); padding-left: max(24px, env(safe-area-inset-left, 0px));
+}
+.logo { display: inline-flex; align-items: center; gap: 12px; justify-self: start; }
+.logo { color: var(--night-ink); }
+.logo .mark { width: 38px; height: 38px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .35)); }
+.logo b { font-size: 21px; font-weight: 900; letter-spacing: -.01em; }
+.hdr-nav { display: flex; gap: 2px; padding: 4px; border-radius: 14px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+.hdr-nav a { position: relative; padding: 8px 16px; border-radius: 10px; font-size: 15px; color: var(--night-mute); transition: color var(--t-fast), background-color var(--t-fast); }
+.hdr-nav a:hover { color: var(--night-ink); background: rgba(255, 255, 255, .08); }
+.hdr-end { justify-self: end; display: flex; align-items: center; gap: 8px; }
+.hdr-cta { height: 44px; background: linear-gradient(180deg, #F8D98F, #EDBD5B); color: #1A1A14 !important; box-shadow: 0 8px 22px -12px rgba(246, 207, 124, .9); }
+.hdr-cta:hover { filter: brightness(1.05); }
+.hdr-menu { display: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 0; background: rgba(255, 255, 255, .1); color: var(--night-ink); }
+/* منوی گوشی: popover بومی؛ بیرونش را بزنید یا Esc، بسته می‌شود. */
+.menu { inset: 10px 10px auto; width: auto; margin: 0; padding: 72px 20px 20px; border: 0; border-radius: 24px; background: #06140F; color: var(--night-ink); box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 255, 255, .1); }
+.menu:popover-open { display: flex; flex-direction: column; gap: 18px; animation: kl-menu .35s var(--ease-expo); }
+@keyframes kl-menu { from { opacity: 0; translate: 0 -12px; } }
+.menu::backdrop { background: rgba(0, 0, 0, .45); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.menu nav { display: flex; flex-direction: column; }
+.menu nav a { padding: 14px 6px; font-size: 19px; font-weight: 600; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.menu-x { position: absolute; top: 14px; left: 14px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 0; background: rgba(255, 255, 255, .1); color: var(--night-ink); }
+
+/* ── دکمه‌های روی شب ── */
+.btn-gold { background: linear-gradient(180deg, #F8D98F, #EDBD5B); color: #1A1A14 !important; box-shadow: 0 1px 0 rgba(255, 255, 255, .5) inset, 0 14px 32px -14px rgba(246, 207, 124, .9); }
+.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, .5) inset, 0 20px 40px -14px rgba(246, 207, 124, 1); }
+.btn-ghost { background: rgba(255, 255, 255, .08); color: var(--night-ink) !important; border-color: rgba(255, 255, 255, .22); }
+.btn-ghost:hover { background: rgba(255, 255, 255, .16); }
+.os-logo { width: 20px; height: 20px; fill: currentColor; flex: none; }
+/* دکمهٔ اصلی دانلود همان سیستم‌عامل بیننده است (data-os را اسکریپت کوچک سرصفحه می‌گذارد)؛ بی آن ویندوز، و روی صفحهٔ لمسی اندروید. */
+.os-mac, .os-ios, .os-and { display: none !important; }
+:is([data-os="mac"], [data-os="ios"], [data-os="and"]) .os-win { display: none !important; }
+[data-os="mac"] .os-mac, [data-os="ios"] .os-ios, [data-os="and"] .os-and { display: inline-flex !important; }
+@media (pointer: coarse) { html:not([data-os]) .os-win { display: none !important; } html:not([data-os]) .os-and { display: inline-flex !important; } }
+
+/* ── آسمان شب ── */
+.sky {
+  position: absolute; inset: 0; overflow: hidden; z-index: 0;
+  background:
+    radial-gradient(50% 40% at 50% 30%, color-mix(in srgb, var(--brass) 24%, transparent) 0%, transparent 70%),
+    linear-gradient(180deg, #06140F 0%, #0A2F26 46%, #0E4D3F 100%);
+}
+.sky::after { content: ""; position: absolute; inset: auto 0 0; height: 30%; background: linear-gradient(transparent, rgba(0, 0, 0, .35)); }
+.stars { position: absolute; inset: 0; width: 100%; height: 100%; fill: #FFFFFF; animation: kl-fadein 1.6s ease .1s both; }
+.moon {
+  position: absolute; top: 15%; left: 9%; width: 64px; height: 64px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, #FFF8E6 0%, #F3DDAA 55%, #D9B672 100%);
+  box-shadow: 0 0 0 12px rgba(246, 207, 124, .06), 0 0 0 30px rgba(246, 207, 124, .035), 0 0 70px 10px rgba(246, 207, 124, .24);
+  animation: kl-moon 1.8s var(--ease-expo) .2s both;
+}
+@keyframes kl-moon { from { opacity: 0; translate: 0 40px; } }
+.city { position: absolute; inset: auto -2% 0; width: 104%; height: 300px; }
+.far { fill: rgba(255, 255, 255, .07); animation: kl-rise 1.5s var(--ease-expo) .1s both; }
+.far .snow { fill: rgba(255, 255, 255, .16); }
+.mid { fill: #07261E; animation: kl-rise 1.4s var(--ease-expo) .25s both; }
+.near { fill: #041611; animation: kl-rise 1.3s var(--ease-expo) .4s both; }
+@keyframes kl-rise { from { opacity: 0; translate: 0 60px; } }
+.milad { fill: #0A2C23; }
+.milad-ring { fill: var(--lit); opacity: 0; animation: kl-on .5s ease 1.6s forwards; }
+.beacon { fill: #FF5B4D; animation: kl-blink 2.4s ease-in-out 2s infinite; }
+@keyframes kl-blink { 50% { opacity: .2; } }
+.lit { fill: var(--lit); opacity: 0; animation: kl-on .45s ease forwards; }
+.lit.w0 { animation-delay: .9s; } .lit.w1 { animation-delay: 1.15s; } .lit.w2 { animation-delay: 1.4s; }
+.lit.w3 { animation-delay: 1.65s; } .lit.w4 { animation-delay: 1.9s; } .lit.w5 { animation-delay: 2.15s; }
+@keyframes kl-on { 0% { opacity: 0; } 40% { opacity: 1; } 60% { opacity: .5; } 100% { opacity: .9; } }
+
+/* ── سرصفحه ── */
+.hero { position: relative; isolation: isolate; overflow-x: clip; color: var(--night-ink); padding-top: calc(var(--hdr) + 80px); }
+/* شب تا نیمهٔ پنجرهٔ برنامه ادامه دارد؛ نیمهٔ پایین روی زمینهٔ صفحه می‌نشیند. */
+.hero > .sky { bottom: clamp(140px, 22vw, 300px); }
+.hero-in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 99px; font-size: 14px; color: var(--night-mute); background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); animation: kl-up .9s var(--ease-expo) .1s both; }
+.chip .ic { color: var(--lit); }
+.hero h1 { margin-top: 26px; display: flex; flex-direction: column; gap: 10px; font-weight: 800; animation: kl-up 1s var(--ease-expo) .2s both; }
+.h1-k { font-size: clamp(17px, 1.8vw, 21px); font-weight: 600; color: var(--lit); letter-spacing: .01em; }
+.h1-d { font-size: clamp(38px, 6.6vw, 80px); line-height: 1.2; letter-spacing: -.02em; text-wrap: balance; }
+.h1-d em { font-style: normal; background: linear-gradient(90deg, #F8D98F, #FFF3D6 50%, #F8D98F); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lead { margin-top: 22px; color: var(--night-mute); max-width: 660px; animation: kl-up 1s var(--ease-expo) .3s both; }
+.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 34px; animation: kl-up 1s var(--ease-expo) .4s both; }
+@keyframes kl-up { from { opacity: 0; translate: 0 22px; } }
+
+/* صحنهٔ برنامه: پنجرهٔ دسکتاپ با کارت‌های شناور */
+.stage { position: relative; z-index: 3; margin-top: 64px; container-type: inline-size; animation: kl-stage 1.3s var(--ease-expo) .55s both; }
+@keyframes kl-stage { from { opacity: 0; translate: 0 80px; scale: .96; } }
+.float {
+  position: absolute; z-index: 4; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center;
+  padding: 11px 15px; border-radius: 16px; background: var(--paper); color: var(--ink); text-align: start;
+  box-shadow: 0 0 0 1px var(--line), 0 26px 50px -24px rgba(0, 0, 0, .55);
+  animation: kl-pop .9s var(--ease-spring) both;
+}
+.float > :first-child { grid-row: span 2; }
+.float b { font-size: 14px; white-space: nowrap; }
+.float small { font-size: 12.5px; color: var(--mute); white-space: nowrap; }
+.float small.ok { color: var(--pri-text); font-weight: 700; }
+.float .av { width: 38px; height: 38px; background: var(--pri-tint); color: var(--pri-text); }
+.float > .ic { width: 38px; height: 38px; padding: 8px; border-radius: 11px; background: var(--warn-tint); color: var(--warn); }
+.float.f3 > .ic { background: var(--pri-tint); color: var(--pri-text); }
+.float.f1 { top: 30%; right: -2%; rotate: 2deg; animation-delay: 1.5s; }
+.float.f2 { top: 64%; left: -3%; rotate: -3deg; animation-delay: 1.7s; }
+.float.f3 { top: -4%; left: 6%; rotate: -2deg; animation-delay: 1.9s; }
+@keyframes kl-pop { from { opacity: 0; translate: 0 24px; scale: .85; } }
+
+.win {
+  font-size: min(16px, 1.43cqw); border-radius: 1.1em; overflow: hidden; background: var(--bg);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .1), 0 0 0 .5em rgba(255, 255, 255, .05), 0 60px 120px -40px rgba(0, 0, 0, .7), 0 30px 60px -30px rgba(0, 0, 0, .5);
+}
+.win-bar { display: flex; align-items: center; gap: .45em; height: 2.4em; padding-inline: 1em; background: var(--sunk); border-bottom: 1px solid var(--line); font-size: .85em; color: var(--mute); }
+.win-bar i { width: .8em; height: .8em; border-radius: 50%; background: var(--line2); }
+.win-bar span { margin-inline: auto; padding-inline-end: 3em; }
+.win-body { display: grid; grid-template-columns: 13em 1fr 19em; height: 37em; color: var(--ink); text-align: start; }
+.m-side { display: flex; flex-direction: column; gap: .3em; padding: 1.1em .8em; font-size: .9em; }
+.m-brand { display: flex; align-items: center; gap: .6em; padding: 0 .4em .8em; }
+.m-brand small, .m-brand b { display: block; line-height: 1.4; }
+.m-brand small { font-size: .78em; color: var(--mute); }
+.m-nav { display: flex; align-items: center; gap: .7em; height: 2.6em; padding-inline: .8em; border-radius: .7em; color: var(--ink2); }
+.m-nav small { margin-inline-start: auto; font-size: .8em; color: var(--faint); }
+.m-nav.on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--line), var(--sh); }
+.m-sync { margin-top: auto; display: flex; align-items: center; gap: .5em; padding: .8em; border-radius: .8em; background: var(--paper); box-shadow: 0 0 0 1px var(--line); font-size: .85em; color: var(--mute); }
+.m-sync i { width: .55em; height: .55em; border-radius: 50%; background: var(--ok); }
+.m-main { display: flex; flex-direction: column; min-width: 0; margin: .5em 0 .5em; background: var(--paper); border: 1px solid var(--line); border-radius: 1.2em 0 0 1.2em; border-left: 0; }
+.m-top { display: flex; align-items: center; gap: .8em; padding: .8em 1.2em; border-bottom: 1px solid var(--line); }
+.m-search { flex: 1; display: flex; align-items: center; gap: .6em; height: 2.6em; padding-inline: .9em; border-radius: .75em; background: var(--sunk); color: var(--mute); font-size: .88em; white-space: nowrap; overflow: hidden; }
+.m-search kbd { margin-inline-start: auto; padding: .1em .45em; border-radius: .35em; border: 1px solid var(--line2); background: var(--paper); font: inherit; font-size: .8em; direction: ltr; }
+.m-new { display: inline-flex; align-items: center; gap: .4em; height: 2.6em; padding-inline: 1em; border-radius: .75em; background: var(--pri); color: var(--pri-ink); font-size: .88em; font-weight: 600; white-space: nowrap; }
+.m-hd { display: flex; align-items: center; justify-content: space-between; gap: 1em; padding: 1.1em 1.2em .6em; }
+.m-hd > b { font-size: 1.5em; }
+.m-seg { display: flex; gap: .15em; padding: .2em; border-radius: .75em; background: var(--sunk); font-size: .8em; white-space: nowrap; }
+.m-seg span { display: inline-flex; align-items: center; gap: .4em; height: 2.4em; padding-inline: .8em; border-radius: .55em; color: var(--ink2); }
+.m-seg .on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--line); }
+.m-seg i { width: .8em; height: .8em; border-radius: .2em; }
+.sw-s { background: var(--sale); } .sw-r { background: var(--rent); } .sw-f { background: var(--full); }
+.m-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9em; padding: .6em 1.2em 1.2em; }
+.m-card { display: flex; flex-direction: column; gap: .15em; padding-bottom: .8em; border-radius: 1em; border: 1px solid var(--line); background: var(--paper); overflow: hidden; font-size: .82em; }
+.m-card > :not(.m-ph) { padding-inline: .9em; }
+.m-card > small { color: var(--mute); display: flex; align-items: center; gap: .3em; }
+.m-card > small .ic { width: 1.1em; height: 1.1em; }
+.m-card.sel { box-shadow: 0 0 0 2px var(--pri); border-color: transparent; }
+.m-ph { display: block; height: 8.5em; margin-bottom: .6em; }
+.m-ph .plq { position: absolute; top: .6em; right: .6em; font-size: .9em; }
+.m-ph.tall { height: 10.5em; border-radius: .9em; margin: 0; }
+.m-price { display: flex; align-items: baseline; justify-content: space-between; margin-top: .5em; padding-top: .6em; border-top: 1px solid var(--line); }
+.m-price b { font-size: 1.15em; }
+.m-price small { color: var(--mute); font-size: .85em; }
+.m-panel { display: flex; flex-direction: column; gap: .8em; padding: 1.2em; margin: .5em 0 .5em .5em; background: var(--paper); border: 1px solid var(--line); border-right: 0; border-radius: 0 1.2em 1.2em 0; font-size: .9em; }
+.m-ttl { display: flex; align-items: center; justify-content: space-between; gap: .6em; }
+.m-ttl small, .m-ttl b { display: block; }
+.m-ttl small { color: var(--mute); font-size: .85em; }
+.m-big { font-size: 1.6em; font-weight: 300; }
+.m-stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: .8em; }
+.m-stats span { padding: .5em .7em; font-weight: 700; }
+.m-stats span + span { border-right: 1px solid var(--line); }
+.m-stats small { display: block; font-weight: 400; font-size: .8em; color: var(--mute); }
+.m-match { display: flex; align-items: center; gap: .5em; padding: .8em; border-radius: .8em; background: var(--pri-tint); color: var(--pri-text); font-weight: 700; font-size: .9em; }
+.m-show { display: flex; align-items: center; justify-content: center; gap: .5em; height: 2.9em; margin-top: auto; border-radius: .8em; background: var(--pri); color: var(--pri-ink); font-weight: 700; }
+
+.hero-phone { display: none; }
+.plats { margin-top: 24px; font-size: 14px; color: var(--night-mute); animation: kl-up 1s var(--ease-expo) .5s both; }
+.plats .os-logo { width: 16px; height: 16px; margin: 0 6px 0 2px; vertical-align: -3px; opacity: .85; }
+
+/* ── سرتیتر بخش‌ها ── */
+.sec-hd { display: flex; flex-direction: column; gap: 14px; max-width: 780px; }
+.sec-hd .eb { margin: 0; }
+.sec-hd.center { align-items: center; text-align: center; margin-inline: auto; }
+
+/* ── یک روز با کلید: چهار قدم واقعی، پس شماره دارند ── */
+.flow .steps { list-style: none; display: flex; flex-direction: column; gap: clamp(56px, 8vw, 110px); margin: 64px 0 0; padding: 0; }
+.step { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 6vw, 88px); align-items: center; isolation: isolate; }
+.step:nth-child(even) .step-tx { order: 2; }
+.step-tx { display: flex; flex-direction: column; gap: 14px; max-width: 480px; }
+.step .n { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 15px; background: var(--pri); color: var(--pri-ink); font-size: 21px; font-weight: 800; box-shadow: 0 12px 26px -12px var(--pri); }
+.step h3 { font-size: clamp(22px, 2.5vw, 30px); line-height: 1.4; font-weight: 800; text-wrap: balance; }
+.step-tx > p { color: var(--ink2); line-height: 1.95; font-size: 16.5px; }
+.ticks { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; padding: 0; }
+.ticks li { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 99px; background: var(--pri-tint); color: var(--pri-text); font-size: 14px; font-weight: 600; }
+.step-v { position: relative; padding: 26px; border-radius: 26px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--sh-lg); }
+.step-v::before { content: ""; position: absolute; inset: -40px; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--pri) 13%, transparent), transparent); }
+
+.vf-hd { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.vf-hd b { font-size: 18px; }
+.step-v .m-seg { font-size: 13px; }
+.vf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vf-grid span { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--paper2); border: 1px solid var(--line); font-weight: 600; }
+.vf-grid small { color: var(--mute); font-weight: 400; font-size: 12.5px; }
+.vf-ft { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line2); }
+.vf-ok { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); font-weight: 700; }
+
+.vc-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--pri-text); font-weight: 700; }
+.vc-row { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 16px; }
+.vc-row + .vc-row { margin-top: 4px; }
+.vc-row:nth-child(2) { background: var(--sel); box-shadow: inset 0 0 0 1px var(--sel-line); }
+.vc-row > span:nth-child(2) { flex: 1; min-width: 0; }
+.vc-row b, .vc-row small { display: block; }
+.vc-row small { color: var(--mute); font-size: 13.5px; }
+.vc-row > .ic { color: var(--pri-text); }
+.ring { --p: 0; --rb: var(--paper); flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(closest-side, var(--rb) 76%, transparent 78%), conic-gradient(var(--pri) calc(var(--p) * 1%), var(--sunk) 0); }
+.vc-row:nth-child(2) .ring { --rb: var(--sel); }
+.ring b { font-size: 14px; color: var(--pri-text); }
+
+.vd-hd { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.vd-hd b { font-size: 18px; }
+.vd-hd small { color: var(--mute); }
+.ev { --c: var(--sale); display: flex; align-items: center; gap: 14px; margin-bottom: 8px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--c) 10%, var(--paper)); border-inline-start: 4px solid var(--c); font-size: 14.5px; }
+.ev.am { --c: var(--rent); }
+.ev.bl { --c: var(--full); }
+.ev small { min-width: 40px; color: var(--mute); font-feature-settings: "tnum"; }
+.toast { position: absolute; left: -18px; bottom: -22px; display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 600; box-shadow: var(--sh-lg); rotate: -2deg; }
+
+.v-deal { padding-top: 30px; }
+.vdl-t { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.vdl-t b, .vdl-t small { display: block; }
+.vdl-t small { color: var(--mute); }
+.v-deal dl { display: flex; flex-direction: column; margin: 0; border: 1px solid var(--line); border-radius: 14px; }
+.v-deal dl div { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+.v-deal dl div + div { border-top: 1px solid var(--line); }
+.v-deal dt { color: var(--mute); }
+.v-deal dd { margin: 0; font-weight: 700; }
+.v-deal dd.ok { color: var(--ok); }
+.stamp { position: absolute; top: 18px; left: 18px; padding: 4px 14px; border: 2.5px solid var(--ok); border-radius: 10px; color: var(--ok); font-size: 16px; font-weight: 800; rotate: -12deg; }
+
+/* ── امکانات بیشتر: یک شبکهٔ آرام، نه کارت روی کارت ── */
+.more { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 44px 0 0; padding: 0; background: var(--line); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
+.more li { display: flex; flex-direction: column; gap: 6px; padding: 28px; background: var(--paper); }
+.more .ic { width: 42px; height: 42px; margin-bottom: 8px; padding: 10px; border-radius: 12px; background: var(--pri-tint); color: var(--pri-text); }
+.more b { font-size: 17px; }
+.more span { color: var(--mute); line-height: 1.8; }
+
+/* ── شب: بدون اینترنت ── */
+.night { position: relative; margin-top: clamp(72px, 10vw, 128px); padding-block: clamp(64px, 9vw, 112px); background: var(--deep); color: var(--deep-ink); overflow: hidden; }
+.night::before { content: ""; position: absolute; inset: -40% -10% auto auto; width: 70%; height: 140%; background: radial-gradient(closest-side, color-mix(in srgb, var(--pri) 55%, transparent), transparent); opacity: .7; pointer-events: none; }
+.night-in { position: relative; display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; }
+.night .eb { color: #F6CF7C; }
+.night .eb::before { background: #F6CF7C; }
+.night h2 span { color: var(--deep-mute); }
+.night .lead { margin-top: 18px; color: var(--deep-mute); }
+.pts { list-style: none; display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; }
+.pts li { display: flex; gap: 16px; padding: 22px; border-radius: 20px; background: rgba(255, 255, 255, .04); box-shadow: inset 0 0 0 1px var(--deep-line); }
+.pts .ic { color: #F6CF7C; }
+.pts b { display: block; margin-bottom: 4px; font-size: 17px; color: var(--deep-ink); }
+.pts span { color: var(--deep-mute); line-height: 1.8; }
+
+
+/* ── آیفون ۱۷/۱۸ پرومکس با iOS 27. بدنه با واحد em (۱em = ۱۰px) و صفحه در .ios با «نقطه»ی iOS (۱em = ۱۰pt) تا همهٔ اندازه‌ها از خود iOS بیاید. رنگ بدنه سخت‌افزار است، صفحه با پوسته عوض می‌شود. ── */
+.iph {
+  --fr1: #3B4352; --fr2: #9AA4B5; --fr3: #20242C;
+  position: relative; flex: none; width: 30em; height: 63em; padding: .3em; border-radius: 4.8em; font-size: 10px;
+  background: linear-gradient(135deg, var(--fr2) 0%, var(--fr1) 16%, var(--fr3) 48%, var(--fr1) 84%, var(--fr2) 100%);
+  box-shadow: inset 0 0 0 .08em rgba(255, 255, 255, .4), inset 0 0 .3em rgba(0, 0, 0, .6), 0 5em 9em -3em rgba(0, 0, 0, .55), 0 2em 3em -1.5em rgba(0, 0, 0, .35);
+}
+.iph-b { position: absolute; width: .4em; border-radius: .3em; background: linear-gradient(90deg, var(--fr3), var(--fr2) 55%, var(--fr1)); }
+.iph-b.act { left: -.32em; top: 12.5em; height: 3.1em; }
+.iph-b.vu { left: -.32em; top: 18.2em; height: 5.6em; }
+.iph-b.vd { left: -.32em; top: 24.8em; height: 5.6em; }
+.iph-b.pw { right: -.32em; top: 19.6em; height: 8.8em; }
+.iph-b.cc { right: -.2em; top: 37em; height: 5.4em; width: .28em; background: linear-gradient(90deg, #15181D, #4A5260); }
+.iph-scr { position: relative; height: 100%; overflow: hidden; border: .46em solid #000; border-radius: 4.5em; background: var(--bg); color: var(--ink); text-align: start; }
+.ios { position: absolute; inset: 0; font-size: .64em; }
+.ios .ic { width: 2.2em; height: 2.2em; }
+/* نوار وضعیت: ساعت وسط گوشهٔ چپ و آنتن/وای‌فای/باتری وسط گوشهٔ راست، هر دو هم‌تراز مرکز آیلند */
+.ios-bar { position: absolute; z-index: 3; top: 0; inset-inline: 0; display: grid; grid-template-columns: 1fr 12.6em 1fr; justify-items: center; align-items: center; height: 5.9em; padding: 0 .8em 0 1.4em; }
+.ios-bar b { font: 600 1.7em/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.ios-bar span { display: flex; align-items: center; gap: .55em; }
+.ios-bar svg { fill: currentColor; }
+.ios-bar svg:nth-child(1) { width: 1.7em; height: 1.1em; }
+.ios-bar svg:nth-child(2) { width: 1.55em; height: 1.15em; }
+.ios-bar svg:nth-child(3) { width: 2.7em; height: 1.3em; }
+.ios-island { position: absolute; z-index: 4; top: 1.1em; left: 50%; translate: -50% 0; width: 12.6em; height: 3.7em; border-radius: 1.85em; background: radial-gradient(circle at 81% 50%, #1A2130 0 .6em, #0B0E14 .7em, transparent .75em), #000; }
+.ios-home { position: absolute; z-index: 4; bottom: .8em; left: 50%; translate: -50% 0; width: 13.4em; height: .5em; border-radius: 1em; background: var(--ink); }
+/* شیشهٔ مایع iOS 26/27: نیمه‌شفاف با تاری پشت و لبهٔ روشن */
+.glass {
+  background: color-mix(in srgb, var(--paper) 74%, transparent); -webkit-backdrop-filter: blur(2.2em) saturate(1.8); backdrop-filter: blur(2.2em) saturate(1.8);
+  box-shadow: inset 0 0 0 .07em rgba(255, 255, 255, .7), inset 0 .12em .25em rgba(255, 255, 255, .55), 0 0 0 .05em rgba(0, 0, 0, .06), 0 .8em 2em -.8em rgba(0, 0, 0, .3);
+}
+@media (prefers-color-scheme: dark) {
+  .glass { box-shadow: inset 0 0 0 .07em rgba(255, 255, 255, .16), inset 0 .12em .25em rgba(255, 255, 255, .08), 0 .8em 2em -.8em rgba(0, 0, 0, .7); }
+}
+/* خود برنامه، صفحهٔ فایل‌ها روی گوشی با الگوهای iOS: عنوان بزرگ، جستجوی کپسولی، فهرست گروه‌بندی‌شده */
+.ka { position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 6.2em; overflow: hidden; }
+.ka .plq { height: 1.75em; min-width: 3em; padding: 0 .4em; border-radius: .36em; font-size: 1.4em; box-shadow: inset 0 0 0 .13em var(--pc), inset 0 0 0 .24em rgba(255, 255, 255, .9); }
+.ka-nav { display: flex; align-items: center; justify-content: space-between; height: 4.4em; padding: 0 1.6em; }
+.ka-nav .plq { font-size: 1.7em; }
+.ka-btns { display: flex; align-items: center; height: 4.4em; padding: 0 .7em; border-radius: 2.2em; }
+.ka-btns .ic { margin: 0 .4em; }
+.ka-hd { padding: .6em 1.6em 0; }
+.ka-hd b { display: block; font-size: 3.4em; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; }
+.ka-hd small { display: block; font-size: 1.5em; color: var(--mute); }
+.ka-search { display: flex; align-items: center; gap: .7em; height: 4.2em; margin: 1.2em 1.6em 0; padding: 0 1.3em; border-radius: 2.1em; background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--mute); }
+.ka-search span { flex: 1; min-width: 0; font-size: 1.7em; white-space: nowrap; overflow: hidden; }
+.ka-search .ic { width: 1.9em; height: 1.9em; }
+.ka-seg { display: grid; grid-template-columns: 1fr 1fr 1.3fr; height: 3.6em; margin: 1.2em 1.6em 0; padding: .25em; border-radius: 1.8em; background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.ka-seg span { display: flex; align-items: center; justify-content: center; gap: .45em; border-radius: 1.6em; font-size: 1.4em; color: var(--ink2); white-space: nowrap; }
+.ka-seg .on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 .15em .5em rgba(0, 0, 0, .14), 0 0 0 .04em rgba(0, 0, 0, .04); }
+.ka-seg i { width: .6em; height: .6em; border-radius: .15em; }
+.ka-list { flex: none; margin: 1.6em 1.6em 0; border-radius: 2.6em; background: var(--paper); overflow: hidden; }
+.ka-row { position: relative; display: flex; align-items: center; gap: 1.2em; height: 6.6em; padding-inline: 1.6em 1.1em; }
+.ka-row + .ka-row::before { content: ""; position: absolute; top: 0; inset-inline: 7.5em 0; height: 1px; background: var(--line); }
+.ka-t { flex: 1; min-width: 0; }
+.ka-t b, .ka-t small, .ka-p b, .ka-p small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.45; }
+.ka-t b { font-size: 1.6em; font-weight: 700; }
+.ka-p { text-align: left; }
+.ka-p b { font-size: 1.5em; font-weight: 700; }
+.ka-t small, .ka-p small { font-size: 1.25em; color: var(--mute); }
+.ka .chev { flex: none; width: 1.5em; height: 1.5em; color: var(--faint); opacity: .6; }
+/* نوار زبانهٔ شناور شیشه‌ای و دکمهٔ جدای «+» مثل iOS 26/27 */
+.ka-tabs { position: absolute; z-index: 2; inset-inline: 2.1em; bottom: 2.1em; display: flex; gap: 1em; }
+.ka-tab { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); height: 6.2em; padding: .45em; border-radius: 3.1em; }
+.ka-tab span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15em; border-radius: 2.7em; font-size: 1em; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.ka-tab .ic { width: 2.5em; height: 2.5em; }
+.ka-tab .on { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--pri-text); }
+.ka-add { flex: none; display: grid; place-items: center; width: 6.2em; height: 6.2em; border-radius: 50%; color: var(--pri-text); }
+.ka-add .ic { width: 2.8em; height: 2.8em; stroke-width: 2.4; }
+
+/* ── دانلود ── */
+.dlx { display: grid; grid-template-columns: auto 1fr; gap: clamp(40px, 7vw, 100px); align-items: center; isolation: isolate; }
+.dlx-art { position: relative; display: grid; place-items: center; padding: 20px 0; }
+.dlx-art::before { content: ""; position: absolute; inset: -4% -24%; z-index: -1; background: radial-gradient(closest-side, color-mix(in srgb, var(--pri) 24%, transparent), transparent); }
+.dlx-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dlx-main .eb { margin: 0; }
+.plat { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.pc {
+  position: relative; display: grid; grid-template-columns: auto 1fr; grid-template-areas: "i t" "g g"; gap: 14px; align-items: center;
+  padding: 18px; border-radius: 20px; background: var(--paper); border: 1px solid var(--line);
+  transition: transform var(--t-med) var(--ease-out), box-shadow var(--t-med) var(--ease-out), border-color var(--t-fast);
+}
+.pc:hover { transform: translateY(-3px); border-color: var(--line2); box-shadow: var(--sh-lg); }
+.pc > .os-logo { grid-area: i; width: 44px; height: 44px; padding: 10px; border-radius: 13px; background: var(--sunk); fill: var(--ink); }
+.pc > span:not(.pc-go) { grid-area: t; min-width: 0; }
+.pc b { display: block; font-size: 17px; }
+.pc small { display: block; color: var(--mute); font-size: 13.5px; line-height: 1.6; }
+.pc-go { grid-area: g; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; border-radius: 12px; background: var(--sunk); color: var(--ink); font-weight: 700; }
+.pc em { position: absolute; top: -11px; left: 16px; display: none; align-items: center; height: 24px; padding: 0 10px; border-radius: 99px; background: var(--pri); color: var(--pri-ink); font-size: 12px; font-style: normal; font-weight: 700; }
+/* کارت دستگاه بیننده جلو می‌آید و برجسته می‌شود؛ بی تشخیص، ویندوز. */
+:is(html:not([data-os]), [data-os="win"]) .p-win, [data-os="mac"] .p-mac, [data-os="ios"] .p-ios, [data-os="and"] .p-and { order: -1; border-color: var(--pri); box-shadow: 0 0 0 1px var(--pri), var(--sh-lg); }
+:is(html:not([data-os]), [data-os="win"]) .p-win .pc-go, [data-os="mac"] .p-mac .pc-go, [data-os="ios"] .p-ios .pc-go, [data-os="and"] .p-and .pc-go { background: var(--pri); color: var(--pri-ink); }
+[data-os="win"] .p-win em, [data-os="mac"] .p-mac em, [data-os="ios"] .p-ios em, [data-os="and"] .p-and em { display: inline-flex; }
+.dl-web { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; color: var(--pri-text) !important; font-weight: 600; }
+.dl-web:hover { text-decoration: underline; }
+.ios-steps { list-style: none; display: none; flex-direction: column; gap: 10px; margin: 4px 0 0; padding: 16px; border-radius: 16px; background: var(--paper2); border: 1px dashed var(--line2); }
+[data-os="ios"] .ios-steps { display: flex; }
+.ios-steps li { display: flex; align-items: center; gap: 10px; }
+.ios-steps span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--ink); color: var(--paper); font-size: 13px; font-weight: 700; }
+
+/* ── قیمت: سالانه پیش‌فرض، پلن دفتر برجسته در رنگ شب صفحهٔ اول با قاب طلایی چرخان ── */
+@property --pa { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.pricing { display: flex; flex-direction: column; align-items: center; margin-top: 36px; }
+.period { position: relative; display: inline-grid; grid-template-columns: repeat(3, 1fr); padding: 5px; border-radius: 99px; background: var(--paper); box-shadow: 0 0 0 1px var(--line), 0 10px 30px -18px rgba(0, 0, 0, .35); }
+.period input { position: absolute; opacity: 0; pointer-events: none; }
+.period label { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 46px; padding: 0 22px; border-radius: 99px; font-weight: 700; color: var(--ink2); cursor: pointer; transition: color var(--t-med), background-color var(--t-med); white-space: nowrap; }
+.period input:checked + label { background: var(--ink); color: var(--paper); }
+.period input:focus-visible + label { outline: 2px solid var(--pri-text); outline-offset: 3px; }
+.period .tag { height: 24px; font-size: 12.5px; background: linear-gradient(180deg, #F8D98F, #EDBD5B); color: #1A1A14; }
+
+.plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; width: 100%; margin-top: 48px; }
+.plan {
+  position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 18px; padding: 30px 28px; border-radius: 30px; overflow: hidden;
+  background: linear-gradient(180deg, var(--paper), var(--paper2)); box-shadow: 0 0 0 1px var(--line), 0 24px 50px -36px rgba(0, 0, 0, .35);
+  transition: transform var(--t-med) var(--ease-out), box-shadow var(--t-med) var(--ease-out);
+}
+.plan:not(.hot):hover { transform: translateY(-6px); box-shadow: 0 0 0 1px color-mix(in srgb, var(--pri) 40%, var(--line)), 0 40px 70px -36px rgba(0, 0, 0, .45); }
+.plan.hot {
+  margin-block: -18px; padding: 50px 30px 34px; overflow: visible; color: var(--night-ink);
+  background: radial-gradient(90% 46% at 50% 0%, rgba(246, 207, 124, .24), transparent 70%), radial-gradient(60% 40% at 100% 100%, rgba(58, 154, 127, .28), transparent 70%), linear-gradient(180deg, #0B3329, #051410);
+  box-shadow: 0 50px 90px -34px rgba(6, 20, 15, .85), 0 0 80px -30px rgba(246, 207, 124, .55);
+}
+/* قاب طلایی که آرام دور کارت می‌چرخد */
+.plan.hot::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; padding: 1.5px; border-radius: inherit; pointer-events: none;
+  background: conic-gradient(from var(--pa), rgba(246, 207, 124, .15), #F6CF7C 10%, rgba(246, 207, 124, .15) 24%, rgba(125, 208, 181, .55) 50%, rgba(246, 207, 124, .15) 76%, #F6CF7C 90%, rgba(246, 207, 124, .15));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: kl-spin 7s linear infinite;
+}
+@keyframes kl-spin { to { --pa: 360deg; } }
+.plan-badge { position: absolute; z-index: 3; top: -16px; right: 50%; translate: 50% 0; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 16px; border-radius: 99px; background: linear-gradient(180deg, #F8D98F, #EDBD5B); color: #1A1A14; font-size: 13px; font-weight: 800; white-space: nowrap; box-shadow: 0 10px 24px -8px rgba(246, 207, 124, .9); }
+.plan-hd { display: flex; align-items: center; gap: 14px; }
+.plan-ic { flex: none; display: grid; place-items: center; width: 50px; height: 50px; border-radius: 16px; background: var(--pri-tint); color: var(--pri-text); }
+.hot .plan-ic { background: rgba(246, 207, 124, .14); color: var(--lit); box-shadow: inset 0 0 0 1px rgba(246, 207, 124, .3); }
+.plan-name { font-size: 22px; font-weight: 800; line-height: 1.3; }
+.plan-blurb { color: var(--mute); font-size: 14.5px; }
+.hot .plan-blurb { color: var(--night-mute); }
+.plan-price { display: flex; flex-direction: column; gap: 6px; padding: 18px 0 2px; border-top: 1px dashed var(--line2); }
+.hot .plan-price { border-top-color: rgba(255, 255, 255, .14); }
+.pp { display: flex; align-items: center; gap: 10px; }
+.pp b { font-size: clamp(46px, 4.8vw, 60px); font-weight: 900; line-height: 1.1; font-feature-settings: normal; font-variant-numeric: proportional-nums; }
+.hot .pp b { background: linear-gradient(180deg, #FFF1C9 10%, #F6CF7C 55%, #E2AC48); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.pp span { font-size: 13px; line-height: 1.35; color: var(--mute); }
+.pwas { display: flex; align-items: center; gap: 8px; }
+.pwas s { color: var(--faint); font-size: 15px; }
+.hot .pwas s { color: rgba(255, 255, 255, .45); }
+.save { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 99px; background: var(--pri-tint); color: var(--pri-text); font-size: 12.5px; font-weight: 800; }
+.hot .save { background: rgba(246, 207, 124, .16); color: var(--lit); }
+.pnote { font-size: 13.5px; color: var(--mute); }
+.hot :is(.pp span, .pnote, .plan-safe) { color: var(--night-mute); }
+.plan .btn { gap: 8px; }
+.plan .btn .ic { transition: translate var(--t-med) var(--ease-out); }
+.plan .btn:hover .ic { translate: -4px 0; }
+.plan-safe { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: -8px; font-size: 13px; color: var(--mute); }
+.plan-safe .ic { color: var(--ok); }
+.hot .plan-safe .ic { color: var(--lit); }
+.plan-seats { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--sunk); }
+.hot .plan-seats { background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+.avs { flex: none; display: flex; padding-inline-start: 8px; }
+.avs .av { width: 30px; height: 30px; margin-inline-start: -8px; font-size: 12px; background: var(--pri-tint); color: var(--pri-text); box-shadow: 0 0 0 2px var(--sunk); }
+.hot .avs .av { background: #1C4A3E; color: #CFE9DF; box-shadow: 0 0 0 2px #0B2E25; }
+.avs .av.plus { background: var(--paper); color: var(--mute); }
+.plan-feats { list-style: none; display: flex; flex-direction: column; gap: 11px; margin: 0; padding: 0; font-size: 14.5px; }
+.plan-feats li { display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
+.plan-feats .ic { flex: none; width: 20px; height: 20px; margin-top: 1px; padding: 3px; border-radius: 50%; background: var(--pri-tint); color: var(--pri-text); stroke-width: 3; }
+.hot .plan-feats .ic { background: rgba(246, 207, 124, .16); color: var(--lit); }
+.plan-city { position: absolute; z-index: -1; inset-inline: 0; bottom: 0; width: 100%; height: 64px; border-radius: 0 0 30px 30px; fill: rgba(255, 255, 255, .05); }
+.plan-city .lit { fill: var(--lit); opacity: .5; }
+.hot .plan-feats { padding-bottom: 34px; }
+@media (prefers-reduced-motion: reduce) { .plan.hot::before { animation: none; } }
+/* دوره فقط با CSS؛ قیمت هر سه در HTML هست و مرورگر بی :has سالانه را نشان می‌دهد. */
+/* نام per-* چون .ph در kelid.css کلاس جای عکس فایل است */
+.per-m, .per-h { display: none; }
+.pricing:has(#p-h:checked) :is(.per-y, .per-m), .pricing:has(#p-m:checked) :is(.per-y, .per-h) { display: none; }
+.pricing:has(#p-h:checked) .per-h, .pricing:has(#p-m:checked) .per-m { display: revert; }
+.pricing:has(#p-h:checked) .pwas.per-h { display: flex; }
+.assure { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; margin: 40px 0 0; padding: 0; }
+.assure li { display: flex; align-items: flex-start; gap: 14px; padding: 18px; border-radius: 18px; background: var(--paper2); border: 1px solid var(--line); }
+.assure .ic { flex: none; margin-top: 2px; color: var(--pri-text); }
+.assure b { display: block; }
+.assure span { color: var(--mute); font-size: 14.5px; line-height: 1.7; }
+
+/* ── پرسش‌ها ── */
+.faq { display: grid; grid-template-columns: 1fr 1.5fr; gap: 48px; align-items: start; }
+.faq .lead { margin-top: 14px; }
+.qas { display: flex; flex-direction: column; gap: 10px; }
+.qa { border-radius: 18px; background: var(--paper); border: 1px solid var(--line); transition: border-color var(--t-fast), box-shadow var(--t-med); }
+.qa[open] { border-color: var(--line2); box-shadow: var(--sh); }
+.qa summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; cursor: pointer; list-style: none; }
+.qa summary::-webkit-details-marker { display: none; }
+.qa h3 { font-size: 16.5px; font-weight: 700; }
+.qa-i { flex: none; color: var(--mute); transition: transform var(--t-med) var(--ease-out); }
+.qa[open] .qa-i { transform: rotate(180deg); }
+.qa p { padding: 0 22px 22px; color: var(--ink2); line-height: 1.95; }
+.qa summary:focus-visible { outline: 2px solid var(--pri-text); outline-offset: -2px; border-radius: 18px; }
+
+/* ── پایان ── */
+.final { position: relative; isolation: isolate; margin-top: clamp(72px, 10vw, 128px); padding-block: clamp(72px, 9vw, 120px) clamp(220px, 24vw, 300px); color: var(--night-ink); text-align: center; overflow: hidden; }
+.final-in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 30px; }
+.final .mark { width: 104px; height: 104px; filter: drop-shadow(0 30px 50px rgba(246, 207, 124, .3)) drop-shadow(0 0 1px rgba(255, 255, 255, .3)); }
+.final h2 { max-width: 760px; }
+.final .cta { margin-top: 0; animation: none; }
+
+/* ── پانویس: ادامهٔ زمین شهر بخش پایانی؛ جمع‌وجور، با پیوندها، دانلود سریع و نشانه‌های اعتماد ── */
+.ftr { --deep-ink: #FFFFFF; --deep-mute: rgba(255, 255, 255, .62); --deep-line: rgba(255, 255, 255, .09); padding-top: clamp(40px, 5vw, 64px); background: #041611; color: var(--deep-mute); }
+.ftr-grid { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 32px 40px; padding-bottom: 36px; }
+.ftr-b { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: 380px; }
+.ftr-b p { font-size: 14.5px; line-height: 1.9; }
+.ftr-col { display: flex; flex-direction: column; gap: 10px; }
+.ftr-col h3 { margin-bottom: 4px; font-size: 14px; font-weight: 800; color: var(--deep-ink); }
+.ftr-col a { width: fit-content; font-size: 14.5px; transition: color var(--t-fast); }
+.ftr-col a:hover, .ftr-up:hover { color: var(--lit); }
+.ftr-mid { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-block: 22px; border-block: 1px solid var(--deep-line); }
+.ftr-dl { display: flex; flex-wrap: wrap; gap: 8px; }
+.ftr-dl a { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; background: rgba(255, 255, 255, .06); color: var(--deep-ink); font-size: 14px; font-weight: 700; transition: background-color var(--t-fast); }
+.ftr-dl a:hover { background: rgba(255, 255, 255, .12); }
+.ftr-dl .os-logo { width: 18px; height: 18px; fill: currentColor; }
+.ftr-seals { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; }
+.ftr-seals li { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; border-radius: 16px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px var(--deep-line); }
+.seal { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: #FFFFFF; color: #0E4D3F; }
+.ftr-seals b { display: block; font-size: 14px; color: var(--deep-ink); }
+.ftr-seals small { font-size: 12px; }
+.ftr-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-block: 22px 28px; font-size: 13.5px; }
+.ftr-up { display: inline-flex; align-items: center; gap: 8px; color: var(--deep-ink); transition: color var(--t-fast); }
+
+
+/* نمایش تدریجی هنگام اسکرول، فقط با CSS؛ مرورگری که نمی‌تواند، همه‌چیز را از اول نشان می‌دهد. */
+@supports (animation-timeline: view()) {
+  .sec-hd, .step-tx, .step-v, .more, .plan, .qa, .pc, .assure li, .pts li, .night h2, .final-in > * {
+    animation: kl-reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 40%;
+  }
+  @keyframes kl-reveal { from { opacity: 0; translate: 0 36px; } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app *, .app *::before, .app *::after { animation: none !important; transition-duration: 0s !important; }
+  .lit, .milad-ring { opacity: .9; }
+}
+
+/* ── تبلت ── */
+@media (max-width: 1080px) {
+  .hdr-in { grid-template-columns: auto 1fr; }
+  .hdr-nav { display: none; }
+  .hdr-menu { display: grid; }
+  .step { grid-template-columns: 1fr; }
+  .step:nth-child(even) .step-tx { order: 0; }
+  .step-v { max-width: 560px; }
+  .more { grid-template-columns: 1fr 1fr; }
+  .night-in, .faq { grid-template-columns: 1fr; gap: 36px; }
+  .dlx { grid-template-columns: 1fr; }
+  .dlx-art { order: 2; }
+  .float.f1 { right: 0; }
+  .float.f2 { left: 0; }
+}
+@media (max-width: 920px) {
+  .plans { grid-template-columns: 1fr; max-width: 520px; gap: 28px; }
+  .plan.hot { order: -1; margin-block: 0; }
+  .ftr-grid { grid-template-columns: repeat(3, 1fr); }
+  .ftr-b { grid-column: 1 / -1; max-width: 560px; }
+  .assure { grid-template-columns: 1fr; max-width: 520px; }
+}
+
+/* ── گوشی ── */
+@media (max-width: 760px) {
+  .wrap { padding-inline: 16px; }
+  .hdr-in { gap: 10px; padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+  .hdr-cta { height: 42px; padding: 0 14px; font-size: 14px; }
+  .hero { padding-top: calc(var(--hdr) + 40px); }
+  .hero > .sky { bottom: 190px; }
+  .moon { top: calc(var(--hdr) + 34px); left: 14px; width: 34px; height: 34px; }
+  .chip { font-size: 13px; height: 32px; padding: 0 12px; }
+  .cta { flex-direction: column; align-self: stretch; }
+  .cta .btn { width: 100%; }
+  .stage { margin-top: 44px; display: flex; justify-content: center; }
+  .win { display: none; }
+  .hero-phone { display: block; }
+  .hero-phone .iph { font-size: 9px; }
+  /* روی گوشی جایی بیرون از آیفون نیست؛ کارت‌ها صفحهٔ آن را نمی‌پوشانند */
+  .stage .float { display: none; }
+  .step-v { padding: 20px 16px; }
+  .vf-grid { grid-template-columns: 1fr; }
+  .toast { left: 8px; bottom: -20px; }
+  .more { grid-template-columns: 1fr; }
+  .more li { padding: 22px 20px; }
+  .plat { grid-template-columns: 1fr; }
+  .dlx-art { padding: 10px 0; }
+  .dlx-art .iph { font-size: 8.6px; }
+  .plan { padding: 28px 20px; }
+  .plan.hot { padding: 40px 20px 30px; }
+  .pp b { font-size: 36px; }
+  .ftr-grid { grid-template-columns: 1fr 1fr; gap: 32px 20px; }
+  .ftr-col:last-child { grid-column: 1 / -1; }
+  .period { width: 100%; }
+  .period label { padding: 0 8px; }
+  .period .tag { display: none; }
+  .ftr-mid { flex-direction: column; align-items: flex-start; }
+  .ftr-bar { flex-direction: column-reverse; align-items: flex-start; }
+}
