@@ -23,6 +23,7 @@ If `graphify` is installed (`uv tool install graphifyy`), prefer it over broad f
 ## Layout
 ```
 apps/web        React 19 + Vite 8 UI (shared by web, PWA and desktop). Pages in src/pages, chrome in src/layout, DB drivers in src/db
+apps/site       Marketing site (kelid.ir): one static, JS-free, SEO-first page; build/render.ts fills it from core (plans, FAQ, JSON-LD), port 5175
 apps/admin      Vendor panel (our staff only): offices, subscriptions, extend/suspend, payments. React + Vite, port 5174
 apps/desktop    Electron 44 shell: main.ts (window, single-instance), database.ts (encrypted SQLite + IPC), preload.ts (window.kelid)
 apps/server     Phase 2 API: Fastify 5 + PostgreSQL 16 with row-level security per office (app.ts routes, db.ts withOffice, migrations.ts)
@@ -45,6 +46,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md, DEPLOY.md (produc
 | format with Prettier | `npm run format` (not enforced on existing files — see Code style) |
 | Windows installer → `apps/desktop/release/` | `npm run dist:win` |
 | vendor panel dev (http://localhost:5174; `VITE_ADMIN_API_URL=demo` for sample data) | `npm run dev:admin` |
+| marketing site dev (http://localhost:5175); build → `apps/site/dist` | `npm run dev:site` · `npm run build -w @kelid/site` |
 | create / reset / disable a vendor admin | `npm run admin -w @kelid/server -- add --phone 09xxxxxxxxx --name "…"` |
 | regenerate app icons / installer images | `npm run icons` |
 
@@ -62,7 +64,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md, DEPLOY.md (produc
 **Server**
 - Office data is read and written only inside `withOffice(pool, officeId, db => …)` (`apps/server/src/db.ts`); every table gets `enable` + `force row level security` and a policy on `kelid_office()` (a test fails otherwise).
 - Vendor (admin panel) access goes only through `withVendor` and the `kelid_vendor()` policies; never give the vendor office data tables.
-- Auth tables (`users`, `devices`, `otp_codes`, `signup_tickets`, `invites`) are global on purpose (no office before login) and only `auth/` (`routes.ts`, `team.ts`) touches them, always filtered by the caller's own `office_id`; codes and tokens are stored as hashes only, passwords as scrypt hashes (`auth/password.ts`). SMS goes through `SmsSender` (`auth/sms.ts`).
+- Auth tables (`users`, `devices`, `otp_codes`, `signup_tickets`, `device_tickets`, `invites`) are global on purpose (no office before login) and only `auth/` (`routes.ts`, `team.ts`) touches them, always filtered by the caller's own `office_id`; codes and tokens are stored as hashes only, passwords as scrypt hashes (`auth/password.ts`). SMS goes through `SmsSender` (`auth/sms.ts`).
 - The runtime DB role is never superuser/BYPASSRLS and doesn't own the tables; migrations run with the owner role. 5xx responses never include internal error text.
 
 **UI / UX**

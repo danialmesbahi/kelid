@@ -18,10 +18,10 @@ const HINT: Record<FeedbackKind, string> = {
 const MAX = 2000;
 
 /** نظر یا گزارش مشکل برای تیم کلید. بی‌اینترنت هم ثبت می‌شود و بعد خودش می‌رود. */
-export function FeedbackDialog({ onClose, initial = 'problem' }: { onClose: () => void; initial?: FeedbackKind }) {
+export function FeedbackDialog({ onClose, initial = 'problem', text = '' }: { onClose: () => void; initial?: FeedbackKind; text?: string }) {
   const toast = useToast();
   const [kind, setKind] = useState<FeedbackKind>(initial);
-  const [body, setBody] = useState('');
+  const [body, setBody] = useState(text);
   const [error, setError] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);

@@ -1,12 +1,13 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
-import { Icon } from '@kelid/ui';
+import { Icon, Logo } from '@kelid/ui';
 import { toEnDigits, toFaDigits } from '@kelid/core';
 import { usePrefsContext } from '../App';
 import { useStore } from '../data';
 import { useToast } from '../layout/Toasts';
 import { usePhone } from '../layout/usePhone';
 import { WelcomeHero } from '../welcome/WelcomeHero';
-import { ApiError, deviceLabel, type InviteInfo, type Session } from './api';
+import { ApiError, deviceLabel, type DeviceLimit, type InviteInfo, type Session } from './api';
+import { seen } from './AccountSection';
 import { formatPhone, phoneDigits } from './phone';
 import { useAuth } from './AuthContext';
 import '../welcome/welcome.css';
@@ -15,8 +16,8 @@ import './login.css';
 export type AuthMode = 'login' | 'signup' | 'join';
 /** password: شماره و رمز (راه اصلی). code: ورود با کد پیامکی یا فراموشی رمز. signup: دفتر تازه. */
 type Flow = 'password' | 'code' | 'signup';
-/** join: شماره‌ای که دفتری دعوتش کرده، بعد از کد درست. */
-type Step = 'phone' | 'otp' | 'details' | 'code' | 'nouser' | 'newpass' | 'join';
+/** join: شماره‌ای که دفتری دعوتش کرده، بعد از کد درست. devices: دستگاه‌های دفتر به سقف نفرات اشتراک رسیده. */
+type Step = 'phone' | 'otp' | 'details' | 'code' | 'nouser' | 'newpass' | 'join' | 'devices';
 const LEN = 6;
 const MIN_PASSWORD = 8;
 
@@ -34,6 +35,7 @@ function errorText(e: unknown, step: Step): string {
     case 'bad_code':
       return 'کد شش رقم است.';
     case 'expired':
+      if (step === 'devices') return 'مهلت انتخاب دستگاه تمام شد؛ دوباره وارد شوید.';
       return 'این کد دیگر معتبر نیست؛ یک کد تازه بگیرید.';
     case 'too_many':
       if (step === 'phone') return `چند بار رمز اشتباه زده شد. ${waitText(e.retryAfter ?? 60)} دیگر دوباره امتحان کنید، یا همین حالا با کد پیامکی وارد شوید.`;
@@ -99,11 +101,14 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   const [resendAt, setResendAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [leaving, setLeaving] = useState(false);
+  // سقف دستگاه: فهرست دستگاه‌های باز حساب و این‌که بعد از بیرون کردن یکی، ورود از کجا ادامه پیدا کند.
+  const [limit, setLimit] = useState<(DeviceLimit & { then: (s: Session) => Promise<void> }) | null>(null);
+  const [pick, setPick] = useState('');
   const bodyRef = useRef<HTMLDivElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const passRef = useRef<HTMLInputElement>(null);
 
-  const order: Step[] = ['phone', 'otp', 'details', 'code', 'nouser', 'newpass', 'join'];
+  const order: Step[] = ['phone', 'otp', 'details', 'code', 'nouser', 'newpass', 'join', 'devices'];
   const go = (s: Step, f: Flow = flow) => {
     setDir(order.indexOf(s) >= order.indexOf(step) ? 1 : -1);
     setError('');
@@ -134,6 +139,30 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     setShake(true);
   };
 
+  /** حساب روی دستگاه دیگری باز است: به‌جای خطا، فهرست دستگاه‌ها. */
+  const askDevice = (e: unknown, then: (s: Session) => Promise<void>) => {
+    if (!(e instanceof ApiError) || e.code !== 'device_limit' || !e.limit) return false;
+    setLimit({ ...e.limit, then });
+    setPick(e.limit.devices.find((d) => !d.locked)?.id ?? '');
+    go('devices');
+    return true;
+  };
+
+  /** دستگاه انتخاب‌شده بیرون می‌رود و ورود همان‌جا که مانده بود ادامه پیدا می‌کند. */
+  const replaceDevice = async () => {
+    if (!api || !limit || busy || !pick) return;
+    setBusy(true);
+    setError('');
+    try {
+      await limit.then(await api.replaceDevice(limit.ticket, pick));
+    } catch (e) {
+      if (askDevice(e, limit.then)) return;
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const validPhone = () => {
     if (phone.length === 11 && phone.startsWith('09')) return true;
     fail(new ApiError('bad_phone'));
@@ -149,6 +178,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     try {
       await finish(await api.login(phone, password, deviceLabel()), 'login');
     } catch (e) {
+      if (askDevice(e, (s) => finish(s, 'login'))) return;
       fail(e);
       passRef.current?.select();
     } finally {
@@ -194,7 +224,21 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
 
   const createOffice = async (t: string) => {
     if (!api) return;
-    await finish(await api.signup(t, name.trim(), office.trim(), password, deviceLabel()), 'signup');
+    try {
+      await finish(await api.signup(t, name.trim(), office.trim(), password, deviceLabel()), 'signup');
+    } catch (e) {
+      // شماره از قبل حساب داشت و آن حساب روی دستگاه دیگری باز است.
+      if (!askDevice(e, (s) => finish(s, 'login'))) throw e;
+    }
+  };
+
+  /** ورود با کد انجام شد؛ اگر رمز را فراموش کرده یا هنوز رمزی ندارد، همین‌جا رمز تازه، بدون رمز قبلی. */
+  const signedIn = async (s: Session) => {
+    if (flow === 'code' && (forgot || s.user.hasPassword === false)) {
+      setPending(s);
+      setPassword('');
+      go('newpass');
+    } else await finish(s, 'login');
   };
 
   const verify = async (value = code) => {
@@ -206,12 +250,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
       if ('session' in r) {
         // ثبت‌نام با شماره‌ای که از قبل حساب دارد: همان حساب و همان رمز قبلی باز می‌شود، چیزی دوباره ساخته نمی‌شود.
         if (flow === 'signup') toast('این شماره از قبل در کلید حساب داشت؛ وارد همان حساب شدید');
-        // رمز را فراموش کرده یا هنوز رمزی ندارد: همین‌جا رمز تازه، بدون رمز قبلی.
-        if (flow === 'code' && (forgot || r.session.user.hasPassword === false)) {
-          setPending(r.session);
-          setPassword('');
-          go('newpass');
-        } else await finish(r.session, 'login');
+        await signedIn(r.session);
       } else if (r.invite) {
         // دعوت شده: پیوستن به همان دفتر راه اصلی است؛ ساختن دفتر جدا هم یک دکمه آن‌طرف‌تر است.
         setTicket(r.signupToken);
@@ -227,6 +266,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
       }
     } catch (e) {
       setCode('');
+      if (askDevice(e, signedIn)) return;
       fail(e);
       codeRef.current?.focus();
     } finally {
@@ -269,6 +309,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     try {
       await finish(await api.join(ticket, name.trim(), password, deviceLabel()), 'join');
     } catch (e) {
+      if (askDevice(e, (s) => finish(s, 'join'))) return;
       if (e instanceof ApiError && e.code === 'expired') {
         // بلیت ربع ساعت اعتبار دارد؛ بعدش یک کد تازه.
         setTicket('');
@@ -306,6 +347,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     else if (step === 'code') void verify();
     else if (step === 'newpass') void saveNewPassword();
     else if (step === 'join') void (invite ? joinOffice() : go('details', 'signup'));
+    else if (step === 'devices') void replaceDevice();
     else go('details', 'signup');
   };
 
@@ -328,13 +370,16 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
 
   // ورود با رمز یک صفحه است و نقطهٔ قدم ندارد.
   const steps: Step[] =
-    step === 'join'
+    step === 'devices'
+      ? []
+      : step === 'join'
       ? flow === 'signup' ? ['details', 'code', 'join'] : ['otp', 'code', 'join']
       : flow === 'signup' ? ['details', 'code'] : flow === 'code' ? (forgot || step === 'newpass' ? ['otp', 'code', 'newpass'] : ['otp', 'code']) : [];
   const idx = step === 'nouser' ? 1 : steps.indexOf(step);
   const back: Step | null =
-    step === 'code' ? (flow === 'signup' ? 'details' : 'otp') : step === 'otp' ? 'phone' : step === 'nouser' ? 'otp' : step === 'details' && ticket ? (invite ? 'join' : 'nouser') : null;
+    step === 'devices' ? (flow === 'password' ? 'phone' : 'otp') : step === 'code' ? (flow === 'signup' ? 'details' : 'otp') : step === 'otp' ? 'phone' : step === 'nouser' ? 'otp' : step === 'details' && ticket ? (invite ? 'join' : 'nouser') : null;
   const backFlow = (s: Step): Flow => (s === 'phone' ? 'password' : s === 'otp' || s === 'nouser' ? 'code' : flow);
+  const isMobile = (n: string) => /گوشی|آیفون|تبلت|آیپد/.test(n);
 
   const phoneBad = !!error && (errCode === 'bad_phone' || step === 'otp');
   const passBad = !!error && errCode !== 'bad_phone' && errCode !== 'bad_name';
@@ -370,7 +415,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
 
       <form className="wl-main" onSubmit={submit} noValidate>
         <header className="wl-top">
-          <span className="plq lg-brand">کلید</span>
+          <Logo size={34} word className="lg-brand" />
           <span className="sp" />
           {steps.length > 0 && (
             <ol className="wl-dots" aria-label={`قدم ${toFaDigits(idx + 1)} از ${toFaDigits(steps.length)}`}>
@@ -568,6 +613,35 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
             </>
           )}
 
+          {step === 'devices' && limit && (
+            <>
+              <span className="eb">دستگاه‌های دفتر پر است</span>
+              <h1 id="lg-title" className="wl-h">همهٔ دستگاه‌های دفتر وارد شده‌اند</h1>
+              <p className="wl-lead">
+                اشتراک دفترتان برای {toFaDigits(limit.seats)} نفر است و همین تعداد دستگاه در کلید وارد شده. برای ورود از این‌جا، یکی را خارج کنید؛ فایل‌ها و اطلاعات دفتر سر جایشان می‌مانند.
+              </p>
+              <div className="lg-devs" role="radiogroup" aria-label="دستگاهی که خارج می‌شود">
+                {limit.devices.map((d) => (
+                  <label key={d.id} className={`lg-dev${pick === d.id ? ' on' : ''}${d.locked ? ' off' : ''}`}>
+                    <input type="radio" name="lg-dev" value={d.id} checked={pick === d.id} disabled={d.locked} onChange={() => setPick(d.id)} />
+                    <Icon name={isMobile(d.name) ? 'mobile' : 'pc'} />
+                    <span className="lg-dev-t">
+                      <b>{d.name}</b>
+                      <span className="xs mute">
+                        {d.mine ? 'دستگاه خودتان' : d.owner} · {d.locked ? 'فقط مدیر می‌تواند خارجش کند' : `آخرین استفاده: ${seen(d.lastSeenAt)}`}
+                      </span>
+                    </span>
+                    <Icon name="check" size="s" className="lg-dev-ok" />
+                  </label>
+                ))}
+              </div>
+              <Message id="lg-msg" error={error}>
+                <Icon name="users" size="s" />
+                دستگاه بیشتری لازم دارید؟ مدیر دفتر می‌تواند نفرات اشتراک را بیشتر کند.
+              </Message>
+            </>
+          )}
+
           {step === 'newpass' && (
             <>
               <span className="eb">{forgot ? 'فراموشی رمز · قدم ۳' : 'وارد شدید'}</span>
@@ -600,7 +674,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
           {step === 'newpass' && <button type="button" className="btn btn-g btn-lg" onClick={() => void saveNewPassword(true)} disabled={busy}>بعداً</button>}
           {step === 'join' && invite && <button type="button" className="btn btn-g btn-lg" onClick={() => go('details', 'signup')} disabled={busy}>دفتر جدا می‌سازم</button>}
           <span className="sp" />
-          <button type="submit" className="btn btn-p btn-lg wl-primary" disabled={busy || (step === 'code' && code.length < LEN)} aria-busy={busy}>
+          <button type="submit" className="btn btn-p btn-lg wl-primary" disabled={busy || (step === 'code' && code.length < LEN) || (step === 'devices' && !pick)} aria-busy={busy}>
             {busy
               ? step === 'otp' || (step === 'details' && !ticket) ? 'در حال فرستادن…' : 'لحظه‌ای صبر کنید…'
               : step === 'phone' ? 'ورود'
@@ -609,6 +683,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
               : step === 'code' ? (flow === 'signup' ? 'ساختن دفتر' : 'ورود')
               : step === 'newpass' ? 'ذخیره و ورود'
               : step === 'join' && invite ? 'پیوستن به دفتر'
+              : step === 'devices' ? 'خروج آن دستگاه و ورود'
               : 'ساختن دفتر تازه'}
             <Icon name="chl" size="s" />
           </button>

@@ -103,15 +103,32 @@ export type ApiErrorCode =
   | 'bad_phone' | 'bad_code' | 'bad_name' | 'bad_password' | 'wrong' | 'expired' | 'too_many' | 'sms_failed' | 'unauthorized' | 'not_found' | 'bad_photo'
   | 'forbidden' | 'no_seat' | 'member' | 'last_manager' | 'self' | 'not_alone'
   | 'subscription' | 'too_small' | 'no_gateway' | 'gateway'
+  // دستگاه‌های دفتر به سقف نفرات اشتراک رسیده؛ ApiError.limit فهرست و بلیت ادامه را دارد.
+  | 'device_limit'
   // فقط سمت برنامه: توکن مال دفتر دیگری است (کاربر دفترش را عوض کرد)؛ همگام‌سازی دفتر قبلی همان‌جا می‌ایستد.
   | 'office_changed'
   | 'offline' | 'server';
+
+/** دستگاه وارد شدهٔ دفتر وقتی دفتر به سقف رسیده. mine: مال خود این حساب. locked: دستگاه مدیر که مشاور نمی‌تواند خارجش کند. */
+export interface OfficeDevice extends Omit<Device, 'current'> {
+  owner: string;
+  mine: boolean;
+  locked: boolean;
+}
+
+/** دفتر به سقف دستگاه (نفرات اشتراک) رسیده؛ با ticket یکی از دستگاه‌ها بیرون می‌رود (replaceDevice). */
+export interface DeviceLimit {
+  ticket: string;
+  seats: number;
+  devices: OfficeDevice[];
+}
 
 export class ApiError extends Error {
   constructor(
     readonly code: ApiErrorCode,
     readonly retryAfter?: number,
     readonly attemptsLeft?: number,
+    readonly limit?: DeviceLimit,
   ) {
     super(code);
   }
@@ -127,6 +144,8 @@ export interface AuthApi {
   /** ورود اصلی: شماره و رمز عبور. شمارهٔ بی‌حساب و رمز اشتباه هر دو `wrong` می‌دهند. */
   login(phone: string, password: string, deviceName: string): Promise<Session>;
   verify(phone: string, code: string, deviceName: string): Promise<VerifyResult>;
+  /** ورودی که به سقف دستگاه خورد: دستگاه انتخاب‌شده بیرون می‌رود و همین دستگاه وارد می‌شود. */
+  replaceDevice(ticket: string, deviceId: string): Promise<Session>;
   signup(signupToken: string, name: string, officeName: string, password: string, deviceName: string): Promise<Session>;
   /** رمز تازه؛ `current` لازم نیست اگر این دستگاه همین چند دقیقه پیش با کد پیامکی وارد شده باشد. */
   setPassword(accessToken: string, password: string, current?: string): Promise<void>;
@@ -161,7 +180,7 @@ export interface AuthApi {
 const CODES: readonly string[] = [
   'bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo',
   'forbidden', 'no_seat', 'member', 'last_manager', 'self', 'not_alone',
-  'subscription', 'too_small', 'no_gateway', 'gateway',
+  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit',
 ];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
@@ -181,11 +200,12 @@ export async function request<T>(root: string, method: 'GET' | 'POST' | 'DELETE'
     throw new ApiError('offline');
   }
   if (res.status === 204) return undefined as T;
-  const data = (await res.json().catch(() => ({}))) as { error?: string; retryAfter?: number; attemptsLeft?: number };
+  const data = (await res.json().catch(() => ({}))) as { error?: string; retryAfter?: number; attemptsLeft?: number } & Partial<DeviceLimit>;
   if (res.ok) return data as T;
   if (res.status === 401) throw new ApiError('unauthorized');
   const code = (CODES.includes(data.error ?? '') ? data.error : 'server') as ApiErrorCode;
-  throw new ApiError(code, data.retryAfter, data.attemptsLeft);
+  const limit = code === 'device_limit' && data.ticket && Array.isArray(data.devices) ? { ticket: data.ticket, seats: data.seats ?? data.devices.length, devices: data.devices } : undefined;
+  throw new ApiError(code, data.retryAfter, data.attemptsLeft, limit);
 }
 
 export function httpApi(base: string): AuthApi {
@@ -199,6 +219,7 @@ export function httpApi(base: string): AuthApi {
       const r = await call<Session | { signupToken: string; invite?: InviteInfo | null }>('POST', '/auth/verify', { phone, code, deviceName });
       return 'signupToken' in r ? { signupToken: r.signupToken, invite: r.invite ?? null } : { session: r };
     },
+    replaceDevice: (ticket, deviceId) => call('POST', '/auth/devices/replace', { ticket, deviceId }),
     signup: (signupToken, name, officeName, password, deviceName) => call('POST', '/auth/signup', { signupToken, name, officeName, password, deviceName }),
     setPassword: (token, password, current) => call('POST', '/auth/password', { password, ...(current ? { current } : {}) }, token),
     refresh: (refreshToken) => call('POST', '/auth/refresh', { refreshToken }),
@@ -256,6 +277,13 @@ export function demoApi(): AuthApi {
   let verified = '';
   const devices: Device[] = [
     { id: 'd-phone', name: 'گوشی اندروید', createdAt: new Date(Date.now() - 864e5 * 12).toISOString(), lastSeenAt: new Date(Date.now() - 36e5 * 3).toISOString(), current: false },
+    { id: 'd-laptop', name: 'لپ‌تاپ دفتر', createdAt: new Date(Date.now() - 864e5 * 30).toISOString(), lastSeenAt: new Date(Date.now() - 36e5 * 26).toISOString(), current: false },
+  ];
+  // دستگاه‌های همکاران دفتر نمونه؛ با دو دستگاه بالا دفتر پنج‌نفره پر است تا صفحهٔ سقف دستگاه دیده شود.
+  const mateDevices: OfficeDevice[] = [
+    { id: 'd-maryam-pc', name: 'Chrome روی ویندوز', owner: 'مریم احمدی', mine: false, locked: false, createdAt: new Date(Date.now() - 864e5 * 20).toISOString(), lastSeenAt: new Date(Date.now() - 36e5 * 1).toISOString() },
+    { id: 'd-maryam-phone', name: 'گوشی اندروید', owner: 'مریم احمدی', mine: false, locked: false, createdAt: new Date(Date.now() - 864e5 * 9).toISOString(), lastSeenAt: new Date(Date.now() - 36e5 * 5).toISOString() },
+    { id: 'd-reza', name: 'آیفون', owner: 'رضا کاظمی', mine: false, locked: false, createdAt: new Date(Date.now() - 864e5 * 40).toISOString(), lastSeenAt: new Date(Date.now() - 36e5 * 75).toISOString() },
   ];
   const officeOf = (phone: string) => accounts()[phone]?.officeId ?? (phone === '09120000000' ? 'o1' : `o${phone}`);
   const phoneOf = (token: string) => (token.startsWith('demo:') ? token.slice('demo:'.length) : '');
@@ -291,6 +319,16 @@ export function demoApi(): AuthApi {
       if (invite) return { office, invite };
     }
     return null;
+  };
+  // سقف دستگاه دفتر نمونه، مثل سرور واقعی: دفتر پر است و اول باید یک دستگاه خارج شود.
+  let waiting = '';
+  const freeDevice = (phone: string) => {
+    waiting = phone;
+    if (officeOf(phone) !== 'o1') return;
+    const owner = accounts()[phone]?.name ?? '';
+    const live: OfficeDevice[] = [...devices.filter((d) => !d.current).map(({ current: _c, ...d }) => ({ ...d, owner, mine: true, locked: false })), ...mateDevices];
+    const seats = teamOf(phone).seats;
+    if (live.length >= seats) throw new ApiError('device_limit', undefined, undefined, { ticket: 'demo-device', seats, devices: live });
   };
   const session = (phone: string): Session => {
     const a = accounts()[phone] ?? { name: '', office: '' };
@@ -360,6 +398,7 @@ export function demoApi(): AuthApi {
         throw new ApiError('wrong');
       }
       pwdFails = 0;
+      freeDevice(phone);
       return session(phone);
     },
     async requestOtp(phone) {
@@ -376,7 +415,10 @@ export function demoApi(): AuthApi {
         throw new ApiError('wrong', undefined, 5 - tries);
       }
       verified = phone;
-      if (accounts()[phone]) return { session: session(phone) };
+      if (accounts()[phone]) {
+        freeDevice(phone);
+        return { session: session(phone) };
+      }
       const found = inviteFor(phone);
       const office = found ? (found.office === 'o1' ? 'املاک پارسا' : (Object.values(accounts()).find((a) => a.officeId === found.office)?.office ?? '')) : '';
       return { signupToken: 'demo-ticket', invite: found ? { officeName: office, invitedBy: found.invite.invitedBy, name: found.invite.name, role: found.invite.role } : null };
@@ -404,8 +446,19 @@ export function demoApi(): AuthApi {
       if (!accounts()[phone]) throw new ApiError('unauthorized');
       return session(phone);
     },
+    async replaceDevice(_t, id) {
+      await wait(400);
+      const i = devices.findIndex((d) => d.id === id && !d.current);
+      if (i >= 0) devices.splice(i, 1);
+      const j = mateDevices.findIndex((d) => d.id === id);
+      if (j >= 0) mateDevices.splice(j, 1);
+      freeDevice(waiting);
+      return session(waiting);
+    },
     async logout() {
       await wait(250);
+      const i = devices.findIndex((d) => d.current);
+      if (i >= 0) devices.splice(i, 1);
     },
     async devices() {
       await wait(250);

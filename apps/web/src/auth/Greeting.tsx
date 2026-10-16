@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Icon } from '@kelid/ui';
+import { Icon, Logo } from '@kelid/ui';
 import { callName } from '../prefs';
 import './greeting.css';
 
@@ -54,7 +54,7 @@ export function Greeting({ kind, name, office, onClose, onStart }: { kind: 'back
           <span className="gr-star s1" />
           <span className="gr-star s2" />
           <span className="gr-star s3" />
-          <span className="plq gr-plq">کلید</span>
+          <Logo size={40} className="gr-plq" />
           <span className="gr-sky" />
         </div>
         <div className="gr-txt">
