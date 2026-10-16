@@ -621,3 +621,305 @@
     justify-self: start;
   }
 }
+
+/* اشتراک خریده‌شده: حلقهٔ روزهای مانده، خط زمان، آمار و تمدید همان پلن */
+.ms-hero {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 28px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, var(--sel), var(--paper) 55%);
+  --ms-tone: var(--pri);
+}
+.ms-hero.warn {
+  --ms-tone: var(--warn);
+  background: linear-gradient(160deg, var(--warn-tint), var(--paper) 55%);
+}
+.ms-hero.bad {
+  --ms-tone: var(--bad);
+  background: linear-gradient(160deg, var(--bad-tint), var(--paper) 55%);
+}
+.ms-ring {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  flex: none;
+}
+.ms-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.ms-ring circle {
+  fill: none;
+  stroke-width: 10;
+}
+.ms-ring-track {
+  stroke: var(--sunk);
+}
+.ms-ring-fill {
+  stroke: var(--ms-tone);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.9s var(--ease-out);
+}
+.ms-ring-in {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+.ms-ring-in > b {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--ms-tone);
+}
+.ms-main {
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+}
+.ms-title {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ms-line {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.ms-track {
+  position: relative;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--sunk);
+}
+.ms-done {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--ms-tone) 35%, var(--sunk));
+}
+.ms-now {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-inline-start: -9px;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 4px solid var(--ms-tone);
+  box-shadow: var(--sh);
+}
+.ms-dates {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ms-dates > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.ms-dates > .ms-end {
+  align-items: flex-end;
+  text-align: end;
+}
+
+.ms-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.ms-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  color: inherit;
+  text-decoration: none;
+}
+.ms-stat > b {
+  font-size: 15.5px;
+}
+.ms-stat-ic {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: var(--pri-tint);
+  color: var(--pri-text);
+}
+.ms-link {
+  transition: border-color 0.15s;
+}
+.ms-link:hover {
+  border-color: var(--line2);
+}
+.ms-link > b {
+  color: var(--pri-text);
+}
+.ms-meter {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 99px;
+  background: var(--sunk);
+  overflow: hidden;
+}
+.ms-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pri);
+}
+.ms-meter > span.warn {
+  background: var(--warn);
+}
+
+
+.ms-incl {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+  border-radius: 20px;
+}
+.ms-help {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 22px;
+  border-radius: 20px;
+}
+.ms-help > .ms-stat-ic {
+  margin-bottom: 0;
+  flex: none;
+}
+.ms-help > .btn {
+  flex: none;
+  margin-inline-start: auto;
+}
+.ms-help.on {
+  border-color: var(--pri);
+  background: var(--sel);
+}
+
+.pl-agree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 22px;
+  border-radius: 20px;
+}
+.pl-tick {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  line-height: 1.8;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.pl-tick:hover {
+  border-color: var(--line2);
+}
+.pl-tick.on {
+  border-color: var(--pri);
+  background: var(--sel);
+}
+.pl-tick:has(input:focus-visible) {
+  outline: 2px solid var(--pri-text);
+  outline-offset: 2px;
+}
+.pl-box {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin-top: 3px;
+  border-radius: 7px;
+  border: 2px solid var(--line2);
+  color: transparent;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.pl-tick.on .pl-box {
+  border-color: var(--pri);
+  background: var(--pri);
+  color: var(--pri-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-ring-fill {
+    transition: none;
+  }
+}
+@media (max-width: 767px) {
+  .ms-hero {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    padding: 22px 18px;
+  }
+  .ms-ring {
+    align-self: center;
+    width: 132px;
+    height: 132px;
+  }
+  .ms-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ms-stat {
+    padding: 14px;
+  }
+  .ms-link {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+  }
+  .ms-link > .ms-stat-ic {
+    margin-bottom: 0;
+  }
+  .ms-link > b {
+    margin-inline-start: auto;
+  }
+  .ms-help {
+    flex-wrap: wrap;
+    padding: 18px 16px;
+  }
+  .ms-help > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .pl-agree,
+  .ms-incl {
+    padding: 18px 16px;
+  }
+}
+
+/* تا تیک‌ها زده نشده، دکمهٔ پرداخت باید آشکارا غیرفعال دیده شود. */
+.pl-pay .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}

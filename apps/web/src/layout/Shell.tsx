@@ -136,7 +136,7 @@ export function Shell() {
           ))}
         </nav>
         <div className="sp" />
-        <Link to="/settings" className="soft lic-card" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: 14 }}>
+        <Link to="/plans" className="soft lic-card" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: 14 }}>
           <PlanLine />
           {sync ? (
             <span className="rw xs mute" style={{ gap: 6 }} aria-live="polite">
