@@ -8,6 +8,7 @@ import { useToast } from '../layout/Toasts';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import { adoptLicense, useLicense } from './license';
 import { daysLeftText, payError, phaseTag, planName, untilText, useBilling } from './useBilling';
+import { MySubscription } from './MySubscription';
 import './billing.css';
 
 type Flow =
@@ -257,6 +258,46 @@ export function PlansPage() {
 
   const tag = lic ? phaseTag[lic.phase] : null;
   const canPay = manager && !!plan && (billing ? billing.canPay : !failed);
+  const payNote =
+    failed && !billing ? (
+      <>
+        به سرور وصل نشد.{' '}
+        <button type="button" className="lnk pl-retry" onClick={reload}>
+          دوباره امتحان کنید
+        </button>
+      </>
+    ) : billing && !billing.canPay ? (
+      'پرداخت آنلاین هنوز روی سرور فعال نشده است.'
+    ) : (
+      <>
+        <Icon name="shield" size="s" />
+        پرداخت امن از درگاه بانکی زرین‌پال
+      </>
+    );
+
+  // دفتری که اشتراک خریده فهرست پلن‌ها نمی‌بیند؛ فقط اشتراک خودش و تمدید همان پلن.
+  const mineOf = current && !current.trial ? plans.find((p) => p.id === current.plan) : undefined;
+  if (mineOf && current) {
+    return (
+      <MySubscription
+        plan={mineOf}
+        seats={plan?.id === mineOf.id ? seats : (curSeats ?? mineOf.seats)}
+        used={used}
+        expiresAt={current.expiresAt}
+        lic={lic}
+        billing={billing}
+        manager={manager}
+        period={period}
+        onPeriod={setPeriod}
+        until={plan?.id === mineOf.id ? until : null}
+        canPay={canPay && plan?.id === mineOf.id}
+        opening={flow.step === 'opening'}
+        onPay={() => void pay()}
+        note={payNote}
+        first={first}
+      />
+    );
+  }
 
   return (
     <div className={first ? 'bd enter pl-page' : 'bd pl-page'} style={{ paddingTop: 26 }}>
@@ -422,21 +463,7 @@ export function PlansPage() {
                 )}
               </button>
               <span className="xs mute rw pl-trust">
-                {failed && !billing ? (
-                  <>
-                    به سرور وصل نشد.{' '}
-                    <button type="button" className="lnk pl-retry" onClick={reload}>
-                      دوباره امتحان کنید
-                    </button>
-                  </>
-                ) : billing && !billing.canPay ? (
-                  'پرداخت آنلاین هنوز روی سرور فعال نشده است.'
-                ) : (
-                  <>
-                    <Icon name="shield" size="s" />
-                    پرداخت امن از درگاه بانکی زرین‌پال
-                  </>
-                )}
+                {payNote}
               </span>
             </div>
           </>
