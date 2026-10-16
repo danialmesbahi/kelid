@@ -916,3 +916,10 @@
     padding: 18px 16px;
   }
 }
+
+/* تا تیک‌ها زده نشده، دکمهٔ پرداخت باید آشکارا غیرفعال دیده شود. */
+.pl-pay .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
