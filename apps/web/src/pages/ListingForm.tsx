@@ -3,8 +3,10 @@ import { useBlocker } from 'react-router';
 import { useGoBack } from '../layout/useGoBack';
 import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
+import { LocationField } from '../map/LocationField';
+import type { Picked } from '../map/LocationPicker';
 import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
-import { dealLabel, formatGrouped, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { dealLabel, formatGrouped, formatToman, toEnDigits, toFaDigits, type DealType, type GeoPoint, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
@@ -52,7 +54,7 @@ const numText = (n?: number) => (n === undefined ? '' : toFaDigits(n));
 
 type FormState = {
   deal: DealType; kind: PropertyKind; status: ListingStatus;
-  neighborhood: string; street: string; address: string;
+  neighborhood: string; street: string; address: string; location?: GeoPoint;
   area: string; bedrooms: string; floor: string; floorsTotal: string; yearBuilt: string;
   features: string[]; total: string; deposit: string; rent: string; negotiable: boolean;
   description: string; ownerName: string; ownerPhone: string; ownerBestTime: string;
@@ -61,7 +63,7 @@ type FormState = {
 function toState(l?: Listing): FormState {
   return {
     deal: l?.deal ?? 'sale', kind: l?.kind ?? 'apartment', status: l?.status ?? 'active',
-    neighborhood: l?.neighborhood ?? '', street: l?.street ?? '', address: l?.address ?? '',
+    neighborhood: l?.neighborhood ?? '', street: l?.street ?? '', address: l?.address ?? '', location: l?.location,
     area: numText(l?.area), bedrooms: numText(l?.bedrooms), floor: numText(l?.floor), floorsTotal: numText(l?.floorsTotal), yearBuilt: numText(l?.yearBuilt),
     features: l?.features ?? ['پارکینگ', 'آسانسور'],
     total: amountText(l?.price.total), deposit: amountText(l?.price.deposit), rent: amountText(l?.price.monthlyRent), negotiable: l?.negotiable ?? true,
@@ -90,7 +92,7 @@ function toFields(f: FormState): ListingFields | string {
     : { total: undefined, deposit: parseAmount(f.deposit), monthlyRent: undefined };
   return {
     deal: f.deal, kind: f.kind, status: f.status,
-    neighborhood: f.neighborhood.trim(), street: f.street.trim(), address: f.address.trim() || undefined,
+    neighborhood: f.neighborhood.trim(), street: f.street.trim(), address: f.address.trim() || undefined, location: f.location,
     area, bedrooms: parseNum(f.bedrooms) ?? 0, floor: parseNum(f.floor), floorsTotal: parseNum(f.floorsTotal), yearBuilt: parseNum(f.yearBuilt),
     features: f.features, price, negotiable: f.negotiable, description: f.description.trim() || undefined,
     owner: { name: f.ownerName.trim() || '—', phone: toEnDigits(f.ownerPhone).trim(), bestTime: f.ownerBestTime.trim() || undefined },
@@ -160,6 +162,18 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
     if (k in errs) setErrs((e) => { const n = { ...e }; delete n[k as Required]; return n; });
   };
   const dirty = JSON.stringify(f) !== initial;
+  // جایی که روی نقشه زده شد محله و خیابان را هم می‌گوید؛ نشانی کامل دست‌نوشتهٔ کاربر را عوض نمی‌کند.
+  const pickLocation = (location: GeoPoint | undefined, picked?: Picked) => {
+    const p = picked?.place;
+    setF((x) => ({
+      ...x,
+      location,
+      neighborhood: p?.neighborhood || x.neighborhood,
+      street: p?.street || x.street,
+      address: x.address || p?.address || '',
+    }));
+    if (p?.neighborhood) setErrs((e) => { const n = { ...e }; delete n.neighborhood; return n; });
+  };
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !saving.current && currentLocation.pathname !== nextLocation.pathname);
 
@@ -270,6 +284,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
           </Section>
 
           <Section legend="۲. کجاست؟">
+            <LocationField value={f.location} onChange={pickLocation} />
             <div style={grid(220)}>
               <label className="lbl">
                 <span>محله<Req /></span>

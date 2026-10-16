@@ -1,0 +1,86 @@
+/* نقشه: قاب، سنجاق وسط، نشانگر فایل‌ها. رنگ‌ها فقط از توکن‌ها؛ پلاک تنها رنگ معنادار است. */
+.kmap { position: relative; overflow: hidden; background: var(--sunk); isolation: isolate; }
+.kmap::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--paper) 55%, transparent), transparent) 0 0 / 200% 100%; animation: kl-shimmer 1.3s ease-in-out infinite; z-index: 0; }
+.kmap.on::before { display: none; }
+/* سبک خود نقشه (maplibregl-map) بعد از این فایل بار می‌شود و position را relative می‌کند؛ با دو کلاس جلوتر می‌مانیم */
+.kmap > .kmap-gl { position: absolute; inset: 0; opacity: 0; transition: opacity 260ms ease; }
+.kmap.on .kmap-gl { opacity: 1; }
+.kmap .maplibregl-ctrl-attrib, .kmap .maplibregl-ctrl-logo { opacity: .75; }
+.kmap-off { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; border-radius: 99px; background: var(--paper); color: var(--ink2); box-shadow: var(--sh-lg), 0 0 0 1px var(--line); white-space: nowrap; }
+.kmap-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+
+/* سنجاق وسط نقشه: نقشه زیرش حرکت می‌کند، خودش ثابت است. هنگام کشیدن بلند می‌شود و رها که شد می‌نشیند. */
+.kpin { position: absolute; left: 50%; top: 50%; z-index: 2; pointer-events: none; width: 44px; height: 56px; margin: -56px 0 0 -22px; }
+.kpin svg { position: absolute; inset: 0; transition: transform 260ms var(--ease-spring); filter: drop-shadow(0 6px 8px rgba(10, 12, 11, .28)); }
+.kpin::after { content: ""; position: absolute; left: 50%; bottom: -4px; width: 14px; height: 6px; margin-left: -7px; border-radius: 50%; background: rgba(10, 12, 11, .32); transition: transform 260ms var(--ease-out), opacity 260ms ease; }
+.kpin.up svg { transform: translateY(-14px); transition-timing-function: var(--ease-out); }
+.kpin.up::after { transform: scale(.6); opacity: .5; }
+.kpin-body { fill: var(--pri); }
+.kpin-hole { fill: var(--paper); }
+
+/* نشانگر فایل: همان پلاک، با یک زبانهٔ کوچک رو به جای ملک */
+.kmark { position: relative; display: block; padding: 0; border: 0; background: none; cursor: pointer; transition: transform 200ms var(--ease-spring); transform-origin: 50% 100%; }
+.kmark .plq { box-shadow: inset 0 0 0 2px var(--pc), inset 0 0 0 3.5px rgba(255, 255, 255, .9), 0 6px 14px -4px rgba(10, 12, 11, .45); }
+.kmark::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: var(--pc, var(--sale)); transform: rotate(45deg); border-radius: 0 0 2px 0; z-index: -1; }
+.kmark.r { --pc: var(--rent); }
+.kmark.f { --pc: var(--full); }
+.kmark:hover, .kmark.on { transform: scale(1.14); z-index: 2; }
+.kmark.on .plq { box-shadow: inset 0 0 0 2px var(--pc), inset 0 0 0 3.5px rgba(255, 255, 255, .9), 0 0 0 4px color-mix(in srgb, var(--pc) 35%, transparent), 0 10px 18px -4px rgba(10, 12, 11, .5); }
+.kmark:focus-visible { outline: 2px solid var(--pri-text); outline-offset: 3px; border-radius: 8px; }
+.maplibregl-marker:has(.kmark.on) { z-index: 2; }
+
+/* دکمه‌های گرد روی نقشه */
+.kfab { position: absolute; z-index: 3; width: 46px; height: 46px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--paper); color: var(--ink); box-shadow: 0 8px 20px -8px rgba(10, 12, 11, .45), 0 0 0 1px var(--line); cursor: pointer; }
+.kfab:hover { background: var(--paper2); }
+.kfab:active { transform: scale(.96); }
+
+/* ── انتخاب جا روی نقشه ── */
+.lp-ov { padding: 28px 16px; align-items: center; }
+.lp { position: relative; width: min(980px, 100%); height: min(760px, calc(100dvh - 56px)); display: flex; flex-direction: column; background: var(--paper); border-radius: 24px; overflow: hidden; box-shadow: var(--sh-lg), 0 0 0 1px var(--line); }
+.lp:focus { outline: none; }
+.lp .kmap { flex: 1; }
+.lp-top { position: absolute; top: 14px; right: 14px; left: 14px; z-index: 4; display: flex; gap: 10px; align-items: flex-start; }
+.lp-search { position: relative; flex: 1; max-width: 460px; }
+.lp-search .fld { height: 48px; padding-right: 44px; border-radius: 16px; background: var(--paper); box-shadow: 0 10px 24px -12px rgba(10, 12, 11, .4), 0 0 0 1px var(--line); border-color: transparent; }
+.lp-search > .ic { position: absolute; right: 14px; top: 14px; color: var(--mute); pointer-events: none; }
+.lp-hits { margin-top: 6px; padding: 6px; border-radius: 16px; background: var(--paper); box-shadow: var(--sh-lg), 0 0 0 1px var(--line); max-height: 320px; overflow-y: auto; }
+.lp-hit { display: flex; flex-direction: column; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px; background: none; text-align: right; color: var(--ink); cursor: pointer; line-height: 1.6; }
+.lp-hit:hover, .lp-hit:focus-visible { background: var(--sunk); outline: none; }
+.lp-close { position: static; flex: none; width: 48px; height: 48px; border-radius: 16px; }
+.lp-me { left: 16px; bottom: 36px; }
+.lp-card { position: relative; z-index: 4; display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-top: 1px solid var(--line); background: var(--paper); }
+.lp-place { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; min-height: 54px; justify-content: center; }
+.lp-hood { font-size: 20px; font-weight: 700; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-street { font-size: 14px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-ok { height: 50px; padding: 0 22px; font-size: 16px; flex: none; }
+.lp-hint { position: absolute; top: calc(50% - 104px); left: 50%; transform: translateX(-50%); z-index: 3; padding: 8px 14px; border-radius: 99px; background: rgba(18, 20, 18, .78); color: #FFFFFF; font-size: 13px; white-space: nowrap; pointer-events: none; transition: opacity 300ms ease; }
+.lp-hint.gone { opacity: 0; }
+
+/* ── کارت جای ملک داخل فرم ── */
+.locf { position: relative; display: block; width: 100%; height: 190px; padding: 0; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--sunk); cursor: pointer; text-align: right; }
+.locf .kmap { position: absolute; inset: 0; }
+.locf .kmap-gl { pointer-events: none; }
+.locf-pin { position: absolute; left: 50%; top: 50%; z-index: 2; width: 34px; height: 44px; margin: -44px 0 0 -17px; filter: drop-shadow(0 4px 6px rgba(10, 12, 11, .3)); pointer-events: none; }
+.locf-bar { position: absolute; right: 10px; left: 10px; top: 10px; z-index: 3; display: flex; align-items: center; gap: 8px; }
+.locf-chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 99px; background: var(--paper); color: var(--ink); font-size: 13.5px; font-weight: 600; box-shadow: 0 6px 16px -8px rgba(10, 12, 11, .45), 0 0 0 1px var(--line); }
+.locf-empty { display: flex; align-items: center; gap: 16px; width: 100%; padding: 16px 18px; border: 1.5px dashed var(--line2); border-radius: 18px; background: var(--paper2); color: var(--ink); cursor: pointer; text-align: right; transition: border-color var(--t-fast) ease, background-color var(--t-fast) ease; }
+.locf-empty:hover { border-color: var(--pri-text); background: var(--sel); }
+.locf-ic { flex: none; width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--pri-tint); color: var(--pri-text); }
+
+/* ── نمای نقشهٔ فایل‌ها ── */
+.fmap { position: relative; height: calc(100dvh - 190px); min-height: 420px; margin: 0 16px 16px; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); }
+.fmap .kmap { position: absolute; inset: 0; }
+.fmap-note { position: absolute; top: 12px; right: 12px; z-index: 3; }
+.fmap-card { position: absolute; right: 12px; left: 12px; bottom: 12px; z-index: 4; display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 18px; background: var(--paper); color: var(--ink); box-shadow: var(--sh-lg), 0 0 0 1px var(--line); }
+
+@media (max-width: 767px) {
+  .lp-ov { padding: 0; }
+  .lp { width: 100%; height: 100dvh; border-radius: 0; }
+  .lp-top { top: max(12px, env(safe-area-inset-top)); right: 12px; left: 12px; }
+  .lp-card { padding: 14px 16px max(14px, env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; margin-top: -22px; box-shadow: 0 -10px 30px -18px rgba(10, 12, 11, .5); border-top: 0; }
+  .lp-me { bottom: 58px; }
+  /* نشان و حق نشر نقشه نباید زیر برگهٔ پایین بروند */
+  .lp .maplibregl-ctrl-bottom-left, .lp .maplibregl-ctrl-bottom-right { bottom: 22px; }
+  .lp-ok { padding: 0 18px; }
+  .fmap { height: calc(100dvh - 230px); margin: 0 12px 12px; }
+}

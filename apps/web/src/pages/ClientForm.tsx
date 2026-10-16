@@ -10,6 +10,7 @@ import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { useGoBack } from '../layout/useGoBack';
 import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
+import { HoodMapButton } from '../map/HoodMapButton';
 
 // همان کارت‌های فرم فایل، با زبان مشتری: او می‌خرد یا اجاره می‌کند.
 const DEALS: Array<{ value: DealType; cls: string; icon: IconName; label: string; hint: string }> = [
@@ -273,10 +274,11 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
                 ))}
               </div>
             )}
-            <div className="rw" style={{ gap: 8 }}>
+            <div className="rw" style={{ gap: 8, flexWrap: 'wrap' }}>
               <input className="fld" value={hood} onChange={(e) => setHood(e.target.value)} placeholder={f.neighborhoods.length ? 'محلهٔ دیگر' : 'محله را بنویسید؛ خالی = فرقی ندارد'} aria-label="افزودن محله"
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addHood(hood); } }} style={{ flex: 1 }} />
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addHood(hood); } }} style={{ flex: '1 1 200px' }} />
               <button type="button" className="btn btn-s" onClick={() => addHood(hood)} disabled={!hood.trim()}><Icon name="plus" size="s" />افزودن</button>
+              <HoodMapButton onAdd={addHood} />
             </div>
             {suggestions.length > 0 && (
               <div className="rw" style={{ gap: 6, flexWrap: 'wrap' }}>

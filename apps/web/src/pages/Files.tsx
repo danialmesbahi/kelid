@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { listingPlace, dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
@@ -11,9 +11,11 @@ import { usePhone } from '../layout/usePhone';
 import { useProgressive } from '../layout/useProgressive';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import { ListingCardContent } from '../layout/ListingCard';
+import { FilesMap } from '../map/FilesMap';
+import { mapEnabled } from '../map/provider';
 
 type DealFilter = 'all' | DealType;
-type View = 'list' | 'cards';
+type View = 'list' | 'cards' | 'map';
 
 const statusLabel: Partial<Record<Listing['status'], string>> = { reserved: 'رزرو', negotiating: 'در مذاکره', closed: 'معامله شد' };
 
@@ -33,7 +35,7 @@ export function FilesPage() {
 
   const data = useQuery(filesQuery.key, filesQuery.fn);
   const thumbs = useCoverThumbs();
-  const list = data ? data.all.filter((l) => deal === 'all' || l.deal === deal) : [];
+  const list = useMemo(() => (data ? data.all.filter((l) => deal === 'all' || l.deal === deal) : []), [data, deal]);
   const shown = useProgressive(list.length);
   const first = useFirstVisit('files');
   if (!data) return <PageSkeleton rows={8} aside />;
@@ -64,6 +66,7 @@ export function FilesPage() {
           options={[
             { value: 'list', label: <><Icon name="list" size="s" />فهرست</> },
             { value: 'cards', label: <><Icon name="grid" size="s" />کارت</> },
+            ...(mapEnabled ? [{ value: 'map' as const, label: <><Icon name="map" size="s" />نقشه</> }] : []),
           ]}
         />
       </div>
@@ -110,6 +113,10 @@ export function FilesPage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {view === 'map' && data.all.length > 0 && (
+            <FilesMap list={list} selId={selId} onSelect={setSelId} phone={phone} cover={(id) => coverUrl(thumbs, id)} />
           )}
 
           {view === 'cards' && (

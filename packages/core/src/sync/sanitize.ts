@@ -13,6 +13,12 @@ const oneOf = (...xs: string[]): Check => (v) => typeof v === 'string' && xs.inc
 const strList: Check = (v) => Array.isArray(v) && v.length <= 200 && v.every(str);
 const obj = (shape: Record<string, Check>): Check => (v) =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && Object.entries(v).every(([k, x]) => shape[k]?.(x) ?? false);
+// هر دو مختصات با هم و در محدودهٔ درست؛ نقطهٔ نیمه‌کاره روی نقشه جای اشتباهی نشان می‌دهد.
+const point: Check = (v) => {
+  if (v === null) return true;
+  const p = v as { lat?: unknown; lng?: unknown };
+  return obj({ lat: num, lng: num })(v) && num(p.lat) && num(p.lng) && Math.abs(p.lat as number) <= 90 && Math.abs(p.lng as number) <= 180;
+};
 const deal = oneOf('sale', 'rent', 'full');
 const propertyKind = oneOf('apartment', 'villa', 'shop', 'office', 'land');
 
@@ -24,6 +30,7 @@ const SPECS: Record<SyncKind, Record<string, Check>> = {
     neighborhood: str,
     street: str,
     address: optStr,
+    location: point,
     area: num,
     bedrooms: num,
     floor: optNum,

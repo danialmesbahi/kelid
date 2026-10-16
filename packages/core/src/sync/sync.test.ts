@@ -163,6 +163,22 @@ describe('sync between two offline devices', () => {
     expect((await b.getListing(l.id))?.area).toBe(99);
   });
 
+  it('carries the map location to the other device, clears it, and skips a broken one', async () => {
+    const server = new FakeServer();
+    const a = await device();
+    const b = await device();
+    const l = await a.addListing({ ...listing(1), location: { lat: 35.7741, lng: 51.3642 } });
+    await sync(a, server);
+    await sync(b, server);
+    expect((await b.getListing(l.id))?.location).toEqual({ lat: 35.7741, lng: 51.3642 });
+    await b.updateListing(l.id, { location: undefined });
+    await sync(b, server);
+    await sync(a, server);
+    expect((await a.getListing(l.id))?.location).toBeUndefined();
+    await a.applyRemote([{ kind: 'listing', id: 'x2', fields: { ...listing(2), location: { lat: 999, lng: 51 }, createdAt: '2026-01-01T00:00:00Z' } }], '9', null);
+    expect(await a.getListing('x2')).toMatchObject({ neighborhood: 'محله 2', location: undefined });
+  });
+
   it('a lost acknowledgement just resends; nothing is lost or doubled', async () => {
     const server = new FakeServer();
     const a = await device();

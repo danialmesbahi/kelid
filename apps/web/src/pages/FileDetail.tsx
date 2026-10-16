@@ -13,6 +13,9 @@ import { statusOptions } from './ListingForm';
 import { PhotoGallery } from '../photos/Gallery';
 import { cachedListing } from '../queries';
 import { useGoBack } from '../layout/useGoBack';
+import { MapView } from '../map/MapView';
+import { PinShape } from '../map/Pin';
+import { mapEnabled } from '../map/provider';
 
 export function FileDetailPage() {
   const { id = '' } = useParams();
@@ -130,6 +133,17 @@ export function FileDetailPage() {
             <span className="big" style={{ fontSize: 40 }}>{headlinePrice(l)}</span>
             <span className="mute">{secondaryPrice(l)}{l.negotiable ? ' · قابل مذاکره' : ''}</span>
           </section>
+
+          {l.location && mapEnabled && (
+            <section aria-label="جای ملک روی نقشه" className="np">
+              <div className="locf" style={{ height: 200, cursor: 'default' }}>
+                <MapView center={l.location} zoom={15.5} interactive={false} label="جای ملک">
+                  <PinShape className="locf-pin" />
+                  <span className="locf-bar"><span className="locf-chip"><Icon name="pin" size="s" />{listingPlace(l)}</span></span>
+                </MapView>
+              </div>
+            </section>
+          )}
 
           <section aria-labelledby="ow" className="deep col np" style={{ padding: '22px 24px', gap: 14 }}>
             <div className="rw" style={{ justifyContent: 'space-between' }}>
