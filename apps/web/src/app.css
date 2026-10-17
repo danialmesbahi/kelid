@@ -157,6 +157,13 @@ button.pcard { font: inherit; text-align: right; cursor: pointer; }
 .vd-hd { padding: 14px 22px; border-bottom: 1px solid var(--line); }
 .vd-bd { gap: 16px; padding: 18px 22px 20px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
 .vd-ft { gap: 10px; padding: 14px 22px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+/* پرسش بیرون رفتن از فرم ذخیره‌نشده: کوچک و وسط صفحه، روی گوشی هم. */
+.ld-ov { align-items: center; padding: 24px 16px; z-index: 70; }
+.ld { display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(420px, 100%); padding: 28px 24px 22px; text-align: center; background: var(--paper); border-radius: 22px; box-shadow: var(--sh-lg), 0 0 0 1px var(--line); }
+.ld-ic { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 4px; border-radius: 18px; background: var(--warn-tint); color: var(--warn); }
+.ld-p { margin: 0 0 8px; font-size: 15px; line-height: 1.9; color: var(--ink2); }
+.ld-act { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
+.ld-act > .btn { flex: 1 1 150px; }
 .vd-fill > .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; }
 .vd-fill > .seg button, .vd-dur .seg button { justify-content: center; }
 .vd-days { display: flex; flex-wrap: wrap; gap: 6px; }

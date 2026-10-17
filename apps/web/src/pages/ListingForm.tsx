@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useBlocker } from 'react-router';
 import { useGoBack } from '../layout/useGoBack';
+import { LeaveDialog } from '../layout/LeaveDialog';
 import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
 import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
@@ -152,7 +153,6 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
   const [custom, setCustom] = useState('');
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const stayRef = useRef<HTMLButtonElement>(null);
   const goBack = useGoBack();
   const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => {
     setF((x) => ({ ...x, [k]: v }));
@@ -162,10 +162,6 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
   const dirty = JSON.stringify(f) !== initial;
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !saving.current && currentLocation.pathname !== nextLocation.pathname);
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') stayRef.current?.focus();
-  }, [blocker.state]);
 
   // بستن یا تازه کردن تب در وب؛ در ویندوز پنجره بی‌صدا بسته نمی‌شود، پس آنجا لازم نیست.
   useEffect(() => {
@@ -228,20 +224,10 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
     <div style={{ padding: 8, minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
       <form ref={formRef} onSubmit={submit} noValidate className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
         <header className="top" style={{ position: 'sticky', top: 0, background: 'var(--paper)', borderRadius: '20px 20px 0 0', zIndex: 2 }}>
-          {blocker.state === 'blocked' ? (
-            <>
-              <span role="alert" className="tag warn"><Icon name="warn" size="s" />تغییرات ذخیره نشده‌اند</span>
-              <span className="sp" />
-              <button ref={stayRef} type="button" className="btn btn-s" onClick={() => blocker.reset()}>ادامهٔ ویرایش</button>
-              <button type="button" className="btn btn-d" onClick={() => blocker.proceed()}>بیرون رفتن بدون ذخیره</button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="btn btn-g" onClick={() => goBack(cancelTo)} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
-              <span className="b" style={{ fontSize: 18 }}>{title}</span>
-            </>
-          )}
+          <button type="button" className="btn btn-g" onClick={() => goBack(cancelTo)} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
+          <span className="b" style={{ fontSize: 18 }}>{title}</span>
         </header>
+        {blocker.state === 'blocked' && <LeaveDialog onStay={() => blocker.reset()} onLeave={() => blocker.proceed()} />}
 
         <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
           <Section legend="۱. این ملک برای چیست؟">
