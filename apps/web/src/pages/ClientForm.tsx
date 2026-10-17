@@ -9,6 +9,7 @@ import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { useGoBack } from '../layout/useGoBack';
+import { LeaveDialog } from '../layout/LeaveDialog';
 import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 
 // همان کارت‌های فرم فایل، با زبان مشتری: او می‌خرد یا اجاره می‌کند.
@@ -109,15 +110,10 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
   const [nameErr, setNameErr] = useState(false);
   const saving = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const stayRef = useRef<HTMLButtonElement>(null);
   const goBack = useGoBack();
   const set = <K extends keyof FormState>(k: K) => (v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
   const dirty = JSON.stringify(f) !== initial;
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !saving.current && currentLocation.pathname !== nextLocation.pathname);
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') stayRef.current?.focus();
-  }, [blocker.state]);
 
   useEffect(() => {
     if (!dirty || window.kelid) return;
@@ -184,20 +180,10 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
     <div style={{ padding: 8, minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
       <form ref={formRef} onSubmit={submit} noValidate className="col" style={{ flex: 1, minWidth: 0, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 20 }}>
         <header className="top" style={{ position: 'sticky', top: 0, background: 'var(--paper)', borderRadius: '20px 20px 0 0', zIndex: 2 }}>
-          {blocker.state === 'blocked' ? (
-            <>
-              <span role="alert" className="tag warn"><Icon name="warn" size="s" />تغییرات ذخیره نشده‌اند</span>
-              <span className="sp" />
-              <button ref={stayRef} type="button" className="btn btn-s" onClick={() => blocker.reset()}>ادامهٔ ویرایش</button>
-              <button type="button" className="btn btn-d" onClick={() => blocker.proceed()}>بیرون رفتن بدون ذخیره</button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="btn btn-g" onClick={() => goBack(client ? `/clients?c=${client.id}` : '/clients')} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
-              <span className="b" style={{ fontSize: 18 }}>{client ? `ویرایش ${client.name}` : 'مشتری جدید'}</span>
-            </>
-          )}
+          <button type="button" className="btn btn-g" onClick={() => goBack(client ? `/clients?c=${client.id}` : '/clients')} style={{ padding: '0 12px' }}><Icon name="x" size="s" />بستن</button>
+          <span className="b" style={{ fontSize: 18 }}>{client ? `ویرایش ${client.name}` : 'مشتری جدید'}</span>
         </header>
+        {blocker.state === 'blocked' && <LeaveDialog onStay={() => blocker.reset()} onLeave={() => blocker.proceed()} />}
 
         <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
           <Section legend="۱. چه کسی است؟">
