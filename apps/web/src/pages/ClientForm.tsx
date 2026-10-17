@@ -251,7 +251,7 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
             <span className="sb sm" style={{ color: 'var(--ink2)' }}>نوع ملک <span className="hint">هیچ‌کدام = فرقی ندارد</span></span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
               {KINDS.map((k) => (
-                <label key={k.value} className="chk">
+                <label key={k.value} className="kindopt">
                   <input type="checkbox" checked={f.kinds.includes(k.value)} onChange={(e) => toggleKind(k.value, e.target.checked)} />
                   {k.label}
                 </label>
