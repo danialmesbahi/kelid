@@ -282,15 +282,26 @@ button.nav { border: 0; background: none; width: 100%; text-align: right; font-f
   .dealopt-ok { top: 50%; margin-top: -12px; left: 16px; }
 }
 
-/* فرم مشتری: نوع ملک به شکل کاشی؛ تیک بومی مرورگر جایش را به تیک هم‌رنگ برند داده */
-.kindopt { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; border: 1px solid var(--line2); border-radius: 14px; background: var(--paper); color: var(--ink); font-size: 15px; cursor: pointer; user-select: none; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease, color .15s ease; }
+/* فرم مشتری: نوع ملک به شکل کارت با نشانه، هم‌خانوادهٔ کارت‌های نوع معامله؛ چک‌باکس بومی برای صفحه‌خوان و صفحه‌کلید می‌ماند */
+.kindpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.kindopt { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 8px 14px; border: 1px solid var(--line2); border-radius: 16px; background: var(--paper); color: var(--ink); font-size: 15px; text-align: center; cursor: pointer; user-select: none; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
 .kindopt:hover { border-color: color-mix(in srgb, var(--pri) 40%, var(--line2)); }
-.kindopt:has(input:checked) { border-color: var(--pri); background: var(--pri-tint); box-shadow: inset 0 0 0 1px var(--pri); color: var(--pri-text); font-weight: 600; }
-.kindopt input { appearance: none; -webkit-appearance: none; flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin: 0; border: 1.5px solid var(--line2); border-radius: 7px; background: var(--paper); cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
-.kindopt input::after { content: ''; width: 6px; height: 11px; border: solid var(--pri-ink); border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg) scale(0); transition: transform .22s var(--ease-spring); }
-.kindopt input:checked { border-color: var(--pri); background: var(--pri); }
-.kindopt input:checked::after { transform: translateY(-1px) rotate(45deg) scale(1); }
-@media (prefers-reduced-motion: reduce) { .kindopt input::after { transition: none; } }
+.kindopt input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.kindopt:has(input:focus-visible) { outline: 2px solid var(--pri-text); outline-offset: 2px; }
+.kindopt-ic { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; background: var(--sunk); color: var(--ink2); transition: background-color .15s ease, color .15s ease; }
+.kindopt-ic .ic { width: 28px; height: 28px; stroke-width: 1.6; }
+.kindopt-ok { position: absolute; top: 10px; left: 10px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--pri); color: var(--pri-ink); opacity: 0; transform: scale(.4); transition: opacity .15s ease, transform .25s var(--ease-spring); }
+.kindopt:has(input:checked) { border-color: var(--pri); background: color-mix(in srgb, var(--pri) 7%, var(--paper)); box-shadow: inset 0 0 0 1px var(--pri); font-weight: 600; }
+.kindopt:has(input:checked) .kindopt-ic { background: var(--pri); color: var(--pri-ink); }
+.kindopt:has(input:checked) .kindopt-ok { opacity: 1; transform: none; }
+@media (max-width: 640px) {
+  .kindpick { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .kindopt { padding: 14px 6px 12px; gap: 8px; font-size: 14px; }
+  .kindopt-ic { width: 44px; height: 44px; border-radius: 13px; }
+  .kindopt-ic .ic { width: 24px; height: 24px; }
+  .kindopt-ok { top: 6px; left: 6px; width: 20px; height: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .kindopt-ok { transition: none; } }
 
 /* نوار پایین فرم فایل: دکمهٔ ثبت همیشه پیداست */
 .lf-foot { position: sticky; bottom: 0; z-index: 2; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-radius: 0 0 20px 20px; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(10px); }
