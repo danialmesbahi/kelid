@@ -18,12 +18,12 @@ const DEALS: Array<{ value: DealType; cls: string; icon: IconName; label: string
   { value: 'full', cls: 'f', icon: 'dealFull', label: 'رهن کامل', hint: 'فقط ودیعه، بی اجاره' },
 ];
 
-const KINDS: Array<{ value: PropertyKind; label: string }> = [
-  { value: 'apartment', label: 'آپارتمان' },
-  { value: 'villa', label: 'ویلایی' },
-  { value: 'shop', label: 'مغازه' },
-  { value: 'office', label: 'دفتر کار' },
-  { value: 'land', label: 'زمین' },
+const KINDS: Array<{ value: PropertyKind; label: string; icon: IconName }> = [
+  { value: 'apartment', label: 'آپارتمان', icon: 'kindApartment' },
+  { value: 'villa', label: 'ویلایی', icon: 'kindVilla' },
+  { value: 'shop', label: 'مغازه', icon: 'kindShop' },
+  { value: 'office', label: 'دفتر کار', icon: 'kindOffice' },
+  { value: 'land', label: 'زمین', icon: 'kindLand' },
 ];
 
 const TEMPS: Array<{ value: ClientTemperature; label: string }> = [
@@ -249,10 +249,12 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
               ))}
             </div>
             <span className="sb sm" style={{ color: 'var(--ink2)' }}>نوع ملک <span className="hint">هیچ‌کدام = فرقی ندارد</span></span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+            <div className="kindpick">
               {KINDS.map((k) => (
-                <label key={k.value} className="chk">
+                <label key={k.value} className="kindopt">
                   <input type="checkbox" checked={f.kinds.includes(k.value)} onChange={(e) => toggleKind(k.value, e.target.checked)} />
+                  <span className="kindopt-ok" aria-hidden="true"><Icon name="check" size="s" thick /></span>
+                  <span className="kindopt-ic"><Icon name={k.icon} /></span>
                   {k.label}
                 </label>
               ))}

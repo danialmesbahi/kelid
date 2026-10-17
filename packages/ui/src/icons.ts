@@ -56,6 +56,11 @@ export const iconPaths = {
   "dealSale": "<path d=\"M3 11.5 11 4.5l8 7\"></path><path d=\"M5 10v9.5h5\"></path><path d=\"M12.5 13.5h5.3l2.9 3.25-2.9 3.25h-5.3z\"></path><circle cx=\"14.9\" cy=\"16.75\" r=\".5\"></circle>",
   "dealRent": "<circle cx=\"7\" cy=\"15.5\" r=\"3\"></circle><path d=\"M10 15.5h10.5M17.5 15.5v2.5M20.5 15.5v2\"></path><path d=\"M5 9.5a7.5 7.5 0 0 1 13.6-2.7\"></path><path d=\"M19 3.6v3.4h-3.4\"></path>",
   "dealFull": "<ellipse cx=\"16\" cy=\"5.8\" rx=\"4.5\" ry=\"1.9\"></ellipse><path d=\"M11.5 5.8v3c0 1 2 1.9 4.5 1.9s4.5-.9 4.5-1.9v-3M11.5 8.8v3c0 1 2 1.9 4.5 1.9s4.5-.9 4.5-1.9v-3\"></path><circle cx=\"6.5\" cy=\"17.5\" r=\"3\"></circle><path d=\"M9.5 17.5H20M16.5 17.5V20M19.5 17.5v2\"></path>",
+  "kindApartment": "<rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"1.5\"></rect><path d=\"M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10.5 21v-3h3v3\"></path>",
+  "kindVilla": "<path d=\"M3 11 12 4l9 7\"></path><path d=\"M5.5 9.5V20h13V9.5\"></path><path d=\"M10 20v-5h4v5\"></path>",
+  "kindShop": "<path d=\"M3 8.5 4.5 4h15L21 8.5\"></path><path d=\"M3 8.5a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0\"></path><path d=\"M4.5 11v9h15v-9\"></path><path d=\"M10 20v-5h4v5\"></path>",
+  "kindOffice": "<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"></rect><path d=\"M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18M11 12.5v1.5h2v-1.5\"></path>",
+  "kindLand": "<path d=\"M3 20h18\"></path><path d=\"M5 20l3-6h8l3 6\"></path><path d=\"M12 12V3.5l5 2-5 2\"></path>"
 } as const;
 
 export type IconName = keyof typeof iconPaths;
