@@ -48,8 +48,17 @@ export function Shell() {
             <Icon name="receipt" />
             پرداخت‌ها
           </NavLink>
-          <NavLink to="/beta" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
+          <NavLink to="/tickets" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
             <Icon name="msg" />
+            پشتیبانی
+            {(stats?.openTickets ?? 0) > 0 && (
+              <span className="badge num" aria-label={`${toFaDigits(stats!.openTickets)} تیکت منتظر پاسخ`}>
+                {toFaDigits(stats!.openTickets)}
+              </span>
+            )}
+          </NavLink>
+          <NavLink to="/beta" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
+            <Icon name="warn" />
             نظرها و خطاها
             {open > 0 && <span className="badge num" aria-label={`${toFaDigits(open)} مورد باز`}>{toFaDigits(open)}</span>}
           </NavLink>

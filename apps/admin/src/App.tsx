@@ -7,6 +7,7 @@ import { Offices } from './pages/Offices';
 import { OfficePage } from './pages/OfficePage';
 import { Payments } from './pages/Payments';
 import { Beta } from './pages/Beta';
+import { TicketPage, Tickets } from './pages/Tickets';
 
 /** بی ورود فقط صفحهٔ ورود؛ هیچ داده‌ای پیش از آن از سرور خواسته نمی‌شود. */
 function Gate() {
@@ -21,6 +22,8 @@ const router = createHashRouter([
       { index: true, element: <Offices /> },
       { path: 'offices/:id', element: <OfficePage /> },
       { path: 'payments', element: <Payments /> },
+      { path: 'tickets', element: <Tickets /> },
+      { path: 'tickets/:office/:id', element: <TicketPage /> },
       { path: 'beta', element: <Beta /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

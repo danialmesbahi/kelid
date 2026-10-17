@@ -33,6 +33,7 @@ export class SyncEngine {
   private status: SyncStatus = { phase: 'idle', pending: 0, lastSync: null };
   private listeners = new Set<() => void>();
   private billingListeners = new Set<() => void>();
+  private supportListeners = new Set<() => void>();
   private running: Promise<void> | null = null;
   private again = false;
   private applying = false;
@@ -87,12 +88,19 @@ export class SyncEngine {
     for (const c of this.cleanup.splice(0)) c();
     this.listeners.clear();
     this.billingListeners.clear();
+    this.supportListeners.clear();
   }
 
   /** خبر زندهٔ «اشتراک دفتر عوض شد». */
   onBilling = (fn: () => void) => {
     this.billingListeners.add(fn);
     return () => void this.billingListeners.delete(fn);
+  };
+
+  /** خبر زندهٔ «پشتیبانی پاسخ داد». */
+  onSupport = (fn: () => void) => {
+    this.supportListeners.add(fn);
+    return () => void this.supportListeners.delete(fn);
   };
 
   /**
@@ -124,6 +132,9 @@ export class SyncEngine {
                 for (const l of this.billingListeners) l();
                 // تمدید شد ⇒ صفی که منتظر مانده بود همین حالا می‌رود.
                 this.schedule(LIVE_MS);
+              },
+              support: () => {
+                for (const l of this.supportListeners) l();
               },
             },
             this.live.signal,

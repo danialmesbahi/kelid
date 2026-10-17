@@ -85,6 +85,8 @@ export interface Stats {
   pilot: number;
   openFeedback: number;
   openErrors: number;
+  /** تیکت‌هایی که منتظر پاسخ ما هستند. */
+  openTickets: number;
 }
 
 export type FeedbackKind = 'problem' | 'idea' | 'praise';
@@ -100,6 +102,31 @@ export interface Feedback {
   doneAt: string | null;
   office: { id: string; name: string; pilot: boolean };
   user: { name: string; phone: string; role: string };
+}
+
+export type TicketTopic = 'problem' | 'question' | 'billing' | 'idea';
+export type TicketStatus = 'open' | 'answered' | 'closed';
+
+/** تیکت پشتیبانی؛ «باز» = منتظر پاسخ ما. */
+export interface Ticket {
+  id: string;
+  topic: TicketTopic;
+  subject: string;
+  status: TicketStatus;
+  page: string;
+  appVersion: string;
+  platform: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: number;
+  last: { body: string; from: 'user' | 'support' };
+  office: { id: string; name: string; pilot: boolean };
+  user: { name: string; phone: string; role: string };
+}
+
+export interface TicketDetail {
+  ticket: Ticket;
+  messages: Array<{ id: string; body: string; from: 'user' | 'support'; author: string; createdAt: string }>;
 }
 
 /** یک باگ در همهٔ دفترها (با اثرانگشت یکی شده). */
@@ -146,6 +173,11 @@ export interface AdminApi {
   markFeedback(token: string, office: string, id: string, done: boolean): Promise<void>;
   errors(token: string, status: 'open' | 'resolved'): Promise<ClientError[]>;
   resolveError(token: string, fingerprint: string, resolved: boolean): Promise<void>;
+  tickets(token: string, status: TicketStatus): Promise<Ticket[]>;
+  ticket(token: string, office: string, id: string): Promise<TicketDetail>;
+  /** پاسخ ما؛ تیکت «پاسخ داده شد» می‌شود و کاربر در برنامه نشان می‌بیند. */
+  replyTicket(token: string, office: string, id: string, body: string): Promise<TicketDetail>;
+  setTicketStatus(token: string, office: string, id: string, status: TicketStatus): Promise<TicketDetail>;
   /**
    * اتصال زنده: changed با شناسهٔ دفترهایی که عوض شدند (فهرست خالی = همه‌چیز را تازه کن). تا بسته شدن اتصال
    * باز می‌ماند؛ قطع شدنش با ApiError می‌آید تا دوباره وصل شود.
@@ -204,6 +236,10 @@ function httpApi(base: string): AdminApi {
     markFeedback: (t, office, id, done) => call('POST', `/admin/feedback/${office}/${id}`, t, { done }),
     errors: async (t, status) => (await call<{ errors: ClientError[] }>('GET', `/admin/errors${qs({ status })}`, t)).errors,
     resolveError: (t, fp, resolved) => call('POST', `/admin/errors/${fp}`, t, { resolved }),
+    tickets: async (t, status) => (await call<{ tickets: Ticket[] }>('GET', `/admin/tickets${qs({ status })}`, t)).tickets,
+    ticket: (t, office, id) => call('GET', `/admin/tickets/${office}/${id}`, t),
+    replyTicket: (t, office, id, body) => call('POST', `/admin/tickets/${office}/${id}/messages`, t, { body }),
+    setTicketStatus: (t, office, id, status) => call('POST', `/admin/tickets/${office}/${id}/status`, t, { status }),
     listen: async (token, on, signal) => {
       // fetch به‌جای EventSource: توکن در هدر می‌رود، نه در آدرس (که در لاگ‌ها می‌ماند).
       const ctl = new AbortController();
@@ -408,6 +444,48 @@ function demoApi(): AdminApi {
     fb(8, 'praise', 'تقویم خیلی خوب شده، همکارها هم راحت کار می‌کنند. ممنون.', '/calendar', 26),
     fb(3, 'problem', 'جستجوی «ونك» با ک عربی چیزی پیدا نمی‌کرد.', '/files', 72, true),
   ];
+  const tk = (i: number, topic: TicketTopic, subject: string, msgs: Array<[from: 'user' | 'support', body: string, hours: number]>): TicketDetail => {
+    const d = offices[i]!;
+    const m = d.members[0]!;
+    const last = msgs.at(-1)!;
+    const messages = msgs.map(([from, body, hours], n) => ({
+      id: `t${i}-${n}`,
+      body,
+      from,
+      author: from === 'user' ? m.name : 'سارا نوری',
+      createdAt: new Date(now - hours * 3_600_000).toISOString(),
+    }));
+    return {
+      ticket: {
+        id: `t${i}`,
+        topic,
+        subject,
+        status: last[0] === 'user' ? 'open' : 'answered',
+        page: '/files',
+        appVersion: '0.1.0',
+        platform: i % 2 ? 'pwa' : 'desktop',
+        createdAt: messages[0]!.createdAt,
+        updatedAt: messages.at(-1)!.createdAt,
+        messages: messages.length,
+        last: { body: last[1], from: last[0] },
+        office: { id: d.office.id, name: d.office.name, pilot: d.office.pilot },
+        user: { name: m.name, phone: m.phone, role: m.role },
+      },
+      messages,
+    };
+  };
+  const tickets: TicketDetail[] = [
+    tk(1, 'billing', 'تمدید اشتراک سالانه', [['user', 'سلام، اشتراکمان تمام شده. می‌خواهم یک ساله تمدید کنم؛ تخفیف هم دارد؟', 20]]),
+    tk(3, 'problem', 'عکس‌ها روی گوشی دیر باز می‌شوند', [
+      ['user', 'عکس فایل‌ها روی گوشی همکارم خیلی دیر باز می‌شود. اینترنتش هم خوب است.', 30],
+      ['support', 'سلام، ممنون که خبر دادید. لطفاً بگویید گوشی اندروید است یا آیفون؟', 28],
+      ['user', 'اندروید، سامسونگ A54.', 4],
+    ]),
+    tk(5, 'question', 'چاپ برگهٔ فایل برای مشتری', [
+      ['user', 'چطور برگهٔ یک فایل را برای مشتری چاپ کنم؟', 26],
+      ['support', 'سلام، در صفحهٔ هر فایل دکمهٔ «چاپ» بالای صفحه است.', 3],
+    ]),
+  ];
   const clientErrors: ClientError[] = [
     {
       fingerprint: '3fa1c0de9b2e4471',
@@ -449,6 +527,11 @@ function demoApi(): AdminApi {
     d.office.status = status(d.office);
     d.office.paidTotal = d.payments.filter((x) => x.status === 'paid').reduce((s, x) => s + x.amount, 0);
     return structuredClone(d);
+  };
+  const findTicket = (id: string) => {
+    const x = tickets.find((t) => t.ticket.id === id);
+    if (!x) throw new ApiError('not_found');
+    return x;
   };
   const find = (id: string) => {
     const d = offices.find((x) => x.office.id === id);
@@ -502,6 +585,7 @@ function demoApi(): AdminApi {
           pilot: offices.filter((d) => d.office.pilot).length,
           openFeedback: feedback.filter((f) => !f.doneAt).length,
           openErrors: clientErrors.filter((e) => !resolved.has(e.fingerprint)).length,
+          openTickets: tickets.filter((x) => x.ticket.status === 'open').length,
         };
       }),
     offices: (_t, q, st) =>
@@ -579,6 +663,30 @@ function demoApi(): AdminApi {
       wait(() => {
         if (r) resolved.add(fp);
         else resolved.delete(fp);
+      }),
+    tickets: (_t, st) =>
+      wait(() =>
+        structuredClone(
+          tickets
+            .filter((x) => x.ticket.status === st)
+            .map((x) => x.ticket)
+            .sort((a, b) => (st === 'open' ? 1 : -1) * (Date.parse(a.updatedAt) - Date.parse(b.updatedAt))),
+        ),
+      ),
+    ticket: (_t, _o, id) => wait(() => structuredClone(findTicket(id))),
+    replyTicket: (_t, _o, id, body) =>
+      wait(() => {
+        const x = findTicket(id);
+        const at = new Date().toISOString();
+        x.messages.push({ id: `${id}-${x.messages.length}`, body: body.trim(), from: 'support', author: 'شما', createdAt: at });
+        x.ticket = { ...x.ticket, status: 'answered', updatedAt: at, messages: x.messages.length, last: { body: body.trim(), from: 'support' } };
+        return structuredClone(x);
+      }),
+    setTicketStatus: (_t, _o, id, st) =>
+      wait(() => {
+        const x = findTicket(id);
+        x.ticket = { ...x.ticket, status: st, updatedAt: new Date().toISOString() };
+        return structuredClone(x);
       }),
   };
 }
