@@ -1,4 +1,5 @@
 import { PLANS, priceOf, type Period, type PlanId } from '@kelid/core/plans';
+import { toEnDigits } from '@kelid/core/persian';
 
 // همهٔ تماس‌های پنل با سرور (apps/server/src/admin/routes.ts). VITE_ADMIN_API_URL=demo = دادهٔ نمایشی برای پیش‌نمایش.
 
@@ -555,7 +556,9 @@ function demoApi(): AdminApi {
   return {
     login: (phone, password, code) =>
       wait(() => {
-        if (phone.replace(/\D/g, '').slice(-10) !== '9120000000' || password !== '12345678' || code.length !== 6) throw new ApiError('bad_login');
+        // صفحه‌کلید فارسی هم باید کار کند: ۰۹۱۲… و ۱۲۳۴۵۶ همان ارقام انگلیسی‌اند.
+        const en = (s: string) => toEnDigits(s).replace(/\D/g, '');
+        if (en(phone).slice(-10) !== '9120000000' || toEnDigits(password) !== '12345678' || en(code).length !== 6) throw new ApiError('bad_login');
         return { token: 'demo', expiresIn: 8 * 3600, admin: me };
       }, 500),
     me: () => wait(() => me, 60),
