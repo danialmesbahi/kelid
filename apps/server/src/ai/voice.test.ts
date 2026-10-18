@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { OpenAiVoice, voicePrompt } from './voice';
+import { GeminiVoice, OpenAiVoice, geminiSchema, voicePrompt } from './voice';
 
-const cfg = { apiKey: 'sk-test', baseUrl: 'https://ai.example/v1', transcribeModel: 'stt', extractModel: 'llm' };
+const cfg = { provider: 'openai' as const, apiKey: 'sk-test', baseUrl: 'https://ai.example/v1', transcribeModel: 'stt', extractModel: 'llm' };
 
 function fakeFetch(content: string, transcript = 'آپارتمان فروشی سعادت‌آباد صد و بیست متر') {
   const calls: Array<{ url: string; init: RequestInit }> = [];
@@ -46,5 +46,28 @@ describe('voice form filling', () => {
     const p = voicePrompt('listing', ['ونک', 'پونک'], 1405);
     expect(p).toContain('1405');
     expect(p).toContain('ونک، پونک');
+  });
+
+  it('sends the audio to Gemini once and reads transcript and fields from one answer', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const impl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      const text = JSON.stringify({ transcript: 'خانم احمدی دنبال رهن کامل در ونک', name: 'خانم احمدی', deal: 'full', neighborhoods: ['ونک'], kinds: null });
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const g = new GeminiVoice({ provider: 'gemini', apiKey: 'g-key', baseUrl: 'https://gemini.example/v1beta', model: 'gemini-2.5-flash' }, impl);
+    const r = await g.fill('client', Buffer.from('abc'.repeat(400)), 'audio/webm', []);
+    expect(r).toEqual({ transcript: 'خانم احمدی دنبال رهن کامل در ونک', fields: { name: 'خانم احمدی', deal: 'full', neighborhoods: ['ونک'] } });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toBe('https://gemini.example/v1beta/models/gemini-2.5-flash:generateContent');
+    expect((calls[0]!.init.headers as Record<string, string>)['x-goog-api-key']).toBe('g-key');
+    const body = JSON.parse(String(calls[0]!.init.body)) as { contents: Array<{ parts: Array<{ inlineData: { mimeType: string } }> }>; generationConfig: { responseSchema: { required: string[] } } };
+    expect(body.contents[0]!.parts[0]!.inlineData.mimeType).toBe('audio/webm');
+    expect(body.generationConfig.responseSchema.required[0]).toBe('transcript');
+  });
+
+  it('turns the JSON Schema into Gemini\'s nullable schema', () => {
+    expect(geminiSchema({ type: ['array', 'null'], items: { type: 'string', enum: ['a', 'b'] } })).toEqual({ type: 'array', nullable: true, items: { type: 'string', enum: ['a', 'b'] } });
+    expect(geminiSchema({ type: ['string', 'null'], enum: ['x', null] })).toEqual({ type: 'string', nullable: true, enum: ['x'] });
   });
 });

@@ -2,17 +2,27 @@ import { cleanVoiceDraft, voiceSchema, type VoiceDraft, type VoiceForm } from '@
 import { jalaliOf, tehranDayKey } from '@kelid/core/jalali';
 
 /**
- * پر کردن فرم با صدا در دو گام: گفتار فارسی → متن (gpt-4o-transcribe) و متن → فیلدهای فرم
- * (مدل زبانی با خروجی ساخت‌یافتهٔ JSON Schema). هر سرویس سازگار با API اوپن‌ای‌آی کار می‌کند؛
- * سرور ایران به اوپن‌ای‌آی نمی‌رسد، پس آنجا AI_BASE_URL درگاهی داخلی مثل AvalAI است.
+ * پر کردن فرم با صدا، با یکی از دو سرویس:
+ * - openai: دو گام؛ گفتار فارسی → متن (gpt-4o-transcribe) و متن → فیلدها (خروجی ساخت‌یافتهٔ JSON Schema).
+ *   هر سرویس سازگار با API اوپن‌ای‌آی کار می‌کند؛ سرور ایران به اوپن‌ای‌آی نمی‌رسد، پس آنجا درگاهی داخلی مثل AvalAI.
+ * - gemini: یک گام؛ خود صدا به Gemini می‌رود و متن و فیلدها با هم برمی‌گردند.
  */
-export interface AiConfig {
-  apiKey: string;
-  /** مثلاً https://api.openai.com/v1 یا https://api.avalai.ir/v1 */
-  baseUrl: string;
-  transcribeModel: string;
-  extractModel: string;
-}
+export type AiConfig =
+  | {
+      provider: 'openai';
+      apiKey: string;
+      /** مثلاً https://api.openai.com/v1 یا https://api.avalai.ir/v1 */
+      baseUrl: string;
+      transcribeModel: string;
+      extractModel: string;
+    }
+  | {
+      provider: 'gemini';
+      apiKey: string;
+      /** https://generativelanguage.googleapis.com/v1beta */
+      baseUrl: string;
+      model: string;
+    };
 
 export interface VoiceResult<F extends VoiceForm = VoiceForm> {
   transcript: string;
@@ -55,6 +65,13 @@ function transcribeHint(hints: string[]): string {
   return `مشاور املاک مشخصات ملک یا مشتری را می‌گوید: متراژ، خواب، طبقه، رهن، اجاره، ودیعه، میلیون، میلیارد تومان، پارکینگ، آسانسور، انباری. ${hints.join('، ')}`.slice(0, 900);
 }
 
+/** درخواست به سرویس؛ متن خطای سرویس فقط به لاگ سرور می‌رود، نه به کاربر. */
+async function post(fetchImpl: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
+  const res = await fetchImpl(url, { ...init, method: 'POST', signal: AbortSignal.timeout(60_000) });
+  if (!res.ok) throw new Error(`ai ${new URL(url).pathname} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`);
+  return res.json();
+}
+
 function parseJson(content: unknown): unknown {
   try {
     return typeof content === 'string' ? JSON.parse(content) : null;
@@ -65,19 +82,12 @@ function parseJson(content: unknown): unknown {
 
 export class OpenAiVoice implements VoiceAi {
   constructor(
-    private readonly cfg: AiConfig,
+    private readonly cfg: Extract<AiConfig, { provider: 'openai' }>,
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  private async call(path: string, init: RequestInit): Promise<unknown> {
-    const res = await this.fetchImpl(`${this.cfg.baseUrl}${path}`, {
-      ...init,
-      headers: { ...init.headers, authorization: `Bearer ${this.cfg.apiKey}` },
-      signal: AbortSignal.timeout(45_000),
-    });
-    // متن خطای سرویس فقط به لاگ سرور می‌رود، نه به کاربر.
-    if (!res.ok) throw new Error(`ai ${path} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`);
-    return res.json();
+  private call(path: string, init: RequestInit): Promise<unknown> {
+    return post(this.fetchImpl, `${this.cfg.baseUrl}${path}`, { ...init, headers: { ...init.headers, authorization: `Bearer ${this.cfg.apiKey}` } });
   }
 
   async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>> {
@@ -87,12 +97,11 @@ export class OpenAiVoice implements VoiceAi {
     fd.append('language', 'fa');
     fd.append('prompt', transcribeHint(hints));
     fd.append('response_format', 'json');
-    const heard = (await this.call('/audio/transcriptions', { method: 'POST', body: fd })) as { text?: unknown };
+    const heard = (await this.call('/audio/transcriptions', { body: fd })) as { text?: unknown };
     const transcript = typeof heard.text === 'string' ? heard.text.trim().slice(0, 4000) : '';
     if (!transcript) return { transcript: '', fields: {} as VoiceDraft<F> };
 
     const out = (await this.call('/chat/completions', {
-      method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         model: this.cfg.extractModel,
@@ -107,4 +116,54 @@ export class OpenAiVoice implements VoiceAi {
     const content = out.choices?.[0]?.message?.content;
     return { transcript, fields: cleanVoiceDraft(form, parseJson(content)) };
   }
+}
+
+type Json = { type?: string | string[]; enum?: unknown[]; properties?: Record<string, Json>; items?: Json; required?: string[]; description?: string };
+
+/** JSON Schema → زیرمجموعهٔ OpenAPI که responseSchema جمینای می‌فهمد (null با nullable، بی additionalProperties). */
+export function geminiSchema(s: Json): object {
+  const types = Array.isArray(s.type) ? s.type : s.type ? [s.type] : [];
+  return {
+    ...(types.length ? { type: types.find((t) => t !== 'null') ?? 'string' } : {}),
+    ...(types.includes('null') ? { nullable: true } : {}),
+    ...(s.enum ? { enum: s.enum.filter((x) => x !== null) } : {}),
+    ...(s.description ? { description: s.description } : {}),
+    ...(s.items ? { items: geminiSchema(s.items) } : {}),
+    ...(s.properties ? { properties: Object.fromEntries(Object.entries(s.properties).map(([k, v]) => [k, geminiSchema(v)])) } : {}),
+    ...(s.required ? { required: s.required } : {}),
+  };
+}
+
+export class GeminiVoice implements VoiceAi {
+  constructor(
+    private readonly cfg: Extract<AiConfig, { provider: 'gemini' }>,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
+
+  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>> {
+    const base = voiceSchema(form) as Json;
+    // متن شنیده‌شده هم در همان پاسخ می‌آید تا کاربر ببیند چه فهمیده شد.
+    const schema: Json = {
+      ...base,
+      properties: { transcript: { type: 'string', description: 'exact Persian transcript of the recording; empty if nothing was said' }, ...base.properties },
+      required: ['transcript', ...(base.required ?? [])],
+    };
+    const out = (await post(this.fetchImpl, `${this.cfg.baseUrl}/models/${encodeURIComponent(this.cfg.model)}:generateContent`, {
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': this.cfg.apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: `${voicePrompt(form, hints)}\nThe input is the agent's voice recording. First write its exact Persian transcript in "transcript", then fill the fields from it.` }] },
+        contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime, data: audio.toString('base64') } }] }],
+        generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: geminiSchema(schema) },
+      }),
+    })) as { candidates?: Array<{ content?: { parts?: Array<{ text?: unknown }> } }> };
+    const text = (out.candidates?.[0]?.content?.parts ?? []).map((p) => (typeof p.text === 'string' ? p.text : '')).join('');
+    const raw = parseJson(text) as { transcript?: unknown } | null;
+    const transcript = typeof raw?.transcript === 'string' ? raw.transcript.trim().slice(0, 4000) : '';
+    if (!transcript) return { transcript: '', fields: {} as VoiceDraft<F> };
+    return { transcript, fields: cleanVoiceDraft(form, raw) };
+  }
+}
+
+export function voiceAi(cfg: AiConfig): VoiceAi {
+  return cfg.provider === 'gemini' ? new GeminiVoice(cfg) : new OpenAiVoice(cfg);
 }

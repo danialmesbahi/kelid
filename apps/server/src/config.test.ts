@@ -27,12 +27,20 @@ describe('loadConfig', () => {
 
   it('turns voice filling on with an API key', () => {
     expect(loadConfig({ ...base, AI_API_KEY: 'k', AI_BASE_URL: 'https://api.avalai.ir/v1/' }).ai).toEqual({
+      provider: 'openai',
       apiKey: 'k',
       baseUrl: 'https://api.avalai.ir/v1',
       transcribeModel: 'gpt-4o-transcribe',
       extractModel: 'gpt-4.1',
     });
+    expect(loadConfig({ ...base, AI_API_KEY: 'k', AI_PROVIDER: 'gemini' }).ai).toEqual({
+      provider: 'gemini',
+      apiKey: 'k',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      model: 'gemini-2.5-flash',
+    });
     expect(() => loadConfig({ ...base, AI_API_KEY: 'k', AI_BASE_URL: 'ftp://x' })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...base, AI_PROVIDER: 'siri' })).toThrow(ConfigError);
   });
 
   it('uses a separate migration role when given', () => {

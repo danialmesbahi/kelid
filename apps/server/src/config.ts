@@ -22,7 +22,7 @@ export interface Config {
   /** فضای ذخیره‌سازی عکس‌ها (آروان، لیارا، MinIO)؛ null = بایت عکس‌ها در خود دیتابیس. */
   s3: S3Config | null;
   billing: BillingConfig;
-  /** پر کردن فرم با صدا (سرویس سازگار با API اوپن‌ای‌آی)؛ null = خاموش. */
+  /** پر کردن فرم با صدا (اوپن‌ای‌آی یا سازگارش، یا جمینای)؛ null = خاموش. */
   ai: AiConfig | null;
 }
 
@@ -116,10 +116,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!isWebUrl(publicUrl, production)) problems.push(production ? 'PUBLIC_URL باید نشانی https:// همین سرور باشد' : 'PUBLIC_URL باید نشانی http(s):// همین سرور باشد');
 
   let ai: AiConfig | null = null;
-  if (env.AI_API_KEY) {
-    const baseUrl = (env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
+  const aiProvider = env.AI_PROVIDER || 'openai';
+  if (aiProvider !== 'openai' && aiProvider !== 'gemini') problems.push('AI_PROVIDER باید openai یا gemini باشد');
+  else if (env.AI_API_KEY) {
+    const gemini = aiProvider === 'gemini';
+    const baseUrl = (env.AI_BASE_URL || (gemini ? 'https://generativelanguage.googleapis.com/v1beta' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
     if (!isWebUrl(baseUrl, production)) problems.push(production ? 'AI_BASE_URL باید آدرس https:// باشد' : 'AI_BASE_URL باید آدرس http(s):// باشد');
-    ai = { apiKey: env.AI_API_KEY, baseUrl, transcribeModel: env.AI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe', extractModel: env.AI_EXTRACT_MODEL || 'gpt-4.1' };
+    ai = gemini
+      ? { provider: 'gemini', apiKey: env.AI_API_KEY, baseUrl, model: env.AI_MODEL || 'gemini-2.5-flash' }
+      : { provider: 'openai', apiKey: env.AI_API_KEY, baseUrl, transcribeModel: env.AI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe', extractModel: env.AI_EXTRACT_MODEL || 'gpt-4.1' };
   }
 
   if (problems.length) throw new ConfigError(`تنظیمات سرور ناقص است:\n- ${problems.join('\n- ')}`);
