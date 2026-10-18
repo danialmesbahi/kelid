@@ -71,7 +71,8 @@ function errorText(e: unknown): string {
   if (e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) return 'اجازهٔ میکروفون داده نشد. از تنظیمات مرورگر اجازه دهید و دوباره بزنید.';
   if (e instanceof DOMException && e.name === 'NotFoundError') return 'میکروفونی به این دستگاه وصل نیست.';
   if (e instanceof ApiError) {
-    if (e.code === 'offline') return 'اینترنت وصل نیست؛ برای پر کردن با صدا اینترنت لازم است.';
+    // خطای شبکه با اینترنت وصل یعنی سرور کلید در دسترس نبود یا جواب دیر آمد.
+    if (e.code === 'offline') return navigator.onLine ? 'به سرور کلید وصل نشد؛ چند لحظهٔ دیگر دوباره امتحان کنید.' : 'اینترنت وصل نیست؛ برای پر کردن با صدا اینترنت لازم است.';
     if (e.code === 'no_ai') return 'پر کردن با صدا هنوز روی سرور کلید روشن نشده است.';
     if (e.code === 'too_many') return 'کمی صبر کنید و دوباره امتحان کنید.';
     if (e.code === 'bad_audio') return 'صدا درست ضبط نشد؛ دوباره بگویید.';
