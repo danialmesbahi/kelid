@@ -4,12 +4,14 @@ import { dealLabel, formatToman, toFaDigits, type ClientDraft, type ListingDraft
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../auth/api';
 import { useQuery } from '../data';
+import { toWav16k } from './wav';
 import './voice.css';
 
 // دکمهٔ «با صدا بگویید»: مشاور مشخصات را یک‌نفس می‌گوید، سرور کلید با هوش مصنوعی گفته را به فیلدها
 // تبدیل می‌کند و فرم پر می‌شود. فقط فیلدهایی که گفته شده عوض می‌شوند و یک دکمه همه را برمی‌گرداند.
 
-const MAX_SECONDS = 120;
+// سرویس گفتار فارسی (آوانگار) صدای کوتاه را تا ۶۰ ثانیه همان لحظه جواب می‌دهد.
+const MAX_SECONDS = 60;
 const MIMES = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'];
 
 const KIND: Record<string, string> = { apartment: 'آپارتمان', villa: 'ویلایی', shop: 'مغازه', office: 'دفتر کار', land: 'زمین' };
@@ -141,8 +143,11 @@ export function VoiceFill<F extends VoiceForm>({ form, onDraft }: { form: F; onD
     }
     setPhase({ s: 'work' });
     try {
-      const audio = await toBase64(blob);
-      const r = await withToken((t) => api!.voiceFill(t, { form, audio, mime: mime.split(';')[0]!, hints: hoods ?? [] }));
+      // WAV شانزده کیلوهرتز را همهٔ سرویس‌ها می‌فهمند؛ اگر مرورگر نتوانست تبدیل کند، همان ضبط اصلی می‌رود.
+      const wav = await toWav16k(blob).catch(() => null);
+      const audio = await toBase64(wav ?? blob);
+      const type = wav ? 'audio/wav' : mime.split(';')[0]!;
+      const r = await withToken((t) => api!.voiceFill(t, { form, audio, mime: type, hints: hoods ?? [] }));
       if (!mounted.current) return;
       const chips = draftChips(form, r.fields);
       undo.current = chips.length ? onDraft(r.fields) : null;

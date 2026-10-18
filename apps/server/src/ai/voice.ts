@@ -15,6 +15,8 @@ export type AiConfig =
       baseUrl: string;
       transcribeModel: string;
       extractModel: string;
+      /** تبدیل گفتار به متن با سرویس دیگری؛ آن‌وقت این سرویس فقط فیلدها را از متن درمی‌آورد. */
+      stt?: AvanegarConfig;
     }
   | {
       provider: 'gemini';
@@ -23,6 +25,13 @@ export type AiConfig =
       baseUrl: string;
       model: string;
     };
+
+/** آوانگار (پارت/ویرا): گفتار به متن فارسی، داخل ایران. فقط wav و mp3، بهترین با ۱۶ کیلوهرتز تک‌کاناله، تا ۶۰ ثانیه. */
+export interface AvanegarConfig {
+  provider: 'avanegar';
+  token: string;
+  url: string;
+}
 
 export interface VoiceResult<F extends VoiceForm = VoiceForm> {
   transcript: string;
@@ -80,6 +89,46 @@ function parseJson(content: unknown): unknown {
   }
 }
 
+export async function avanegarTranscribe(cfg: AvanegarConfig, audio: Buffer, mime: string, hints: string[], fetchImpl: typeof fetch = fetch): Promise<string> {
+  if (mime !== 'audio/wav' && mime !== 'audio/mpeg') throw new Error(`avanegar: unsupported audio ${mime}`);
+  const fd = new FormData();
+  fd.append('audio', new Blob([new Uint8Array(audio)], { type: mime }), `voice.${EXT[mime]}`);
+  fd.append('language', 'fa');
+  fd.append('model', 'default');
+  fd.append('punctuation', 'true');
+  // عددها رقمی برمی‌گردند («۱۲۰» نه «صد و بیست») تا استخراج قیمت و متراژ دقیق‌تر شود.
+  fd.append('inverseNormalizer', 'true');
+  fd.append('spokenPunctuation', 'false');
+  fd.append('timestamp', 'false');
+  fd.append('srt', 'false');
+  fd.append('diarize', 'false');
+  fd.append('numSpeakers', '0');
+  for (const h of hints.slice(0, 40)) fd.append('hotwords[]', h);
+  const res = await fetchImpl(cfg.url, { method: 'POST', headers: { 'gateway-token': cfg.token, accept: 'application/json' }, body: fd, signal: AbortSignal.timeout(60_000) });
+  const body = (await res.json().catch(() => null)) as AvanegarBody | null;
+  if (!res.ok) {
+    // «فایل صوتی خالی» (2400) یعنی گفتار فارسی‌ای شنیده نشد، نه خرابی سرویس.
+    if (findKey(body, 'aiStatusCode') === '2400') return '';
+    throw new Error(`ai avanegar ${res.status}: ${JSON.stringify(body).slice(0, 300)}`);
+  }
+  const ai = findKey(body, 'aiResponse') as { result?: { text?: unknown } } | undefined;
+  return typeof ai?.result?.text === 'string' ? ai.result.text : '';
+}
+
+type AvanegarBody = Record<string, unknown>;
+
+/** پاسخ آوانگار چند لایه data تودرتو دارد (data.aiResponse یا data.data.aiResponse)؛ اولین کلید هم‌نام را برمی‌دارد. */
+function findKey(o: unknown, key: string, depth = 0): unknown {
+  if (!o || typeof o !== 'object' || depth > 6) return undefined;
+  const rec = o as Record<string, unknown>;
+  if (key in rec) return typeof rec[key] === 'number' ? String(rec[key]) : rec[key];
+  for (const v of Object.values(rec)) {
+    const found = findKey(v, key, depth + 1);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
 export class OpenAiVoice implements VoiceAi {
   constructor(
     private readonly cfg: Extract<AiConfig, { provider: 'openai' }>,
@@ -90,7 +139,8 @@ export class OpenAiVoice implements VoiceAi {
     return post(this.fetchImpl, `${this.cfg.baseUrl}${path}`, { ...init, headers: { ...init.headers, authorization: `Bearer ${this.cfg.apiKey}` } });
   }
 
-  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>> {
+  private async transcribe(audio: Buffer, mime: string, hints: string[]): Promise<string> {
+    if (this.cfg.stt) return avanegarTranscribe(this.cfg.stt, audio, mime, hints, this.fetchImpl);
     const fd = new FormData();
     fd.append('file', new Blob([new Uint8Array(audio)], { type: mime }), `voice.${EXT[mime] ?? 'webm'}`);
     fd.append('model', this.cfg.transcribeModel);
@@ -98,7 +148,11 @@ export class OpenAiVoice implements VoiceAi {
     fd.append('prompt', transcribeHint(hints));
     fd.append('response_format', 'json');
     const heard = (await this.call('/audio/transcriptions', { body: fd })) as { text?: unknown };
-    const transcript = typeof heard.text === 'string' ? heard.text.trim().slice(0, 4000) : '';
+    return typeof heard.text === 'string' ? heard.text : '';
+  }
+
+  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>> {
+    const transcript = (await this.transcribe(audio, mime, hints)).trim().slice(0, 4000);
     if (!transcript) return { transcript: '', fields: {} as VoiceDraft<F> };
 
     const out = (await this.call('/chat/completions', {

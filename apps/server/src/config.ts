@@ -126,6 +126,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       ? { provider: 'gemini', apiKey: env.AI_API_KEY, baseUrl, model: env.AI_MODEL || 'gemini-2.5-flash' }
       : { provider: 'openai', apiKey: env.AI_API_KEY, baseUrl, transcribeModel: env.AI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe', extractModel: env.AI_EXTRACT_MODEL || 'gpt-4.1' };
   }
+  const stt = env.STT_PROVIDER || 'ai';
+  if (stt === 'avanegar') {
+    const url = env.AVANEGAR_URL || 'https://partai.gw.isahab.ir/avanegar/v2/avanegar/request';
+    if (!env.AVANEGAR_TOKEN) problems.push('STT_PROVIDER=avanegar به AVANEGAR_TOKEN نیاز دارد');
+    else if (!isWebUrl(url, production)) problems.push('AVANEGAR_URL آدرس درستی نیست');
+    else if (ai?.provider !== 'openai') problems.push('STT_PROVIDER=avanegar فقط با AI_PROVIDER=openai (یا سازگارش، مثل AvalAI) کار می‌کند');
+    else ai = { ...ai, stt: { provider: 'avanegar', token: env.AVANEGAR_TOKEN, url } };
+  } else if (stt !== 'ai') problems.push('STT_PROVIDER باید ai یا avanegar باشد');
 
   if (problems.length) throw new ConfigError(`تنظیمات سرور ناقص است:\n- ${problems.join('\n- ')}`);
   return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3, billing: { licenseSeed, gateway, publicUrl }, ai };

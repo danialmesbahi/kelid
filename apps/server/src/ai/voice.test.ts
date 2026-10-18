@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GeminiVoice, OpenAiVoice, geminiSchema, voicePrompt } from './voice';
+import { GeminiVoice, OpenAiVoice, avanegarTranscribe, geminiSchema, voicePrompt } from './voice';
 
 const cfg = { provider: 'openai' as const, apiKey: 'sk-test', baseUrl: 'https://ai.example/v1', transcribeModel: 'stt', extractModel: 'llm' };
 
@@ -69,5 +69,33 @@ describe('voice form filling', () => {
   it('turns the JSON Schema into Gemini\'s nullable schema', () => {
     expect(geminiSchema({ type: ['array', 'null'], items: { type: 'string', enum: ['a', 'b'] } })).toEqual({ type: 'array', nullable: true, items: { type: 'string', enum: ['a', 'b'] } });
     expect(geminiSchema({ type: ['string', 'null'], enum: ['x', null] })).toEqual({ type: 'string', nullable: true, enum: ['x'] });
+  });
+
+  it('transcribes with Avanegar and extracts with the OpenAI-compatible model', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const impl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      const body = url.includes('avanegar')
+        ? { status: 'success', data: { data: { aiResponse: { status: 2000, message: 'success', result: { text: 'آپارتمان ۱۲۰ متری در ونک' } } } } }
+        : { choices: [{ message: { content: JSON.stringify({ kind: 'apartment', area: 120, neighborhood: 'ونک' }) } }] };
+      return new Response(JSON.stringify(body), { status: url.includes('avanegar') ? 201 : 200 });
+    }) as unknown as typeof fetch;
+    const v = new OpenAiVoice({ ...cfg, stt: { provider: 'avanegar', token: 'tok', url: 'https://stt.example/avanegar' } }, impl);
+    const r = await v.fill('listing', Buffer.alloc(2000), 'audio/wav', ['ونک', 'پونک']);
+    expect(r).toEqual({ transcript: 'آپارتمان ۱۲۰ متری در ونک', fields: { kind: 'apartment', area: 120, neighborhood: 'ونک' } });
+    expect(calls.map((c) => c.url)).toEqual(['https://stt.example/avanegar', 'https://ai.example/v1/chat/completions']);
+    expect((calls[0]!.init.headers as Record<string, string>)['gateway-token']).toBe('tok');
+    const fd = calls[0]!.init.body as FormData;
+    expect(fd.get('language')).toBe('fa');
+    expect(fd.getAll('hotwords[]')).toEqual(['ونک', 'پونک']);
+    await expect(v.fill('listing', Buffer.alloc(2000), 'audio/webm', [])).rejects.toThrow('unsupported');
+  });
+
+  it('treats Avanegar\'s empty-audio error as nothing heard', async () => {
+    const impl = (async () =>
+      new Response(JSON.stringify({ meta: { code: 'AIError' }, data: { additionalInfo: { statusCode: 400, additionalInfo: { aiStatusCode: '2400', aiMessage: 'Empty Audio file.' } } } }), { status: 400 })) as unknown as typeof fetch;
+    expect(await avanegarTranscribe({ provider: 'avanegar', token: 't', url: 'https://stt.example' }, Buffer.alloc(2000), 'audio/wav', [], impl)).toBe('');
+    const down = (async () => new Response('{}', { status: 503 })) as unknown as typeof fetch;
+    await expect(avanegarTranscribe({ provider: 'avanegar', token: 't', url: 'https://stt.example' }, Buffer.alloc(2000), 'audio/wav', [], down)).rejects.toThrow('503');
   });
 });
