@@ -21,7 +21,18 @@ describe('loadConfig', () => {
       corsOrigins: [],
       s3: null,
       billing: { licenseSeed: DEV_LICENSE_SEED, gateway: { provider: 'dev' }, publicUrl: 'http://localhost:3000' },
+      ai: null,
     });
+  });
+
+  it('turns voice filling on with an API key', () => {
+    expect(loadConfig({ ...base, AI_API_KEY: 'k', AI_BASE_URL: 'https://api.avalai.ir/v1/' }).ai).toEqual({
+      apiKey: 'k',
+      baseUrl: 'https://api.avalai.ir/v1',
+      transcribeModel: 'gpt-4o-transcribe',
+      extractModel: 'gpt-4.1',
+    });
+    expect(() => loadConfig({ ...base, AI_API_KEY: 'k', AI_BASE_URL: 'ftp://x' })).toThrow(ConfigError);
   });
 
   it('uses a separate migration role when given', () => {

@@ -5,7 +5,8 @@ import { LeaveDialog } from '../layout/LeaveDialog';
 import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
 import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
-import { dealLabel, formatGrouped, hasBedrooms, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { dealLabel, formatGrouped, hasBedrooms, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingDraft, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { VoiceFill } from '../voice/VoiceFill';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
@@ -68,6 +69,23 @@ function toState(l?: Listing): FormState {
     total: amountText(l?.price.total), deposit: amountText(l?.price.deposit), rent: amountText(l?.price.monthlyRent), negotiable: l?.negotiable ?? true,
     description: l?.description ?? '', ownerName: l?.owner.name === '—' ? '' : l?.owner.name ?? '', ownerPhone: l?.owner.phone ? toFaDigits(l.owner.phone) : '', ownerBestTime: l?.owner.bestTime ?? '',
   };
+}
+
+/** فقط آنچه در صحبت آمده روی فرم می‌نشیند؛ توضیح تازه به توضیح قبلی اضافه می‌شود. */
+function withDraft(f: FormState, d: ListingDraft): FormState {
+  const n = { ...f };
+  if (d.deal) n.deal = d.deal;
+  if (d.kind) n.kind = d.kind;
+  for (const k of ['neighborhood', 'street', 'address', 'ownerName', 'ownerBestTime'] as const) if (d[k]) n[k] = d[k];
+  for (const k of ['area', 'bedrooms', 'floor', 'floorsTotal', 'yearBuilt'] as const) if (d[k] !== undefined) n[k] = numText(d[k]);
+  if (d.features) n.features = d.features;
+  if (d.total) n.total = amountText(d.total);
+  if (d.deposit) n.deposit = amountText(d.deposit);
+  if (d.rent) n.rent = amountText(d.rent);
+  if (d.negotiable !== undefined) n.negotiable = d.negotiable;
+  if (d.ownerPhone) n.ownerPhone = toFaDigits(d.ownerPhone);
+  if (d.description) n.description = f.description.trim() && !f.description.includes(d.description) ? `${f.description.trim()}\n${d.description}` : d.description;
+  return n;
 }
 
 type Required = 'neighborhood' | 'area';
@@ -230,6 +248,22 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
         {blocker.state === 'blocked' && <LeaveDialog onStay={() => blocker.reset()} onLeave={() => blocker.proceed()} />}
 
         <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
+          {!listing && (
+            <VoiceFill
+              form="listing"
+              onDraft={(d) => {
+                let before: FormState | null = null;
+                setF((x) => ((before = x), withDraft(x, d)));
+                setErrs((e) => {
+                  const n = { ...e };
+                  if (d.neighborhood) delete n.neighborhood;
+                  if (d.area) delete n.area;
+                  return n;
+                });
+                return () => before && setF(before);
+              }}
+            />
+          )}
           <Section legend="۱. این ملک برای چیست؟">
             <div className="dealpick">
               {DEALS.map((d) => (
