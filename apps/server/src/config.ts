@@ -131,7 +131,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     const url = env.AVANEGAR_URL || 'https://partai.gw.isahab.ir/avanegar/v2/avanegar/request';
     if (!env.AVANEGAR_TOKEN) problems.push('STT_PROVIDER=avanegar به AVANEGAR_TOKEN نیاز دارد');
     else if (!isWebUrl(url, production)) problems.push('AVANEGAR_URL آدرس درستی نیست');
-    else if (ai?.provider !== 'openai') problems.push('STT_PROVIDER=avanegar فقط با AI_PROVIDER=openai (یا سازگارش، مثل AvalAI) کار می‌کند');
+    else if (!ai) ai = { provider: 'avanegar', stt: { provider: 'avanegar', token: env.AVANEGAR_TOKEN, url } };
+    else if (ai.provider !== 'openai') problems.push('STT_PROVIDER=avanegar فقط با AI_PROVIDER=openai (یا سازگارش، مثل AvalAI) یا بی AI_API_KEY کار می‌کند');
     else ai = { ...ai, stt: { provider: 'avanegar', token: env.AVANEGAR_TOKEN, url } };
   } else if (stt !== 'ai') problems.push('STT_PROVIDER باید ai یا avanegar باشد');
 

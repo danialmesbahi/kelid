@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GeminiVoice, OpenAiVoice, avanegarTranscribe, geminiSchema, voicePrompt } from './voice';
+import { AvanegarVoice, GeminiVoice, OpenAiVoice, avanegarTranscribe, geminiSchema, voicePrompt } from './voice';
 
 const cfg = { provider: 'openai' as const, apiKey: 'sk-test', baseUrl: 'https://ai.example/v1', transcribeModel: 'stt', extractModel: 'llm' };
 
@@ -34,7 +34,8 @@ describe('voice form filling', () => {
     expect(await new OpenAiVoice(cfg, silent.impl).fill('client', Buffer.alloc(2000), 'audio/ogg', [])).toEqual({ transcript: '', fields: {} });
     expect(silent.calls).toHaveLength(1);
     const broken = fakeFetch('not json');
-    expect((await new OpenAiVoice(cfg, broken.impl).fill('client', Buffer.alloc(2000), 'audio/ogg', [])).fields).toEqual({});
+    // جواب خراب مدل: قاعده‌های خود برنامه هنوز از متن پر می‌کنند.
+    expect((await new OpenAiVoice(cfg, broken.impl).fill('client', Buffer.alloc(2000), 'audio/ogg', [])).fields).toEqual({ deal: 'sale', kinds: ['apartment'], areaMin: 120 });
   });
 
   it('throws on a service error so the route can answer ai_failed', async () => {
@@ -97,5 +98,18 @@ describe('voice form filling', () => {
     expect(await avanegarTranscribe({ provider: 'avanegar', token: 't', url: 'https://stt.example' }, Buffer.alloc(2000), 'audio/wav', [], impl)).toBe('');
     const down = (async () => new Response('{}', { status: 503 })) as unknown as typeof fetch;
     await expect(avanegarTranscribe({ provider: 'avanegar', token: 't', url: 'https://stt.example' }, Buffer.alloc(2000), 'audio/wav', [], down)).rejects.toThrow('503');
+  });
+
+  it('fills the form with Avanegar alone, using the app rules', async () => {
+    const calls: string[] = [];
+    const impl = (async (url: string) => {
+      calls.push(url);
+      const text = 'مشتری آقای سامان مغازه می خواهد، تو خیابون سنگی یکصد و بیست متر قیمت: سی و دو میلیارد';
+      return new Response(JSON.stringify({ data: { data: { aiResponse: { result: { text } } } } }), { status: 201 });
+    }) as unknown as typeof fetch;
+    const v = new AvanegarVoice({ provider: 'avanegar', stt: { provider: 'avanegar', token: 't', url: 'https://stt.example/avanegar' } }, impl);
+    const r = await v.fill('client', Buffer.alloc(2000), 'audio/wav', []);
+    expect(calls).toEqual(['https://stt.example/avanegar']);
+    expect(r.fields).toEqual({ name: 'آقای سامان', deal: 'sale', kinds: ['shop'], neighborhoods: ['خیابان سنگی'], areaMin: 120, budget: 32_000_000_000 });
   });
 });

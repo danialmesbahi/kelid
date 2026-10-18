@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanVoiceDraft, voiceSchema } from './voice';
+import { cleanVoiceDraft, voiceSchema, withSpokenPrices } from './voice';
 
 describe('voice draft', () => {
   it('keeps only valid listing fields and drops nulls', () => {
@@ -58,5 +58,19 @@ describe('voice draft', () => {
     expect(s.additionalProperties).toBe(false);
     expect(s.required).toEqual(Object.keys(s.properties));
     expect(s.properties.kinds?.type).toContain('null');
+  });
+
+  it('infers the deal from the prices that were said', () => {
+    expect(cleanVoiceDraft('listing', { total: 3_000_000_000 })).toEqual({ deal: 'sale', total: 3_000_000_000 });
+    expect(cleanVoiceDraft('listing', { deposit: 500_000_000, rent: 20_000_000 })).toEqual({ deal: 'rent', deposit: 500_000_000, rent: 20_000_000 });
+  });
+
+  it('takes a price the model missed from the transcript', () => {
+    const t = 'آپارتمان ونک صد و بیست متر قیمت هشت و نیم میلیارد';
+    expect(withSpokenPrices('listing', t, { neighborhood: 'ونک', area: 120 })).toEqual({ deal: 'sale', neighborhood: 'ونک', area: 120, total: 8_500_000_000 });
+    expect(withSpokenPrices('listing', t, { area: 120, total: 8_400_000_000 })).toMatchObject({ total: 8_400_000_000 });
+    expect(withSpokenPrices('listing', 'صد متر، متری صد میلیون', { area: 100 })).toMatchObject({ total: 10_000_000_000 });
+    expect(withSpokenPrices('listing', 'رهن کامل، رهن دو میلیارد', { deal: 'full' })).toEqual({ deal: 'full', deposit: 2_000_000_000 });
+    expect(withSpokenPrices('client', 'دنبال خرید، بودجه‌اش تا پنج میلیارد', { deal: 'sale' })).toEqual({ deal: 'sale', budget: 5_000_000_000 });
   });
 });

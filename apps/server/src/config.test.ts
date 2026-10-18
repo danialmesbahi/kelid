@@ -46,7 +46,12 @@ describe('loadConfig', () => {
       stt: { provider: 'avanegar', token: 't', url: 'https://partai.gw.isahab.ir/avanegar/v2/avanegar/request' },
     });
     expect(() => loadConfig({ ...base, AI_API_KEY: 'k', STT_PROVIDER: 'avanegar' })).toThrow(ConfigError);
-    expect(() => loadConfig({ ...base, STT_PROVIDER: 'avanegar', AVANEGAR_TOKEN: 't' })).toThrow(ConfigError);
+    // فقط آوانگار: فیلدها را قاعده‌های خود برنامه پر می‌کنند.
+    expect(loadConfig({ ...base, STT_PROVIDER: 'avanegar', AVANEGAR_TOKEN: 't' }).ai).toEqual({
+      provider: 'avanegar',
+      stt: { provider: 'avanegar', token: 't', url: 'https://partai.gw.isahab.ir/avanegar/v2/avanegar/request' },
+    });
+    expect(() => loadConfig({ ...base, AI_PROVIDER: 'gemini', AI_API_KEY: 'k', STT_PROVIDER: 'avanegar', AVANEGAR_TOKEN: 't' })).toThrow(ConfigError);
   });
 
   it('uses a separate migration role when given', () => {

@@ -81,6 +81,8 @@ function withDraft(f: FormState, d: ListingDraft): FormState {
   if (d.features) n.features = d.features;
   if (d.total) n.total = amountText(d.total);
   if (d.deposit) n.deposit = amountText(d.deposit);
+  // فقط رهن گفته شد و فرم روی فروش بود: رهن کامل است، وگرنه مبلغ در فرم دیده نمی‌شود.
+  if (!d.deal && d.deposit && !d.rent && n.deal === 'sale') n.deal = 'full';
   if (d.rent) n.rent = amountText(d.rent);
   if (d.negotiable !== undefined) n.negotiable = d.negotiable;
   if (d.ownerPhone) n.ownerPhone = toFaDigits(d.ownerPhone);

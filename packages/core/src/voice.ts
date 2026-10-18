@@ -1,5 +1,8 @@
 import type { ClientTemperature, DealType, PropertyKind } from './model';
+import { spokenAmounts } from './money';
 import { normalizePhone } from './store';
+
+export { annotateAmounts, spokenAmounts, type SpokenAmount } from './money';
 
 // پر کردن فرم با صدا: مشاور مشخصات را می‌گوید، سرور گفته را به متن و متن را به این فیلدها تبدیل می‌کند.
 // هر فیلدی که در صحبت نیامده خالی می‌ماند تا چیزی که کاربر نوشته پاک نشود.
@@ -178,7 +181,12 @@ export function cleanVoiceDraft<F extends VoiceForm>(form: F, raw: unknown): Voi
     const v = clean(s, (raw as Record<string, unknown>)[k]);
     if (v !== undefined) out[k] = v;
   }
-  // قیمتی که به نوع معامله نمی‌خورد (اجاره در فروش) گیج‌کننده است؛ فقط وقتی نوع معامله گفته شده کنار می‌رود.
+  // نوع معامله گفته نشده ولی قیمت گفته شده: «اجاره» یعنی رهن و اجاره، «قیمت کل» یعنی فروش؛ وگرنه فیلد قیمت در فرم پنهان می‌ماند.
+  if (form === 'listing' && !out.deal) {
+    if (out.rent) out.deal = 'rent';
+    else if (out.total && !out.deposit) out.deal = 'sale';
+  }
+  // قیمتی که به نوع معامله نمی‌خورد (اجاره در فروش) گیج‌کننده است؛ فقط وقتی نوع معامله معلوم است کنار می‌رود.
   if (form === 'listing' && out.deal) {
     if (out.deal !== 'sale') delete out.total;
     if (out.deal === 'sale') delete out.deposit;
@@ -189,6 +197,44 @@ export function cleanVoiceDraft<F extends VoiceForm>(form: F, raw: unknown): Voi
     [out.areaMin, out.areaMax] = [out.areaMax, out.areaMin];
   }
   return out as VoiceDraft<F>;
+}
+
+type PriceSlot = 'deposit' | 'rent' | 'total';
+
+/** واژهٔ پیش از مبلغ می‌گوید کدام قیمت است. */
+export function slotOf(before: string): PriceSlot | 'perMeter' | undefined {
+  const b = before.replace(/[\s\u200c،,:]+$/, '');
+  if (/(متری|هر\s*متر|متر\s*مربعی)$/.test(b)) return 'perMeter';
+  if (/(رهن|ودیعه|پیش|رهنش|ودیعه‌اش)(\s*کامل)?$/.test(b)) return 'deposit';
+  if (/(اجاره|اجاره‌اش|اجارش|کرایه|ماهی|ماهیانه|ماهانه)$/.test(b)) return 'rent';
+  if (/(قیمت|قیمتش|کل|کلش|فروش|بودجه|بودجه‌اش|تا|حدود|زیر|سقف)$/.test(b)) return 'total';
+  return undefined;
+}
+
+/**
+ * پشتوانهٔ مدل: مبلغی که در متن آمده ولی مدل جا انداخته از خود متن برداشته می‌شود.
+ * فقط فیلدهای خالی پر می‌شوند؛ عددی که مدل داده دست نمی‌خورد.
+ */
+export function withSpokenPrices<F extends VoiceForm>(form: F, transcript: string, draft: VoiceDraft<F>): VoiceDraft<F> {
+  const amounts = spokenAmounts(transcript).filter((a) => a.value >= 100_000);
+  if (!amounts.length) return draft;
+  const d = { ...draft } as Record<string, unknown>;
+  const set = (k: string, v: number) => {
+    if (d[k] === undefined) d[k] = v;
+  };
+  for (const a of amounts) {
+    let slot = slotOf(transcript.slice(Math.max(0, a.start - 30), a.start));
+    if (slot === 'perMeter') {
+      if (form === 'listing' && typeof d.area === 'number') set('total', a.value * d.area);
+      continue;
+    }
+    // مبلغ بی‌برچسب فقط وقتی تنها مبلغ است معنی روشنی دارد.
+    if (!slot && amounts.length === 1) slot = d.deal === 'full' || d.deal === 'rent' ? 'deposit' : 'total';
+    if (!slot) continue;
+    if (form === 'listing') set(slot, a.value);
+    else set(slot === 'rent' ? 'rent' : 'budget', a.value);
+  }
+  return cleanVoiceDraft(form, d);
 }
 
 /** چند فیلد از فرم را این صحبت پر کرد (برای پیام «۷ مورد پر شد»). */

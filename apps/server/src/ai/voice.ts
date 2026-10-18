@@ -1,13 +1,17 @@
-import { cleanVoiceDraft, voiceSchema, type VoiceDraft, type VoiceForm } from '@kelid/core/voice';
+import { annotateAmounts, cleanVoiceDraft, voiceSchema, withSpokenPrices, type VoiceDraft, type VoiceForm } from '@kelid/core/voice';
 import { jalaliOf, tehranDayKey } from '@kelid/core/jalali';
+import { mergeDrafts, ruleDraft } from '@kelid/core/voiceRules';
 
 /**
- * پر کردن فرم با صدا، با یکی از دو سرویس:
+ * پر کردن فرم با صدا، با یکی از این راه‌ها:
+ * - avanegar: فقط یک سرویس ایرانی؛ آوانگار گفتار را متن می‌کند و قاعده‌های خود برنامه (voiceRules) فیلدها را پر می‌کنند.
+ *   به هیچ سرویس خارجی نیاز ندارد، پس در قطعی اینترنت بین‌الملل هم کار می‌کند.
  * - openai: دو گام؛ گفتار فارسی → متن (gpt-4o-transcribe) و متن → فیلدها (خروجی ساخت‌یافتهٔ JSON Schema).
  *   هر سرویس سازگار با API اوپن‌ای‌آی کار می‌کند؛ سرور ایران به اوپن‌ای‌آی نمی‌رسد، پس آنجا درگاهی داخلی مثل AvalAI.
  * - gemini: یک گام؛ خود صدا به Gemini می‌رود و متن و فیلدها با هم برمی‌گردند.
  */
 export type AiConfig =
+  | { provider: 'avanegar'; stt: AvanegarConfig }
   | {
       provider: 'openai';
       apiKey: string;
@@ -51,14 +55,19 @@ const WHAT: Record<VoiceForm, string> = {
 };
 
 /** دستور مدل؛ قاعده‌های پول و عدد فارسی اینجاست چون بیشترین خطا همان‌جاست. */
-export function voicePrompt(form: VoiceForm, hints: string[], year = jalaliOf(tehranDayKey()).y): string {
+const thisYear = () => jalaliOf(tehranDayKey()).y;
+
+export function voicePrompt(form: VoiceForm, hints: string[], year = thisYear()): string {
   return [
     `You fill the form for ${WHAT[form]} in an Iranian real-estate office app, from what an agent said in Persian (transcribed speech).`,
     `The current Solar Hijri year is ${year}.`,
     'Rules:',
     '- Fill only what was actually said or is unmistakably implied. Everything else is null. Never invent or guess values.',
     '- Money is an integer in TOMAN. میلیون = 1,000,000; میلیارد = 1,000,000,000; هزار = 1,000; «تومن» = تومان. ریال ÷ 10. «هشت و نیم میلیارد» = 8500000000; «دو میلیارد و سیصد» = 2300000000; «یک و دویست» in a sale context = 1200000000.',
+    '- The app has already converted spoken amounts and wrote each one right after it as [= N تومان]. Copy those N values exactly; do not recompute them.',
+    '- «متری N» / «هر متر N» is a price per square meter: total = N × area.',
     '- If the unit is left out, use it only when context makes it certain (sale prices are billions, monthly rents are millions); otherwise null.',
+    '- Deal type can come from the prices: only a total price → sale; deposit and monthly rent → rent; deposit only → full.',
     '- Spoken numbers become digits. Phone numbers: write every digit in order (صفر نهصد و دوازده ... → 0912...). Keep the leading 0.',
     '- «رهن» alone with no rent means full mortgage (full); «رهن و اجاره» / «ودیعه و اجاره» means rent; «فروش» / «فروشی» / «خرید» means sale.',
     '- «همکف» is floor 0. «n طبقه» about the building means floorsTotal. «n خوابه» means bedrooms.',
@@ -162,13 +171,14 @@ export class OpenAiVoice implements VoiceAi {
         temperature: 0,
         messages: [
           { role: 'system', content: voicePrompt(form, hints) },
-          { role: 'user', content: transcript },
+          { role: 'user', content: annotateAmounts(transcript) },
         ],
         response_format: { type: 'json_schema', json_schema: { name: `kelid_${form}`, strict: true, schema: voiceSchema(form) } },
       }),
     })) as { choices?: Array<{ message?: { content?: unknown } }> };
     const content = out.choices?.[0]?.message?.content;
-    return { transcript, fields: cleanVoiceDraft(form, parseJson(content)) };
+    const fields = withSpokenPrices(form, transcript, cleanVoiceDraft(form, parseJson(content)));
+    return { transcript, fields: mergeDrafts(form, fields, ruleDraft(form, transcript, hints, thisYear())) };
   }
 }
 
@@ -214,10 +224,30 @@ export class GeminiVoice implements VoiceAi {
     const raw = parseJson(text) as { transcript?: unknown } | null;
     const transcript = typeof raw?.transcript === 'string' ? raw.transcript.trim().slice(0, 4000) : '';
     if (!transcript) return { transcript: '', fields: {} as VoiceDraft<F> };
-    return { transcript, fields: cleanVoiceDraft(form, raw) };
+    const fields = withSpokenPrices(form, transcript, cleanVoiceDraft(form, raw));
+    return { transcript, fields: mergeDrafts(form, fields, ruleDraft(form, transcript, hints, thisYear())) };
+  }
+}
+
+/** آوانگار + قاعده‌ها: یک سرویس، بی هزینهٔ مدل زبانی. */
+export class AvanegarVoice implements VoiceAi {
+  constructor(
+    private readonly cfg: Extract<AiConfig, { provider: 'avanegar' }>,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
+
+  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>> {
+    const transcript = (await avanegarTranscribe(this.cfg.stt, audio, mime, hints, this.fetchImpl)).trim().slice(0, 4000);
+    return { transcript, fields: transcript ? ruleDraft(form, transcript, hints, thisYear()) : ({} as VoiceDraft<F>) };
   }
 }
 
 export function voiceAi(cfg: AiConfig): VoiceAi {
+  if (cfg.provider === 'avanegar') return new AvanegarVoice(cfg);
   return cfg.provider === 'gemini' ? new GeminiVoice(cfg) : new OpenAiVoice(cfg);
+}
+
+/** برای لاگ سرور: کدام سرویس کجا. */
+export function describeAi(cfg: AiConfig): string {
+  return cfg.provider === 'avanegar' ? `avanegar at ${cfg.stt.url} with the app's own rules` : `${cfg.provider} at ${cfg.baseUrl}${cfg.provider === 'openai' && cfg.stt ? ' (speech by avanegar)' : ''}`;
 }

@@ -13,6 +13,7 @@
     "./format": "./src/format.ts",
     "./persian": "./src/persian.ts",
     "./voice": "./src/voice.ts",
+    "./voiceRules": "./src/voiceRules.ts",
     "./jalali": "./src/jalali.ts"
   }
 }
