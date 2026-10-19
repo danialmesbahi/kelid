@@ -1,0 +1,105 @@
+import { normalizeForSearch } from '@kelid/core';
+
+// محله‌ها و خیابان‌های هر شهر از نقشهٔ باز (OpenStreetMap از راه Overture)، ساختهٔ scripts/places/build.py.
+// هر شهر فایل جدای خودش را دارد و فقط وقتی بار می‌شود که لازم است؛ نه به سرور سر می‌زند نه برنامه را سنگین می‌کند.
+
+type RawCity = { n: string; p: string; z: Array<[string, number[]]>; h: string[]; s: Array<[string, ...number[]]> };
+type RawIndex = Array<[key: string, name: string, province: string, dup: 0 | 1]>;
+
+export type CityRef = { key: string; name: string; province: string; label: string };
+export type Zone = { name: string; hoods: number[] };
+export type Street = { name: string; hoods: number[] };
+export type CityPlaces = { name: string; province: string; zones: Zone[]; hoods: string[]; streets: Street[] };
+
+const files = import.meta.glob<RawCity>('./data/*.json', { import: 'default' });
+
+let index: Promise<CityRef[]> | null = null;
+
+/** فهرست همهٔ شهرها، پرجمعیت‌ها اول. */
+export function loadCities(): Promise<CityRef[]> {
+  index ??= import('./cities.json').then((m) =>
+    (m.default as RawIndex).map(([key, name, province, dup]) => ({ key, name, province, label: dup ? `${name} (${province})` : name })),
+  );
+  return index;
+}
+
+const cache = new Map<string, Promise<CityPlaces | null>>();
+
+/** دادهٔ یک شهر با همان نامی که دفتر انتخاب کرده؛ شهری که داده ندارد null. */
+export function loadCity(label: string): Promise<CityPlaces | null> {
+  const want = normalizeForSearch(label);
+  if (!want) return Promise.resolve(null);
+  let p = cache.get(want);
+  if (!p) {
+    p = loadCities().then(async (all) => {
+      const ref = all.find((c) => normalizeForSearch(c.label) === want) ?? all.find((c) => normalizeForSearch(c.name) === want);
+      const load = ref && files[`./data/${ref.key}.json`];
+      if (!load) return null;
+      const r = await load();
+      return {
+        name: r.n,
+        province: r.p,
+        zones: r.z.map(([name, hoods]) => ({ name, hoods })),
+        hoods: r.h,
+        streets: r.s.map(([name, ...hoods]) => ({ name, hoods })),
+      };
+    });
+    // بار نشد (مثلاً فایل در به‌روزرسانی عوض شد): دفعهٔ بعد دوباره امتحان شود.
+    p.catch(() => cache.delete(want));
+    cache.set(want, p);
+  }
+  return p;
+}
+
+/** نام با بخش جورشده، برای پررنگ کردن همان تکه در فهرست. */
+export type Hit = { text: string; at: number; len: number; score: number };
+
+// «خیابان»، «بلوار»… جلوی نام؛ «معلم» باید «خیابان معلم» را هم از اول پیدا کند.
+const KIND = /^(خیابان|بلوار|بزرگراه|کوچه|میدان|کوی|جاده|بن‌بست|بن بست|کنارگذر|اتوبان|شهرک|مجتمع مسکونی|مجتمع|شهید) /;
+
+/** جای تکهٔ جورشده در متن اصلی؛ normalizeForSearch فاصله و نیم‌فاصله را حذف می‌کند، پس نویسه‌به‌نویسه نگاشت می‌شود. */
+function locate(text: string, q: string): { at: number; len: number } | null {
+  let norm = '';
+  const from: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const n = normalizeForSearch(text[i]!);
+    for (const ch of n) {
+      norm += ch;
+      from.push(i);
+    }
+  }
+  const k = norm.indexOf(q);
+  if (k < 0) return null;
+  const start = from[k]!;
+  const end = from[k + q.length - 1]! + 1;
+  return { at: start, len: end - start };
+}
+
+/** جستجوی سریع: هم‌نام، شروع نام، شروع یک کلمه، بعد هر جای نام. */
+export function match(text: string, query: string): Hit | null {
+  const q = normalizeForSearch(query);
+  if (!q) return { text, at: 0, len: 0, score: 4 };
+  const pos = locate(text, q);
+  if (!pos) return null;
+  const n = normalizeForSearch(text);
+  const bare = normalizeForSearch(text.replace(KIND, ''));
+  const score = n === q || bare === q ? 0 : n.startsWith(q) || bare.startsWith(q) ? 1 : pos.at === 0 || /[\s‌]/.test(text[pos.at - 1] ?? '') ? 2 : 3;
+  return { text, ...pos, score };
+}
+
+/** بهترین‌ها اول؛ با امتیاز برابر ترتیب اصلی (اهمیت) می‌ماند. */
+export function search<T>(items: T[], query: string, name: (t: T) => string, limit: number): Array<{ item: T; hit: Hit }> {
+  const out: Array<{ item: T; hit: Hit; i: number }> = [];
+  items.forEach((item, i) => {
+    const hit = match(name(item), query);
+    if (hit) out.push({ item, hit, i });
+  });
+  out.sort((a, b) => a.hit.score - b.hit.score || a.i - b.i);
+  return out.slice(0, limit);
+}
+
+/** «بلوار خلیج فارس» → نوع «بلوار» جدا، برای برچسب کوچک کنار نام. */
+export function streetKind(name: string): { kind: string; rest: string } {
+  const m = KIND.exec(name);
+  return m && m[1] !== 'شهید' ? { kind: m[1]!, rest: name.slice(m[0].length) } : { kind: '', rest: name };
+}

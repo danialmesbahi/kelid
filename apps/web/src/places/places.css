@@ -1,0 +1,92 @@
+/* «کجاست؟» فرم فایل: شهر، زون، محله و خیابان پیشنهادی. */
+.loc { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+/* fieldset به‌طور پیش‌فرض به اندازهٔ محتوایش پهن می‌شود؛ ردیف زون‌ها روی گوشی باید ورق بخورد، نه صفحه */
+fieldset:has(> .loc) { min-inline-size: 0; }
+
+.loc-head, .loc-ask {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: 16px; background: var(--paper2);
+}
+.loc-ask { align-items: flex-start; padding: 16px; border-style: dashed; border-color: var(--line2); }
+.loc-pin {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
+  background: var(--pri-tint); color: var(--pri-text);
+}
+.loc-city { font-size: 16.5px; }
+.loc-askrow { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.loc-cityfld { flex: 1; min-width: 0; max-width: 360px; }
+
+/* زون‌ها: یک ردیف دکمهٔ گرد؛ روی گوشی افقی ورق می‌خورد */
+.loc-zones { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.loc-lead { flex: none; font-size: 14px; font-weight: 600; color: var(--ink2); }
+.loc-rail {
+  display: flex; gap: 8px; min-width: 0; overflow-x: auto; padding: 4px 2px; margin: -4px -2px;
+  scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity;
+}
+.loc-rail::-webkit-scrollbar { display: none; }
+.loc-zone {
+  flex: none; display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 8px 0 14px; scroll-snap-align: start;
+  border: 1px solid var(--line); border-radius: 99px; background: var(--paper); color: var(--ink2);
+  font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
+  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease, box-shadow var(--t-fast) ease;
+}
+.loc-zone:hover { border-color: var(--pri-text); color: var(--ink); }
+.loc-n {
+  min-width: 26px; height: 26px; padding: 0 7px; border-radius: 99px; display: inline-grid; place-items: center;
+  background: var(--sunk); color: var(--mute); font-size: 12.5px; font-weight: 700; font-feature-settings: "tnum";
+}
+.loc-zone[aria-pressed="true"] { background: var(--pri); border-color: var(--pri); color: var(--pri-ink); box-shadow: 0 8px 16px -10px var(--pri); }
+.loc-zone[aria-pressed="true"] .loc-n { background: rgba(255, 255, 255, .18); color: inherit; }
+
+.loc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; align-items: start; }
+.loc-combo { position: relative; }
+.loc-combo .fld { width: 100%; }
+
+/* پیشنهادهای یک‌ضرب زیر هر فیلد؛ برای کاربری که تایپ برایش سخت است */
+.loc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; font-weight: 400; }
+.loc-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink);
+  font: inherit; font-size: 14px; cursor: pointer;
+  transition: border-color var(--t-fast) ease, background-color var(--t-fast) ease, transform var(--t-fast) ease;
+}
+.loc-chip:hover { border-color: var(--pri-text); background: var(--pri-tint); }
+.loc-chip:active { transform: scale(.97); }
+.loc-chip.more { border-style: dashed; color: var(--pri-text); font-weight: 600; background: transparent; }
+.loc-kind {
+  flex: none; padding: 1px 6px; border-radius: 6px; background: var(--sunk); color: var(--mute);
+  font-size: 11.5px; font-weight: 600; line-height: 1.6;
+}
+
+/* فهرست کشویی؛ بالای صفحهٔ ثبت‌نام و آشنایی (z-index 90) هم دیده شود */
+.loc-pop { z-index: 100; }
+.loc-pop .kp-list { padding: 6px; }
+.loc-opt { min-height: 44px; }
+.loc-opt .kp-ol { flex: 1; min-width: 0; }
+.loc-hint { flex: none; color: var(--faint); }
+.loc-group { padding: 10px 12px 4px; font-size: 12px; font-weight: 700; color: var(--mute); }
+.loc-optwrap:first-child .loc-group { padding-top: 4px; }
+.loc-mark { display: inline; background: none; color: var(--pri-text); font-weight: 800; }
+.kp-opt.on .loc-kind { background: var(--paper); }
+
+/* جای ملک یک‌جا: شهر › زون › محله › خیابان */
+.loc-trail {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px 14px; border-radius: 12px;
+  background: var(--pri-tint); color: var(--pri-text); font-size: 14px;
+  animation: kl-loc-in 260ms var(--ease-out) both;
+}
+.loc-trail span { color: var(--ink2); }
+.loc-trail b { color: var(--ink); }
+.loc-trail svg:not(:first-child) { color: var(--faint); }
+@keyframes kl-loc-in { from { opacity: 0; transform: translateY(-4px); } }
+
+@media (max-width: 767px) {
+  .loc-zones { flex-direction: column; align-items: stretch; gap: 8px; }
+  .loc-rail { margin-inline: -16px; padding-inline: 16px; }
+  .loc-askrow { flex-direction: column; align-items: stretch; }
+  .loc-cityfld { max-width: none; }
+  .loc-chip { height: 38px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loc-trail { animation: none; }
+}

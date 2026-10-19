@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type R
 import { Icon, Logo, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { usePrefsContext } from '../App';
+import { CityField } from '../places/CityField';
 import { useQuery, useStore } from '../data';
 import { usePhone } from '../layout/usePhone';
 import { callName, greetingNow, type TextSize, type ThemePref } from '../prefs';
@@ -40,6 +41,7 @@ export function Welcome({
   const [dir, setDir] = useState(1);
   const [name, setName] = useState(prefs.userName);
   const [office, setOffice] = useState(prefs.officeName);
+  const [city, setCity] = useState(prefs.city);
   const [keepSample, setKeepSample] = useState(true);
   const [leaving, setLeaving] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -61,6 +63,7 @@ export function Welcome({
   const finish = async () => {
     prefs.setUserName(name.trim());
     prefs.setOfficeName(office.trim());
+    if (city.trim()) prefs.setCity(city.trim());
     if (hasSample && !keepSample) await store.clearSampleData();
     setLeaving(true);
     // انیمیشن کنار رفتن تمام شود، بعد برداشته شود
@@ -80,6 +83,7 @@ export function Welcome({
   const skip = () => {
     prefs.setUserName(name.trim());
     prefs.setOfficeName(office.trim());
+    if (city.trim()) prefs.setCity(city.trim());
     prefs.setWelcomed(true);
   };
 
@@ -159,6 +163,7 @@ export function Welcome({
                 <label className="lbl">نام شما<input className="fld wl-fld" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={toOffice} enterKeyHint="next" placeholder="مثلاً علی رضایی" autoComplete="name" /></label>
                 <label className="lbl">نام دفتر<input className="fld wl-fld" value={office} onChange={(e) => setOffice(e.target.value)} enterKeyHint="next" placeholder="مثلاً املاک پارسا" autoComplete="organization" /></label>
               </div>
+              <label className="lbl">شهر دفتر<CityField value={city} onChange={setCity} className="wl-fld" placeholder="محله‌ها و خیابان‌های همین شهر پیشنهاد می‌شوند" /></label>
               <div className="wl-preview" aria-live="polite">
                 <Logo size={36} />
                 <span className="col" style={{ minWidth: 0 }}>

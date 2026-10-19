@@ -4,6 +4,7 @@ import { useGoBack } from '../layout/useGoBack';
 import { LeaveDialog } from '../layout/LeaveDialog';
 import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
+import { PlaceFields } from '../places/PlaceFields';
 import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
 import { dealLabel, formatGrouped, hasBedrooms, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 
@@ -256,14 +257,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
           </Section>
 
           <Section legend="۲. کجاست؟">
-            <div style={grid(220)}>
-              <label className="lbl">
-                <span>محله<Req /></span>
-                <input className="fld" value={f.neighborhood} onChange={(e) => set('neighborhood')(e.target.value)} placeholder="مثلاً سعادت‌آباد" aria-required="true" aria-invalid={!!errs.neighborhood} aria-describedby={errs.neighborhood ? 'err-hood' : undefined} />
-                <FieldError id="err-hood" text={errs.neighborhood} />
-              </label>
-              <label className="lbl">خیابان<input className="fld" value={f.street} onChange={(e) => set('street')(e.target.value)} /></label>
-            </div>
+            <PlaceFields hood={f.neighborhood} street={f.street} onHood={set('neighborhood')} onStreet={set('street')} hoodError={errs.neighborhood} />
             <label className="lbl">نشانی کامل <span className="hint">فقط برای دفتر؛ به مشتری نشان داده نمی‌شود</span><input className="fld" value={f.address} onChange={(e) => set('address')(e.target.value)} /></label>
           </Section>
 

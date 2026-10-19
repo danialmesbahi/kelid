@@ -12,6 +12,8 @@ import { flushProfile, queueProfile } from '../auth/profile';
 import { UpdateSection } from '../updates';
 import { SubscriptionSection } from '../billing/SubscriptionSection';
 import { FeedbackSection } from '../beta/FeedbackSection';
+import { CityField } from '../places/CityField';
+import { useOfficeCity } from '../places/hooks';
 
 const whereText = {
   desktop: { title: 'روی همین کامپیوتر، رمزگذاری‌شده', detail: 'دیتابیس با AES-256 رمز شده و کلیدش را خود ویندوز برای حساب کاربری شما نگه می‌دارد.' },
@@ -39,7 +41,7 @@ export function SettingsPage() {
     else setOfficeName(value);
     if (status !== 'signedIn' || !api || !value) return;
     queueProfile({ [key]: value });
-    void flushProfile(api, withToken, (r) => void setNames(r.name, r.officeName));
+    void flushProfile(api, withToken, (r) => void setNames(r.name, r.officeName, r.city));
   };
 
   return (
@@ -63,6 +65,7 @@ export function SettingsPage() {
             />
             {!manager && <span id="office-only" className="xs mute">نام دفتر را مدیر دفتر عوض می‌کند.</span>}
           </label>
+          <OfficeCity />
         </div>
         <button type="button" className="lnk sm" style={{ alignSelf: 'flex-start', border: 0, background: 'none', padding: '4px 0', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setWelcomed(false)}>
           <Icon name="spark" size="s" />
@@ -140,5 +143,35 @@ export function SettingsPage() {
 
       <SubscriptionSection />
     </div>
+  );
+}
+
+/** شهر دفتر؛ فرم فایل محله و خیابان را از همین شهر پیشنهاد می‌دهد. */
+function OfficeCity() {
+  const { city, setCity, canEdit } = useOfficeCity();
+  if (!canEdit) {
+    return (
+      <label className="lbl">
+        شهر دفتر
+        <input className="fld" value={city} readOnly aria-describedby="city-only" />
+        <span id="city-only" className="xs mute">شهر دفتر را مدیر دفتر عوض می‌کند.</span>
+      </label>
+    );
+  }
+  // با عوض شدن شهر از دستگاه دیگر، فیلد از نو با شهر تازه شروع می‌شود
+  return <CityEdit key={city} city={city} onSave={setCity} />;
+}
+
+function CityEdit({ city, onSave }: { city: string; onSave: (c: string) => void }) {
+  const [draft, setDraft] = useState(city);
+  const save = (v: string) => {
+    if (v.trim() && v.trim() !== city) onSave(v.trim());
+  };
+  return (
+    <label className="lbl" onKeyDown={(e) => e.key === 'Enter' && !e.defaultPrevented && (e.preventDefault(), save(draft))}>
+      شهر دفتر
+      <CityField value={draft} onChange={setDraft} onPick={save} />
+      <span className="xs mute" style={{ fontWeight: 400 }}>محله و خیابان پیشنهادی فایل‌ها از این شهر می‌آید (نقشهٔ باز OpenStreetMap).</span>
+    </label>
   );
 }

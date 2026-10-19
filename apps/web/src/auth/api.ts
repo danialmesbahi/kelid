@@ -21,7 +21,8 @@ export interface Session {
   deviceId: string;
   // نشست‌های ذخیره‌شده از پیش از رمز عبور و همکاران این‌ها را ندارند؛ آن موقع هر حساب مدیر دفتر خودش بود.
   user: { id: string; name: string; phone: string; hasPassword?: boolean; role?: Role; seeOwnerPhones?: boolean };
-  office: { id: string; name: string };
+  /** شهر دفتر برای پیشنهاد محله و خیابان؛ سرور قدیمی و دفترهای قدیمی ندارند. */
+  office: { id: string; name: string; city?: string };
   invite?: InviteInfo | null;
   /** مجوز امضاشدهٔ اشتراک دفتر؛ سرور قدیمی ندارد. */
   license?: string;
@@ -146,15 +147,15 @@ export interface AuthApi {
   verify(phone: string, code: string, deviceName: string): Promise<VerifyResult>;
   /** ورودی که به سقف دستگاه خورد: دستگاه انتخاب‌شده بیرون می‌رود و همین دستگاه وارد می‌شود. */
   replaceDevice(ticket: string, deviceId: string): Promise<Session>;
-  signup(signupToken: string, name: string, officeName: string, password: string, deviceName: string): Promise<Session>;
+  signup(signupToken: string, name: string, officeName: string, city: string, password: string, deviceName: string): Promise<Session>;
   /** رمز تازه؛ `current` لازم نیست اگر این دستگاه همین چند دقیقه پیش با کد پیامکی وارد شده باشد. */
   setPassword(accessToken: string, password: string, current?: string): Promise<void>;
   refresh(refreshToken: string): Promise<Session>;
   logout(accessToken: string): Promise<void>;
   devices(accessToken: string): Promise<Device[]>;
   removeDevice(accessToken: string, id: string): Promise<void>;
-  /** نام شما و نام دفتر روی سرور، تا دستگاه‌های دیگر دفتر هم ببینند. */
-  updateProfile(accessToken: string, p: { name?: string; officeName?: string }): Promise<{ name: string; officeName: string }>;
+  /** نام شما و نام و شهر دفتر روی سرور، تا دستگاه‌های دیگر دفتر هم ببینند. */
+  updateProfile(accessToken: string, p: { name?: string; officeName?: string; city?: string }): Promise<{ name: string; officeName: string; city?: string }>;
   /** نظر کاربر برای تیم کلید (ابزار بتا). */
   sendFeedback(accessToken: string, f: { id: string; kind: string; body: string; page: string; appVersion: string; platform: string }): Promise<void>;
   /** خطاهای برنامه روی این دستگاه (تا ۱۰ تا در هر درخواست). */
@@ -220,7 +221,7 @@ export function httpApi(base: string): AuthApi {
       return 'signupToken' in r ? { signupToken: r.signupToken, invite: r.invite ?? null } : { session: r };
     },
     replaceDevice: (ticket, deviceId) => call('POST', '/auth/devices/replace', { ticket, deviceId }),
-    signup: (signupToken, name, officeName, password, deviceName) => call('POST', '/auth/signup', { signupToken, name, officeName, password, deviceName }),
+    signup: (signupToken, name, officeName, city, password, deviceName) => call('POST', '/auth/signup', { signupToken, name, officeName, ...(city ? { city } : {}), password, deviceName }),
     setPassword: (token, password, current) => call('POST', '/auth/password', { password, ...(current ? { current } : {}) }, token),
     refresh: (refreshToken) => call('POST', '/auth/refresh', { refreshToken }),
     logout: (token) => call('POST', '/auth/logout', {}, token),
@@ -254,7 +255,7 @@ export function demoApi(): AuthApi {
   // حساب‌های پیش‌نمایش در همین مرورگر می‌مانند تا «ثبت‌نام، خروج، ورود دوباره» مثل سرور واقعی کار کند.
   // فقط پیش‌نمایش: رمز ساده در حافظهٔ مرورگر می‌ماند؛ سرور واقعی فقط هش scrypt نگه می‌دارد.
   // officeId/role فقط برای همکارِ دعوت‌شده؛ بقیه مدیر دفتر خودشان‌اند.
-  type Account = { name: string; office: string; password?: string; officeId?: string; role?: Role; seeOwnerPhones?: boolean };
+  type Account = { name: string; office: string; city?: string; password?: string; officeId?: string; role?: Role; seeOwnerPhones?: boolean };
   const KEY = 'kelid.demo.accounts';
   const SEED: Account = { name: 'علی رضایی', office: 'املاک پارسا', password: '12345678' };
   // دفتری که اشتراکش تمام شده، برای دیدن حالت فقط‌خواندنی.
@@ -340,7 +341,7 @@ export function demoApi(): AuthApi {
       deviceId: 'd-this',
       user: { id: `u${phone}`, name: a.name, phone, hasPassword: !!a.password, role: a.role ?? 'manager', seeOwnerPhones: (a.role ?? 'manager') === 'manager' || !!a.seeOwnerPhones },
       // هر حساب دفتر خودش را دارد، مثل سرور واقعی.
-      office: { id: officeOf(phone), name: a.office },
+      office: { id: officeOf(phone), name: a.office, city: a.city ?? '' },
       invite: null,
       license: demoLicense(officeOf(phone)),
     };
@@ -423,11 +424,11 @@ export function demoApi(): AuthApi {
       const office = found ? (found.office === 'o1' ? 'املاک پارسا' : (Object.values(accounts()).find((a) => a.officeId === found.office)?.office ?? '')) : '';
       return { signupToken: 'demo-ticket', invite: found ? { officeName: office, invitedBy: found.invite.invitedBy, name: found.invite.name, role: found.invite.role } : null };
     },
-    async signup(_t, name, officeName, password) {
+    async signup(_t, name, officeName, city, password) {
       await wait(500);
       if (!verified) throw new ApiError('expired');
       if (password.length < 8) throw new ApiError('bad_password');
-      remember(verified, { name, office: officeName, password });
+      remember(verified, { name, office: officeName, city, password });
       return session(verified);
     },
     async setPassword(token, password, current) {
@@ -567,9 +568,9 @@ export function demoApi(): AuthApi {
       const phone = token.startsWith('demo:') ? token.slice('demo:'.length) : '';
       const a = accounts()[phone];
       if (!a) throw new ApiError('unauthorized');
-      const next = { ...a, name: p.name?.trim() || a.name, office: p.officeName?.trim() || a.office };
+      const next = { ...a, name: p.name?.trim() || a.name, office: p.officeName?.trim() || a.office, city: p.city?.trim() || a.city };
       remember(phone, next);
-      return { name: next.name, officeName: next.office };
+      return { name: next.name, officeName: next.office, city: next.city ?? '' };
     },
     // پیش‌نمایش: نظر و خطا جایی نمی‌روند، فقط در کنسول دیده می‌شوند.
     async sendFeedback(_t, f) {

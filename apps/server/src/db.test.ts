@@ -144,7 +144,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
     expect((await post(a, '/auth/otp', { phone })).statusCode).toBe(200);
     const v = await post(a, '/auth/verify', { phone, code: codes.get(phone)!, deviceName: 'لپ‌تاپ' });
     expect(v.statusCode).toBe(200);
-    const s = await post(a, '/auth/signup', { signupToken: v.json().signupToken, name: 'علی رضایی', officeName: 'املاک پارسا', deviceName: 'لپ‌تاپ', password: 'parsa-1404' });
+    const s = await post(a, '/auth/signup', { signupToken: v.json().signupToken, name: 'علی رضایی', officeName: 'املاک پارسا', city: 'بوشهر', deviceName: 'لپ‌تاپ', password: 'parsa-1404' });
     expect(s.statusCode).toBe(200);
     return s.json();
   }
@@ -155,7 +155,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const phone = freshPhone();
       const s = await signUp(a, phone);
       expect(s.user).toMatchObject({ name: 'علی رضایی', phone });
-      expect(s.office.name).toBe('املاک پارسا');
+      expect(s.office).toMatchObject({ name: 'املاک پارسا', city: 'بوشهر' });
       expect(s.accessExpiresIn).toBe(15 * 60);
 
       // دفتر تازه پشت RLS است: فقط با شناسهٔ خودش دیده می‌شود.
@@ -380,9 +380,10 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const phone = freshPhone();
       const s = await signUp(a, phone);
       const r = await post(a, '/auth/profile', { name: ' مریم احمدی ', officeName: 'املاک آفتاب' }, s.accessToken);
-      expect(r.json()).toEqual({ name: 'مریم احمدی', officeName: 'املاک آفتاب' });
+      expect(r.json()).toEqual({ name: 'مریم احمدی', officeName: 'املاک آفتاب', city: 'بوشهر' });
+      expect((await post(a, '/auth/profile', { city: 'شیراز' }, s.accessToken)).json().city).toBe('شیراز');
       const again = (await post(a, '/auth/refresh', { refreshToken: s.refreshToken })).json();
-      expect([again.user.name, again.office.name]).toEqual(['مریم احمدی', 'املاک آفتاب']);
+      expect([again.user.name, again.office.name, again.office.city]).toEqual(['مریم احمدی', 'املاک آفتاب', 'شیراز']);
       expect((await post(a, '/auth/profile', { officeName: '  ' }, s.accessToken)).json().error).toBe('bad_name');
       expect((await post(a, '/auth/profile', { name: 'x' })).statusCode).toBe(401);
       await a.close();

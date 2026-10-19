@@ -6,6 +6,7 @@ import { useStore } from '../data';
 import { useToast } from '../layout/Toasts';
 import { usePhone } from '../layout/usePhone';
 import { WelcomeHero } from '../welcome/WelcomeHero';
+import { CityField } from '../places/CityField';
 import { ApiError, deviceLabel, type DeviceLimit, type InviteInfo, type Session } from './api';
 import { seen } from './AccountSection';
 import { formatPhone, phoneDigits } from './phone';
@@ -45,7 +46,7 @@ function errorText(e: unknown, step: Step): string {
     case 'offline':
       return 'به اینترنت وصل نیستید. اولین ورود اینترنت می‌خواهد؛ بعد از آن کلید بدون اینترنت هم کار می‌کند.';
     case 'bad_name':
-      return step === 'join' ? 'نامتان را بنویسید.' : 'نام شما و نام دفتر را بنویسید.';
+      return step === 'join' ? 'نامتان را بنویسید.' : 'نام شما، نام دفتر و شهر دفتر را بنویسید.';
     case 'no_seat':
       return 'در این دفتر جای خالی نمانده. به مدیر دفتر بگویید یک جا آزاد کند، بعد دوباره امتحان کنید.';
     case 'not_found':
@@ -93,6 +94,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   const [invite, setInvite] = useState<InviteInfo | null>(null);
   const [name, setName] = useState('');
   const [office, setOffice] = useState('');
+  const [city, setCity] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // کدام فیلد قرمز شود: رمز اشتباه نباید شماره را هم اشتباه نشان دهد.
@@ -210,6 +212,9 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
     // نام‌ها از این به بعد از سرور می‌آیند؛ همان‌ها در منو و صفحهٔ امروز دیده می‌شوند.
     if (s.user.name) prefs.setUserName(s.user.name);
     if (s.office.name) prefs.setOfficeName(s.office.name);
+    // سرور قدیمی شهر را برنمی‌گرداند؛ همان که در ثبت‌نام انتخاب شد می‌ماند.
+    const officeCity = s.office.city || (kind === 'signup' ? city.trim() : '');
+    if (officeCity) prefs.setCity(officeCity);
     if (await store.hasSampleData()) await store.clearSampleData();
     if (kind === 'signup') {
       // دفتر تازه: آشنایی کوتاه همیشه می‌آید، حتی اگر این مرورگر قبلاً آشنایی را دیده باشد؛ بی‌فاصله جای این صفحه را می‌گیرد.
@@ -225,7 +230,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   const createOffice = async (t: string) => {
     if (!api) return;
     try {
-      await finish(await api.signup(t, name.trim(), office.trim(), password, deviceLabel()), 'signup');
+      await finish(await api.signup(t, name.trim(), office.trim(), city.trim(), password, deviceLabel()), 'signup');
     } catch (e) {
       // شماره از قبل حساب داشت و آن حساب روی دستگاه دیگری باز است.
       if (!askDevice(e, (s) => finish(s, 'login'))) throw e;
@@ -275,7 +280,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
   };
 
   const validDetails = () => {
-    if (!name.trim() || !office.trim()) return fail(new ApiError('bad_name')), false;
+    if (!name.trim() || !office.trim() || !city.trim()) return fail(new ApiError('bad_name')), false;
     if (!ticket && !validPhone()) return false;
     if (password.length < MIN_PASSWORD) return fail(new ApiError('bad_password')), passRef.current?.focus(), false;
     return true;
@@ -487,6 +492,11 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
                 <label className="lbl">نام شما<input className="fld wl-fld" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} enterKeyHint="next" placeholder="مثلاً علی رضایی" autoComplete="name" /></label>
                 <label className="lbl">نام دفتر<input className="fld wl-fld" value={office} onChange={(e) => setOffice(e.target.value)} maxLength={200} enterKeyHint="next" placeholder="مثلاً املاک پارسا" autoComplete="organization" /></label>
               </div>
+              <label className="lbl">
+                شهر دفتر
+                <CityField value={city} onChange={setCity} className="wl-fld" />
+                <span className="xs mute" style={{ fontWeight: 400 }}>محله‌ها و خیابان‌های پیشنهادی فایل‌ها از همین شهر می‌آیند.</span>
+              </label>
               {phoneField}
               <PasswordField
                 inputRef={passRef}
