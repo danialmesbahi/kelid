@@ -5,6 +5,7 @@ import {
   dealLabel, formatJalaliDay, formatToman, listingPlace, listingTitle, normalizeForSearch, searchText, tehranDayKey, toFaDigits,
   type Client, type Deal, type DealStage, type DealType, type Listing,
 } from '@kelid/core';
+import { Select } from '../layout/Select';
 import { useProgressive } from '../layout/useProgressive';
 import { STAGES, STAGE_LABEL } from './actions';
 
@@ -56,7 +57,7 @@ export function AllDeals({ data, stage, covered, onStage, onOpen, onClose }: {
   const found = base.filter((d) => !stage || d.stage === stage);
   const shown = useProgressive(found.length);
 
-  const stages: Array<{ id: DealStage | ''; label: string }> = [{ id: '', label: 'همه' }, ...STAGES, { id: 'lost', label: STAGE_LABEL.lost }];
+  const stages: Array<{ id: DealStage | ''; label: string }> = [{ id: '', label: 'همهٔ مرحله‌ها' }, ...STAGES, { id: 'lost', label: STAGE_LABEL.lost }];
 
   return createPortal(
     <div className="overlay vd-ov" onMouseDown={onClose}>
@@ -68,25 +69,23 @@ export function AllDeals({ data, stage, covered, onStage, onOpen, onClose }: {
           </span>
           <button type="button" className="ib ghost" aria-label="بستن" onClick={onClose}><Icon name="x" /></button>
         </div>
-        <div className="dl-all-tools col">
+        <div className="dl-all-tools">
           <span className="dl-search">
             <Icon name="search" size="s" />
             <input className="fld" value={q} onChange={(e) => setQ(e.target.value)} placeholder="فایل، محله، پلاک یا مشتری" aria-label="جستجو در معامله‌ها" />
           </span>
-          <div className="seg dl-all-seg" aria-label="مرحله">
-            {stages.map((s) => (
-              <button key={s.id} type="button" aria-pressed={stage === s.id} onClick={() => onStage(s.id)}>
-                {s.label}
-                <span className="num xs mute">{toFaDigits(s.id ? base.filter((d) => d.stage === s.id).length : base.length)}</span>
-              </button>
-            ))}
-          </div>
-          <div className="seg dl-all-seg" aria-label="نوع">
-            <button type="button" aria-pressed={kind === ''} onClick={() => setKind('')}>همهٔ نوع‌ها</button>
-            {KINDS.map((k) => (
-              <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>{dealLabel[k]}</button>
-            ))}
-          </div>
+          <Select<DealStage | ''>
+            label="مرحله"
+            value={stage}
+            onChange={onStage}
+            options={stages.map((s) => ({ value: s.id, label: s.label, hint: toFaDigits(s.id ? base.filter((d) => d.stage === s.id).length : base.length) }))}
+          />
+          <Select<DealType | ''>
+            label="نوع"
+            value={kind}
+            onChange={setKind}
+            options={[{ value: '', label: 'همهٔ نوع‌ها' }, ...KINDS.map((k) => ({ value: k, label: dealLabel[k] }))]}
+          />
         </div>
         <div className="vd-bd dl-all-list">
           {found.slice(0, shown).map((d) => {
@@ -94,15 +93,17 @@ export function AllDeals({ data, stage, covered, onStage, onOpen, onClose }: {
             const c = d.clientId ? clients.get(d.clientId) : undefined;
             const day = tehranDayKey(new Date(d.closedAt ?? d.updatedAt));
             return (
-              <button key={d.id} type="button" className={`row hov dl-all-row${d.stage === 'lost' ? ' is-lost' : ''}`} onClick={() => onOpen(d.id)}>
-                {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
-                <span className="col sp" style={{ minWidth: 0, textAlign: 'right' }}>
-                  <span className="sm sb dl-ell">{l ? listingTitle(l) : 'فایل حذف شده'}</span>
-                  <span className="xs mute dl-ell">{[l && listingPlace(l), c?.name ?? 'بدون مشتری'].filter(Boolean).join(' · ')}</span>
+              <button key={d.id} type="button" className={`dl-all-row${d.stage === 'lost' ? ' is-lost' : ''}`} onClick={() => onOpen(d.id)}>
+                <span className="dl-all-main">
+                  {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
+                  <span className="col" style={{ minWidth: 0 }}>
+                    <span className="sm sb dl-ell">{l ? listingTitle(l) : 'فایل حذف شده'}</span>
+                    <span className="xs mute dl-ell">{[l && listingPlace(l), c?.name ?? 'بدون مشتری'].filter(Boolean).join(' · ')}</span>
+                  </span>
                 </span>
-                <span className="col dl-all-end">
-                  <span className={`dl-all-stage xs${d.stage === 'done' ? ' done' : ''}`}>{STAGE_LABEL[d.stage]}</span>
-                  <span className="xs mute num">{d.price ? formatToman(d.price) : formatJalaliDay(day)}</span>
+                <span className="dl-all-end">
+                  <span className="sm num">{d.price ? formatToman(d.price) : '—'}</span>
+                  <span className={`xs dl-all-stage s-${d.stage}`}>{STAGE_LABEL[d.stage]} · {formatJalaliDay(day).split(' ').slice(1).join(' ')}</span>
                 </span>
               </button>
             );

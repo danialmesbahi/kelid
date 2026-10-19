@@ -92,16 +92,22 @@
 .dl-lost > .lnk { border: 0; background: none; padding: 6px 0; }
 
 /* ── همهٔ معامله‌ها: جستجو و فیلتر ── */
-.dl-all { width: min(720px, 100%); height: min(760px, calc(100dvh - 80px)); }
-.dl-all-tools { gap: 10px; padding: 14px 22px 12px; border-bottom: 1px solid var(--line); }
-.dl-all-seg { flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; align-self: flex-start; }
-.dl-all-seg button { height: 34px; padding: 0 12px; font-size: 14px; }
-.dl-all-list { flex: 1; gap: 2px; padding: 8px 12px 16px; }
-.dl-all-row { width: 100%; border: 0; background: transparent; padding: 10px; gap: 12px; }
-.dl-all-row.is-lost { opacity: .7; }
-.dl-all-end { align-items: flex-end; gap: 4px; flex: none; }
-.dl-all-stage { padding: 1px 9px; border-radius: 99px; background: var(--sunk); color: var(--ink2); font-weight: 600; white-space: nowrap; }
-.dl-all-stage.done { color: var(--brass-text); background: color-mix(in srgb, var(--brass) 13%, transparent); }
+.dl-all { width: min(760px, 100%); height: min(780px, calc(100dvh - 80px)); }
+.dl-all-tools { display: grid; grid-template-columns: minmax(0, 1fr) 170px 150px; gap: 10px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
+.dl-all-list { flex: 1; gap: 0; padding: 4px 22px 16px; }
+/* ردیف‌ها با خط جدا می‌شوند، نه با برچسب و کادر، تا فهرست آرام بماند */
+.dl-all-row {
+  display: flex; align-items: center; gap: 16px; width: 100%; padding: 14px 4px; border: 0; border-bottom: 1px solid var(--line);
+  background: transparent; color: var(--ink); text-align: right; cursor: pointer; transition: background-color var(--t-fast) ease;
+}
+.dl-all-row:last-child { border-bottom: 0; }
+@media (hover: hover) { .dl-all-row:hover { background: var(--sunk); } }
+.dl-all-row.is-lost { opacity: .6; }
+.dl-all-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.dl-all-main > .col { gap: 3px; }
+.dl-all-end { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; }
+.dl-all-stage { color: var(--mute); white-space: nowrap; }
+.dl-all-stage.s-done { color: var(--brass-text); }
 
 /* ── گوشی: زبانه‌های مرحله ── */
 .dl-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; padding: 2px 0 6px; }
@@ -183,8 +189,9 @@
   .dl-card { cursor: pointer; }
   .dl-lost { padding: 0 16px 24px; }
   .dl-all { height: calc(100dvh - max(24px, env(safe-area-inset-top))); }
-  .dl-all-tools { padding: 12px 16px 10px; }
-  .dl-all-list { padding: 6px 6px 16px; }
+  .dl-all-tools { grid-template-columns: 1fr 1fr; padding: 12px 16px; }
+  .dl-all-tools > .dl-search { grid-column: 1 / -1; }
+  .dl-all-list { padding: 0 16px 16px; }
   .dl-panel { width: 100%; height: 100dvh; margin: 0; border-radius: 0; animation: kl-sheet-up 340ms var(--ease-out) both; padding-bottom: env(safe-area-inset-bottom); }
   .dl-p-bd { padding: 16px 16px 24px; }
   .dl-p-ft > .btn { height: 48px; }
