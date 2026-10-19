@@ -150,7 +150,8 @@ export interface AuthApi {
   /** رمز تازه؛ `current` لازم نیست اگر این دستگاه همین چند دقیقه پیش با کد پیامکی وارد شده باشد. */
   setPassword(accessToken: string, password: string, current?: string): Promise<void>;
   refresh(refreshToken: string): Promise<Session>;
-  logout(accessToken: string): Promise<void>;
+  /** این دستگاه از حساب بیرون می‌رود؛ با توکن تمدید، تا بعد از قطعی هم بشود دوباره فرستادش. */
+  logout(refreshToken: string): Promise<void>;
   devices(accessToken: string): Promise<Device[]>;
   removeDevice(accessToken: string, id: string): Promise<void>;
   /** نام شما و نام دفتر روی سرور، تا دستگاه‌های دیگر دفتر هم ببینند. */
@@ -223,7 +224,7 @@ export function httpApi(base: string): AuthApi {
     signup: (signupToken, name, officeName, password, deviceName) => call('POST', '/auth/signup', { signupToken, name, officeName, password, deviceName }),
     setPassword: (token, password, current) => call('POST', '/auth/password', { password, ...(current ? { current } : {}) }, token),
     refresh: (refreshToken) => call('POST', '/auth/refresh', { refreshToken }),
-    logout: (token) => call('POST', '/auth/logout', {}, token),
+    logout: (refreshToken) => call('POST', '/auth/signout', { refreshToken }),
     devices: (token) => call('GET', '/auth/devices', undefined, token),
     removeDevice: (token, id) => call('DELETE', `/auth/devices/${encodeURIComponent(id)}`, undefined, token),
     updateProfile: (token, p) => call('POST', '/auth/profile', p, token),

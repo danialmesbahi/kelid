@@ -318,6 +318,10 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: `Bearer ${s1.accessToken}` } })).statusCode).toBe(401);
       expect((await post(a, '/auth/refresh', { refreshToken: s1.refreshToken })).statusCode).toBe(401);
       expect((await a.inject({ method: 'GET', url: '/auth/devices', headers: { authorization: `Bearer ${s2.accessToken}` } })).statusCode).toBe(200);
+      // خروجِ عقب‌افتاده با توکن تمدید (بدون توکن دسترسی)؛ تکرارش هم همان جواب را می‌گیرد.
+      expect((await post(a, '/auth/signout', { refreshToken: s2.refreshToken })).statusCode).toBe(204);
+      expect((await post(a, '/auth/refresh', { refreshToken: s2.refreshToken })).statusCode).toBe(401);
+      expect((await post(a, '/auth/signout', { refreshToken: s2.refreshToken })).statusCode).toBe(204);
       await a.close();
     });
 
