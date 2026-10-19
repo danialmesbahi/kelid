@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { Cover, Icon, Plaque } from '@kelid/ui';
 import {
@@ -19,6 +19,9 @@ import './deals.css';
 
 type Live = Exclude<DealStage, 'lost'>;
 
+const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+const closedOf = (d: Deal) => d.closedAt ?? d.updatedAt;
+
 export function DealsPage() {
   const data = useQuery(dealsQuery.key, dealsQuery.fn);
   const slow = useSlow(!data);
@@ -26,6 +29,8 @@ export function DealsPage() {
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<Live>('talking');
   const [showLost, setShowLost] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const archiveRef = useRef<HTMLDivElement>(null);
   // کارتی که تازه به «تمام شد» رسیده مهر می‌خورد
   const [stamped, setStamped] = useState<string | null>(null);
   const move = useMoveDeal();
@@ -48,6 +53,11 @@ export function DealsPage() {
   const clients = new Map(data.clients.map((c) => [c.id, c]));
   const live = data.deals.filter((d) => d.stage !== 'lost');
   const lost = data.deals.filter((d) => d.stage === 'lost');
+  // «تمام شد» فقط ۳۰ روز اخیر را روی تخته نگه می‌دارد؛ قدیمی‌ترها به بایگانی می‌روند تا ستون بی‌انتها دراز نشود.
+  const cutoff = new Date(Date.now() - 30 * 864e5).toISOString();
+  const isOld = (d: Deal) => d.stage === 'done' && closedOf(d) < cutoff;
+  const board = live.filter((d) => !isOld(d));
+  const archived = live.filter(isOld).sort((a, b) => closedOf(b).localeCompare(closedOf(a)));
   const open = data.deals.find((d) => d.id === openId);
   const inProgress = live.filter((d) => d.stage !== 'done');
   const month = jalaliOf(tehranDayKey());
@@ -58,6 +68,17 @@ export function DealsPage() {
     await move(d, listings.get(d.listingId), stage);
     if (stage === 'done') setStamped(d.id);
   };
+
+  const openArchive = () => {
+    setShowArchive(true);
+    requestAnimationFrame(() => archiveRef.current?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
+  };
+  const archiveLink = archived.length > 0 && (
+    <button type="button" className="dl-more" onClick={openArchive}>
+      <span className="sp">{toFaDigits(archived.length)} معاملهٔ قدیمی‌تر در بایگانی</span>
+      <Icon name="chl" size="s" />
+    </button>
+  );
 
   const card = (d: Deal) => (
     <DealCard
@@ -84,7 +105,7 @@ export function DealsPage() {
         <span className="sp" />
         <div className="dl-stats">
           <Stat label="کمیسیون در راه" value={coming ? formatToman(coming) : '—'} />
-          <Stat label={`درآمد ${['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'][month.m - 1]}`} value={earned ? formatToman(earned) : '—'} gold />
+          <Stat label={`درآمد ${MONTHS[month.m - 1]}`} value={earned ? formatToman(earned) : '—'} gold />
         </div>
         <button type="button" className="btn btn-p dl-new" onClick={() => setParam('new', '')}>
           <Icon name="plus" size="s" thick />
@@ -96,7 +117,7 @@ export function DealsPage() {
         <div className="bd" style={{ paddingTop: 0 }}>
           <div className="dl-tabs" role="tablist" aria-label="مرحله‌ها">
             {STAGES.map((s) => {
-              const n = live.filter((d) => d.stage === s.id).length;
+              const n = board.filter((d) => d.stage === s.id).length;
               return (
                 <button key={s.id} type="button" role="tab" aria-selected={tab === s.id} onClick={() => setTab(s.id)}>
                   {s.label}
@@ -106,12 +127,42 @@ export function DealsPage() {
             })}
           </div>
           <div key={tab} className="col stagger" style={{ gap: 12 }}>
-            {live.filter((d) => d.stage === tab).map(card)}
-            {!live.some((d) => d.stage === tab) && <Empty stage={tab} />}
+            {board.filter((d) => d.stage === tab).map(card)}
+            {!board.some((d) => d.stage === tab) && <Empty stage={tab} />}
+            {tab === 'done' && archiveLink}
           </div>
         </div>
       ) : (
-        <Board deals={live} onMove={onMove} render={card} />
+        <Board deals={board} onMove={onMove} render={card} doneFooter={archiveLink} />
+      )}
+
+      {showArchive && archived.length > 0 && (
+        <div className="dl-lost" ref={archiveRef}>
+          <button type="button" className="lnk sm" aria-expanded onClick={() => setShowArchive(false)}>
+            پنهان کردن بایگانی ({toFaDigits(archived.length)} معاملهٔ تمام‌شدهٔ قدیمی‌تر)
+          </button>
+          <div className="dl-lost-list dl-archive enter">
+            {archived.map((d, i) => {
+              const l = listings.get(d.listingId);
+              const day = tehranDayKey(new Date(closedOf(d)));
+              const j = jalaliOf(day);
+              const prev = archived[i - 1];
+              const pj = prev && jalaliOf(tehranDayKey(new Date(closedOf(prev))));
+              const commission = dealCommission(d);
+              return (
+                <Fragment key={d.id}>
+                  {(!pj || pj.y !== j.y || pj.m !== j.m) && <span className="dl-month xs mute">{MONTHS[j.m - 1]} {toFaDigits(j.y)}</span>}
+                  <button type="button" className="row hov" onClick={() => setParam('d', d.id)}>
+                    {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
+                    <span className="sp sm dl-ell" style={{ textAlign: 'right' }}>{l ? listingTitle(l) : 'فایل'} · {d.clientId ? clients.get(d.clientId)?.name : 'بدون مشتری'}</span>
+                    {commission > 0 && <span className="dl-comm num">{formatToman(commission)}</span>}
+                    <span className="xs mute">{formatJalaliDay(day)}</span>
+                  </button>
+                </Fragment>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {lost.length > 0 && (
@@ -177,8 +228,9 @@ function Empty({ stage }: { stage: Live }) {
 }
 
 /** ستون‌های خط معامله؛ کارت با موس به ستون دیگر کشیده می‌شود. */
-function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => Promise<void> | void; render: (d: Deal) => ReactNode }) {
-  const g = useRef<{ d: Deal; x0: number; y0: number; x: number; y: number; cols: Array<{ id: Live; r: DOMRect }>; moved: boolean; el: HTMLElement } | null>(null);
+function Board({ deals, onMove, render, doneFooter }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => Promise<void> | void; render: (d: Deal) => ReactNode; doneFooter?: ReactNode }) {
+  // ghost: کپی کارت در دست، بیرون از ستون؛ ستون‌ها اسکرول داخلی دارند و کارت اصلی بیرون از ستون بریده می‌شد.
+  const g = useRef<{ d: Deal; x0: number; y0: number; x: number; y: number; cols: Array<{ id: Live; r: DOMRect }>; moved: boolean; el: HTMLElement; ghost?: HTMLElement } | null>(null);
   // state فقط وقتی عوض می‌شود که ستون زیر موس عوض شود؛ جابه‌جایی خود کارت مستقیم روی DOM است تا هر حرکت موس کل تابلو را رندر نکند.
   const [drag, setDrag] = useState<{ id: string; to: Live } | null>(null);
   const dragRef = useRef(drag);
@@ -202,6 +254,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     return () => {
       window.removeEventListener('click', stop, true);
       cancelAnimationFrame(frame.current);
+      g.current?.ghost?.remove();
     };
   }, []);
 
@@ -237,7 +290,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     g.current = null;
     cancelAnimationFrame(frame.current);
     if (!s?.moved) return;
-    s.el.style.transform = '';
+    s.ghost?.remove();
     dragRef.current = null;
     setDrag(null);
   };
@@ -255,7 +308,8 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
   const paint = () => {
     const s = g.current;
     if (!s) return;
-    s.el.style.transform = `translate3d(${s.x - s.x0}px, ${s.y - s.y0}px, 0) rotate(${rot(s)}deg)`;
+    if (!s.ghost) return;
+    s.ghost.style.transform = `translate3d(${s.x - s.x0}px, ${s.y - s.y0}px, 0) rotate(${rot(s)}deg)`;
     const hit = s.cols.find((c) => s.x >= c.r.left && s.x <= c.r.right);
     const to = hit?.id ?? stageOf(s.d);
     if (dragRef.current?.id !== s.d.id || dragRef.current.to !== to) {
@@ -270,7 +324,16 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     s.x = e.clientX;
     s.y = e.clientY;
     if (!s.moved && Math.hypot(s.x - s.x0, s.y - s.y0) < 6) return;
-    if (!s.moved) s.el.setPointerCapture?.(e.pointerId);
+    if (!s.moved) {
+      s.el.setPointerCapture?.(e.pointerId);
+      const r = s.el.getBoundingClientRect();
+      const ghost = s.el.cloneNode(true) as HTMLElement;
+      ghost.className = 'dl-ghost';
+      ghost.setAttribute('aria-hidden', 'true');
+      Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px` });
+      document.body.appendChild(ghost);
+      s.ghost = ghost;
+    }
     s.moved = true;
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(paint);
@@ -281,9 +344,9 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     cancelAnimationFrame(frame.current);
     if (!s?.moved) return;
     // جای فعلی کارت (با جابه‌جایی) پیش از برداشتن آن، برای سُر خوردن به جای تازه
-    const r = s.el.getBoundingClientRect();
+    const r = (s.ghost ?? s.el).getBoundingClientRect();
     flip.current = { id: s.d.id, x: r.left + r.width / 2, y: r.top + r.height / 2, rot: rot(s) };
-    s.el.style.transform = '';
+    s.ghost?.remove();
     swallow.current = true;
     setTimeout(() => (swallow.current = false), 0);
     const last = dragRef.current;
@@ -304,7 +367,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
   };
 
   return (
-    <div className="dl-board" ref={boardRef} onPointerDown={down} onPointerMove={moveP} onPointerUp={up} onPointerCancel={reset}>
+    <div className={`dl-board${drag ? ' dragging' : ''}`} ref={boardRef} onPointerDown={down} onPointerMove={moveP} onPointerUp={up} onPointerCancel={reset}>
       {STAGES.map((s, i) => {
         const mine = deals.filter((d) => stageOf(d) === s.id);
         const sum = mine.reduce((t, d) => t + dealCommission(d), 0);
@@ -325,6 +388,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
               ))}
               {mine.length === 0 && <Empty stage={s.id} />}
             </div>
+            {s.id === 'done' && doneFooter}
           </section>
         );
       })}
