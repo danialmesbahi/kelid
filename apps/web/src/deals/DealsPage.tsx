@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { Cover, Icon, Plaque } from '@kelid/ui';
 import {
@@ -15,12 +15,14 @@ import { dayName } from '../calendar/time';
 import { STAGES, STAGE_LABEL, useMoveDeal } from './actions';
 import { DealPanel } from './DealPanel';
 import { NewDealDialog } from './NewDeal';
+import { AllDeals } from './AllDeals';
 import './deals.css';
 
 type Live = Exclude<DealStage, 'lost'>;
 
 const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
-const closedOf = (d: Deal) => d.closedAt ?? d.updatedAt;
+// هر ستون فقط تازه‌ترین‌ها را نشان می‌دهد؛ بقیه در «همه» با جستجو و فیلتر پیدا می‌شوند.
+const LIMIT = 8;
 
 export function DealsPage() {
   const data = useQuery(dealsQuery.key, dealsQuery.fn);
@@ -28,14 +30,12 @@ export function DealsPage() {
   const phone = usePhone();
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<Live>('talking');
-  const [showLost, setShowLost] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
-  const archiveRef = useRef<HTMLDivElement>(null);
   // کارتی که تازه به «تمام شد» رسیده مهر می‌خورد
   const [stamped, setStamped] = useState<string | null>(null);
   const move = useMoveDeal();
   const thumbs = useCoverThumbs();
   const openId = params.get('d');
+  const allFor = params.get('all');
   const newFor = params.get('new');
 
   const setParam = (k: string, v: string | null) =>
@@ -53,11 +53,6 @@ export function DealsPage() {
   const clients = new Map(data.clients.map((c) => [c.id, c]));
   const live = data.deals.filter((d) => d.stage !== 'lost');
   const lost = data.deals.filter((d) => d.stage === 'lost');
-  // «تمام شد» فقط ۳۰ روز اخیر را روی تخته نگه می‌دارد؛ قدیمی‌ترها به بایگانی می‌روند تا ستون بی‌انتها دراز نشود.
-  const cutoff = new Date(Date.now() - 30 * 864e5).toISOString();
-  const isOld = (d: Deal) => d.stage === 'done' && closedOf(d) < cutoff;
-  const board = live.filter((d) => !isOld(d));
-  const archived = live.filter(isOld).sort((a, b) => closedOf(b).localeCompare(closedOf(a)));
   const open = data.deals.find((d) => d.id === openId);
   const inProgress = live.filter((d) => d.stage !== 'done');
   const month = jalaliOf(tehranDayKey());
@@ -69,13 +64,9 @@ export function DealsPage() {
     if (stage === 'done') setStamped(d.id);
   };
 
-  const openArchive = () => {
-    setShowArchive(true);
-    requestAnimationFrame(() => archiveRef.current?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
-  };
-  const archiveLink = archived.length > 0 && (
-    <button type="button" className="dl-more" onClick={openArchive}>
-      <span className="sp">{toFaDigits(archived.length)} معاملهٔ قدیمی‌تر در بایگانی</span>
+  const allLink = (stage: DealStage, n: number) => (
+    <button type="button" className="dl-more" onClick={() => setParam('all', stage)}>
+      <span className="sp">همهٔ {toFaDigits(n)} معامله</span>
       <Icon name="chl" size="s" />
     </button>
   );
@@ -117,7 +108,7 @@ export function DealsPage() {
         <div className="bd" style={{ paddingTop: 0 }}>
           <div className="dl-tabs" role="tablist" aria-label="مرحله‌ها">
             {STAGES.map((s) => {
-              const n = board.filter((d) => d.stage === s.id).length;
+              const n = live.filter((d) => d.stage === s.id).length;
               return (
                 <button key={s.id} type="button" role="tab" aria-selected={tab === s.id} onClick={() => setTab(s.id)}>
                   {s.label}
@@ -127,64 +118,32 @@ export function DealsPage() {
             })}
           </div>
           <div key={tab} className="col stagger" style={{ gap: 12 }}>
-            {board.filter((d) => d.stage === tab).map(card)}
-            {!board.some((d) => d.stage === tab) && <Empty stage={tab} />}
-            {tab === 'done' && archiveLink}
+            {live.filter((d) => d.stage === tab).slice(0, LIMIT).map(card)}
+            {!live.some((d) => d.stage === tab) && <Empty stage={tab} />}
+            {live.filter((d) => d.stage === tab).length > LIMIT && allLink(tab, live.filter((d) => d.stage === tab).length)}
           </div>
         </div>
       ) : (
-        <Board deals={board} onMove={onMove} render={card} doneFooter={archiveLink} />
-      )}
-
-      {showArchive && archived.length > 0 && (
-        <div className="dl-lost" ref={archiveRef}>
-          <button type="button" className="lnk sm" aria-expanded onClick={() => setShowArchive(false)}>
-            پنهان کردن بایگانی ({toFaDigits(archived.length)} معاملهٔ تمام‌شدهٔ قدیمی‌تر)
-          </button>
-          <div className="dl-lost-list dl-archive enter">
-            {archived.map((d, i) => {
-              const l = listings.get(d.listingId);
-              const day = tehranDayKey(new Date(closedOf(d)));
-              const j = jalaliOf(day);
-              const prev = archived[i - 1];
-              const pj = prev && jalaliOf(tehranDayKey(new Date(closedOf(prev))));
-              const commission = dealCommission(d);
-              return (
-                <Fragment key={d.id}>
-                  {(!pj || pj.y !== j.y || pj.m !== j.m) && <span className="dl-month xs mute">{MONTHS[j.m - 1]} {toFaDigits(j.y)}</span>}
-                  <button type="button" className="row hov" onClick={() => setParam('d', d.id)}>
-                    {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
-                    <span className="sp sm dl-ell" style={{ textAlign: 'right' }}>{l ? listingTitle(l) : 'فایل'} · {d.clientId ? clients.get(d.clientId)?.name : 'بدون مشتری'}</span>
-                    {commission > 0 && <span className="dl-comm num">{formatToman(commission)}</span>}
-                    <span className="xs mute">{formatJalaliDay(day)}</span>
-                  </button>
-                </Fragment>
-              );
-            })}
-          </div>
-        </div>
+        <Board deals={live} onMove={onMove} render={card} more={allLink} />
       )}
 
       {lost.length > 0 && (
         <div className="dl-lost">
-          <button type="button" className="lnk sm" aria-expanded={showLost} onClick={() => setShowLost((v) => !v)}>
-            {showLost ? 'پنهان کردن' : 'نمایش'} {toFaDigits(lost.length)} معاملهٔ منصرف‌شده
+          <button type="button" className="lnk sm" onClick={() => setParam('all', 'lost')}>
+            {toFaDigits(lost.length)} معاملهٔ منصرف‌شده
           </button>
-          {showLost && (
-            <div className="dl-lost-list enter">
-              {lost.map((d) => {
-                const l = listings.get(d.listingId);
-                return (
-                  <button key={d.id} type="button" className="row hov" onClick={() => setParam('d', d.id)}>
-                    {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
-                    <span className="sp sm" style={{ textAlign: 'right' }}>{l ? listingTitle(l) : 'فایل'} · {d.clientId ? clients.get(d.clientId)?.name : 'بدون مشتری'}</span>
-                    <span className="xs mute">منصرف شد</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
+      )}
+
+      {allFor !== null && (
+        <AllDeals
+          data={data}
+          stage={allFor as DealStage | ''}
+          covered={!!open}
+          onStage={(st) => setParam('all', st)}
+          onOpen={(id) => setParam('d', id)}
+          onClose={() => setParam('all', null)}
+        />
       )}
 
       {open && (
@@ -228,7 +187,7 @@ function Empty({ stage }: { stage: Live }) {
 }
 
 /** ستون‌های خط معامله؛ کارت با موس به ستون دیگر کشیده می‌شود. */
-function Board({ deals, onMove, render, doneFooter }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => Promise<void> | void; render: (d: Deal) => ReactNode; doneFooter?: ReactNode }) {
+function Board({ deals, onMove, render, more }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => Promise<void> | void; render: (d: Deal) => ReactNode; more: (s: DealStage, n: number) => ReactNode }) {
   // ghost: کپی کارت در دست، بیرون از ستون؛ ستون‌ها اسکرول داخلی دارند و کارت اصلی بیرون از ستون بریده می‌شد.
   const g = useRef<{ d: Deal; x0: number; y0: number; x: number; y: number; cols: Array<{ id: Live; r: DOMRect }>; moved: boolean; el: HTMLElement; ghost?: HTMLElement } | null>(null);
   // state فقط وقتی عوض می‌شود که ستون زیر موس عوض شود؛ جابه‌جایی خود کارت مستقیم روی DOM است تا هر حرکت موس کل تابلو را رندر نکند.
@@ -381,14 +340,15 @@ function Board({ deals, onMove, render, doneFooter }: { deals: Deal[]; onMove: (
               </span>
             </header>
             <div className="dl-col-bd">
-              {mine.map((d) => (
+              {/* کارتی که همین الان رها شده حتی اگر از سقف بیرون بیفتد دیده می‌شود */}
+              {mine.filter((d, j) => j < LIMIT || moved[d.id]).map((d) => (
                 <div key={d.id} data-deal={d.id} className={drag?.id === d.id ? 'dl-drag' : undefined}>
                   {render(d)}
                 </div>
               ))}
               {mine.length === 0 && <Empty stage={s.id} />}
             </div>
-            {s.id === 'done' && doneFooter}
+            {mine.length > LIMIT && more(s.id, mine.length)}
           </section>
         );
       })}
