@@ -8,7 +8,7 @@ import { normalizePhone } from '../auth/phone';
 import { RateLimiter } from '../auth/rateLimit';
 import { accessExpiry, deriveKey, readToken, signToken } from '../auth/tokens';
 import { securityHeaders } from '../headers';
-import type { LiveHub } from '../sync/live';
+import { announceSupport, type LiveHub } from '../sync/live';
 import { seatsUsed } from '../billing/routes';
 import { checkTotp } from './totp';
 
@@ -202,11 +202,12 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
            from payments where status = 'paid'`,
       );
       const p = pay.rows[0]!;
-      const beta = await db.query<{ feedback: number; errors: number }>(
+      const beta = await db.query<{ feedback: number; errors: number; tickets: number }>(
         `select (select count(*) from feedback where done_at is null)::int as feedback,
-                (select count(distinct fingerprint) from client_errors where resolved_at is null)::int as errors`,
+                (select count(distinct fingerprint) from client_errors where resolved_at is null)::int as errors,
+                (select count(*) from support_tickets where status = 'open')::int as tickets`,
       );
-      return { ...rows[0]!, openFeedback: beta.rows[0]!.feedback, openErrors: beta.rows[0]!.errors, revenue30: Number(p.revenue) / 10, payments30: p.count, revenueTotal: Number(p.total) / 10 };
+      return { ...rows[0]!, openFeedback: beta.rows[0]!.feedback, openErrors: beta.rows[0]!.errors, openTickets: beta.rows[0]!.tickets, revenue30: Number(p.revenue) / 10, payments30: p.count, revenueTotal: Number(p.total) / 10 };
     }),
   );
 
@@ -470,6 +471,97 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
     },
   );
 
+  // پشتیبانی: صف تیکت‌ها. «باز» = منتظر پاسخ ما؛ پاسخ ما تیکت را «پاسخ داده‌شده» می‌کند و به دستگاه‌های دفتر خبر می‌دهد.
+  const ticketParams = {
+    type: 'object',
+    required: ['office', 'id'],
+    properties: { office: { type: 'string', pattern: UUID_PATTERN }, id: { type: 'string', pattern: UUID_PATTERN } },
+  } as const;
+
+  const ticketDetail = async (db: Db, office: string, id: string) => {
+    const t = await db.query<AdminTicketRow>(`${TICKET_SELECT} where t.office_id = $1 and t.id = $2`, [office, id]);
+    if (!t.rows[0]) return null;
+    const m = await db.query<{ id: string; body: string; created_at: Date; admin_name: string | null; user_name: string | null }>(
+      `select m.id, m.body, m.created_at, a.name as admin_name, u.name as user_name
+         from support_messages m left join vendor_admins a on a.id = m.admin_id left join users u on u.id = m.user_id
+        where m.office_id = $1 and m.ticket_id = $2 order by m.created_at, m.id`,
+      [office, id],
+    );
+    return {
+      ticket: adminTicketOut(t.rows[0]),
+      messages: m.rows.map((r) => ({
+        id: r.id,
+        body: r.body,
+        from: r.admin_name === null ? 'user' : 'support',
+        author: r.admin_name ?? r.user_name ?? '',
+        createdAt: r.created_at.toISOString(),
+      })),
+    };
+  };
+
+  app.get(
+    '/admin/tickets',
+    {
+      preHandler: requireVendor,
+      schema: { querystring: { type: 'object', additionalProperties: false, properties: { status: { type: 'string', enum: ['open', 'answered', 'closed'] } } } },
+    },
+    async (req) => {
+      const { status = 'open' } = req.query as { status?: string };
+      return withVendor(pool, async (db) => {
+        // صف باز از قدیمی‌ترین: کسی که بیشتر منتظر مانده اول.
+        const order = status === 'open' ? 'asc' : 'desc';
+        const { rows } = await db.query<AdminTicketRow>(`${TICKET_SELECT} where t.status = $1 order by t.updated_at ${order} limit 300`, [status]);
+        return { tickets: rows.map(adminTicketOut) };
+      });
+    },
+  );
+
+  app.get('/admin/tickets/:office/:id', { preHandler: requireVendor, schema: { params: ticketParams } }, async (req, reply) => {
+    const { office, id } = req.params as { office: string; id: string };
+    const out = await withVendor(pool, (db) => ticketDetail(db, office, id));
+    if (!out) return reply.status(404).send({ error: 'not_found' });
+    return out;
+  });
+
+  app.post(
+    '/admin/tickets/:office/:id/messages',
+    { preHandler: requireVendor, schema: { params: ticketParams, body: body({ body: { type: 'string', minLength: 1, maxLength: 4000 } }, ['body']) } },
+    async (req, reply) => {
+      const { office, id } = req.params as { office: string; id: string };
+      const text = (req.body as { body: string }).body.trim();
+      if (!text) return reply.status(400).send({ error: 'empty' });
+      const out = await withVendor(pool, async (db) => {
+        const { rowCount } = await db.query(
+          "update support_tickets set status = 'answered', unread = true, updated_at = now() where office_id = $1 and id = $2",
+          [office, id],
+        );
+        if (!rowCount) return null;
+        await db.query('insert into support_messages (office_id, id, ticket_id, admin_id, body) values ($1, $2, $3, $4, $5)', [office, randomUUID(), id, req.vendor!.id, text]);
+        await announceSupport(db, office);
+        return ticketDetail(db, office, id);
+      });
+      if (!out) return reply.status(404).send({ error: 'not_found' });
+      return out;
+    },
+  );
+
+  app.post(
+    '/admin/tickets/:office/:id/status',
+    { preHandler: requireVendor, schema: { params: ticketParams, body: body({ status: { type: 'string', enum: ['open', 'answered', 'closed'] } }, ['status']) } },
+    async (req, reply) => {
+      const { office, id } = req.params as { office: string; id: string };
+      const { status } = req.body as { status: string };
+      const out = await withVendor(pool, async (db) => {
+        const { rowCount } = await db.query('update support_tickets set status = $3, updated_at = now() where office_id = $1 and id = $2', [office, id, status]);
+        if (!rowCount) return null;
+        await announceSupport(db, office);
+        return ticketDetail(db, office, id);
+      });
+      if (!out) return reply.status(404).send({ error: 'not_found' });
+      return out;
+    },
+  );
+
   app.get(
     '/admin/payments',
     {
@@ -629,6 +721,53 @@ function searchTerm(q: string): { text: string; digits: string } {
   const t = q.trim().replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/‌/g, ' ');
   const digits = t.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)).replace(/\D/g, '');
   return { text: t.replace(/[\\%_]/g, (c) => `\\${c}`), digits: digits.length >= 3 ? digits : '' };
+}
+
+const TICKET_SELECT = `select t.id, t.topic, t.subject, t.status, t.page, t.app_version, t.platform, t.created_at, t.updated_at,
+    o.id as office_id, o.name as office_name, o.pilot, u.name as user_name, u.phone as user_phone, u.role as user_role,
+    (select count(*) from support_messages m where m.office_id = t.office_id and m.ticket_id = t.id)::int as messages,
+    (select m.body from support_messages m where m.office_id = t.office_id and m.ticket_id = t.id order by m.created_at desc limit 1) as last_body,
+    (select case when m.admin_id is null then 'user' else 'support' end from support_messages m
+      where m.office_id = t.office_id and m.ticket_id = t.id order by m.created_at desc limit 1) as last_from
+  from support_tickets t join offices o on o.id = t.office_id join users u on u.id = t.user_id`;
+
+interface AdminTicketRow {
+  id: string;
+  topic: string;
+  subject: string;
+  status: string;
+  page: string;
+  app_version: string;
+  platform: string;
+  created_at: Date;
+  updated_at: Date;
+  office_id: string;
+  office_name: string;
+  pilot: boolean;
+  user_name: string;
+  user_phone: string;
+  user_role: string;
+  messages: number;
+  last_body: string;
+  last_from: 'user' | 'support';
+}
+
+function adminTicketOut(r: AdminTicketRow) {
+  return {
+    id: r.id,
+    topic: r.topic,
+    subject: r.subject,
+    status: r.status,
+    page: r.page,
+    appVersion: r.app_version,
+    platform: r.platform,
+    createdAt: r.created_at.toISOString(),
+    updatedAt: r.updated_at.toISOString(),
+    messages: r.messages,
+    last: { body: r.last_body.slice(0, 200), from: r.last_from },
+    office: { id: r.office_id, name: r.office_name, pilot: r.pilot },
+    user: { name: r.user_name, phone: r.user_phone, role: r.user_role },
+  };
 }
 
 interface FeedbackRow {

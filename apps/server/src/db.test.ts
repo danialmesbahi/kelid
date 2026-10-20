@@ -1224,5 +1224,51 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await get(a, '/admin/stats', token)).json()).toMatchObject({ pilot: expect.any(Number), openFeedback: expect.any(Number), openErrors: expect.any(Number) });
       await a.close();
     });
+
+    it('runs support tickets between an office user and the vendor, each user seeing only their own', async () => {
+      const a = vApp();
+      const s1 = await signUp(a, freshPhone());
+      const s2 = await signUp(a, freshPhone());
+      const tid = randomUUID();
+      const t = { id: tid, topic: 'billing', subject: '  تمدید   اشتراک ', body: 'می‌خواهم یک سال تمدید کنم.', page: '/plans', platform: 'web' };
+      const made = await post(a, '/support/tickets', t, s1.accessToken);
+      expect(made.statusCode).toBe(201);
+      expect(made.json()).toMatchObject({ ticket: { id: tid, subject: 'تمدید اشتراک', status: 'open', unread: false }, messages: [{ from: 'user', body: 'می‌خواهم یک سال تمدید کنم.' }] });
+      // دوباره فرستادن (پاسخ گم‌شده) تیکت دوم نمی‌سازد
+      expect((await post(a, '/support/tickets', t, s1.accessToken)).statusCode).toBe(201);
+      expect((await get(a, '/support/tickets', s1.accessToken)).json().tickets).toHaveLength(1);
+      expect((await post(a, '/support/tickets', { ...t, id: randomUUID(), topic: 'spam' }, s1.accessToken)).statusCode).toBe(400);
+      expect((await get(a, '/support/tickets')).statusCode).toBe(401);
+      // دفتر دیگر تیکت را نمی‌بیند
+      expect((await get(a, '/support/tickets', s2.accessToken)).json().tickets).toEqual([]);
+      expect((await get(a, `/support/tickets/${tid}`, s2.accessToken)).statusCode).toBe(404);
+
+      const token = await login(a, await newAdmin());
+      const queue = (await get(a, '/admin/tickets', token)).json().tickets;
+      expect(queue.find((x: { id: string }) => x.id === tid)).toMatchObject({ topic: 'billing', messages: 1, office: { id: s1.office.id }, user: { name: 'علی رضایی' }, last: { from: 'user' } });
+      expect((await get(a, '/admin/stats', token)).json().openTickets).toBeGreaterThan(0);
+
+      const answered = await post(a, `/admin/tickets/${s1.office.id}/${tid}/messages`, { body: 'حتماً؛ همکارمان تماس می‌گیرد.' }, token);
+      expect(answered.json()).toMatchObject({ ticket: { status: 'answered' }, messages: [{ from: 'user' }, { from: 'support', author: expect.any(String) }] });
+      expect((await post(a, `/admin/tickets/${s2.office.id}/${tid}/messages`, { body: 'x' }, token)).statusCode).toBe(404);
+      expect((await get(a, '/admin/tickets', token)).json().tickets.some((x: { id: string }) => x.id === tid)).toBe(false);
+      expect((await get(a, '/admin/tickets?status=answered', token)).json().tickets.some((x: { id: string }) => x.id === tid)).toBe(true);
+
+      // پاسخ تازه ⇒ نشان خوانده‌نشده تا کاربر تیکت را باز کند
+      expect((await get(a, '/support/unread', s1.accessToken)).json()).toEqual({ unread: 1 });
+      const seen = (await get(a, `/support/tickets/${tid}`, s1.accessToken)).json();
+      expect(seen.messages.map((m: { from: string }) => m.from)).toEqual(['user', 'support']);
+      expect((await get(a, '/support/unread', s1.accessToken)).json()).toEqual({ unread: 0 });
+
+      // بستن، و پیام تازهٔ کاربر دوباره بازش می‌کند
+      expect((await post(a, `/support/tickets/${tid}/close`, {}, s1.accessToken)).json().ticket.status).toBe('closed');
+      const mid = randomUUID();
+      const again = await post(a, `/support/tickets/${tid}/messages`, { id: mid, body: 'یک سؤال دیگر' }, s1.accessToken);
+      expect(again.json()).toMatchObject({ ticket: { status: 'open', last: { from: 'user' } } });
+      expect((await post(a, `/support/tickets/${tid}/messages`, { id: mid, body: 'یک سؤال دیگر' }, s1.accessToken)).json().messages).toHaveLength(3);
+      expect((await post(a, `/support/tickets/${tid}/messages`, { id: randomUUID(), body: 'x' }, s2.accessToken)).statusCode).toBe(404);
+      expect((await post(a, `/admin/tickets/${s1.office.id}/${tid}/status`, { status: 'closed' }, token)).json().ticket.status).toBe('closed');
+      await a.close();
+    });
   });
 });

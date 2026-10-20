@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { Icon } from '@kelid/ui';
 import { formatDate, formatGrouped, termDays, termOf, toFaDigits, type LicenseInfo, type Plan } from '@kelid/core';
 import type { Billing } from '../auth/api';
-import { FeedbackDialog } from '../beta/FeedbackDialog';
+import { NewTicketDialog } from '../support/NewTicketDialog';
 import { phaseTag } from './useBilling';
 
 const DAY = 86_400_000;
@@ -176,8 +176,9 @@ export function MySubscription(p: Props) {
       </section>
 
       {ask && (
-        <FeedbackDialog
-          initial="idea"
+        <NewTicketDialog
+          topic="billing"
+          subject="تمدید یا تغییر پلن"
           text={`می‌خواهم اشتراک دفترم (پلن ${p.mine.name}، ${toFaDigits(p.mineSeats)} نفر) را تمدید کنم / پلنم را تغییر بدهم.`}
           onClose={() => setAsk(false)}
         />
