@@ -15,9 +15,14 @@ import { dayName } from '../calendar/time';
 import { STAGES, STAGE_LABEL, useMoveDeal } from './actions';
 import { DealPanel } from './DealPanel';
 import { NewDealDialog } from './NewDeal';
+import { AllDeals } from './AllDeals';
 import './deals.css';
 
 type Live = Exclude<DealStage, 'lost'>;
+
+const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+// هر ستون فقط تازه‌ترین‌ها را نشان می‌دهد؛ بقیه در «همه» با جستجو و فیلتر پیدا می‌شوند.
+const LIMIT = 8;
 
 export function DealsPage() {
   const data = useQuery(dealsQuery.key, dealsQuery.fn);
@@ -25,12 +30,12 @@ export function DealsPage() {
   const phone = usePhone();
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<Live>('talking');
-  const [showLost, setShowLost] = useState(false);
   // کارتی که تازه به «تمام شد» رسیده مهر می‌خورد
   const [stamped, setStamped] = useState<string | null>(null);
   const move = useMoveDeal();
   const thumbs = useCoverThumbs();
   const openId = params.get('d');
+  const allFor = params.get('all');
   const newFor = params.get('new');
 
   const setParam = (k: string, v: string | null) =>
@@ -59,6 +64,13 @@ export function DealsPage() {
     if (stage === 'done') setStamped(d.id);
   };
 
+  const allLink = (stage: DealStage, n: number) => (
+    <button type="button" className="dl-more" onClick={() => setParam('all', stage)}>
+      <span className="sp">همهٔ {toFaDigits(n)} معامله</span>
+      <Icon name="chl" size="s" />
+    </button>
+  );
+
   const card = (d: Deal) => (
     <DealCard
       key={d.id}
@@ -84,7 +96,7 @@ export function DealsPage() {
         <span className="sp" />
         <div className="dl-stats">
           <Stat label="کمیسیون در راه" value={coming ? formatToman(coming) : '—'} />
-          <Stat label={`درآمد ${['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'][month.m - 1]}`} value={earned ? formatToman(earned) : '—'} gold />
+          <Stat label={`درآمد ${MONTHS[month.m - 1]}`} value={earned ? formatToman(earned) : '—'} gold />
         </div>
         <button type="button" className="btn btn-p dl-new" onClick={() => setParam('new', '')}>
           <Icon name="plus" size="s" thick />
@@ -106,34 +118,32 @@ export function DealsPage() {
             })}
           </div>
           <div key={tab} className="col stagger" style={{ gap: 12 }}>
-            {live.filter((d) => d.stage === tab).map(card)}
+            {live.filter((d) => d.stage === tab).slice(0, LIMIT).map(card)}
             {!live.some((d) => d.stage === tab) && <Empty stage={tab} />}
+            {live.filter((d) => d.stage === tab).length > LIMIT && allLink(tab, live.filter((d) => d.stage === tab).length)}
           </div>
         </div>
       ) : (
-        <Board deals={live} onMove={onMove} render={card} />
+        <Board deals={live} onMove={onMove} render={card} more={allLink} />
       )}
 
       {lost.length > 0 && (
         <div className="dl-lost">
-          <button type="button" className="lnk sm" aria-expanded={showLost} onClick={() => setShowLost((v) => !v)}>
-            {showLost ? 'پنهان کردن' : 'نمایش'} {toFaDigits(lost.length)} معاملهٔ منصرف‌شده
+          <button type="button" className="lnk sm" onClick={() => setParam('all', 'lost')}>
+            {toFaDigits(lost.length)} معاملهٔ منصرف‌شده
           </button>
-          {showLost && (
-            <div className="dl-lost-list enter">
-              {lost.map((d) => {
-                const l = listings.get(d.listingId);
-                return (
-                  <button key={d.id} type="button" className="row hov" onClick={() => setParam('d', d.id)}>
-                    {l && <Plaque value={l.plaque} deal={l.deal} size="s" />}
-                    <span className="sp sm" style={{ textAlign: 'right' }}>{l ? listingTitle(l) : 'فایل'} · {d.clientId ? clients.get(d.clientId)?.name : 'بدون مشتری'}</span>
-                    <span className="xs mute">منصرف شد</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
+      )}
+
+      {allFor !== null && (
+        <AllDeals
+          data={data}
+          stage={allFor as DealStage | ''}
+          covered={!!open}
+          onStage={(st) => setParam('all', st)}
+          onOpen={(id) => setParam('d', id)}
+          onClose={() => setParam('all', null)}
+        />
       )}
 
       {open && (
@@ -177,8 +187,9 @@ function Empty({ stage }: { stage: Live }) {
 }
 
 /** ستون‌های خط معامله؛ کارت با موس به ستون دیگر کشیده می‌شود. */
-function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => Promise<void> | void; render: (d: Deal) => ReactNode }) {
-  const g = useRef<{ d: Deal; x0: number; y0: number; x: number; y: number; cols: Array<{ id: Live; r: DOMRect }>; moved: boolean; el: HTMLElement } | null>(null);
+function Board({ deals, onMove, render, more }: { deals: Deal[]; onMove: (d: Deal, s: DealStage) => Promise<void> | void; render: (d: Deal) => ReactNode; more: (s: DealStage, n: number) => ReactNode }) {
+  // ghost: کپی کارت در دست، بیرون از ستون؛ ستون‌ها اسکرول داخلی دارند و کارت اصلی بیرون از ستون بریده می‌شد.
+  const g = useRef<{ d: Deal; x0: number; y0: number; x: number; y: number; cols: Array<{ id: Live; r: DOMRect }>; moved: boolean; el: HTMLElement; ghost?: HTMLElement } | null>(null);
   // state فقط وقتی عوض می‌شود که ستون زیر موس عوض شود؛ جابه‌جایی خود کارت مستقیم روی DOM است تا هر حرکت موس کل تابلو را رندر نکند.
   const [drag, setDrag] = useState<{ id: string; to: Live } | null>(null);
   const dragRef = useRef(drag);
@@ -202,6 +213,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     return () => {
       window.removeEventListener('click', stop, true);
       cancelAnimationFrame(frame.current);
+      g.current?.ghost?.remove();
     };
   }, []);
 
@@ -237,7 +249,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     g.current = null;
     cancelAnimationFrame(frame.current);
     if (!s?.moved) return;
-    s.el.style.transform = '';
+    s.ghost?.remove();
     dragRef.current = null;
     setDrag(null);
   };
@@ -255,7 +267,8 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
   const paint = () => {
     const s = g.current;
     if (!s) return;
-    s.el.style.transform = `translate3d(${s.x - s.x0}px, ${s.y - s.y0}px, 0) rotate(${rot(s)}deg)`;
+    if (!s.ghost) return;
+    s.ghost.style.transform = `translate3d(${s.x - s.x0}px, ${s.y - s.y0}px, 0) rotate(${rot(s)}deg)`;
     const hit = s.cols.find((c) => s.x >= c.r.left && s.x <= c.r.right);
     const to = hit?.id ?? stageOf(s.d);
     if (dragRef.current?.id !== s.d.id || dragRef.current.to !== to) {
@@ -270,7 +283,16 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     s.x = e.clientX;
     s.y = e.clientY;
     if (!s.moved && Math.hypot(s.x - s.x0, s.y - s.y0) < 6) return;
-    if (!s.moved) s.el.setPointerCapture?.(e.pointerId);
+    if (!s.moved) {
+      s.el.setPointerCapture?.(e.pointerId);
+      const r = s.el.getBoundingClientRect();
+      const ghost = s.el.cloneNode(true) as HTMLElement;
+      ghost.className = 'dl-ghost';
+      ghost.setAttribute('aria-hidden', 'true');
+      Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px` });
+      document.body.appendChild(ghost);
+      s.ghost = ghost;
+    }
     s.moved = true;
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(paint);
@@ -281,9 +303,9 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
     cancelAnimationFrame(frame.current);
     if (!s?.moved) return;
     // جای فعلی کارت (با جابه‌جایی) پیش از برداشتن آن، برای سُر خوردن به جای تازه
-    const r = s.el.getBoundingClientRect();
+    const r = (s.ghost ?? s.el).getBoundingClientRect();
     flip.current = { id: s.d.id, x: r.left + r.width / 2, y: r.top + r.height / 2, rot: rot(s) };
-    s.el.style.transform = '';
+    s.ghost?.remove();
     swallow.current = true;
     setTimeout(() => (swallow.current = false), 0);
     const last = dragRef.current;
@@ -304,7 +326,7 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
   };
 
   return (
-    <div className="dl-board" ref={boardRef} onPointerDown={down} onPointerMove={moveP} onPointerUp={up} onPointerCancel={reset}>
+    <div className={`dl-board${drag ? ' dragging' : ''}`} ref={boardRef} onPointerDown={down} onPointerMove={moveP} onPointerUp={up} onPointerCancel={reset}>
       {STAGES.map((s, i) => {
         const mine = deals.filter((d) => stageOf(d) === s.id);
         const sum = mine.reduce((t, d) => t + dealCommission(d), 0);
@@ -318,13 +340,15 @@ function Board({ deals, onMove, render }: { deals: Deal[]; onMove: (d: Deal, s: 
               </span>
             </header>
             <div className="dl-col-bd">
-              {mine.map((d) => (
+              {/* کارتی که همین الان رها شده حتی اگر از سقف بیرون بیفتد دیده می‌شود */}
+              {mine.filter((d, j) => j < LIMIT || moved[d.id]).map((d) => (
                 <div key={d.id} data-deal={d.id} className={drag?.id === d.id ? 'dl-drag' : undefined}>
                   {render(d)}
                 </div>
               ))}
               {mine.length === 0 && <Empty stage={s.id} />}
             </div>
+            {mine.length > LIMIT && more(s.id, mine.length)}
           </section>
         );
       })}

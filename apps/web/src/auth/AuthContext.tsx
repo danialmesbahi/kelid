@@ -3,7 +3,7 @@ import { ApiError, apiFromEnv, type AuthApi, type Session } from './api';
 import { clearProfileQueue } from './profile';
 import { clearBetaQueues } from '../beta/beta';
 import { adoptLicense, bindLicense, clearLicense } from '../billing/license';
-import { clearSession, loadSession, markJoining, saveSession, type SavedSession } from './storage';
+import { clearSession, loadSession, markJoining, pendingLogouts, saveSession, setPendingLogouts, type SavedSession } from './storage';
 
 export type AuthStatus = 'off' | 'loading' | 'signedOut' | 'signedIn';
 
@@ -26,6 +26,26 @@ interface AuthValue {
 }
 
 const API = apiFromEnv();
+
+/** خروج‌هایی که سرور نشنیده بود؛ تا سرور جواب ندهد در صف می‌مانند. ۴۰۱ هم یعنی آن دستگاه از قبل بیرون است. */
+let flushing: Promise<void> | null = null;
+function flushLogouts(): Promise<void> {
+  flushing ??= (async () => {
+    const done = new Set<string>();
+    for (const t of pendingLogouts()) {
+      try {
+        await API?.logout(t);
+        done.add(t);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'unauthorized') done.add(t);
+      }
+    }
+    // فقط همان‌هایی که رسید برداشته می‌شوند؛ خروجی که همین وسط اضافه شد می‌ماند.
+    if (done.size) await setPendingLogouts(pendingLogouts().filter((t) => !done.has(t))).catch(() => {});
+  })().finally(() => (flushing = null));
+  return flushing;
+}
+
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function useAuth(): AuthValue {
@@ -105,9 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       setStatus(s ? 'signedIn' : 'signedOut');
       if (s && navigator.onLine) refresh().catch(() => {});
+      if (navigator.onLine) void flushLogouts();
     });
     // برگشت اینترنت = تمدید بی‌صدا، تا اولین درخواست بعدی منتظر نماند.
     const online = () => {
+      void flushLogouts();
       if (saved.current && !access.current) refresh().catch(() => {});
     };
     addEventListener('online', online);
@@ -125,11 +147,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn: async (s) => {
         await adopt(s);
         setStatus('signedIn');
+        void flushLogouts();
       },
       signOut: async () => {
-        const token = access.current?.token;
-        // خروج روی همین دستگاه حتی بدون اینترنت انجام می‌شود؛ سرور اگر در دسترس بود باخبر می‌شود.
-        if (API && token) await API.logout(token).catch(() => {});
+        // تمدیدِ در راه اول تمام شود تا توکنی که می‌فرستیم همان آخرین باشد.
+        await inflight.current?.catch(() => {});
+        const token = saved.current?.refreshToken;
+        // خروج روی همین دستگاه حتی بدون اینترنت انجام می‌شود؛ اگر سرور نشنید، بعداً خودکار به او می‌رسد
+        // تا دستگاه بیرون‌رفته جای یکی از دستگاه‌های دفتر را نگیرد.
+        if (API && token) {
+          await API.logout(token).catch(async (e: unknown) => {
+            if (!(e instanceof ApiError) || e.code !== 'unauthorized') await setPendingLogouts([...pendingLogouts(), token]).catch(() => {});
+          });
+        }
         await dropSession();
       },
       markPassword: async () => {

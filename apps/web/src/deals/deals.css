@@ -13,7 +13,7 @@
 /* ── ستون‌ها ── */
 .dl-board { display: grid; grid-template-columns: repeat(4, minmax(250px, 1fr)); gap: 14px; padding: 6px 28px 24px; overflow-x: auto; align-items: start; }
 .dl-col {
-  display: flex; flex-direction: column; gap: 10px; min-height: 380px; padding: 10px; border: 1px solid var(--line); border-radius: 22px; background: var(--paper2);
+  display: flex; flex-direction: column; gap: 10px; min-height: 380px; max-height: max(440px, calc(100dvh - 250px)); padding: 10px; border: 1px solid var(--line); border-radius: 22px; background: var(--paper2);
   transition: background-color var(--t-med) ease, box-shadow var(--t-med) ease, border-color var(--t-med) ease;
 }
 .dl-col.done { background: linear-gradient(to bottom, color-mix(in srgb, var(--brass) 9%, var(--paper2)), var(--paper2) 60%); }
@@ -21,12 +21,34 @@
 .dl-col-hd { display: flex; align-items: center; gap: 10px; padding: 4px 6px 4px; }
 .dl-step { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%; border: 1.5px solid var(--line2); background: var(--paper); font-size: 13px; font-weight: 700; color: var(--ink2); }
 .dl-col.done .dl-step { border-color: transparent; background: var(--brass); color: #FFFFFF; }
-.dl-col-bd { display: flex; flex-direction: column; gap: 10px; }
+/* ستون بلند داخل خودش اسکرول می‌خورد تا تخته هم‌قد و مرتب بماند؛ حاشیهٔ منفی جای سایه و بالا آمدن کارت را نگه می‌دارد. */
+.dl-col-bd {
+  display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  margin: -6px -10px 0; padding: 6px 10px 10px; scrollbar-width: thin; scrollbar-color: var(--line2) transparent;
+}
 .dl-col-bd > [data-deal] { position: relative; }
-.dl-drag { z-index: 30; pointer-events: none; transition: none; will-change: transform; }
-/* کارت در دست: کمی بزرگ‌تر و بی اثرهای hover/active تا با حرکت موس نلرزد */
-.dl-col-bd > .dl-drag .dl-card { transform: scale(1.03); box-shadow: 0 0 0 2px var(--pri-text), 0 30px 50px -20px rgba(18, 20, 18, .5); cursor: grabbing; transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) ease; }
-.dl-col-bd > .dl-drag .dl-thumb .ph { transform: none; }
+/* لبهٔ بالا و پایین ستونِ اسکرول‌خورده محو می‌شود تا معلوم باشد کارت‌های بیشتری هست */
+@property --dl-ft { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --dl-fb { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@keyframes dl-fade { 0% { --dl-ft: 0px; --dl-fb: 28px; } 6% { --dl-ft: 28px; } 94% { --dl-fb: 28px; } 100% { --dl-ft: 28px; --dl-fb: 0px; } }
+@supports (animation-timeline: scroll()) {
+  .dl-col-bd {
+    animation: dl-fade linear both; animation-timeline: scroll(self);
+    mask-image: linear-gradient(to bottom, transparent, #000 var(--dl-ft), #000 calc(100% - var(--dl-fb)), transparent);
+  }
+}
+.dl-drag { opacity: .35; }
+.dl-board.dragging, .dl-board.dragging .dl-card { cursor: grabbing; }
+/* کارت در دست: کپی‌ای بیرون از ستون، کمی بزرگ‌تر و بی اثرهای hover/active تا با حرکت موس نلرزد */
+.dl-ghost { position: fixed; z-index: 60; margin: 0; pointer-events: none; will-change: transform; }
+.dl-ghost .dl-card { transform: scale(1.03); box-shadow: 0 0 0 2px var(--pri-text), 0 30px 50px -20px rgba(18, 20, 18, .5); transition: none; }
+.dl-ghost .dl-thumb .ph { transform: none; }
+.dl-more {
+  display: flex; align-items: center; gap: 8px; flex: none; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--paper); color: var(--ink2); font: inherit; font-size: 13px; font-weight: 600; text-align: right; cursor: pointer;
+  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease;
+}
+.dl-more:hover { background: var(--sunk); border-color: var(--line2); }
 .dl-empty { margin: 4px 6px; padding: 14px 12px; border: 1.5px dashed var(--line2); border-radius: 14px; text-align: center; line-height: 1.7; }
 
 /* ── کارت معامله ── */
@@ -68,8 +90,24 @@
 
 .dl-lost { padding: 0 28px 28px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .dl-lost > .lnk { border: 0; background: none; padding: 6px 0; }
-.dl-lost-list { display: flex; flex-direction: column; width: min(640px, 100%); border: 1px solid var(--line); border-radius: 16px; padding: 4px; }
-.dl-lost-list .row { border: 0; background: transparent; width: 100%; opacity: .75; }
+
+/* ── همهٔ معامله‌ها: جستجو و فیلتر ── */
+.dl-all { width: min(760px, 100%); height: min(780px, calc(100dvh - 80px)); }
+.dl-all-tools { display: grid; grid-template-columns: minmax(0, 1fr) 170px 150px; gap: 10px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
+.dl-all-list { flex: 1; gap: 0; padding: 4px 22px 16px; }
+/* ردیف‌ها با خط جدا می‌شوند، نه با برچسب و کادر، تا فهرست آرام بماند */
+.dl-all-row {
+  display: flex; align-items: center; gap: 16px; width: 100%; padding: 14px 4px; border: 0; border-bottom: 1px solid var(--line);
+  background: transparent; color: var(--ink); text-align: right; cursor: pointer; transition: background-color var(--t-fast) ease;
+}
+.dl-all-row:last-child { border-bottom: 0; }
+@media (hover: hover) { .dl-all-row:hover { background: var(--sunk); } }
+.dl-all-row.is-lost { opacity: .6; }
+.dl-all-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.dl-all-main > .col { gap: 3px; }
+.dl-all-end { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; }
+.dl-all-stage { color: var(--mute); white-space: nowrap; }
+.dl-all-stage.s-done { color: var(--brass-text); }
 
 /* ── گوشی: زبانه‌های مرحله ── */
 .dl-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; padding: 2px 0 6px; }
@@ -150,6 +188,10 @@
   .dl-new { width: 100%; }
   .dl-card { cursor: pointer; }
   .dl-lost { padding: 0 16px 24px; }
+  .dl-all { height: calc(100dvh - max(24px, env(safe-area-inset-top))); }
+  .dl-all-tools { grid-template-columns: 1fr 1fr; padding: 12px 16px; }
+  .dl-all-tools > .dl-search { grid-column: 1 / -1; }
+  .dl-all-list { padding: 0 16px 16px; }
   .dl-panel { width: 100%; height: 100dvh; margin: 0; border-radius: 0; animation: kl-sheet-up 340ms var(--ease-out) both; padding-bottom: env(safe-area-inset-bottom); }
   .dl-p-bd { padding: 16px 16px 24px; }
   .dl-p-ft > .btn { height: 48px; }
