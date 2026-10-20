@@ -26,7 +26,7 @@ export function Marked({ hit, tag }: { hit: Hit; tag?: string }) {
  * فیلد متنی با پیشنهاد زیرش. هر متنی را می‌پذیرد (پیشنهاد اجبار نیست)؛ ↑/↓ حرکت، Enter انتخاب، Esc بستن فهرست.
  * گروه‌ها (مثلاً «در همین محله» و «بقیهٔ شهر») با عنوان کوچک از هم جدا می‌شوند.
  */
-export function Combo({ value, onChange, items, label, placeholder, invalid, describedBy, inputRef, empty, onFocusChange, className = '', openOnEmpty = true, trailing }: {
+export function Combo({ value, onChange, items, label, placeholder, invalid, describedBy, inputRef, empty, onFocusChange, className = '', openOnEmpty = true, trailing, disabled, enterKeyHint }: {
   value: string;
   onChange: (v: string, picked: boolean) => void;
   items: ComboItem[];
@@ -42,13 +42,15 @@ export function Combo({ value, onChange, items, label, placeholder, invalid, des
   openOnEmpty?: boolean;
   /** دکمهٔ کوچک داخل فیلد، سمت چپ (مثلاً «همهٔ محله‌ها»). */
   trailing?: ReactNode;
+  disabled?: boolean;
+  enterKeyHint?: 'next' | 'done' | 'search';
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const wrap = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const id = useId();
-  const show = open && (openOnEmpty || !!value.trim()) && (items.length > 0 || !!empty);
+  const show = open && !disabled && (openOnEmpty || !!value.trim()) && (items.length > 0 || !!empty);
   const place = usePopoverPlace(show, wrap, 0, 300);
 
   useEffect(() => {
@@ -103,6 +105,8 @@ export function Combo({ value, onChange, items, label, placeholder, invalid, des
         aria-describedby={describedBy}
         aria-activedescendant={show && items[active] ? `${id}-${active}` : undefined}
         autoComplete="off"
+        disabled={disabled}
+        enterKeyHint={enterKeyHint}
         value={value}
         placeholder={placeholder}
         onChange={(e) => {

@@ -41,7 +41,7 @@ export function usePopoverPlace(open: boolean, anchor: React.RefObject<HTMLEleme
  * با صفحه‌کلید کامل کار می‌کند: Enter/Space/↓ باز، ↑/↓ حرکت، Enter انتخاب، Esc بستن (فقط فهرست، نه پنجرهٔ دور آن).
  * بیشتر از ۷ گزینه که باشد، بالای فهرست جستجو دارد.
  */
-export function Select<T extends string>({ value, options, onChange, label, placeholder }: { value: T; options: Array<SelectOption<T>>; onChange: (v: T) => void; label: string; placeholder?: string }) {
+export function Select<T extends string>({ value, options, onChange, label, placeholder, popClass = '', disabled, className = '' }: { value: T; options: Array<SelectOption<T>>; onChange: (v: T) => void; label: string; placeholder?: string; /** فهرست بالای لایه‌های بالاتر (مثل صفحهٔ ثبت‌نام) */ popClass?: string; disabled?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
@@ -110,7 +110,8 @@ export function Select<T extends string>({ value, options, onChange, label, plac
       <button
         ref={btn}
         type="button"
-        className="fld kp-trigger"
+        className={`fld kp-trigger ${className}`}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`${label}: ${cur?.label ?? placeholder ?? ''}`}
@@ -128,7 +129,7 @@ export function Select<T extends string>({ value, options, onChange, label, plac
         <span className={`kp-chev${open ? ' up' : ''}`} aria-hidden="true"><Icon name="down" size="s" /></span>
       </button>
       {place && createPortal(
-        <div className={`kp-pop${place.up ? ' up' : ''}`} style={{ top: place.top, left: place.left, width: place.width, maxHeight: Math.min(place.max, searchable ? 410 : 362) }} onKeyDown={onKey}>
+        <div className={`kp-pop${place.up ? ' up' : ''} ${popClass}`} style={{ top: place.top, left: place.left, width: place.width, maxHeight: Math.min(place.max, searchable ? 410 : 362) }} onKeyDown={onKey}>
           {searchable && (
             <div className="kp-search">
               <Icon name="search" size="s" />

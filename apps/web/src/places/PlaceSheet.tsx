@@ -1,25 +1,24 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type WheelEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '@kelid/ui';
 import { normalizeForSearch, toFaDigits } from '@kelid/core';
+import { Select } from '../layout/Select';
 import { Marked } from './Combo';
 import { match, rank, streetKind, type Indexed } from './places';
 
 export type SheetTab = { key: string; label: string; pool: number[] };
 
-/** ردیف افقی زون‌ها با چرخ موس هم ورق بخورد؛ روی دسکتاپ نوار پیمایش ندارد (۲۲ منطقهٔ تهران). */
-export function wheelX(e: WheelEvent<HTMLElement>) {
-  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft -= e.deltaY;
-}
 
 const collator = new Intl.Collator('fa', { numeric: true });
 // فهرست الفبایی تا این اندازه؛ بیشتر از آن (خیابان‌های کل تهران) فقط مهم‌ترها و جستجو
 const GROUP_MAX = 700;
 const TOP = 160;
+// تا این تعداد زبانه کنار هم؛ بیشتر (مناطق تهران) فهرست کشویی
+const TABS = 7;
 const fa = (n: number) => toFaDigits(n.toLocaleString('en-US').replace(/,/g, '٬'));
 
 /**
- * انتخاب محله یا خیابان از فهرست کامل: جستجو بالای پنجره، زبانه برای زون، فهرست الفبایی با سرحرف‌های چسبان.
+ * انتخاب محله یا خیابان از فهرست کامل: جستجو بالای پنجره، زبانه برای منطقه، فهرست الفبایی با سرحرف‌های چسبان.
  * روی گوشی از پایین بالا می‌آید. Enter اولین نتیجه را برمی‌دارد، Esc می‌بندد.
  */
 export function PlaceSheet({ title, sub, names, index, tabs, tab0, value, kinds, hint, onPick, onClose }: {
@@ -94,7 +93,7 @@ export function PlaceSheet({ title, sub, names, index, tabs, tab0, value, kinds,
     const k = kinds ? streetKind(name).kind : '';
     const hit = match(name, q) ?? { text: name, at: 0, len: 0, score: 4 };
     const on = normalizeForSearch(name) === cur;
-    // در زبانهٔ یک زون، نام همان زون کنار هر محله تکراری است
+    // در زبانهٔ یک منطقه، نام همان منطقه کنار هر محله تکراری است
     const h = tab === tabs[0] ? hint?.(i) : undefined;
     return (
       <button key={i} type="button" className="ps-it" aria-pressed={on} onClick={() => pick(name)}>
@@ -136,13 +135,18 @@ export function PlaceSheet({ title, sub, names, index, tabs, tab0, value, kinds,
           {q && <button type="button" className="ps-clear" onClick={() => { setQ(''); input.current?.focus(); }} aria-label="پاک کردن جستجو"><Icon name="x" size="s" /></button>}
         </div>
 
-        {tabs.length > 1 && (
-          <div className="ps-tabs loc-rail" role="tablist" aria-label="زون" onWheel={wheelX}>
+        {tabs.length > 1 && tabs.length <= TABS && (
+          <div className="ps-tabs" role="tablist" aria-label="منطقه">
             {tabs.map((t) => (
-              <button key={t.key} type="button" role="tab" aria-selected={t.key === tab?.key} className="loc-zone" onClick={() => setTabKey(t.key)}>
-                {t.label}<span className="loc-n">{fa(t.pool.length)}</span>
+              <button key={t.key} type="button" role="tab" aria-selected={t.key === tab?.key} className="ps-tab" onClick={() => setTabKey(t.key)}>
+                {t.label}<span className="ps-tab-n">{fa(t.pool.length)}</span>
               </button>
             ))}
+          </div>
+        )}
+        {tabs.length > TABS && (
+          <div className="ps-tabsel">
+            <Select value={tab?.key ?? ''} label="منطقه" popClass="ps-pop" options={tabs.map((t) => ({ value: t.key, label: t.label, hint: `${fa(t.pool.length)} محله` }))} onChange={setTabKey} />
           </div>
         )}
 

@@ -163,7 +163,7 @@ export function Welcome({
                 <label className="lbl">نام شما<input className="fld wl-fld" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={toOffice} enterKeyHint="next" placeholder="مثلاً علی رضایی" autoComplete="name" /></label>
                 <label className="lbl">نام دفتر<input className="fld wl-fld" value={office} onChange={(e) => setOffice(e.target.value)} enterKeyHint="next" placeholder="مثلاً املاک پارسا" autoComplete="organization" /></label>
               </div>
-              <label className="lbl">شهر دفتر<CityField value={city} onChange={setCity} className="wl-fld" placeholder="محله‌ها و خیابان‌های همین شهر پیشنهاد می‌شوند" /></label>
+              <CityField value={city} onChange={setCity} className="wl-fld" hint="محله‌ها و خیابان‌های پیشنهادی فایل‌ها از همین شهر می‌آیند." />
               <div className="wl-preview" aria-live="polite">
                 <Logo size={36} />
                 <span className="col" style={{ minWidth: 0 }}>

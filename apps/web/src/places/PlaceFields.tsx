@@ -1,11 +1,12 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { Icon } from '@kelid/ui';
 import { normalizeForSearch, toFaDigits } from '@kelid/core';
 import { FieldError, Req } from '../layout/Field';
 import { Combo, type ComboItem } from './Combo';
 import { useCityPlaces, useOfficeCity } from './hooks';
-import { PlaceSheet, wheelX, type SheetTab } from './PlaceSheet';
+import { Select } from '../layout/Select';
+import { PlaceSheet, type SheetTab } from './PlaceSheet';
 import { match, rank, streetKind, type CityPlaces } from './places';
 import './places.css';
 
@@ -15,7 +16,7 @@ const fa = (n: number) => toFaDigits(n.toLocaleString('en-US').replace(/,/g, '٬
 
 /**
  * «کجاست؟» فرم فایل: محله و خیابان فقط از شهر دفتر (همان که در ثبت‌نام یا تنظیمات انتخاب شده) پیشنهاد می‌شوند.
- * زون فهرست محله‌ها را کوتاه می‌کند، محلهٔ انتخاب‌شده خیابان‌های خودش را جلو می‌آورد. هر چیزی هم دستی نوشته می‌شود.
+ * منطقه (مثل بهمنی، شهر و ریشهر در بوشهر یا ۲۲ منطقهٔ تهران) فهرست محله‌ها را کوتاه می‌کند، محلهٔ انتخاب‌شده خیابان‌های خودش را جلو می‌آورد. هر چیزی هم دستی نوشته می‌شود.
  */
 export function PlaceFields(props: { hood: string; street: string; onHood: (v: string) => void; onStreet: (v: string) => void; hoodError?: string }) {
   const { city } = useOfficeCity();
@@ -59,7 +60,7 @@ function CityHead({ city, data }: { city: string; data: CityPlaces | null | unde
 type Sheet = 'hood' | 'street' | null;
 
 const Places = memo(function Places({ data, hood, street, onHood, onStreet, hoodError }: { data: CityPlaces | null | undefined; hood: string; street: string; onHood: (v: string) => void; onStreet: (v: string) => void; hoodError?: string }) {
-  // زون انتخابی؛ null یعنی «همه». اگر محلهٔ فایل در زونی است، همان زون از اول روشن است.
+  // منطقهٔ انتخابی؛ null یعنی «همه». اگر محلهٔ فایل در منطقه‌ای است، همان از اول روشن است.
   const [zonePick, setZonePick] = useState<number | null | undefined>(undefined);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [streetFocus, setStreetFocus] = useState(false);
@@ -75,12 +76,12 @@ const Places = memo(function Places({ data, hood, street, onHood, onStreet, hood
 
   const hoodItems = useMemo<ComboItem[]>(() => {
     if (!data || !hood.trim()) return [];
-    // با جستجو همهٔ شهر گشته می‌شود، ولی محله‌های زون انتخابی جلوترند
+    // با جستجو همهٔ شهر گشته می‌شود، ولی محله‌های منطقهٔ انتخابی جلوترند
     const first = rank(data.hoodIndex, hood, 12, zoneHoods);
     const rest = zoneHoods === allHoods ? [] : rank(data.hoodIndex, hood, 12).filter((i) => !first.includes(i));
     return [...first, ...rest].filter((i) => i !== hoodIx).slice(0, 12).map((i) => {
       const z = data.zoneOf[i]!;
-      return { key: String(i), value: data.hoods[i]!, hit: match(data.hoods[i]!, hood)!, hint: z >= 0 && z !== zone ? data.zones[z]!.name : undefined };
+      return { key: String(i), value: data.hoods[i]!, hit: match(data.hoods[i]!, hood) ?? { text: data.hoods[i]!, at: 0, len: 0, score: 3 }, hint: z >= 0 && z !== zone ? data.zones[z]!.name : undefined };
     });
   }, [data, hood, zone, zoneHoods, allHoods, hoodIx]);
 
@@ -96,7 +97,7 @@ const Places = memo(function Places({ data, hood, street, onHood, onStreet, hood
     const hoodName = hoodIx >= 0 ? data.hoods[hoodIx]! : '';
     const toItem = (g: string | undefined) => (i: number): ComboItem => {
       const name = data.streets[i]!.name;
-      return { key: String(i), value: name, hit: match(name, street)!, tag: streetKind(name).kind || undefined, group: g };
+      return { key: String(i), value: name, hit: match(name, street) ?? { text: name, at: 0, len: 0, score: 3 }, tag: streetKind(name).kind || undefined, group: g };
     };
     return [...near.map(toItem(hoodName ? `در ${hoodName}` : undefined)), ...rest.map(toItem(hoodName && near.length ? `جاهای دیگر ${data.name}` : undefined))];
   }, [data, street, hoodStreets, hoodIx, streetIx]);
@@ -105,7 +106,7 @@ const Places = memo(function Places({ data, hood, street, onHood, onStreet, hood
   const quickStreets = hoodIx >= 0 && !street.trim() ? hoodStreets.slice(0, QUICK_STREETS) : [];
 
   const hoodTabs = useMemo<SheetTab[]>(
-    () => (data ? [{ key: 'all', label: 'همه', pool: allHoods }, ...data.zones.map((z, i) => ({ key: String(i), label: z.name, pool: z.hoods }))] : []),
+    () => (data ? [{ key: 'all', label: 'همهٔ مناطق', pool: allHoods }, ...data.zones.map((z, i) => ({ key: String(i), label: z.name, pool: z.hoods }))] : []),
     [data, allHoods],
   );
   const streetTabs = useMemo<SheetTab[]>(() => {
@@ -122,21 +123,7 @@ const Places = memo(function Places({ data, hood, street, onHood, onStreet, hood
 
   return (
     <>
-      {data && data.zones.length > 0 && (
-        <div className="loc-zones" role="group" aria-label="زون">
-          <span className="loc-lead">زون</span>
-          <div className="loc-rail" onWheel={wheelX}>
-            <button type="button" className="loc-zone" aria-pressed={zone === null} onClick={() => setZonePick(null)}>
-              همه<span className="loc-n">{fa(data.hoods.length)}</span>
-            </button>
-            {data.zones.map((z, i) => (
-              <button key={z.name} type="button" className="loc-zone" aria-pressed={zone === i} onClick={() => setZonePick(i)}>
-                {z.name}<span className="loc-n">{fa(z.hoods.length)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {data && data.zones.length > 0 && <Areas data={data} zone={zone} onZone={setZonePick} />}
 
       <div className="loc-grid">
         <div className="lbl">
@@ -214,7 +201,7 @@ const Places = memo(function Places({ data, hood, street, onHood, onStreet, hood
       {data && sheet === 'hood' && (
         <PlaceSheet
           title={`محله در ${data.name}`}
-          sub={`${fa(data.hoods.length)} محله${data.zones.length ? ` در ${fa(data.zones.length)} زون` : ''}`}
+          sub={`${fa(data.hoods.length)} محله${data.zones.length ? ` در ${fa(data.zones.length)} منطقه` : ''}`}
           names={data.hoods}
           index={data.hoodIndex}
           tabs={hoodTabs}
@@ -245,3 +232,40 @@ const Places = memo(function Places({ data, hood, street, onHood, onStreet, hood
     </>
   );
 });
+
+// تا این تعداد منطقه دکمه‌های کنار هم؛ بیشتر (۲۲ منطقهٔ تهران) فهرست کشویی با جستجو
+const AREA_TILES = 6;
+
+/** انتخاب منطقهٔ شهر؛ اختیاری است و فقط محله‌های پیشنهادی را کوتاه می‌کند. */
+function Areas({ data, zone, onZone }: { data: CityPlaces; zone: number | null; onZone: (z: number | null) => void }) {
+  return (
+    <div className="loc-areas">
+      <span className="loc-lead" id="loc-area-l">منطقه <span className="xs mute">· اختیاری، محله‌ها را کوتاه‌تر می‌کند</span></span>
+      {data.zones.length <= AREA_TILES ? (
+        <div className="loc-tiles" role="radiogroup" aria-labelledby="loc-area-l" style={{ '--n': data.zones.length + 1 } as CSSProperties}>
+          {[null, ...data.zones.map((_, i) => i)].map((z) => {
+            const on = zone === z;
+            return (
+              <button key={z ?? 'all'} type="button" role="radio" aria-checked={on} className="loc-tile" onClick={() => onZone(z)}>
+                <span className="loc-tile-n">{z === null ? 'همهٔ شهر' : data.zones[z]!.name}</span>
+                <span className="loc-tile-c">{fa(z === null ? data.hoods.length : data.zones[z]!.hoods.length)} محله</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="loc-areasel">
+          <Select
+            value={zone === null ? 'all' : String(zone)}
+            label="منطقه"
+            options={[
+              { value: 'all', label: 'همهٔ مناطق', hint: `${fa(data.hoods.length)} محله` },
+              ...data.zones.map((z, i) => ({ value: String(i), label: z.name, hint: `${fa(z.hoods.length)} محله` })),
+            ]}
+            onChange={(v) => onZone(v === 'all' ? null : Number(v))}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

@@ -46,7 +46,7 @@ function errorText(e: unknown, step: Step): string {
     case 'offline':
       return 'به اینترنت وصل نیستید. اولین ورود اینترنت می‌خواهد؛ بعد از آن کلید بدون اینترنت هم کار می‌کند.';
     case 'bad_name':
-      return step === 'join' ? 'نامتان را بنویسید.' : 'نام شما، نام دفتر و شهر دفتر را بنویسید.';
+      return step === 'join' ? 'نامتان را بنویسید.' : 'نام شما، نام دفتر، استان و شهر دفتر را بنویسید.';
     case 'no_seat':
       return 'در این دفتر جای خالی نمانده. به مدیر دفتر بگویید یک جا آزاد کند، بعد دوباره امتحان کنید.';
     case 'not_found':
@@ -492,11 +492,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
                 <label className="lbl">نام شما<input className="fld wl-fld" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} enterKeyHint="next" placeholder="مثلاً علی رضایی" autoComplete="name" /></label>
                 <label className="lbl">نام دفتر<input className="fld wl-fld" value={office} onChange={(e) => setOffice(e.target.value)} maxLength={200} enterKeyHint="next" placeholder="مثلاً املاک پارسا" autoComplete="organization" /></label>
               </div>
-              <label className="lbl">
-                شهر دفتر
-                <CityField value={city} onChange={setCity} className="wl-fld" />
-                <span className="xs mute" style={{ fontWeight: 400 }}>محله‌ها و خیابان‌های پیشنهادی فایل‌ها از همین شهر می‌آیند.</span>
-              </label>
+              <CityField value={city} onChange={setCity} className="wl-fld" hint="محله‌ها و خیابان‌های پیشنهادی فایل‌ها از همین شهر می‌آیند." />
               {phoneField}
               <PasswordField
                 inputRef={passRef}

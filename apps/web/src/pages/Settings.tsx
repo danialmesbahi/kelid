@@ -168,10 +168,9 @@ function CityEdit({ city, onSave }: { city: string; onSave: (c: string) => void 
     if (v.trim() && v.trim() !== city) onSave(v.trim());
   };
   return (
-    <label className="lbl" onKeyDown={(e) => e.key === 'Enter' && !e.defaultPrevented && (e.preventDefault(), save(draft))}>
-      شهر دفتر
-      <CityField value={draft} onChange={setDraft} onPick={save} />
-      <span className="xs mute" style={{ fontWeight: 400 }}>محله و خیابان پیشنهادی فایل‌ها از این شهر می‌آید (نقشهٔ باز OpenStreetMap).</span>
-    </label>
+    // Enter داخل فیلد شهر هم ذخیره می‌کند، نه فقط انتخاب از فهرست
+    <div onKeyDown={(e) => e.key === 'Enter' && !e.defaultPrevented && (e.preventDefault(), save(draft))}>
+      <CityField value={draft} onChange={setDraft} onPick={save} hint="محله و خیابان پیشنهادی فایل‌ها از این شهر می‌آید (نقشهٔ باز OpenStreetMap)." />
+    </div>
   );
 }
