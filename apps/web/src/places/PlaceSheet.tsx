@@ -56,7 +56,10 @@ export function PlaceSheet({ title, sub, names, index, tabs, tab0, value, kinds,
     };
   }, []);
 
-  useEffect(() => body.current?.scrollTo({ top: 0 }), [tabKey, q]);
+  // بدنه با آکولاد: scrollTo در کروم/اج تازه Promise برمی‌گرداند و React آن را تابع پاک‌سازی می‌گیرد
+  useEffect(() => {
+    body.current?.scrollTo({ top: 0 });
+  }, [tabKey, q]);
 
   // بی‌جستجو: الفبایی با سرحرف؛ با جستجو: بهترین‌ها اول
   const groups = useMemo(() => {
