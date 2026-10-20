@@ -328,6 +328,18 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     return reply.status(204).send();
   });
 
+  // خروجی که وقت زدنش سرور در دسترس نبود (فیلترشکن، قطعی)، بعداً با توکن تمدید همان دستگاه تمام می‌شود؛
+  // وگرنه دستگاه بیرون‌رفته روشن می‌ماند و جای یکی از دستگاه‌های دفتر را می‌گیرد. جواب همیشه یکی است.
+  app.post('/auth/signout', { schema: bodySchema({ refreshToken: { type: 'string', maxLength: 100 } }, ['refreshToken']) }, async (req, reply) => {
+    const hash = sha256((req.body as { refreshToken: string }).refreshToken);
+    const { rows } = await pool.query<{ id: string }>(
+      'update devices set revoked_at = now() where (refresh_hash = $1 or prev_refresh_hash = $1) and revoked_at is null returning id',
+      [hash],
+    );
+    for (const r of rows) await kickDevice(pool, r.id);
+    return reply.status(204).send();
+  });
+
   app.get('/auth/devices', { preHandler: requireAuth }, async (req) => {
     const { rows } = await pool.query<{ id: string; name: string; created_at: Date; last_seen_at: Date }>(
       'select id, name, created_at, last_seen_at from devices where user_id = $1 and revoked_at is null order by last_seen_at desc',
