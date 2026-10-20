@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadCity, match, search, streetKind } from './places';
+import { indexed, loadCity, match, rank, streetKind } from './places';
 
 describe('place suggestions', () => {
   it('finds a street by the name after its kind, and marks the matched part', () => {
@@ -10,8 +10,10 @@ describe('place suggestions', () => {
   });
 
   it('puts exact and leading matches first', () => {
-    const got = search(['ریشهر', 'بهمنی', 'شهرک فضیلت', 'شهر'], 'شهر', (s) => s, 5).map((r) => r.item);
-    expect(got).toEqual(['شهر', 'شهرک فضیلت', 'ریشهر']);
+    const names = ['ریشهر', 'بهمنی', 'شهرک فضیلت', 'شهر'];
+    expect(rank(names.map(indexed), 'شهر', 5).map((i) => names[i])).toEqual(['شهر', 'شهرک فضیلت', 'ریشهر']);
+    // فقط در زون انتخابی
+    expect(rank(names.map(indexed), 'شهر', 5, [0, 1]).map((i) => names[i])).toEqual(['ریشهر']);
   });
 
   it('splits the street kind for its small label', () => {

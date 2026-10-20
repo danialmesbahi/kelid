@@ -26,7 +26,7 @@ export function Marked({ hit, tag }: { hit: Hit; tag?: string }) {
  * فیلد متنی با پیشنهاد زیرش. هر متنی را می‌پذیرد (پیشنهاد اجبار نیست)؛ ↑/↓ حرکت، Enter انتخاب، Esc بستن فهرست.
  * گروه‌ها (مثلاً «در همین محله» و «بقیهٔ شهر») با عنوان کوچک از هم جدا می‌شوند.
  */
-export function Combo({ value, onChange, items, label, placeholder, invalid, describedBy, inputRef, empty, onFocusChange, className = '', openOnEmpty = true }: {
+export function Combo({ value, onChange, items, label, placeholder, invalid, describedBy, inputRef, empty, onFocusChange, className = '', openOnEmpty = true, trailing }: {
   value: string;
   onChange: (v: string, picked: boolean) => void;
   items: ComboItem[];
@@ -40,6 +40,8 @@ export function Combo({ value, onChange, items, label, placeholder, invalid, des
   className?: string;
   /** خالی که هست فهرست باز نشود (دکمه‌های پیشنهادی زیر فیلد همان کار را می‌کنند). */
   openOnEmpty?: boolean;
+  /** دکمهٔ کوچک داخل فیلد، سمت چپ (مثلاً «همهٔ محله‌ها»). */
+  trailing?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -88,7 +90,7 @@ export function Combo({ value, onChange, items, label, placeholder, invalid, des
   };
 
   return (
-    <div ref={wrap} className="loc-combo">
+    <div ref={wrap} className={`loc-combo${trailing ? ' has-tr' : ''}`}>
       <input
         ref={inputRef}
         className={`fld ${className}`}
@@ -116,6 +118,7 @@ export function Combo({ value, onChange, items, label, placeholder, invalid, des
         onClick={() => setOpen(true)}
         onKeyDown={onKey}
       />
+      {trailing}
       {place && createPortal(
         <div ref={list} className={`kp-pop loc-pop${place.up ? ' up' : ''}`} style={{ top: place.top, left: place.left, width: place.width, maxHeight: Math.min(place.max, 380) }}>
           <div id={id} role="listbox" aria-label={label} className="kp-list">

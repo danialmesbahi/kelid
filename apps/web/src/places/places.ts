@@ -9,7 +9,21 @@ type RawIndex = Array<[key: string, name: string, province: string, dup: 0 | 1]>
 export type CityRef = { key: string; name: string; province: string; label: string };
 export type Zone = { name: string; hoods: number[] };
 export type Street = { name: string; hoods: number[] };
-export type CityPlaces = { name: string; province: string; zones: Zone[]; hoods: string[]; streets: Street[] };
+export type CityPlaces = {
+  name: string;
+  province: string;
+  zones: Zone[];
+  hoods: string[];
+  streets: Street[];
+  /** زون هر محله (-1 = بی‌زون) و خیابان‌های هر محله؛ یک بار ساخته می‌شوند تا تایپ کند نشود. */
+  zoneOf: number[];
+  streetsOf: number[][];
+  hoodIndex: Indexed[];
+  streetIndex: Indexed[];
+};
+
+/** نام آمادهٔ جستجو؛ normalizeForSearch روی هزاران نام در هر حرف تایپ، فرم را کند می‌کرد. */
+export type Indexed = { norm: string; bare: string; words: string[] };
 
 const files = import.meta.glob<RawCity>('./data/*.json', { import: 'default' });
 
@@ -18,7 +32,7 @@ let index: Promise<CityRef[]> | null = null;
 /** فهرست همهٔ شهرها، پرجمعیت‌ها اول. */
 export function loadCities(): Promise<CityRef[]> {
   index ??= import('./cities.json').then((m) =>
-    (m.default as RawIndex).map(([key, name, province, dup]) => ({ key, name, province, label: dup ? `${name} (${province})` : name })),
+    (m.default as unknown as RawIndex).map(([key, name, province, dup]) => ({ key, name, province, label: dup ? `${name} (${province})` : name })),
   );
   return index;
 }
@@ -36,12 +50,20 @@ export function loadCity(label: string): Promise<CityPlaces | null> {
       const load = ref && files[`./data/${ref.key}.json`];
       if (!load) return null;
       const r = await load();
+      const zoneOf = r.h.map(() => -1);
+      r.z.forEach(([, hoods], z) => hoods.forEach((h) => (zoneOf[h] = z)));
+      const streetsOf: number[][] = r.h.map(() => []);
+      r.s.forEach(([, ...hoods], i) => hoods.forEach((h) => streetsOf[h]?.push(i)));
       return {
         name: r.n,
         province: r.p,
         zones: r.z.map(([name, hoods]) => ({ name, hoods })),
         hoods: r.h,
         streets: r.s.map(([name, ...hoods]) => ({ name, hoods })),
+        zoneOf,
+        streetsOf,
+        hoodIndex: r.h.map(indexed),
+        streetIndex: r.s.map(([name]) => indexed(name)),
       };
     });
     // بار نشد (مثلاً فایل در به‌روزرسانی عوض شد): دفعهٔ بعد دوباره امتحان شود.
@@ -87,15 +109,32 @@ export function match(text: string, query: string): Hit | null {
   return { text, ...pos, score };
 }
 
-/** بهترین‌ها اول؛ با امتیاز برابر ترتیب اصلی (اهمیت) می‌ماند. */
-export function search<T>(items: T[], query: string, name: (t: T) => string, limit: number): Array<{ item: T; hit: Hit }> {
-  const out: Array<{ item: T; hit: Hit; i: number }> = [];
-  items.forEach((item, i) => {
-    const hit = match(name(item), query);
-    if (hit) out.push({ item, hit, i });
-  });
-  out.sort((a, b) => a.hit.score - b.hit.score || a.i - b.i);
-  return out.slice(0, limit);
+export function indexed(name: string): Indexed {
+  return { norm: normalizeForSearch(name), bare: normalizeForSearch(name.replace(KIND, '')), words: name.split(/[\s‌]+/).map(normalizeForSearch) };
+}
+
+function scoreOf(x: Indexed, q: string): number {
+  if (x.norm === q || x.bare === q) return 0;
+  if (x.norm.startsWith(q) || x.bare.startsWith(q)) return 1;
+  if (!x.norm.includes(q)) return -1;
+  return x.words.some((w) => w.startsWith(q)) ? 2 : 3;
+}
+
+/**
+ * شمارهٔ بهترین نام‌ها برای جستجو؛ با امتیاز برابر ترتیب اصلی (اهمیت) می‌ماند.
+ * pool: فقط همین شماره‌ها (مثلاً محله‌های یک زون)، به همین ترتیب.
+ */
+export function rank(index: Indexed[], query: string, limit: number, pool?: number[]): number[] {
+  const q = normalizeForSearch(query);
+  const ids = pool ?? index.map((_, i) => i);
+  if (!q) return ids.slice(0, limit);
+  const buckets: number[][] = [[], [], [], []];
+  for (const i of ids) {
+    const x = index[i];
+    const sc = x ? scoreOf(x, q) : -1;
+    if (sc >= 0) buckets[sc]!.push(i);
+  }
+  return buckets.flat().slice(0, limit);
 }
 
 /** «بلوار خلیج فارس» → نوع «بلوار» جدا، برای برچسب کوچک کنار نام. */

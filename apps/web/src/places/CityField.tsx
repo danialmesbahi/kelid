@@ -1,19 +1,21 @@
 import { useMemo, type Ref } from 'react';
 import { Combo, type ComboItem } from './Combo';
 import { useCities } from './hooks';
-import { search } from './places';
+import { indexed, match, rank } from './places';
 
 /** انتخاب شهر دفتر از فهرست همهٔ شهرها؛ شهری که در فهرست نیست هم نوشته می‌شود (فقط پیشنهادی نمی‌آید). */
 export function CityField({ value, onChange, onPick, inputRef, invalid, className, placeholder = 'مثلاً بوشهر' }: { value: string; onChange: (v: string) => void; onPick?: (v: string) => void; inputRef?: Ref<HTMLInputElement>; invalid?: boolean; className?: string; placeholder?: string }) {
   const cities = useCities();
-  const items = useMemo<ComboItem[]>(
-    () =>
-      search(cities ?? [], value, (c) => c.label, 8)
-        // شهری که همین الان انتخاب شده دوباره پیشنهاد نشود
-        .filter(({ item, hit }) => !(hit.score === 0 && item.label === value.trim()))
-        .map(({ item, hit }) => ({ key: item.key, value: item.label, hit: { ...hit, text: item.name }, hint: `استان ${item.province}` })),
-    [cities, value],
-  );
+  // نمایهٔ هزار شهر یک بار ساخته شود، نه با هر حرف
+  const index = useMemo(() => (cities ?? []).map((c) => indexed(c.label)), [cities]);
+  const items = useMemo<ComboItem[]>(() => {
+    if (!cities) return [];
+    return rank(index, value, 8)
+      .map((i) => cities[i]!)
+      // شهری که همین الان انتخاب شده دوباره پیشنهاد نشود
+      .filter((c) => c.label !== value.trim())
+      .map((c) => ({ key: c.key, value: c.label, hit: { ...(match(c.name, value) ?? { at: 0, len: 0, score: 4 }), text: c.name }, hint: `استان ${c.province}` }));
+  }, [cities, index, value]);
   return (
     <Combo
       value={value}

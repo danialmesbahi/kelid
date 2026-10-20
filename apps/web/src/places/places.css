@@ -3,25 +3,23 @@
 /* fieldset به‌طور پیش‌فرض به اندازهٔ محتوایش پهن می‌شود؛ ردیف زون‌ها روی گوشی باید ورق بخورد، نه صفحه */
 fieldset:has(> .loc) { min-inline-size: 0; }
 
-.loc-head, .loc-ask {
+.loc-head {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px;
   border: 1px solid var(--line); border-radius: 16px; background: var(--paper2);
 }
-.loc-ask { align-items: flex-start; padding: 16px; border-style: dashed; border-color: var(--line2); }
+.loc-none { border-style: dashed; border-color: var(--line2); }
 .loc-pin {
   flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
   background: var(--pri-tint); color: var(--pri-text);
 }
 .loc-city { font-size: 16.5px; }
-.loc-askrow { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
-.loc-cityfld { flex: 1; min-width: 0; max-width: 360px; }
 
 /* زون‌ها: یک ردیف دکمهٔ گرد؛ روی گوشی افقی ورق می‌خورد */
 .loc-zones { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .loc-lead { flex: none; font-size: 14px; font-weight: 600; color: var(--ink2); }
 .loc-rail {
-  display: flex; gap: 8px; min-width: 0; overflow-x: auto; padding: 4px 2px; margin: -4px -2px;
-  scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity;
+  display: flex; gap: 8px; min-width: 0; overflow-x: auto; padding: 4px 4px 10px; margin: -4px -4px -10px;
+  scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 4px;
 }
 .loc-rail::-webkit-scrollbar { display: none; }
 .loc-zone {
@@ -35,12 +33,22 @@ fieldset:has(> .loc) { min-inline-size: 0; }
   min-width: 26px; height: 26px; padding: 0 7px; border-radius: 99px; display: inline-grid; place-items: center;
   background: var(--sunk); color: var(--mute); font-size: 12.5px; font-weight: 700; font-feature-settings: "tnum";
 }
-.loc-zone[aria-pressed="true"] { background: var(--pri); border-color: var(--pri); color: var(--pri-ink); box-shadow: 0 8px 16px -10px var(--pri); }
-.loc-zone[aria-pressed="true"] .loc-n { background: rgba(255, 255, 255, .18); color: inherit; }
+.loc-zone[aria-pressed="true"], .loc-zone[aria-selected="true"] { background: var(--pri); border-color: var(--pri); color: var(--pri-ink); box-shadow: 0 6px 12px -8px var(--pri); }
+.loc-zone[aria-pressed="true"] .loc-n, .loc-zone[aria-selected="true"] .loc-n { background: rgba(255, 255, 255, .18); color: inherit; }
 
 .loc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; align-items: start; }
 .loc-combo { position: relative; }
 .loc-combo .fld { width: 100%; }
+/* دکمهٔ «فهرست کامل» داخل فیلد، سمت چپ */
+.loc-combo.has-tr .fld { padding-left: 52px; }
+.loc-all {
+  position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 10px;
+  background: var(--sunk); color: var(--ink2); cursor: pointer;
+  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+.loc-all:hover { background: var(--pri-tint); color: var(--pri-text); }
+.loc-all:focus-visible { outline: 2px solid var(--pri-text); outline-offset: 1px; }
 
 /* پیشنهادهای یک‌ضرب زیر هر فیلد؛ برای کاربری که تایپ برایش سخت است */
 .loc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; font-weight: 400; }
@@ -80,13 +88,74 @@ fieldset:has(> .loc) { min-inline-size: 0; }
 .loc-trail svg:not(:first-child) { color: var(--faint); }
 @keyframes kl-loc-in { from { opacity: 0; transform: translateY(-4px); } }
 
+/* فهرست کامل محله یا خیابان: پنجرهٔ وسط صفحه؛ روی گوشی برگه‌ای که از پایین بالا می‌آید */
+.ps-ov { z-index: 110; align-items: center; padding: 24px; animation: kl-ps-fade 180ms ease both; }
+.ps {
+  display: flex; flex-direction: column; width: min(720px, 100%); height: min(640px, 86vh);
+  background: var(--paper); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--sh-lg); overflow: hidden;
+  animation: kl-ps-in 260ms var(--ease-out) both;
+}
+.ps-grab { display: none; }
+.ps-top { display: flex; align-items: center; gap: 12px; padding: 18px 20px 12px; }
+.ps-title { margin: 0; font-size: 18px; font-weight: 800; color: var(--ink); }
+.ps-x {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 12px;
+  background: var(--sunk); color: var(--ink2); cursor: pointer;
+}
+.ps-x:hover { color: var(--ink); background: var(--line); }
+.ps-search {
+  display: flex; align-items: center; gap: 10px; margin: 0 20px; height: 50px; padding: 0 14px;
+  border: 1px solid var(--line2); border-radius: 14px; background: var(--paper2); color: var(--mute);
+  transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
+}
+.ps-search:focus-within { border-color: var(--pri-text); box-shadow: 0 0 0 3px var(--pri-tint); }
+.ps-search input:focus-visible { outline: 0; }
+.ps-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; }
+.ps-clear { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 99px; background: var(--sunk); color: var(--ink2); cursor: pointer; }
+.ps .ps-tabs { padding: 12px 20px 12px; margin: 0; scroll-padding-inline: 20px; }
+.ps-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px 20px 20px; outline: 0; }
+.ps-g { padding-top: 6px; }
+.ps-l {
+  position: sticky; top: -6px; z-index: 1; margin: 0 0 6px; padding: 8px 2px 6px;
+  background: var(--paper); color: var(--pri-text); font-size: 15px; font-weight: 800;
+  border-bottom: 1px solid var(--line);
+}
+.ps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.ps-it {
+  display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 6px 12px; text-align: start;
+  border: 1px solid transparent; border-radius: 12px; background: var(--paper2); color: var(--ink);
+  font: inherit; font-size: 15px; cursor: pointer;
+  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease;
+}
+.ps-it:hover, .ps-it:focus-visible { background: var(--pri-tint); border-color: var(--pri-text); outline: 0; }
+.ps-it[aria-pressed="true"] { background: var(--pri-tint); border-color: var(--pri-text); font-weight: 700; }
+.ps-nm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+.ps-nm .kp-ol { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-h { flex: none; font-size: 12px; color: var(--faint); }
+.ps-ok { flex: none; display: grid; place-items: center; color: var(--pri-text); }
+.ps-note { margin: 4px 2px 10px; }
+.ps-empty { margin: 40px 0; text-align: center; color: var(--mute); }
+.ps-foot { padding: 12px 20px; border-top: 1px solid var(--line); background: var(--paper2); }
+.ps-use { width: 100%; justify-content: center; gap: 8px; height: 46px; }
+@keyframes kl-ps-fade { from { opacity: 0; } }
+@keyframes kl-ps-in { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+@keyframes kl-ps-up { from { transform: translateY(100%); } }
+
 @media (max-width: 767px) {
   .loc-zones { flex-direction: column; align-items: stretch; gap: 8px; }
-  .loc-rail { margin-inline: -16px; padding-inline: 16px; }
-  .loc-askrow { flex-direction: column; align-items: stretch; }
-  .loc-cityfld { max-width: none; }
+  /* بی scroll-padding، چسبیدن به لبه اولین دکمه را زیر لبهٔ صفحه می‌برد */
+  .loc-rail { margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
   .loc-chip { height: 38px; }
+  .ps-ov { align-items: flex-end; padding: 0; }
+  .ps { width: 100%; height: 88vh; height: 88dvh; border-radius: 22px 22px 0 0; border-bottom: 0; animation: kl-ps-up 300ms var(--ease-out) both; }
+  .ps-grab { display: block; flex: none; width: 40px; height: 5px; margin: 8px auto 0; border-radius: 99px; background: var(--line2); }
+  .ps-top { padding: 10px 16px 10px; }
+  .ps-search { margin: 0 16px; }
+  .ps .ps-tabs { padding-inline: 16px; scroll-padding-inline: 16px; }
+  .ps-body { padding: 6px 16px 16px; }
+  .ps-grid { grid-template-columns: 1fr 1fr; }
+  .ps-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .loc-trail { animation: none; }
+  .loc-trail, .ps-ov, .ps { animation: none; }
 }
