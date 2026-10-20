@@ -6,9 +6,12 @@ import { pageCsp, securityHeaders } from './headers';
 import { billingRoutes, type BillingOptions } from './billing/routes';
 import { adminRoutes } from './admin/routes';
 import { betaRoutes } from './beta/routes';
+import { supportRoutes } from './support/routes';
 import type { Queryable } from './db';
 import { PhotoBlobs } from './storage/photos';
 import { S3, type S3Config } from './storage/s3';
+import { aiRoutes } from './ai/routes';
+import type { VoiceAi } from './ai/voice';
 
 export interface AppOptions {
   db: Queryable;
@@ -21,9 +24,11 @@ export interface AppOptions {
   s3?: S3Config | null;
   /** اشتراک و پرداخت؛ کنار auth ثبت می‌شود. */
   billing?: Omit<BillingOptions, 'pool' | 'jwtSecret'>;
+  /** پر کردن فرم با صدا؛ null = خاموش (مسیر no_ai می‌دهد). */
+  voice?: VoiceAi | null;
 }
 
-export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [], s3 = null, billing }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, corsOrigins = [], s3 = null, billing, voice = null }: AppOptions): FastifyInstance {
   const app = Fastify({
     trustProxy,
     bodyLimit: 1_048_576,
@@ -88,6 +93,8 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
     if (billing) void app.register(billingRoutes, { ...billing, pool: auth.pool, jwtSecret: auth.jwtSecret });
     void app.register(adminRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, hub });
     void app.register(betaRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret });
+    void app.register(aiRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, voice });
+    void app.register(supportRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret });
     void app.register(syncRoutes, { ...auth, hub, photos: new PhotoBlobs(s3 ? new S3(s3) : null) });
   }
 

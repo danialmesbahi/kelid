@@ -14,7 +14,7 @@ const VENDOR_BATCH_MS = 50;
 interface Message {
   o?: string; // دفتری که داده‌اش عوض شد
   d?: string; // دستگاهی که عوضش کرد (یا باید بیرون بیفتد)
-  k?: 'kick' | 'billing';
+  k?: 'kick' | 'billing' | 'support';
 }
 
 /**
@@ -23,6 +23,11 @@ interface Message {
  */
 export async function announce(db: Queryable, office: string, device: string): Promise<void> {
   await db.query('select pg_notify($1, $2)', [LIVE_CHANNEL, JSON.stringify({ o: office, d: device } satisfies Message)]);
+}
+
+/** تیم کلید به تیکتی از این دفتر پاسخ داد: دستگاه‌های دفتر نشان «پشتیبانی» را تازه می‌کنند. */
+export async function announceSupport(db: Queryable, office: string): Promise<void> {
+  await db.query('select pg_notify($1, $2)', [LIVE_CHANNEL, JSON.stringify({ o: office, k: 'support' } satisfies Message)]);
 }
 
 /** مدیر پنلی که غیرفعال شد، اتصال زنده‌اش همان لحظه بسته می‌شود. */
@@ -42,6 +47,8 @@ export interface LiveListener {
   ping(): void;
   /** اشتراک دفتر عوض شد: مجوز تازه بگیر. */
   billing(): void;
+  /** پاسخ تازه از پشتیبانی. */
+  support(): void;
   close(): void;
 }
 
@@ -188,6 +195,10 @@ export class LiveHub {
     if (typeof m.o !== 'string') return;
     if (m.k === 'billing') {
       for (const l of this.offices.get(m.o) ?? []) l.billing();
+      return;
+    }
+    if (m.k === 'support') {
+      for (const l of this.offices.get(m.o) ?? []) l.support();
       return;
     }
     for (const l of this.offices.get(m.o) ?? []) if (l.device !== m.d) l.ping();

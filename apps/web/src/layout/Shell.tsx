@@ -12,7 +12,7 @@ import { useUpdatedToast } from '../updates';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from './Toasts';
 import { LicenseBar, PlanLine } from '../billing/LicenseUi';
-import { FeedbackDialog } from '../beta/FeedbackDialog';
+import { useSupportUnread, useSupportUnreadSync } from '../support/unread';
 
 const NAV: Array<{ to: string; icon: IconName; label: string }> = [
   { to: '/', icon: 'today', label: 'امروز' },
@@ -63,9 +63,10 @@ let toldInvite = '';
 export function Shell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [more, setMore] = useState(false);
-  const [feedback, setFeedback] = useState(false);
-  // نظر به سرور کلید می‌رود؛ بی حساب جایی برای فرستادن نیست.
+  // پشتیبانی روی سرور کلید است؛ بی حساب جایی برای فرستادن نیست.
   const signedIn = useAuth().status === 'signedIn';
+  useSupportUnreadSync();
+  const unread = useSupportUnread();
   const navigate = useNavigate();
   const storage = useStorageInfo();
   const sync = useSyncStatus();
@@ -151,10 +152,11 @@ export function Shell() {
           )}
         </Link>
         {signedIn && (
-          <button type="button" className="nav" onClick={() => setFeedback(true)}>
+          <NavLink to="/support" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
             <Icon name="msg" />
-            نظر بدهید
-          </button>
+            پشتیبانی
+            {unread > 0 && <span className="badge num" aria-label={`${toFaDigits(unread)} پاسخ تازه`}>{toFaDigits(unread)}</span>}
+          </NavLink>
         )}
         <NavLink to="/settings" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
           <Icon name="set" />
@@ -171,7 +173,7 @@ export function Shell() {
             <Kbd>Ctrl K</Kbd>
           </button>
           <span className="sp" />
-          <button type="button" className="ib ghost mset" aria-label="بیشتر" aria-expanded={more} onClick={() => setMore(true)}><Icon name="more" /></button>
+          <button type="button" className="ib ghost mset" aria-label={unread > 0 ? 'بیشتر، پاسخ تازه از پشتیبانی' : 'بیشتر'} aria-expanded={more} onClick={() => setMore(true)}><Icon name="more" />{unread > 0 && <span className="mset-dot" aria-hidden="true" />}</button>
           <Link className="btn btn-p top-new" to="/add" viewTransition>
             <Icon name="plus" size="s" thick />
             فایل جدید
@@ -190,8 +192,7 @@ export function Shell() {
       </nav>
 
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
-      {more && <MoreSheet onClose={() => setMore(false)} onFeedback={signedIn ? () => { setMore(false); setFeedback(true); } : undefined} />}
-      {feedback && <FeedbackDialog onClose={() => setFeedback(false)} />}
+      {more && <MoreSheet onClose={() => setMore(false)} support={signedIn} unread={unread} />}
     </div>
   );
 }
@@ -206,7 +207,7 @@ function TabLink({ to, icon, label, on }: { to: string; icon: IconName; label: s
 }
 
 /** برگهٔ «بیشتر» روی گوشی: بخش‌هایی که در نوار پایین جا نشده‌اند. */
-function MoreSheet({ onClose, onFeedback }: { onClose: () => void; onFeedback?: () => void }) {
+function MoreSheet({ onClose, support, unread }: { onClose: () => void; support: boolean; unread: number }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -221,11 +222,12 @@ function MoreSheet({ onClose, onFeedback }: { onClose: () => void; onFeedback?: 
             {n.label}
           </NavLink>
         ))}
-        {onFeedback && (
-          <button type="button" className="nav" onClick={onFeedback}>
+        {support && (
+          <NavLink to="/support" className={({ isActive }) => (isActive ? 'nav on' : 'nav')} onClick={onClose}>
             <Icon name="msg" />
-            نظر بدهید
-          </button>
+            پشتیبانی
+            {unread > 0 && <span className="badge num" aria-label={`${toFaDigits(unread)} پاسخ تازه`}>{toFaDigits(unread)}</span>}
+          </NavLink>
         )}
       </nav>
     </div>,

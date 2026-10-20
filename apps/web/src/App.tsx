@@ -17,6 +17,7 @@ import { ShowPage } from './pages/Show';
 import { SettingsPage } from './pages/Settings';
 import { CalendarPage } from './calendar/CalendarPage';
 import { DealsPage } from './deals/DealsPage';
+import { SupportPage, TicketRoute } from './support/SupportPage';
 import { ToastProvider } from './layout/Toasts';
 import { UpdateNotice } from './pwa';
 import { Welcome } from './welcome/Welcome';
@@ -62,6 +63,8 @@ const router = createHashRouter([
               { path: 'deals', element: <DealsPage /> },
               { path: 'settings', element: <SettingsPage /> },
               { path: 'plans', element: <PlansPage /> },
+              { path: 'support', element: <SupportPage /> },
+              { path: 'support/:id', element: <TicketRoute /> },
             ],
           },
         ],

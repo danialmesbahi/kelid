@@ -14,3 +14,4 @@ export * from './sql/sqlStore';
 export * from './cachedStore';
 export * from './sync';
 export * from './plans';
+export * from './voice';

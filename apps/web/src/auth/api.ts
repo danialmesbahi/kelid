@@ -1,4 +1,4 @@
-import { encodeLicense, nextExpiry, PLANS, planById, priceOf, seatsFor, TRIAL_DAYS, type Period, type Plan, type PlanId } from '@kelid/core';
+import { cleanVoiceDraft, encodeLicense, nextExpiry, PLANS, planById, priceOf, seatsFor, TRIAL_DAYS, type Period, type Plan, type PlanId, type VoiceDraft, type VoiceForm } from '@kelid/core';
 import { phoneDigits } from './phone';
 
 // ارتباط با سرور ورود (apps/server/src/auth/routes.ts). نشانی سرور در زمان ساخت: VITE_KELID_API_URL.
@@ -103,6 +103,8 @@ export type ApiErrorCode =
   | 'bad_phone' | 'bad_code' | 'bad_name' | 'bad_password' | 'wrong' | 'expired' | 'too_many' | 'sms_failed' | 'unauthorized' | 'not_found' | 'bad_photo'
   | 'forbidden' | 'no_seat' | 'member' | 'last_manager' | 'self' | 'not_alone'
   | 'subscription' | 'too_small' | 'no_gateway' | 'gateway'
+  // پر کردن فرم با صدا: سرور سرویس هوش مصنوعی ندارد، سرویس جواب نداد، یا صدا خراب بود.
+  | 'no_ai' | 'ai_failed' | 'bad_audio'
   // دستگاه‌های دفتر به سقف نفرات اشتراک رسیده؛ ApiError.limit فهرست و بلیت ادامه را دارد.
   | 'device_limit'
   // فقط سمت برنامه: توکن مال دفتر دیگری است (کاربر دفترش را عوض کرد)؛ همگام‌سازی دفتر قبلی همان‌جا می‌ایستد.
@@ -134,6 +136,43 @@ export class ApiError extends Error {
   }
 }
 
+export type TicketTopic = 'problem' | 'question' | 'billing' | 'idea';
+export type TicketStatus = 'open' | 'answered' | 'closed';
+
+/** تیکت پشتیبانی؛ unread = پاسخی از تیم کلید که هنوز دیده نشده. */
+export interface Ticket {
+  id: string;
+  topic: TicketTopic;
+  subject: string;
+  status: TicketStatus;
+  unread: boolean;
+  createdAt: string;
+  updatedAt: string;
+  last: { body: string; from: 'user' | 'support' };
+}
+
+export interface TicketMessage {
+  id: string;
+  body: string;
+  from: 'user' | 'support';
+  createdAt: string;
+}
+
+export interface TicketThread {
+  ticket: Ticket;
+  messages: TicketMessage[];
+}
+
+export interface NewTicket {
+  id: string;
+  topic: TicketTopic;
+  subject: string;
+  body: string;
+  page: string;
+  appVersion: string;
+  platform: string;
+}
+
 export type VerifyResult = { session: Session } | { signupToken: string; invite: InviteInfo | null };
 
 export interface AuthApi {
@@ -150,13 +189,24 @@ export interface AuthApi {
   /** رمز تازه؛ `current` لازم نیست اگر این دستگاه همین چند دقیقه پیش با کد پیامکی وارد شده باشد. */
   setPassword(accessToken: string, password: string, current?: string): Promise<void>;
   refresh(refreshToken: string): Promise<Session>;
-  logout(accessToken: string): Promise<void>;
+  /** این دستگاه از حساب بیرون می‌رود؛ با توکن تمدید، تا بعد از قطعی هم بشود دوباره فرستادش. */
+  logout(refreshToken: string): Promise<void>;
   devices(accessToken: string): Promise<Device[]>;
   removeDevice(accessToken: string, id: string): Promise<void>;
   /** نام شما و نام دفتر روی سرور، تا دستگاه‌های دیگر دفتر هم ببینند. */
   updateProfile(accessToken: string, p: { name?: string; officeName?: string }): Promise<{ name: string; officeName: string }>;
   /** نظر کاربر برای تیم کلید (ابزار بتا). */
   sendFeedback(accessToken: string, f: { id: string; kind: string; body: string; page: string; appVersion: string; platform: string }): Promise<void>;
+  /** تیکت‌های پشتیبانی همین کاربر، تازه‌ترین اول. */
+  tickets(accessToken: string): Promise<Ticket[]>;
+  /** پیام‌های یک تیکت؛ باز کردنش پاسخ تازه را «دیده‌شده» می‌کند. */
+  ticket(accessToken: string, id: string): Promise<TicketThread>;
+  /** تعداد تیکت‌هایی که پاسخ دیده‌نشده دارند (نشانِ کنار «پشتیبانی»). */
+  unreadTickets(accessToken: string): Promise<number>;
+  /** شناسه را دستگاه می‌سازد تا دوباره فرستادن تیکت تکراری نسازد. */
+  openTicket(accessToken: string, t: NewTicket): Promise<TicketThread>;
+  replyTicket(accessToken: string, id: string, m: { id: string; body: string }): Promise<TicketThread>;
+  closeTicket(accessToken: string, id: string): Promise<TicketThread>;
   /** خطاهای برنامه روی این دستگاه (تا ۱۰ تا در هر درخواست). */
   reportErrors(accessToken: string, errors: Array<{ message: string; stack: string; page: string; count: number; appVersion: string; platform: string }>): Promise<void>;
   /** شمارهٔ دعوت‌شده بعد از کد درست: نام و رمز، و عضو دفتر می‌شود. */
@@ -175,12 +225,19 @@ export interface AuthApi {
   checkout(accessToken: string, plan: PlanId, period: Period, seats?: number): Promise<{ id: string; payUrl: string }>;
   /** وضعیت یک پرداخت؛ بعد از پرداخت مجوز تازه هم دارد. */
   payment(accessToken: string, id: string): Promise<Receipt & { license: string | null }>;
+  /** صحبت ضبط‌شده → متن و فیلدهای فرم (صدا base64؛ hints نام محله‌های دفتر برای املای درست). */
+  voiceFill<F extends VoiceForm>(accessToken: string, v: { form: F; audio: string; mime: string; hints: string[] }): Promise<VoiceFill<F>>;
+}
+
+export interface VoiceFill<F extends VoiceForm = VoiceForm> {
+  transcript: string;
+  fields: VoiceDraft<F>;
 }
 
 const CODES: readonly string[] = [
   'bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo',
   'forbidden', 'no_seat', 'member', 'last_manager', 'self', 'not_alone',
-  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit',
+  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit', 'no_ai', 'ai_failed', 'bad_audio',
 ];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
@@ -223,12 +280,18 @@ export function httpApi(base: string): AuthApi {
     signup: (signupToken, name, officeName, password, deviceName) => call('POST', '/auth/signup', { signupToken, name, officeName, password, deviceName }),
     setPassword: (token, password, current) => call('POST', '/auth/password', { password, ...(current ? { current } : {}) }, token),
     refresh: (refreshToken) => call('POST', '/auth/refresh', { refreshToken }),
-    logout: (token) => call('POST', '/auth/logout', {}, token),
+    logout: (refreshToken) => call('POST', '/auth/signout', { refreshToken }),
     devices: (token) => call('GET', '/auth/devices', undefined, token),
     removeDevice: (token, id) => call('DELETE', `/auth/devices/${encodeURIComponent(id)}`, undefined, token),
     updateProfile: (token, p) => call('POST', '/auth/profile', p, token),
     sendFeedback: (token, f) => call('POST', '/beta/feedback', f, token),
     reportErrors: (token, errors) => call('POST', '/beta/errors', { errors }, token),
+    tickets: async (token) => (await call<{ tickets: Ticket[] }>('GET', '/support/tickets', undefined, token)).tickets,
+    ticket: (token, id) => call('GET', `/support/tickets/${encodeURIComponent(id)}`, undefined, token),
+    unreadTickets: async (token) => (await call<{ unread: number }>('GET', '/support/unread', undefined, token)).unread,
+    openTicket: (token, t) => call('POST', '/support/tickets', t, token),
+    replyTicket: (token, id, m) => call('POST', `/support/tickets/${encodeURIComponent(id)}/messages`, m, token),
+    closeTicket: (token, id) => call('POST', `/support/tickets/${encodeURIComponent(id)}/close`, {}, token),
     join: (signupToken, name, password, deviceName) => call('POST', '/auth/join', { signupToken, name, password, deviceName }),
     acceptInvite: (token) => call('POST', '/auth/invite/accept', {}, token),
     declineInvite: (token) => call('POST', '/auth/invite/decline', {}, token),
@@ -240,6 +303,12 @@ export function httpApi(base: string): AuthApi {
     billing: (token) => call('GET', '/billing', undefined, token),
     checkout: (token, plan, period, seats) => call('POST', '/billing/checkout', { plan, period, ...(seats ? { seats } : {}) }, token),
     payment: (token, id) => call('GET', `/billing/payments/${encodeURIComponent(id)}`, undefined, token),
+    // دو گام هوش مصنوعی (گفتار به متن، متن به فیلد) روی اینترنت کند بیشتر از ۱۲ ثانیه طول می‌کشد.
+    voiceFill: async (token, v) => {
+      const r = await request<VoiceFill>(root, 'POST', '/ai/voice', v, token, 90_000);
+      // پاسخ سرور هم دوباره پاک‌سازی می‌شود تا فرم هیچ‌وقت مقدار عجیب نگیرد.
+      return { transcript: r.transcript, fields: cleanVoiceDraft(v.form, r.fields) };
+    },
   };
 }
 
@@ -580,7 +649,129 @@ export function demoApi(): AuthApi {
       await wait(100);
       console.info('[demo errors]', errors.length);
     },
+    // پیش‌نمایش بی هوش مصنوعی: هر صحبتی یک نمونهٔ ثابت می‌دهد تا رابط دیده شود.
+    async voiceFill(_t, v) {
+      await wait(1400);
+      const sample: Record<VoiceForm, { transcript: string; fields: unknown }> = {
+        listing: {
+          transcript: 'یه آپارتمان فروشی تو سعادت‌آباد، خیابون سرو، صد و بیست متر، دو خواب، طبقه سوم از پنج طبقه، ساخت ۹۸. پارکینگ و انباری و آسانسور داره. قیمتش هشت و نیم میلیارده، جای چونه داره. مالک آقای رضایی، شماره ۰۹۱۲۳۴۵۶۷۸۹، عصرها جواب میده.',
+          fields: { deal: 'sale', kind: 'apartment', neighborhood: 'سعادت‌آباد', street: 'سرو', area: 120, bedrooms: 2, floor: 3, floorsTotal: 5, yearBuilt: 1398, features: ['پارکینگ', 'انباری', 'آسانسور'], total: 8_500_000_000, negotiable: true, ownerName: 'آقای رضایی', ownerPhone: '09123456789', ownerBestTime: 'عصرها' },
+        },
+        client: {
+          transcript: 'خانم احمدی، شماره ۰۹۳۵۱۲۳۴۵۶۷، دنبال آپارتمان رهن و اجاره تو ونک یا جردنه، حدود هشتاد تا صد متر، دو خواب. تا پونصد میلیون رهن و ماهی پونزده میلیون اجاره می‌تونه بده. خیلی فوریه، آخر ماه باید جابه‌جا بشه.',
+          fields: { name: 'خانم احمدی', phone: '09351234567', deal: 'rent', kinds: ['apartment'], neighborhoods: ['ونک', 'جردن'], areaMin: 80, areaMax: 100, bedroomsMin: 2, budget: 500_000_000, rent: 15_000_000, temperature: 'hot', waiting: true, notes: 'تا آخر ماه باید جابه‌جا شود.' },
+        },
+      };
+      const s = sample[v.form];
+      return { transcript: s.transcript, fields: cleanVoiceDraft(v.form, s.fields) };
+    },
+    // پیش‌نمایش پشتیبانی: تیکت‌ها در همین مرورگر می‌مانند و «تیم کلید» چند ثانیه بعد خودش جواب می‌دهد.
+    async tickets() {
+      await wait(250);
+      return demoTickets().map((t) => t.ticket);
+    },
+    async ticket(_t, id) {
+      await wait(200);
+      const list = demoTickets();
+      const t = list.find((x) => x.ticket.id === id);
+      if (!t) throw new ApiError('not_found');
+      t.ticket.unread = false;
+      saveDemoTickets(list);
+      return structuredClone(t);
+    },
+    async unreadTickets() {
+      await wait(100);
+      return demoTickets().filter((t) => t.ticket.unread).length;
+    },
+    async openTicket(_t, n) {
+      await wait(400);
+      const list = demoTickets();
+      const had = list.find((x) => x.ticket.id === n.id);
+      if (had) return structuredClone(had);
+      const at = new Date().toISOString();
+      const t: TicketThread = {
+        ticket: { id: n.id, topic: n.topic, subject: n.subject.trim(), status: 'open', unread: false, createdAt: at, updatedAt: at, last: { body: n.body.trim(), from: 'user' } },
+        messages: [{ id: n.id, body: n.body.trim(), from: 'user', createdAt: at }],
+      };
+      saveDemoTickets([t, ...list]);
+      demoAnswerLater(n.id);
+      return structuredClone(t);
+    },
+    async replyTicket(_t, id, m) {
+      await wait(300);
+      const list = demoTickets();
+      const t = list.find((x) => x.ticket.id === id);
+      if (!t) throw new ApiError('not_found');
+      if (!t.messages.some((x) => x.id === m.id)) {
+        const at = new Date().toISOString();
+        t.messages.push({ id: m.id, body: m.body.trim(), from: 'user', createdAt: at });
+        t.ticket = { ...t.ticket, status: 'open', unread: false, updatedAt: at, last: { body: m.body.trim(), from: 'user' } };
+        saveDemoTickets(list);
+        demoAnswerLater(id);
+      }
+      return structuredClone(t);
+    },
+    async closeTicket(_t, id) {
+      await wait(300);
+      const list = demoTickets();
+      const t = list.find((x) => x.ticket.id === id);
+      if (!t) throw new ApiError('not_found');
+      t.ticket = { ...t.ticket, status: 'closed', unread: false, updatedAt: new Date().toISOString() };
+      saveDemoTickets(list);
+      return structuredClone(t);
+    },
   };
+}
+
+const DEMO_TICKETS = 'kelid.demo.tickets';
+
+function demoTickets(): TicketThread[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(DEMO_TICKETS) ?? 'null') as TicketThread[] | null;
+    if (Array.isArray(v)) return v;
+  } catch {
+    // حافظهٔ مرورگر در دسترس نیست؛ همان نمونه.
+  }
+  // یک تیکت پاسخ‌داده تا نشان «پاسخ تازه» در پیش‌نمایش هم دیده شود.
+  const at = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+  return [
+    {
+      ticket: { id: 'demo-ticket-1', topic: 'question', subject: 'چاپ برگهٔ فایل برای مشتری', status: 'answered', unread: true, createdAt: at(26), updatedAt: at(3), last: { body: 'سلام، در صفحهٔ هر فایل دکمهٔ «چاپ» بالای صفحه است.', from: 'support' } },
+      messages: [
+        { id: 'demo-ticket-1', body: 'سلام، چطور برگهٔ یک فایل را برای مشتری چاپ کنم؟', from: 'user', createdAt: at(26) },
+        { id: 'demo-ticket-1-a', body: 'سلام، در صفحهٔ هر فایل دکمهٔ «چاپ» بالای صفحه است. اگر عکس‌ها را هم بخواهید، گزینهٔ «با عکس» را بزنید.', from: 'support', createdAt: at(3) },
+      ],
+    },
+  ];
+}
+
+function saveDemoTickets(list: TicketThread[]) {
+  try {
+    localStorage.setItem(DEMO_TICKETS, JSON.stringify(list));
+  } catch {
+    // پیش‌نمایش بی حافظه هم کار می‌کند، فقط چیزی نمی‌ماند.
+  }
+  demoTicketListeners.forEach((f) => f());
+}
+
+const demoTicketListeners = new Set<() => void>();
+/** پیش‌نمایش: «تیم کلید جواب داد» به‌جای خبر زندهٔ سرور. */
+export function onDemoTicket(fn: () => void): () => void {
+  demoTicketListeners.add(fn);
+  return () => void demoTicketListeners.delete(fn);
+}
+
+function demoAnswerLater(id: string) {
+  setTimeout(() => {
+    const list = demoTickets();
+    const t = list.find((x) => x.ticket.id === id);
+    if (!t || t.ticket.status !== 'open') return;
+    const at = new Date().toISOString();
+    const body = 'سلام، پیامتان رسید. همکاران ما بررسی می‌کنند و همین‌جا جواب می‌دهند.';
+    t.messages.push({ id: `${id}-${t.messages.length}`, body, from: 'support', createdAt: at });
+    t.ticket = { ...t.ticket, status: 'answered', unread: true, updatedAt: at, last: { body, from: 'support' } };
+    saveDemoTickets(list);
+  }, 6_000);
 }
 
 export const API_URL = (import.meta.env.VITE_KELID_API_URL as string | undefined) || null;
