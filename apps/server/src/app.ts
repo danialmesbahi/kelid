@@ -6,6 +6,7 @@ import { pageCsp, securityHeaders } from './headers';
 import { billingRoutes, type BillingOptions } from './billing/routes';
 import { adminRoutes } from './admin/routes';
 import { betaRoutes } from './beta/routes';
+import { supportRoutes } from './support/routes';
 import type { Queryable } from './db';
 import { PhotoBlobs } from './storage/photos';
 import { S3, type S3Config } from './storage/s3';
@@ -93,6 +94,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
     void app.register(adminRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, hub });
     void app.register(betaRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret });
     void app.register(aiRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, voice });
+    void app.register(supportRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret });
     void app.register(syncRoutes, { ...auth, hub, photos: new PhotoBlobs(s3 ? new S3(s3) : null) });
   }
 

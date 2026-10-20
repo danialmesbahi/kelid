@@ -343,6 +343,59 @@ export const migrations: readonly string[] = [
    where r.id = d.id and r.n > r.seats;
   select set_config('kelid.vendor', '', true);
   `,
+  // 14: پشتیبانی تیکتی. هر تیکت یک موضوع و رشته‌ای از پیام‌ها بین کاربر و تیم کلید است؛ مال دفتر (RLS) و پنل فروشنده
+  // با kelid_vendor پاسخ می‌دهد. unread = پاسخی از تیم کلید که کاربر هنوز ندیده (نشانِ کنار «پشتیبانی»).
+  `
+  create table support_tickets (
+    office_id uuid not null default kelid_office() references offices (id),
+    id uuid not null,
+    user_id uuid not null references users (id),
+    topic text not null check (topic in ('problem', 'question', 'billing', 'idea')),
+    subject text not null check (length(subject) between 1 and 120),
+    status text not null default 'open' check (status in ('open', 'answered', 'closed')),
+    unread boolean not null default false,
+    page text not null default '' check (length(page) <= 200),
+    app_version text not null default '' check (length(app_version) <= 40),
+    platform text not null default '' check (platform in ('', 'web', 'pwa', 'desktop')),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    primary key (office_id, id)
+  );
+  create index support_tickets_recent on support_tickets (updated_at desc);
+  create index support_tickets_user on support_tickets (office_id, user_id, updated_at desc);
+  alter table support_tickets enable row level security;
+  alter table support_tickets force row level security;
+  create policy office_isolation on support_tickets
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  create policy vendor_access on support_tickets
+    using (kelid_vendor())
+    with check (kelid_vendor());
+
+  create table support_messages (
+    office_id uuid not null default kelid_office(),
+    id uuid not null,
+    ticket_id uuid not null,
+    user_id uuid references users (id),
+    admin_id uuid references vendor_admins (id),
+    body text not null check (length(body) between 1 and 4000),
+    created_at timestamptz not null default now(),
+    primary key (office_id, id),
+    foreign key (office_id, ticket_id) references support_tickets (office_id, id),
+    check ((user_id is null) <> (admin_id is null))
+  );
+  create index support_messages_ticket on support_messages (office_id, ticket_id, created_at);
+  alter table support_messages enable row level security;
+  alter table support_messages force row level security;
+  create policy office_isolation on support_messages
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  create policy vendor_access on support_messages
+    using (kelid_vendor())
+    with check (kelid_vendor());
+
+  create trigger vendor_notify after insert or update or delete on support_tickets for each row execute function kelid_vendor_notify();
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */
