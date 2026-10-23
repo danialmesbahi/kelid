@@ -74,7 +74,7 @@ export function Login() {
                 inputMode="numeric"
                 dir="ltr"
                 autoComplete="username"
-                placeholder="۰۹۱۲ ۳۴۵ ۶۷۸۹"
+                placeholder="0912 345 6789"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 autoFocus
@@ -111,8 +111,8 @@ export function Login() {
                 dir="ltr"
                 autoComplete="one-time-code"
                 maxLength={6}
-                placeholder="۰۰۰۰۰۰"
-                value={toFaDigits(code)}
+                placeholder="000000"
+                value={code}
                 onChange={(e) => setCode(digits(e.target.value).replace(/\D/g, '').slice(0, 6))}
               />
               <span className="hint">عدد شش‌رقمی برنامهٔ Google Authenticator یا برنامهٔ مشابه روی گوشی‌تان.</span>

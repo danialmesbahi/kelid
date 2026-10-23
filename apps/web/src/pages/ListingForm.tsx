@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { useBlocker } from 'react-router';
 import { useGoBack } from '../layout/useGoBack';
 import { LeaveDialog } from '../layout/LeaveDialog';
-import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
+import { amountText, FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
 import { PlaceFields } from '../places/PlaceFields';
 import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
-import { dealLabel, formatGrouped, hasBedrooms, formatToman, toEnDigits, toFaDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { dealLabel, hasBedrooms, formatToman, toEnDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
@@ -49,8 +49,7 @@ function parseNum(s: string): number | undefined {
   return digits ? Number(digits) : undefined;
 }
 
-const amountText = (n?: number) => (n ? formatGrouped(n) : '');
-const numText = (n?: number) => (n === undefined ? '' : toFaDigits(n));
+const numText = (n?: number) => (n === undefined ? '' : String(n));
 
 type FormState = {
   deal: DealType; kind: PropertyKind; status: ListingStatus;
@@ -67,7 +66,7 @@ function toState(l?: Listing): FormState {
     area: numText(l?.area), bedrooms: numText(l?.bedrooms), floor: numText(l?.floor), floorsTotal: numText(l?.floorsTotal), yearBuilt: numText(l?.yearBuilt),
     features: l?.features ?? ['پارکینگ', 'آسانسور'],
     total: amountText(l?.price.total), deposit: amountText(l?.price.deposit), rent: amountText(l?.price.monthlyRent), negotiable: l?.negotiable ?? true,
-    description: l?.description ?? '', ownerName: l?.owner.name === '—' ? '' : l?.owner.name ?? '', ownerPhone: l?.owner.phone ? toFaDigits(l.owner.phone) : '', ownerBestTime: l?.owner.bestTime ?? '',
+    description: l?.description ?? '', ownerName: l?.owner.name === '—' ? '' : l?.owner.name ?? '', ownerPhone: l?.owner.phone ?? '', ownerBestTime: l?.owner.bestTime ?? '',
   };
 }
 
@@ -271,7 +270,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
               {hasBedrooms(f) && <label className="lbl">خواب<input className="fld num" inputMode="numeric" value={f.bedrooms} onChange={(e) => set('bedrooms')(onlyDigits(e.target.value, 2))} /></label>}
               <label className="lbl">طبقه<input className="fld num" inputMode="numeric" value={f.floor} onChange={(e) => set('floor')(onlyDigits(e.target.value, 3))} /></label>
               <label className="lbl">تعداد طبقات<input className="fld num" inputMode="numeric" value={f.floorsTotal} onChange={(e) => set('floorsTotal')(onlyDigits(e.target.value, 3))} /></label>
-              <label className="lbl">سال ساخت<input className="fld num" inputMode="numeric" value={f.yearBuilt} onChange={(e) => set('yearBuilt')(onlyDigits(e.target.value, 4))} placeholder="۱۴۰۳" /></label>
+              <label className="lbl">سال ساخت<input className="fld num" inputMode="numeric" value={f.yearBuilt} onChange={(e) => set('yearBuilt')(onlyDigits(e.target.value, 4))} placeholder="1403" /></label>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
               {allFeatures.map((x) => (

@@ -1,4 +1,4 @@
-import { DEAL_STAGES, formatGrouped, formatPlaque, toEnDigits, type Deal, type DealStage, type Listing, type ListingStatus } from '@kelid/core';
+import { DEAL_STAGES, formatPlaque, toEnDigits, type Deal, type DealStage, type Listing, type ListingStatus } from '@kelid/core';
 import { useStore } from '../data';
 import { useToast } from '../layout/Toasts';
 
@@ -45,8 +45,8 @@ export function useMoveDeal() {
 
 export const STAGES = DEAL_STAGES;
 
-/** «۲۸٬۰۰۰٬۰۰۰٬۰۰۰» برای فیلد مبلغ */
-export const amountText = (n?: number) => (n ? formatGrouped(n) : '');
+/** «28,000,000,000» برای فیلد مبلغ */
+export { amountText } from '../layout/Field';
 
 export function parseAmount(s: string): number | undefined {
   const n = Number(toEnDigits(s).replace(/[^\d]/g, ''));
