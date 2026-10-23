@@ -9,11 +9,26 @@
   align-items: flex-start;
 }
 
+/* ستون کناری و محتوا همیشه کنار هم؛ بی nowrap، زیر ۹۰۰ پیکسل محتوا زیر منو می‌افتاد. */
+.ad-shell {
+  flex-wrap: nowrap;
+}
+.ad-shell > .main {
+  flex: 1 1 0;
+}
 .ad-shell .side {
   flex: 0 0 248px;
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
+}
+.ad-nav .nav {
+  position: relative;
+}
+.ad-top,
+.ad-tabs {
+  display: none;
 }
 .ad-me {
   display: flex;
@@ -302,6 +317,10 @@ a.ad-row:focus-visible {
   gap: 10px;
   flex-wrap: wrap;
 }
+/* سرِ صفحهٔ دفتر و تیکت: اگر جا تنگ شد دکمه‌ها به خط بعد می‌روند، نه این‌که عنوان باریک شود */
+.hd > .ad-hd-main {
+  flex: 1 1 340px;
+}
 .ad-danger {
   color: var(--bad) !important;
 }
@@ -553,49 +572,94 @@ a.ad-row:focus-visible {
     display: none;
   }
 }
+/* ── گوشی (زیر ۷۶۸ پیکسل؛ همان مرز برنامهٔ اصلی) ── */
 @media (max-width: 767px) {
   .ad-shell {
-    flex-direction: column;
-    flex-wrap: nowrap;
+    display: block;
   }
   .ad-shell .side {
-    position: static;
-    height: auto;
-    flex: none;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    padding: 12px 12px 4px;
-    gap: 8px;
-  }
-  .ad-shell .side > .sp {
     display: none;
   }
-  .ad-nav {
-    order: 3;
-    flex-direction: row !important;
-    width: 100%;
+  .ad-shell > .main {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 100dvh;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
-  .ad-nav .nav {
-    flex: 1;
-    justify-content: center;
+  .ad-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 8px 14px 8px 6px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+  .ad-top .ib {
+    width: 40px;
     height: 40px;
   }
-  .ad-me {
-    margin-inline-start: auto;
-    padding: 0;
-    border: 0;
-    background: none;
+  .ad-tabs {
+    display: flex;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 30;
+    height: calc(64px + env(safe-area-inset-bottom));
+    padding: 0 4px env(safe-area-inset-bottom);
+    background: var(--paper);
+    border-top: 1px solid var(--line);
   }
-  .ad-me > .av,
-  .ad-me > .col {
-    display: none;
+  .ad-tabs .tab {
+    min-width: 0;
+    padding-top: 9px;
+    white-space: nowrap;
   }
-  .main {
-    margin: 8px;
+  .ad-tab-ic {
+    position: relative;
+    display: inline-flex;
+    padding: 3px 16px;
+    border-radius: 99px;
+    transition: background-color 0.15s;
   }
+  .ad-tabs .tab.on .ad-tab-ic {
+    background: var(--pri-tint);
+    color: var(--pri-text);
+  }
+  .ad-tab-ic .badge {
+    position: absolute;
+    top: -6px;
+    left: 0;
+    height: 18px;
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 99px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--pri);
+    color: var(--pri-ink);
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px var(--paper);
+  }
+  .toasts {
+    left: 12px;
+    right: 12px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .toast {
+    min-width: 0;
+    max-width: none;
+  }
+
   .hd {
-    padding: 20px 16px 12px;
+    padding: 18px 16px 12px;
   }
   .bd {
     padding: 4px 16px 32px;
@@ -604,12 +668,30 @@ a.ad-row:focus-visible {
   .t1 {
     font-size: 24px;
   }
+  .hd > .ad-hd-main {
+    flex-basis: 100%;
+  }
+  /* روی گوشی هر نکته خط خودش را دارد؛ نقطهٔ جداکننده سرِ خطِ شکسته زشت می‌افتاد */
+  .ad-facts-line {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .ad-facts-line > * + *::before {
+    display: none;
+  }
+
+  /* آمار: «همهٔ دفترها» سرتاسر، بعد چهار کارت دوتایی، بعد درآمد */
   .ad-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
+  .ad-stats > :first-child,
   .ad-money {
     grid-column: 1 / -1;
+  }
+  .ad-stat {
+    padding: 12px 14px;
   }
   .ad-stat-n {
     font-size: 24px;
@@ -626,13 +708,17 @@ a.ad-row:focus-visible {
     max-width: 100%;
     scrollbar-width: none;
   }
+  .ad-tools .seg::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ردیف‌ها دو ستونه: نام و جزئیات راست، وضعیت و مبلغ چپ */
   .ad-head {
     display: none;
   }
-  .ad-row,
-  .ad-prow {
+  .ad-row {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 4px 12px;
+    gap: 6px 12px;
     padding: 12px 14px;
   }
   .ad-row > :nth-child(n + 3) {
@@ -644,20 +730,32 @@ a.ad-row:focus-visible {
     flex-direction: row;
     gap: 8px;
   }
-  .ad-prow > :nth-child(n + 2) {
+  .ad-prow > :nth-child(n) {
+    display: block;
+    grid-column: auto;
+  }
+  .ad-prow > :nth-child(1) {
+    grid-area: 1 / 1;
+  }
+  .ad-prow > :nth-child(2) {
     display: none;
   }
-  .ad-prow > :nth-child(3),
-  .ad-prow > :nth-child(4) {
-    display: block;
-  }
-  .ad-prow > :nth-child(4) {
-    grid-row: 1 / span 2;
-    grid-column: 2;
-  }
   .ad-prow > :nth-child(3) {
-    grid-column: 1;
+    grid-area: 2 / 1;
   }
+  .ad-prow > :nth-child(4) {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+  .ad-prow > :nth-child(5) {
+    display: flex;
+    grid-area: 2 / 2;
+    align-items: flex-end;
+  }
+  .ad-prow > :nth-child(5) > :nth-child(2) {
+    display: none;
+  }
+
   .facts.ad-facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -671,13 +769,62 @@ a.ad-row:focus-visible {
     width: 100%;
   }
   .ad-ohd .ad-acts .btn {
+    flex: 1 1 auto;
+  }
+  .ad-ohd .ad-acts .btn-p {
+    flex-basis: 100%;
+    order: -1;
+  }
+  .ad-ohd > .btn {
+    flex: 1 1 100%;
+    background: var(--sunk);
+  }
+  .ad-card {
+    padding: 16px;
+  }
+  .ad-fb {
+    padding: 14px 16px;
+  }
+  .ad-msg {
+    max-width: 92%;
+  }
+  .ad-reply-ft > .btn {
+    flex: 1 1 100%;
+    height: 48px;
+  }
+
+  /* پنجره‌ها روی گوشی: برگه‌ای از پایین، دکمه‌ها زیر انگشت شست */
+  .ad-ov {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .ad-dlg.pop {
+    width: 100%;
+    max-height: calc(100dvh - max(24px, env(safe-area-inset-top)));
+    overflow-y: auto;
+    border-radius: 22px 22px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: kl-sheet-up 340ms var(--ease-out) both;
+  }
+  .ad-dlg-hd {
+    padding: 12px 16px 6px;
+  }
+  .ad-dlg-bd {
+    padding: 8px 16px 18px;
+  }
+  .ad-dlg-ft > .btn {
+    height: 50px;
+  }
+  .ad-dlg-ft > .btn:last-child {
     flex: 1;
   }
   .ad-plans {
     grid-template-columns: minmax(0, 1fr);
   }
-  .ad-ov {
-    padding: 16px 8px;
+}
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  .ad-dlg.pop {
+    animation: none;
   }
 }
 
@@ -788,4 +935,53 @@ a.ad-row:focus-visible {
   flex-direction: column;
   gap: 10px;
   padding: 14px;
+}
+.ad-reply-ft {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── تبلت: ستون کناری باریک، فقط آیکون ─────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .ad-shell .side {
+    flex-basis: 76px;
+    padding: 18px 10px 14px;
+    align-items: center;
+  }
+  .ad-side .brand {
+    padding: 2px 0 4px;
+  }
+  .ad-side .brand > .col,
+  .ad-nl,
+  .ad-me > .av,
+  .ad-me > .col {
+    display: none;
+  }
+  .ad-nav {
+    align-self: stretch;
+  }
+  .ad-nav .nav {
+    justify-content: center;
+    height: 48px;
+    padding: 0;
+  }
+  .ad-nav .nav .badge {
+    position: absolute;
+    top: 5px;
+    left: calc(50% - 24px);
+    height: 18px;
+    min-width: 18px;
+    padding: 0 5px;
+    justify-content: center;
+    font-size: 11px;
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+  .ad-nav .nav.on .badge {
+    box-shadow: 0 0 0 2px var(--paper);
+  }
+  .ad-me {
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+  }
 }

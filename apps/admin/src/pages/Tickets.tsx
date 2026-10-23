@@ -167,8 +167,8 @@ export function TicketPage() {
   const { ticket: t, messages } = detail.data;
   return (
     <>
-      <header className="hd">
-        <div className="col sp" style={{ gap: 6, minWidth: 0 }}>
+      <header className="hd ad-ohd">
+        <div className="col sp ad-hd-main" style={{ gap: 6, minWidth: 0 }}>
           {back}
           <span className="rw" style={{ gap: 12, flexWrap: 'wrap' }}>
             <h1 className="t1" style={{ overflowWrap: 'anywhere' }}>
@@ -236,7 +236,7 @@ export function TicketPage() {
             onKeyDown={(e) => e.key === 'Enter' && (e.ctrlKey || e.metaKey) && void send()}
             style={{ lineHeight: 1.9, resize: 'vertical' }}
           />
-          <div className="rw" style={{ gap: 10 }}>
+          <div className="rw ad-reply-ft">
             <span className="xs mute sp">کاربر پاسخ را در بخش «پشتیبانی» برنامه می‌بیند و کنارش نشان می‌خورد.</span>
             <button type="submit" className="btn btn-p" disabled={busy || !draft.trim()}>
               <Icon name="send" size="s" />
