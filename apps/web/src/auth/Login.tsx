@@ -9,7 +9,7 @@ import { WelcomeHero } from '../welcome/WelcomeHero';
 import { CityField } from '../places/CityField';
 import { ApiError, deviceLabel, type DeviceLimit, type InviteInfo, type Session } from './api';
 import { seen } from './AccountSection';
-import { formatPhone, phoneDigits } from './phone';
+import { formatPhone, phoneDigits, phoneInputText } from './phone';
 import { useAuth } from './AuthContext';
 import '../welcome/welcome.css';
 import './login.css';
@@ -400,8 +400,8 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
           dir="ltr"
           autoComplete={step === 'otp' ? 'tel-national' : 'username'}
           enterKeyHint={step === 'otp' ? 'send' : 'next'}
-          placeholder="۰۹۱۲ ۳۴۵ ۶۷۸۹"
-          value={formatPhone(phone)}
+          placeholder="0912 345 6789"
+          value={phoneInputText(phone)}
           readOnly={!!ticket}
           onChange={(e) => {
             setPhone(phoneDigits(e.target.value));
@@ -548,7 +548,7 @@ export function Login({ onDone }: { onDone: (mode: AuthMode) => void }) {
                 />
                 {Array.from({ length: LEN }, (_, i) => (
                   <span key={i} className={`lg-cell${i < code.length ? ' on' : ''}${i === Math.min(code.length, LEN - 1) ? ' cur' : ''}`} aria-hidden="true">
-                    {code[i] ? toFaDigits(code[i]!) : ''}
+                    {code[i] ?? ''}
                   </span>
                 ))}
               </div>

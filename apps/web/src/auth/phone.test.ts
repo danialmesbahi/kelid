@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPhone, phoneDigits } from './phone';
+import { formatPhone, phoneDigits, phoneInputText } from './phone';
 
 describe('phone input', () => {
   it.each([
@@ -14,5 +14,9 @@ describe('phone input', () => {
     expect(formatPhone('09123456789')).toBe('۰۹۱۲ ۳۴۵ ۶۷۸۹');
     expect(formatPhone('0912')).toBe('۰۹۱۲');
     expect(formatPhone('')).toBe('');
+  });
+
+  it('keeps English digits inside the input', () => {
+    expect(phoneInputText('09123456789')).toBe('0912 345 6789');
   });
 });

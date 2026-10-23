@@ -1,5 +1,5 @@
 import { Icon } from '@kelid/ui';
-import { formatGrouped, toEnDigits, toFaDigits } from '@kelid/core';
+import { toEnDigits } from '@kelid/core';
 
 /** نشان فیلد ضروری کنار نام آن. */
 export function Req() {
@@ -21,13 +21,18 @@ export function FieldError({ id, text }: { id: string; text?: string }) {
   );
 }
 
-/** فیلد عددی: فقط رقم (فارسی یا انگلیسی) وارد می‌شود و فارسی نشان داده می‌شود؛ حرف و نشانه اصلاً جا نمی‌گیرد. */
+/** فیلد عددی: فقط رقم (فارسی یا انگلیسی) وارد می‌شود و انگلیسی نشان داده می‌شود؛ حرف و نشانه اصلاً جا نمی‌گیرد. */
 export function onlyDigits(s: string, max = 15): string {
-  return toFaDigits(toEnDigits(s).replace(/\D/g, '').slice(0, max));
+  return toEnDigits(s).replace(/\D/g, '').slice(0, max);
 }
+
+const groupFmt = new Intl.NumberFormat('en-US');
+
+/** «28,000,000,000» برای فیلد مبلغ؛ در فیلدها رقم انگلیسی است، بیرون از فیلد همان فارسی. */
+export const amountText = (n?: number) => (n ? groupFmt.format(n) : '');
 
 /** مبلغ: فقط رقم، با جداکنندهٔ هزارگان همان وقت نوشتن تا صفرها اشتباه شمرده نشوند. */
 export function onlyAmount(s: string): string {
   const d = toEnDigits(s).replace(/\D/g, '').replace(/^0+/, '').slice(0, 15);
-  return d ? formatGrouped(Number(d)) : '';
+  return d ? amountText(Number(d)) : '';
 }
