@@ -131,6 +131,7 @@ fieldset:has(> .loc) { min-inline-size: 0; }
 }
 .ps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
 .ps-it {
+  min-width: 0;
   display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 6px 12px; text-align: start;
   border: 1px solid transparent; border-radius: 12px; background: var(--paper2); color: var(--ink);
   font: inherit; font-size: 15px; cursor: pointer;
@@ -161,7 +162,8 @@ fieldset:has(> .loc) { min-inline-size: 0; }
   .ps-search { margin: 0 16px; }
   .ps-tabs, .ps-tabsel { padding-inline: 16px; }
   .ps-body { padding: 6px 16px 16px; }
-  .ps-grid { grid-template-columns: 1fr 1fr; }
+  /* minmax(0) تا نام بلند ستون را از صفحه بیرون نزند */
+  .ps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ps-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) {
