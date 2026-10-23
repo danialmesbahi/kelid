@@ -27,8 +27,27 @@
   position: relative;
 }
 .ad-top,
-.ad-tabs {
+.ad-tabs,
+.ad-lbl {
   display: none;
+}
+/* فهرستی که هنوز مال فیلتر قبلی است کم‌رنگ می‌شود (بعد از مکثی کوتاه، تا بارگذاری سریع چشمک نزند) */
+/* لمس: بی چشمک خاکستری مرورگر و بی تأخیر دوبار-زدن برای بزرگ‌نمایی */
+.ad-shell a,
+.ad-shell button,
+.overlay button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ردیف‌های فهرست تکیه‌گاه اسکرول نیستند؛ وگرنه با عوض شدن فیلتر، مرورگر صفحه را به بالا می‌پراند */
+.ad-table,
+.ad-tools ~ .card {
+  overflow-anchor: none;
+}
+.ad-stale {
+  opacity: 0.55;
+  transition: opacity 0.2s 0.12s;
 }
 .ad-me {
   display: flex;
@@ -681,23 +700,70 @@ a.ad-row:focus-visible {
     display: none;
   }
 
-  /* آمار: «همهٔ دفترها» سرتاسر، بعد چهار کارت دوتایی، بعد درآمد */
-  .ad-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+  /* نوار بالا عنوان پنل را دارد؛ توضیح صفحه روی گوشی فقط جا می‌گیرد */
+  .hd .eb,
+  .ad-sub {
+    display: none;
   }
-  .ad-stats > :first-child,
-  .ad-money {
-    grid-column: 1 / -1;
+  .hd {
+    padding-top: 14px;
+    padding-bottom: 8px;
+  }
+
+  /* آمار: شش کاشی کوچک در دو ردیف سه‌تایی، تا فهرست از همان صفحهٔ اول پیدا باشد */
+  .ad-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
   .ad-stat {
-    padding: 12px 14px;
+    padding: 9px 10px;
+    border-radius: 14px;
+    gap: 0;
+  }
+  .ad-stat > .sm {
+    max-width: 100%;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ad-stat > .xs {
+    display: none;
   }
   .ad-stat-n {
-    font-size: 24px;
+    font-size: 22px;
+    line-height: 1.35;
+  }
+  .ad-money .ad-stat-n {
+    margin-top: auto;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .ad-money .ad-stat-n > .sm {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* جستجو و فیلترها هنگام پایین رفتن زیر نوار بالا می‌چسبند تا همیشه دم دست باشند */
+  .ad-tools {
+    position: sticky;
+    top: max(57px, calc(env(safe-area-inset-top) + 49px));
+    z-index: 4;
+    margin: -6px -16px 0;
+    padding: 8px 16px;
+    gap: 8px;
+    background: var(--paper);
+    box-shadow: 0 1px 0 var(--line);
   }
   .ad-search {
     max-width: none;
+  }
+  .ad-search .fld {
+    height: 42px;
+  }
+  .ad-search > .ic {
+    top: 15px;
   }
   .ad-search .kbd {
     display: none;
@@ -708,27 +774,76 @@ a.ad-row:focus-visible {
     max-width: 100%;
     scrollbar-width: none;
   }
+  .ad-tools .seg button {
+    height: 36px;
+    padding: 0 12px;
+  }
   .ad-tools .seg::-webkit-scrollbar {
     display: none;
   }
 
-  /* ردیف‌ها دو ستونه: نام و جزئیات راست، وضعیت و مبلغ چپ */
+  /* ردیف دفتر: نام و وضعیت بالا، زیرش همهٔ جزئیات (پلن، اعتبار، فعالیت، پرداخت) پشت سر هم و با جداکننده */
   .ad-head {
     display: none;
   }
   .ad-row {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px 12px;
+    gap: 4px 12px;
     padding: 12px 14px;
   }
-  .ad-row > :nth-child(n + 3) {
+  .ad-row:not(.ad-prow) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    column-gap: 0;
+  }
+  .ad-row:not(.ad-prow)::before {
+    content: '';
+    order: 2;
+    flex-basis: 100%;
+    height: 4px;
+  }
+  .ad-row:not(.ad-prow) > :nth-child(1) {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-inline-end: 12px;
+  }
+  .ad-row:not(.ad-prow) > :nth-child(n + 3) {
+    order: 3;
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .ad-row:not(.ad-prow) > :nth-child(n + 3) > * {
+    font-size: 13px;
+  }
+  .ad-row:not(.ad-prow) > :nth-child(n + 3) {
+    margin-inline-end: 16px;
+  }
+  .ad-row:not(.ad-prow) > :nth-child(5),
+  .ad-row:not(.ad-prow) > :nth-child(6) {
+    display: block;
+  }
+  .ad-row:not(.ad-prow) > .col:nth-child(n + 3) > * + *::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    margin-inline: 6px;
+    border-radius: 50%;
+    background: var(--mute);
+    vertical-align: middle;
+  }
+  .ad-table > .ad-head {
     display: none;
   }
-  .ad-row > :nth-child(4) {
-    display: flex;
-    grid-column: 1 / -1;
-    flex-direction: row;
-    gap: 8px;
+  .ad-lbl {
+    display: inline;
+  }
+  .ad-prow {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
   .ad-prow > :nth-child(n) {
     display: block;
@@ -820,6 +935,32 @@ a.ad-row:focus-visible {
   }
   .ad-plans {
     grid-template-columns: minmax(0, 1fr);
+  }
+  /* زیر ۱۶ پیکسل، سافاری آیفون با لمس فیلد صفحه را بزرگ می‌کند و می‌پراند */
+  .ad-notebox .fld,
+  .ad-days .fld {
+    font-size: 16px;
+  }
+}
+/* نوارهای بالا و پایین گوشی در جابه‌جایی صفحه‌ها ثابت می‌مانند؛ فقط محتوا عوض می‌شود */
+@media (max-width: 767px) {
+  .ad-top {
+    view-transition-name: ad-top;
+  }
+  .ad-tabs {
+    view-transition-name: ad-tabs;
+  }
+  ::view-transition-group(ad-top),
+  ::view-transition-group(ad-tabs),
+  ::view-transition-old(ad-top),
+  ::view-transition-old(ad-tabs),
+  ::view-transition-new(ad-top),
+  ::view-transition-new(ad-tabs) {
+    animation: none;
+  }
+  ::view-transition-old(ad-top),
+  ::view-transition-old(ad-tabs) {
+    display: none;
   }
 }
 @media (max-width: 767px) and (prefers-reduced-motion: reduce) {

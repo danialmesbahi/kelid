@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router';
 import { Icon, Logo, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { DEMO } from './api';
@@ -110,6 +110,8 @@ export function Shell() {
         </div>
         <Outlet />
       </main>
+      {/* صفحهٔ تازه از بالا باز می‌شود و «برگشت» همان‌جای قبلی فهرست برمی‌گردد */}
+      <ScrollRestoration />
       <nav className="ad-tabs" aria-label="منوی پنل">
         {nav.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => (isActive || (n.to === '/' && inOffice) ? 'tab on' : 'tab')}>

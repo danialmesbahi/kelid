@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { Icon, Skeleton } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import type { AdminApi, TicketDetail, TicketStatus, TicketTopic } from '../api';
 import { useAuth } from '../auth';
-import { ago, errorText, Phone, useLoad, useSlow, useToast } from '../ui';
+import { ago, errorText, Phone, toListTop, useEnter, useLoad, useSlow, useToast } from '../ui';
 
 const TOPIC: Record<TicketTopic, { label: string; tone: '' | 'ok' | 'warn' }> = {
   problem: { label: 'مشکل', tone: 'warn' },
@@ -36,9 +36,11 @@ function Empty({ icon, text }: { icon: 'msg' | 'check' | 'warn'; text: string })
 /** صف تیکت‌های پشتیبانی، زنده؛ باز‌ها از قدیمی‌ترین تا کسی بیشتر منتظر نماند. */
 export function Tickets() {
   const [params, setParams] = useSearchParams();
+  const tools = useRef<HTMLDivElement>(null);
   const status = TABS.find((t) => t.value === params.get('s'))?.value ?? 'open';
   const stats = useLoad('stats', (a, t) => a.stats(t));
-  const list = useLoad(`tickets:${status}`, (a, t) => a.tickets(t, status));
+  const list = useLoad(`tickets:${status}`, (a, t) => a.tickets(t, status), undefined, true);
+  const enter = useEnter(`tickets:${status}`);
   const slow = useSlow(!list.data && list.pending);
 
   return (
@@ -47,11 +49,11 @@ export function Tickets() {
         <div className="col" style={{ gap: 4 }}>
           <span className="eb">پنل فروشنده</span>
           <h1 className="t1">پشتیبانی</h1>
-          <span className="mute sm">تیکت‌هایی که دفترها از داخل برنامه زده‌اند. پاسخ شما همان لحظه در برنامهٔ کاربر نشان می‌خورد.</span>
+          <span className="mute sm ad-sub">تیکت‌هایی که دفترها از داخل برنامه زده‌اند. پاسخ شما همان لحظه در برنامهٔ کاربر نشان می‌خورد.</span>
         </div>
       </header>
       <div className="bd">
-        <div className="ad-tools">
+        <div className="ad-tools" ref={tools}>
           <div className="seg" role="tablist" aria-label="وضعیت">
             {TABS.map((t) => (
               <button
@@ -59,7 +61,10 @@ export function Tickets() {
                 type="button"
                 role="tab"
                 aria-selected={status === t.value}
-                onClick={() => setParams((p) => (t.value === 'open' ? p.delete('s') : p.set('s', t.value), p), { replace: true })}
+                onClick={() => (
+                  toListTop(tools.current),
+                  setParams((p) => (t.value === 'open' ? p.delete('s') : p.set('s', t.value), p), { replace: true, preventScrollReset: true })
+                )}
               >
                 {t.label}
                 {t.value === 'open' && stats.data?.openTickets ? ` (${toFaDigits(stats.data.openTickets)})` : ''}
@@ -84,7 +89,7 @@ export function Tickets() {
         ) : !list.data.length ? (
           <Empty icon={status === 'open' ? 'check' : 'msg'} text={status === 'open' ? 'تیکتی منتظر پاسخ نیست.' : 'تیکتی در این بخش نیست.'} />
         ) : (
-          <div className="card stagger">
+          <div className={`card ${enter}${list.stale ? ' ad-stale' : ''}`}>
             {list.data.map((t) => (
               <Link key={`${t.office.id}/${t.id}`} to={`/tickets/${t.office.id}/${t.id}`} viewTransition className="ad-fb ad-tk-row">
                 <div className="ad-meta">
