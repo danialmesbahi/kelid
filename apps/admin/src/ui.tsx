@@ -97,10 +97,13 @@ const cache = new Map<string, unknown>();
  * watch: با خبر زندهٔ کدام دفتر بی‌صدا تازه شود؛ نداده = هر تغییری (فهرست‌ها و آمار)، رشته = فقط همان دفتر.
  * چند خبر پشت هم فقط یک درخواست می‌سازند: تا جواب قبلی نیامده، درخواست تازه نمی‌رود.
  */
-export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Promise<T>, watch?: string) {
+/** keep: تا دادهٔ کلید تازه برسد، دادهٔ قبلی (مثلاً فیلتر قبلی فهرست) سر جایش می‌ماند تا صفحه خالی نشود و نپرد. */
+export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Promise<T>, watch?: string, keep = false) {
   const { call } = useAuth();
-  const [state, setState] = useState<{ key: string; data: T | undefined; error: unknown; pending: boolean }>(() => ({
+  // from: دادهٔ data مال کدام کلید است (با keep ممکن است هنوز مال کلید قبلی باشد)
+  const [state, setState] = useState<{ key: string; from: string; data: T | undefined; error: unknown; pending: boolean }>(() => ({
     key,
+    from: key,
     data: cache.get(key) as T | undefined,
     error: null,
     pending: true,
@@ -112,11 +115,13 @@ export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Pr
 
   const load = useCallback(() => {
     const n = ++seq.current;
-    setState((s) => ({ key, data: s.key === key ? s.data : (cache.get(key) as T | undefined), error: null, pending: true }));
+    setState((s) =>
+      s.from === key || !cache.has(key) ? { ...s, key, error: null, pending: true } : { key, from: key, data: cache.get(key) as T, error: null, pending: true },
+    );
     return call((a, t) => fnRef.current(a, t)).then(
       (data) => {
         cache.set(key, data);
-        if (n === seq.current) setState({ key, data, error: null, pending: false });
+        if (n === seq.current) setState({ key, from: key, data, error: null, pending: false });
       },
       (error: unknown) => void (n === seq.current && setState((s) => ({ ...s, error, pending: false }))),
     );
@@ -134,7 +139,7 @@ export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Pr
         .then(
           (data) => {
             cache.set(key, data);
-            if (n === seq.current) setState({ key, data, error: null, pending: false });
+            if (n === seq.current) setState({ key, from: key, data, error: null, pending: false });
           },
           () => {},
         )
@@ -154,13 +159,31 @@ export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Pr
   const set = useCallback(
     (data: T) => {
       cache.set(key, data);
-      setState({ key, data, error: null, pending: false });
+      setState({ key, from: key, data, error: null, pending: false });
     },
     [key],
   );
-  const data = state.key === key ? state.data : (cache.get(key) as T | undefined);
+  const own = state.from === key ? state.data : (cache.get(key) as T | undefined);
+  const data = own ?? (keep ? state.data : undefined);
   const reload = useCallback(() => void load(), [load]);
-  return { data, error: state.error, pending: state.pending, reload, set };
+  return { data, stale: own === undefined && data !== undefined, error: state.error, pending: state.pending, reload, set };
+}
+
+/** فیلتر یا جستجو عوض شد: اگر ابزارهای فهرست به بالای صفحه چسبیده‌اند (گوشی)، صفحه جایی می‌رود که
+ *  ابزارها همان‌جا بمانند و فهرست تازه از اولش دیده شود؛ نه این‌که ته فهرستِ کوتاه‌تر یا بالای صفحه بپرد. */
+export function toListTop(tools: HTMLElement | null) {
+  if (!tools || getComputedStyle(tools).position !== 'sticky') return;
+  const stuck = parseFloat(getComputedStyle(tools).top) || 0;
+  const parent = tools.parentElement;
+  if (!parent) return;
+  const target = parent.getBoundingClientRect().top + window.scrollY + (parseFloat(getComputedStyle(tools).marginTop) || 0) - stuck;
+  if (window.scrollY > target) window.scrollTo(0, target);
+}
+
+/** حرکت ورود ردیف‌ها فقط برای فهرستی که صفحه با آن باز شد؛ با عوض شدن فیلتر یا جستجو ردیف‌ها دوباره نمی‌پرند. */
+export function useEnter(key: string): string {
+  const [first] = useState(key);
+  return key === first ? 'stagger' : '';
 }
 
 /** پنجرهٔ روی صفحه: Esc و کلیک بیرون می‌بندند، فوکوس داخلش می‌ماند و بعد از بستن برمی‌گردد. */

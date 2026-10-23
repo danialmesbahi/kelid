@@ -94,7 +94,7 @@ export function OfficePage() {
   return (
     <>
       <header className="hd ad-ohd">
-        <div className="col sp" style={{ gap: 6, minWidth: 0 }}>
+        <div className="col sp ad-hd-main" style={{ gap: 6, minWidth: 0 }}>
           <BackLink />
           <span className="rw" style={{ gap: 12, flexWrap: 'wrap' }}>
             <h1 className="t1">{o.name}</h1>

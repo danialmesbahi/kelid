@@ -4,7 +4,7 @@ import { Icon, Skeleton } from '@kelid/ui';
 import { formatGrouped, toFaDigits } from '@kelid/core';
 import type { OfficeFilter, OfficeStatus, Stats } from '../api';
 import { useFlash } from '../live';
-import { ago, dateText, errorText, leftText, Phone, planName, statusTag, useLoad, useSlow } from '../ui';
+import { ago, dateText, errorText, leftText, Phone, planName, statusTag, toListTop, useEnter, useLoad, useSlow } from '../ui';
 
 const FILTERS: Array<{ value: OfficeFilter | ''; label: string }> = [
   { value: '', label: 'همه' },
@@ -23,11 +23,15 @@ export function Offices() {
   const status = (params.get('s') ?? '') as OfficeFilter | '';
   const [text, setText] = useState(q);
   const search = useRef<HTMLInputElement>(null);
+  const tools = useRef<HTMLDivElement>(null);
 
   // تایپ کردن جستجو را با کمی مکث می‌فرستد، نه با هر حرف.
   useEffect(() => {
     if (text === q) return;
-    const t = setTimeout(() => setParams((p) => (text.trim() ? p.set('q', text) : p.delete('q'), p), { replace: true }), 250);
+    const t = setTimeout(
+      () => (toListTop(tools.current), setParams((p) => (text.trim() ? p.set('q', text) : p.delete('q'), p), { replace: true, preventScrollReset: true })),
+      250,
+    );
     return () => clearTimeout(t);
   }, [text, q, setParams]);
 
@@ -45,10 +49,15 @@ export function Offices() {
   }, []);
 
   const stats = useLoad('stats', (a, t) => a.stats(t));
-  const list = useLoad(`offices:${status}:${q.trim()}`, (a, t) => a.offices(t, q, status || null));
+  const listKey = `offices:${status}:${q.trim()}`;
+  const list = useLoad(listKey, (a, t) => a.offices(t, q, status || null), undefined, true);
+  const enter = useEnter(listKey);
   const slow = useSlow(!list.data && list.pending);
   const flash = useFlash();
-  const setStatus = (s: OfficeFilter | '') => setParams((p) => (s ? p.set('s', s) : p.delete('s'), p), { replace: true });
+  const setStatus = (s: OfficeFilter | '') => (
+    toListTop(tools.current),
+    setParams((p) => (s ? p.set('s', s) : p.delete('s'), p), { replace: true, preventScrollReset: true })
+  );
 
   return (
     <>
@@ -56,14 +65,14 @@ export function Offices() {
         <div className="col" style={{ gap: 4 }}>
           <span className="eb">پنل فروشنده</span>
           <h1 className="t1">دفترها</h1>
-          <span className="mute sm">همهٔ دفترهایی که با کلید کار می‌کنند؛ برای تمدید، تعلیق یا یادداشت روی هر دفتر بزنید.</span>
+          <span className="mute sm ad-sub">همهٔ دفترهایی که با کلید کار می‌کنند؛ برای تمدید، تعلیق یا یادداشت روی هر دفتر بزنید.</span>
         </div>
       </header>
       <div className="bd">
         <StatsRow stats={stats.data} status={status} onPick={setStatus} />
 
         <section className="col" style={{ gap: 14 }} aria-label="فهرست دفترها">
-          <div className="ad-tools">
+          <div className="ad-tools" ref={tools}>
             <label className="ad-search">
               <Icon name="search" size="s" />
               <input
@@ -115,7 +124,7 @@ export function Offices() {
               <span>{q || status ? 'دفتری با این جستجو یا وضعیت پیدا نشد.' : 'هنوز هیچ دفتری ثبت‌نام نکرده است.'}</span>
             </div>
           ) : (
-            <div className="card ad-table" aria-busy={list.pending}>
+            <div className={`card ad-table${list.stale ? ' ad-stale' : ''}`} aria-busy={list.pending}>
               <div className="ad-row ad-head" aria-hidden="true">
                 <span>دفتر</span>
                 <span>وضعیت</span>
@@ -124,7 +133,7 @@ export function Offices() {
                 <span>آخرین فعالیت</span>
                 <span>پرداخت‌ها</span>
               </div>
-              <div className="stagger">
+              <div className={enter}>
                 {list.data.map((o) => {
                   const tag = statusTag[o.status];
                   return (
@@ -158,6 +167,7 @@ export function Offices() {
                         <span className={`xs ${o.status === 'expired' ? 'ad-bad' : o.status === 'ending' ? 'ad-warn' : 'mute'}`}>{leftText(o.expiresAt)}</span>
                       </span>
                       <span className="sm mute">
+                        <span className="ad-lbl">آخرین فعالیت </span>
                         {ago(o.lastSeenAt)}
                       </span>
                       <span className="sm num">

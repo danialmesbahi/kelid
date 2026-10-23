@@ -1,9 +1,10 @@
+import { useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Icon, Skeleton } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import type { ClientError, Feedback, FeedbackKind } from '../api';
 import { useAuth } from '../auth';
-import { ago, errorText, Phone, useLoad, useSlow, useToast } from '../ui';
+import { ago, errorText, Phone, toListTop, useEnter, useLoad, useSlow, useToast } from '../ui';
 
 type Tab = 'feedback' | 'errors';
 
@@ -17,10 +18,14 @@ const PLATFORM: Record<string, string> = { web: 'مرورگر', pwa: 'گوشی',
 /** دورهٔ بتا: نظر کاربرها و خطاهای برنامه، هر دو زنده؛ هر هفته باز‌ها را می‌بینیم و رسیدگی‌شده می‌زنیم. */
 export function Beta() {
   const [params, setParams] = useSearchParams();
+  const tools = useRef<HTMLDivElement>(null);
   const tab: Tab = params.get('t') === 'errors' ? 'errors' : 'feedback';
   const done = params.get('s') === 'done';
   const stats = useLoad('stats', (a, t) => a.stats(t));
-  const set = (k: string, v: string | null) => setParams((p) => (v ? p.set(k, v) : p.delete(k), p), { replace: true });
+  const set = (k: string, v: string | null) => (
+    toListTop(tools.current),
+    setParams((p) => (v ? p.set(k, v) : p.delete(k), p), { replace: true, preventScrollReset: true })
+  );
 
   return (
     <>
@@ -28,11 +33,11 @@ export function Beta() {
         <div className="col" style={{ gap: 4 }}>
           <span className="eb">پنل فروشنده</span>
           <h1 className="t1">نظرها و خطاها</h1>
-          <span className="mute sm">آنچه دفترها از داخل برنامه فرستاده‌اند و خطاهایی که روی دستگاه‌هایشان پیش آمده؛ تکرارهای یک خطا یک ردیف‌اند.</span>
+          <span className="mute sm ad-sub">آنچه دفترها از داخل برنامه فرستاده‌اند و خطاهایی که روی دستگاه‌هایشان پیش آمده؛ تکرارهای یک خطا یک ردیف‌اند.</span>
         </div>
       </header>
       <div className="bd">
-        <div className="ad-tools">
+        <div className="ad-tools" ref={tools}>
           <div className="seg" role="tablist" aria-label="بخش">
             <button type="button" role="tab" aria-selected={tab === 'feedback'} onClick={() => set('t', null)}>
               نظرها{stats.data?.openFeedback ? ` (${toFaDigits(stats.data.openFeedback)})` : ''}
@@ -82,7 +87,8 @@ function Loading() {
 function FeedbackList({ done }: { done: boolean }) {
   const { call } = useAuth();
   const toast = useToast();
-  const list = useLoad(`feedback:${done ? 'done' : 'open'}`, (a, t) => a.feedback(t, done ? 'done' : 'open'));
+  const list = useLoad(`feedback:${done ? 'done' : 'open'}`, (a, t) => a.feedback(t, done ? 'done' : 'open'), undefined, true);
+  const enter = useEnter(`feedback:${done}`);
   const slow = useSlow(!list.data && list.pending);
 
   // رسیدگی‌شده زدن برگشت‌پذیر است: همان لحظه از فهرست می‌رود و «برگرداندن» دارد.
@@ -103,7 +109,7 @@ function FeedbackList({ done }: { done: boolean }) {
   if (!list.data) return slow ? <Loading /> : null;
   if (!list.data.length) return <Empty icon={done ? 'msg' : 'check'} text={done ? 'هنوز نظری رسیدگی نشده است.' : 'نظر تازه‌ای نیست.'} />;
   return (
-    <div className="card stagger">
+    <div className={`card ${enter}${list.stale ? ' ad-stale' : ''}`}>
       {list.data.map((f) => (
         <article key={f.id} className="ad-fb">
           <div className="ad-meta">
@@ -141,7 +147,8 @@ function FeedbackList({ done }: { done: boolean }) {
 function ErrorList({ done }: { done: boolean }) {
   const { call } = useAuth();
   const toast = useToast();
-  const list = useLoad(`errors:${done ? 'resolved' : 'open'}`, (a, t) => a.errors(t, done ? 'resolved' : 'open'));
+  const list = useLoad(`errors:${done ? 'resolved' : 'open'}`, (a, t) => a.errors(t, done ? 'resolved' : 'open'), undefined, true);
+  const enter = useEnter(`errors:${done}`);
   const slow = useSlow(!list.data && list.pending);
 
   const mark = async (e: ClientError, to: boolean) => {
@@ -161,7 +168,7 @@ function ErrorList({ done }: { done: boolean }) {
   if (!list.data) return slow ? <Loading /> : null;
   if (!list.data.length) return <Empty icon="check" text={done ? 'هنوز خطایی حل‌شده زده نشده است.' : 'خطای بازی نیست.'} />;
   return (
-    <div className="card stagger">
+    <div className={`card ${enter}${list.stale ? ' ad-stale' : ''}`}>
       {list.data.map((e) => (
         <article key={e.fingerprint} className="ad-fb">
           <div className="ad-meta">
