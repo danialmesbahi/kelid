@@ -11,5 +11,10 @@ export function phoneDigits(input: string): string {
 
 /** ۰۹۱۲ ۳۴۵ ۶۷۸۹ — همان گروه‌بندی که روی کارت ویزیت‌ها دیده می‌شود. */
 export function formatPhone(d: string): string {
-  return toFaDigits([d.slice(0, 4), d.slice(4, 7), d.slice(7, 11)].filter(Boolean).join(' '));
+  return toFaDigits(phoneInputText(d));
+}
+
+/** 0912 345 6789 — همان گروه‌بندی برای داخل فیلد، با رقم انگلیسی. */
+export function phoneInputText(d: string): string {
+  return [d.slice(0, 4), d.slice(4, 7), d.slice(7, 11)].filter(Boolean).join(' ');
 }

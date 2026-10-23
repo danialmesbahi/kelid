@@ -8,7 +8,7 @@ import { useSyncStatus } from '../sync/state';
 import { ApiError, type Invite, type Member, type NewInvite, type Role, type Team } from './api';
 import { seen } from './AccountSection';
 import { useAuth, useMember } from './AuthContext';
-import { formatPhone, phoneDigits } from './phone';
+import { formatPhone, phoneDigits, phoneInputText } from './phone';
 import './team.css';
 
 const roleName: Record<Role, string> = { manager: 'مدیر', agent: 'مشاور' };
@@ -342,8 +342,8 @@ function InviteForm({ onCancel, onDone }: { onCancel: () => void; onDone: (i: Ne
             inputMode="numeric"
             dir="ltr"
             autoComplete="off"
-            placeholder="۰۹۱۲ ۳۴۵ ۶۷۸۹"
-            value={formatPhone(phone)}
+            placeholder="0912 345 6789"
+            value={phoneInputText(phone)}
             onChange={(e) => {
               setPhone(phoneDigits(e.target.value));
               if (error) setError('');

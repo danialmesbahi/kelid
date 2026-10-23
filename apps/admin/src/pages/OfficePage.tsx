@@ -429,7 +429,7 @@ function ExtendDialog({ data, onClose, onDone }: { data: OfficeDetail; onClose: 
                 inputMode="numeric"
                 placeholder="روز دلخواه"
                 aria-label="تعداد روز دلخواه"
-                value={toFaDigits(custom)}
+                value={custom}
                 onChange={(e) =>
                   setCustom(
                     e.target.value
