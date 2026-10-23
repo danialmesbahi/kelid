@@ -224,6 +224,7 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, hub, p
       device: dev,
       ping: () => open && res.write('data: change\n\n'),
       billing: () => open && res.write('event: billing\ndata: 1\n\n'),
+      support: () => open && res.write('event: support\ndata: 1\n\n'),
       close,
     });
     req.raw.on('close', close);

@@ -11,7 +11,6 @@ import { TeamSection } from '../auth/TeamSection';
 import { flushProfile, queueProfile } from '../auth/profile';
 import { UpdateSection } from '../updates';
 import { SubscriptionSection } from '../billing/SubscriptionSection';
-import { FeedbackSection } from '../beta/FeedbackSection';
 import { CityField } from '../places/CityField';
 import { useOfficeCity } from '../places/hooks';
 
@@ -75,7 +74,6 @@ export function SettingsPage() {
 
       <AccountSection />
       {status === 'signedIn' && <TeamSection />}
-      {status === 'signedIn' && <FeedbackSection />}
 
       <section aria-labelledby="look" className="col" style={{ gap: 14 }}>
         <h2 id="look" className="t2">ظاهر</h2>
