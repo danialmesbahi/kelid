@@ -1,8 +1,8 @@
 import type { AuthApi } from './api';
 
-// نام شما و نام دفتر روی سرور هم هست تا دستگاه‌های دیگر دفتر ببینند. ویرایش بی‌اینترنت در صف می‌ماند و بعداً می‌رود.
+// نام شما و نام و شهر دفتر روی سرور هم هست تا دستگاه‌های دیگر دفتر ببینند. ویرایش بی‌اینترنت در صف می‌ماند و بعداً می‌رود.
 const KEY = 'kelid.profile.pending';
-export type ProfilePatch = { name?: string; officeName?: string };
+export type ProfilePatch = { name?: string; officeName?: string; city?: string };
 
 export function pendingProfile(): ProfilePatch | null {
   try {
@@ -24,7 +24,7 @@ export function queueProfile(p: ProfilePatch) {
 let flushing: Promise<void> | null = null;
 
 /** صف را می‌فرستد؛ نبود اینترنت یعنی دفعهٔ بعد. */
-export function flushProfile(api: AuthApi, withToken: <T>(fn: (t: string) => Promise<T>) => Promise<T>, done: (r: { name: string; officeName: string }) => void): Promise<void> {
+export function flushProfile(api: AuthApi, withToken: <T>(fn: (t: string) => Promise<T>) => Promise<T>, done: (r: { name: string; officeName: string; city?: string }) => void): Promise<void> {
   flushing ??= (async () => {
     const p = pendingProfile();
     if (!p) return;

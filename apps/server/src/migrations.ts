@@ -396,6 +396,10 @@ export const migrations: readonly string[] = [
 
   create trigger vendor_notify after insert or update or delete on support_tickets for each row execute function kelid_vendor_notify();
   `,
+  // 15: شهر دفتر؛ فرم فایل از روی آن محله و خیابان پیشنهاد می‌دهد. دفترهای قدیمی ندارند و از تنظیمات انتخابش می‌کنند.
+  `
+  alter table offices add column city text check (length(city) between 1 and 60);
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

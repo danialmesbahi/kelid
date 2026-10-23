@@ -34,6 +34,8 @@ export function usePrefs() {
   // نام کاربر و دفتر فقط روی همین دستگاه؛ با ورود و همگام‌سازی (فاز ۲) از سرور می‌آیند.
   const [userName, setUserName] = useState<string>(() => read('kelid.userName', ''));
   const [officeName, setOfficeName] = useState<string>(() => read('kelid.officeName', ''));
+  // شهر دفتر؛ محله‌ها و خیابان‌های پیشنهادی فرم فایل از همین شهر می‌آیند.
+  const [city, setCity] = useState<string>(() => read('kelid.city', ''));
   const [welcomed, setWelcomed] = useState<boolean>(() => read('kelid.welcomed', false));
 
   useEffect(() => {
@@ -56,9 +58,10 @@ export function usePrefs() {
 
   useEffect(() => write('kelid.userName', userName), [userName]);
   useEffect(() => write('kelid.officeName', officeName), [officeName]);
+  useEffect(() => write('kelid.city', city), [city]);
   useEffect(() => write('kelid.welcomed', welcomed), [welcomed]);
 
-  return { theme, setTheme, textSize, setTextSize, userName, setUserName, officeName, setOfficeName, welcomed, setWelcomed };
+  return { theme, setTheme, textSize, setTextSize, userName, setUserName, officeName, setOfficeName, city, setCity, welcomed, setWelcomed };
 }
 
 /** «علی» از «علی رضایی»؛ «آقای رضایی» و «خانم احمدی» همان‌طور می‌مانند. */
