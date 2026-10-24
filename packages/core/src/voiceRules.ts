@@ -27,7 +27,7 @@ const KIND_WORDS: Array<[PropertyKind, RegExp]> = [
   ['office', /دفتر|اداری|مطب/],
   ['land', /زمین|کلنگی/],
   ['villa', /ویلا|ویلایی|حیاط دار|خانه حیاط/],
-  ['apartment', /آپارتمان|اپارتمان|واحد مسکونی|برج|مسکونی/],
+  ['apartment', /آپارتمان|اپارتمان|سوئیت|سوییت|واحد(?! (اداری|تجاری))|برج|مسکونی/],
 ];
 
 const FEATURE_WORDS: Array<[string, RegExp]> = [
@@ -52,7 +52,15 @@ const NOT_NAME = /^(و|که|با|از|در|تو|توی|به|برای|هست|اس
 /** تکهٔ دوم نام‌های دوکلمه‌ای (سعادت آباد، شهرک غرب، تهران پارس). */
 const NAME_TAIL = /^(آباد|اباد|شهر|پارس|غرب|شرق|شمالی|جنوبی|پارک|نو|کوچک|بزرگ|ده|سر|ویلا|بالا|پایین)$/;
 
+// «کوچه شهید رجایی»، «خیابان امام خمینی»: عنوان جزو نام است و کلمهٔ بعدش هم می‌آید.
+const NAME_TITLE = /^(شهید|امام|آیت الله|آیت‌الله|دکتر|استاد|سردار|حاج|حاجی|سید|مهندس|شیخ)$/;
+
 function nameAt(words: string[], i: number): string | undefined {
+  if (words[i] === 'ی') i++;
+  if (words[i] && NAME_TITLE.test(words[i]!)) {
+    const rest = nameAt(words, i + 1);
+    return rest ? `${words[i]} ${rest}` : undefined;
+  }
   const w = words[i];
   if (!w || NOT_NAME.test(w) || /\d/.test(w) || spokenNumbers(w).length) return undefined;
   const next = words[i + 1];
@@ -82,6 +90,15 @@ const after = (t: string, n: SpokenNumber, len = 25) => t.slice(n.end, n.end + l
 
 /** محله‌های همین دفتر که در متن آمده‌اند، به ترتیب گفته‌شدن. کلمه‌به‌کلمه، تا «ونک» از دل «پونک» پیدا نشود. */
 function hintsIn(t: string, hints: string[]): string[] {
+  // «منطقه هجده» در فهرست «منطقه ۱۸» است: یک بار هم با عددهای رقمی شده گشته می‌شود.
+  let digits = t;
+  for (const n of spokenNumbers(t).reverse()) if (!n.money && Number.isInteger(n.value)) digits = `${digits.slice(0, n.start)}${n.value}${digits.slice(n.end)}`;
+  const found = wordHints(t, hints);
+  if (digits !== t) for (const h of wordHints(digits, hints)) if (!found.includes(h)) found.push(h);
+  return found;
+}
+
+function wordHints(t: string, hints: string[]): string[] {
   const words = t.replace(/[،,.:؛!?؟]/g, ' ').split(' ').filter(Boolean);
   // نام یک‌کلمه‌ای که واژهٔ معمولی هم هست (زون «شهر» در بوشهر) در هر جمله‌ای پیدا می‌شود.
   const want = new Map(hints.filter((h) => h.trim() && !NOT_NAME.test(h.trim())).map((h) => [normalizeForSearch(h), h] as const));
@@ -101,7 +118,7 @@ function hintsIn(t: string, hints: string[]): string[] {
 
 function dealOf(t: string) {
   if (/رهن (و )?کامل|رهن کامله|فقط رهن/.test(t)) return 'full' as const;
-  if (/(رهن|ودیعه) (و |، ?)?اجاره|اجاره/.test(t)) return 'rent' as const;
+  if (/(رهن|ودیعه) (و |، ?)?اجاره|پیش و پس|پیش پس|اجاره|کرایه|(رهن|ودیعه).*(ماهی|ماهانه|ماهیانه|در ماه)/.test(t)) return 'rent' as const;
   if (/فروش|فروشی|خرید|بخره|بفروش|میفروش/.test(t)) return 'sale' as const;
   if (/رهن|ودیعه/.test(t)) return 'full' as const;
   return undefined;
@@ -127,7 +144,7 @@ function featuresOf(t: string): string[] {
 /** رتبهٔ جایگاه هر عدد در خواندن فارسی: هزار ۴، صدگان ۳، دهگان ۲، یکان و ده‌تا‌نوزده ۱. */
 const rankOf = (v: number) => (v >= 1000 ? 4 : v >= 100 ? 3 : v >= 20 ? 2 : 1);
 const PHONE_KEY = /(شماره|تلفن|تلفنش|موبایل|موبایلش|همراه|تماس|شمارش|شماره‌اش|شمارشون)/;
-const PHONE_SKIP = /^(مثبت|ما|من|مالک|صاحب|صاحبش|مالکش|ایشون|ایشان|اش|ش|هم|هست|است|اینه|این|اینجوریه|بنویس|یادداشت|کن|خط|همراه|موبایل|تلفن|شماره|تماس|:)$/;
+const PHONE_SKIP = /^(ثابت|منزل|خونه|خانه|دفتر|مثبت|ما|من|مالک|صاحب|صاحبش|مالکش|ایشون|ایشان|اش|ش|هم|هست|است|اینه|این|اینجوریه|بنویس|یادداشت|کن|خط|همراه|موبایل|تلفن|شماره|تماس|:)$/;
 
 /**
  * شمارهٔ موبایل گفته‌شده، به هر شکلی که عامیانه خوانده می‌شود:
@@ -221,7 +238,54 @@ export function spokenPhone(t: string): { phone?: string; raw?: string } {
   return digits.length >= 7 ? { raw: digits } : {};
 }
 
-const NAME_STOP = /^(هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون)$/;
+// «عصرها»، «بعد از ساعت پنج»، «از ساعت چهار تا هشت شب»، «پنجشنبه‌ها»، «ساعت اداری»: بهترین زمان تماس با مالک.
+const T_NUM = '(?:[0-9۰-۹]{1,2}(?::[0-9۰-۹]{2})?|(?:یک|یه|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|یازده|دوازده)(?: و نیم)?)';
+const T_PART = '(?:صبح|ظهر|بعد ?از ?ظهر|عصر|غروب|شب)';
+const T_DAY = '(?:شنبه|یکشنبه|دوشنبه|سه ?شنبه|چهارشنبه|پنج ?شنبه|جمعه)';
+const T_UNIT = [
+  `${T_PART}(?: ?ها|ا)?`,
+  `(?:بعد از |قبل از |از )?ساعت ${T_NUM}(?: ${T_PART})?(?: به بعد)?`,
+  `روزهای (?:زوج|فرد|تعطیل|کاری)`,
+  `آخر هفته(?: ?ها)?`,
+  `${T_DAY}(?: ?ها)?`,
+  `(?:ساعت|تایم|وقت) اداری`,
+  `هر (?:وقت|موقع|ساعتی)`,
+].join('|');
+// بعد از یک تکهٔ زمان، «تا هشت» یا «تا ساعت هشت شب» هم دنبالهٔ همان است.
+const T_MORE = `(?:${T_UNIT}|(?:تا|الی) (?:ساعت )?${T_NUM}(?: ${T_PART})?)`;
+export const TIME_RE = new RegExp(`(?:${T_UNIT})(?:(?: و |، ?| )${T_MORE})*`, 'g');
+const CALL_HINT = /(?:^|\s)(زنگ|تماس|جواب|در دسترس|بهترین (زمان|وقت|موقع)|وقت (تماس|زنگ)|بگیرید|بگیرین|بگیر)/;
+const STRONG_TIME = /(صبح|ظهر|عصر|غروب|شب)( ?ها|ا)|ساعت|روزهای|اداری|شنبه/;
+
+export function bestTimeOf(t: string): string | undefined {
+  const hint = CALL_HINT.exec(t);
+  const all = [...t.matchAll(TIME_RE)].filter((m) => /\s|ها$|^(صبح|عصر|ظهر|شب|غروب)ا$/.test(m[0]) || hint);
+  // نزدیک «زنگ/تماس/جواب» باشد؛ بی آن فقط شکل‌های روشن مثل «عصرها» پذیرفته است.
+  const pick = hint
+    ? all.sort((a, b) => Math.abs(a.index - hint.index) - Math.abs(b.index - hint.index))[0]
+    : all.find((m) => STRONG_TIME.test(m[0]) && !/^(صبح|ظهر|عصر|غروب|شب)$/.test(m[0]));
+  if (!pick) return undefined;
+  let out = pick[0].trim()
+    .replace(/(^|\s)(صبح|ظهر|عصر|غروب|شب)ا(?=\s|$)/g, (_, s: string, w: string) => `${s}${w === 'عصر' || w === 'ظهر' ? `${w}ها` : `${w}‌ها`}`)
+    .replace(/بعد ?از ?ظهر/g, 'بعدازظهر')
+    .replace(/(\S) ها(?=\s|$)/g, (_, w: string) => (/[رظ]$/.test(w) ? `${w}ها` : `${w}\u200cها`))
+    .replace(/سه ?شنبه/g, 'سه‌شنبه')
+    .replace(/پنج ?شنبه/g, 'پنجشنبه');
+  // عدد ساعت با رقم فارسی: «ساعت پنج و نیم» → «ساعت ۵ و نیم»
+  for (const n of spokenNumbers(out).reverse()) {
+    const whole = Math.floor(n.value);
+    out = `${out.slice(0, n.start)}${toFaDigits(whole)}${n.value % 1 ? ' و نیم' : ''}${out.slice(n.end)}`;
+  }
+  return out;
+}
+
+// نام شهر محله نیست («منطقه تهران»)، مگر اینکه در فهرست محله‌های شهر دفتر باشد.
+const CITY_NAMES = /^(تهران|مشهد|اصفهان|شیراز|تبریز|کرج|اهواز|قم|کرمانشاه|ارومیه|رشت|زاهدان|همدان|کرمان|یزد|اردبیل|بندرعباس|بندر عباس|اراک|زنجان|سنندج|قزوین|خرم آباد|گرگان|ساری|بجنورد|بیرجند|ایلام|شهرکرد|یاسوج|سمنان|بوشهر|کیش|قشم|برازجان|گناوه|کنگان|عسلویه|دیر|جم)$/;
+
+// «در دسترسه»، «در حال ساخت»، «تو این ساختمون»: این‌ها بعد از «در/تو» محله نیستند.
+const LOOSE_STOP = /^(دسترس|دسترسه|دسترسی|خدمت|حال|نظر|مورد|جریان|اختیار|اسرع|کل|ضمن|واقع|عوض|همون|همان|این|اون|آن|یه|یک|ساختمون|ساختمان|مجتمع|برج|خانه|شهر|بالا|پایین|طبقه|کوچه|خیابان|بلوار)$/;
+
+const NAME_STOP = /^(زیر|بالای|حداقل|حداکثر|حدود|بین|دنبال|بعد|قبل|فقط|ساعت|داره|دارن|دارد|گفت|گفته|میگه|برای|بری|مال|الان|خیلی|اینجا|اونجا|ولی|اما|یا|هم|تا|از|به|رو|را|صبح|عصر|ظهر|شب|طبقه|آپارتمان|واحد|تماس|زنگ|هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون)$/;
 // «آقای سامان مغازه می‌خواد»: نوع ملک یا امکانات جزو نام نیست.
 const nameWord = (w: string | undefined) => !!w && !NOT_NAME.test(w) && !NAME_STOP.test(w) && !kindsOf(w).length && !featuresOf(w).length && !/^(می|نمی)/.test(w) && !/ها$/.test(w) && !/\d/.test(w) && !spokenNumbers(w).length;
 
@@ -250,6 +314,16 @@ function personOf(t: string, near?: RegExp): string | undefined {
       if (n) hits.push({ name: n, at: i, near: /^(مالک|صاحب)/.test(w) || /^(مالک|صاحب)/.test(words[i + 1] ?? '') });
     }
   });
+  // «آپارتمان برای مهدی سعادت، شماره…» یا «مال آقای…»: فقط وقتی بعد از نام، شماره یا پایان جمله می‌آید؛ «برای فروش» نام نیست.
+  if (near && !hits.length) {
+    words.forEach((w, i) => {
+      if (hits.length || !/^(برای|بری|مال|متعلق|متعلقه)$/.test(w)) return;
+      const j = /^متعلق/.test(w) && words[i + 1] === 'به' ? i + 2 : i + 1;
+      const n = take(j);
+      const end = words[j + (n?.split(' ').length ?? 0)];
+      if (n && (!end || /^(شماره|شمارش|تلفن|تلفنش|موبایل|موبایلش|هست|است|که)$/.test(end))) hits.push({ name: n, at: i, near: true });
+    });
+  }
   const pick = (near && hits.find((h) => h.near)) || hits[0];
   return pick?.name;
 }
@@ -274,17 +348,21 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
   const deal = dealOf(t);
   if (deal) raw.deal = deal;
 
-  const areas = nums.filter((n) => !n.money && /^(متر|متری|مترمربع)/.test(after(t, n)) && !/(متری|هر متر)$/.test(before(t, n)));
-  const bedrooms = nums.find((n) => !n.money && /^خواب/.test(after(t, n)));
+  const areas = nums.filter((n) => !n.money && ((/^(متر|متری|مترمربع)/.test(after(t, n)) && !/(متری|هر متر)$/.test(before(t, n))) || /(متراژ|متراژش|زیربنا|زیربناش|بنا|مساحت|مساحتش)[:،]?$/.test(before(t, n))));
+  const bedrooms = nums.find((n) => !n.money && n.value < 20 && /^((تا )?اتاق( خواب)?|خواب)/.test(after(t, n)));
   // «چهارخوابه» سرهم نوشته می‌شود و عدد جدا پیدا نمی‌شود.
   const glued = /(?:^|\s)(یک|یه|دو|سه|چهار|پنج|شش|شیش)\u200c?خوابه?(?=$|[\s،,.])/.exec(t);
   const bedroomsValue = bedrooms?.value ?? (glued ? GLUED_BEDS[glued[1]!] : /تک خواب/.test(t) ? 1 : /بدون خواب|استودیو/.test(t) ? 0 : undefined);
   const places = hintsIn(t, hints);
   const streets = nameAfter(t, /^(خیابان|بلوار|کوچه|میدان)$/);
-  const hoods = nameAfter(t, /^(محله|منطقه|محدوده|حوالی|شهرک)$/).map((x) => (x.lead === 'شهرک' ? `شهرک ${x.name}` : x.name));
+  // «منطقه هجده» بی فهرست محله: خود «منطقه ۱۸».
+  const zone = /(?:^|\s)منطقه (?:ی )?([^\s،,.]+(?: و [^\s،,.]+)?)/.exec(t);
+  const zoneNum = zone ? spokenNumbers(zone[1]!)[0] : undefined;
+  const hoods = (zoneNum && zoneNum.start === 0 && Number.isInteger(zoneNum.value) && zoneNum.value > 0 && zoneNum.value < 30 ? [`منطقه ${toFaDigits(zoneNum.value)}`] : [])
+    .concat(nameAfter(t, /^(محله|منطقه|محدوده|حوالی|شهرک)$/).map((x) => (x.lead === 'شهرک' ? `شهرک ${x.name}` : x.name)).filter((x) => !CITY_NAMES.test(x)));
   // «آپارتمان فروشی تو تجریش»: نام بعد از «تو/در» وقتی هیچ محلهٔ دیگری گفته نشده.
   if (!places.length && !hoods.length) {
-    const loose = nameAfter(t, /^(تو|توی|در)$/).find((x) => !kindsOf(x.name).length && !/^(خیابان|بلوار|کوچه|میدان|محله|منطقه|شهرک|طبقه|ساختمان|واحد)/.test(x.name));
+    const loose = nameAfter(t, /^(تو|توی|در)$/).find((x) => !kindsOf(x.name).length && !CITY_NAMES.test(x.name) && !LOOSE_STOP.test(x.name.split(' ')[0]!) && !/^(خیابان|بلوار|کوچه|میدان|محله|منطقه|شهرک|طبقه|ساختمان|واحد)/.test(x.name));
     if (loose) hoods.push(loose.name);
   }
 
@@ -297,11 +375,11 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     raw.bedrooms = bedroomsValue;
 
     const floorNum = nums.find((n) => !n.money && /طبقه( ی)?$/.test(before(t, n)));
-    const ord = /طبقه( ی)? ([^\s،,.]+)/.exec(t);
-    raw.floor = /همکف/.test(t) ? 0 : (floorNum?.value ?? (ord ? ORDINALS[ord[2]!] : undefined));
+    const ord = [...t.matchAll(/طبقه( ی)? ([^\s،,.]+)/g)].map((m) => ORDINALS[m[2]!]).find((v) => v !== undefined);
+    raw.floor = /همکف/.test(t) ? 0 : (floorNum?.value ?? ord);
     raw.floorsTotal = nums.find((n) => !n.money && /^طبقه/.test(after(t, n)) && !/طبقه( ی)?$/.test(before(t, n)))?.value;
 
-    const built = nums.find((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|سال|سازه)[:،]?$/.test(before(t, n)) && !/^(سال|ساله)/.test(after(t, n)));
+    const built = nums.find((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|سال|سازه|مدل)[:،]?$/.test(before(t, n)) && !/^(سال|ساله)/.test(after(t, n)));
     const age = nums.find((n) => n.value < 100 && /^(سال ساخت|ساله)/.test(after(t, n)));
     raw.yearBuilt = (built && fullYear(built.value, year)) ?? (age ? year - age.value : /نوساز|کلید نخورده/.test(t) ? year : undefined);
 
@@ -310,6 +388,7 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     if (/قابل مذاکره|جای چانه|چونه|تخفیف/.test(t)) raw.negotiable = true;
     else if (/مقطوع/.test(t)) raw.negotiable = false;
     raw.ownerName = personOf(t, /(مالک|صاحب)/);
+    raw.ownerBestTime = bestTimeOf(t);
     const phone = spokenPhone(t);
     raw.ownerPhone = phone.phone;
     // شماره‌ای که کامل شنیده نشد گم نشود؛ مشاور خودش درستش می‌کند.

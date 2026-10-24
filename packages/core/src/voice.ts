@@ -186,6 +186,8 @@ export function cleanVoiceDraft<F extends VoiceForm>(form: F, raw: unknown): Voi
     if (out.rent) out.deal = 'rent';
     else if (out.total && !out.deposit) out.deal = 'sale';
   }
+  // مشتری بودجه گفته و از رهن و اجاره حرفی نزده: خرید است.
+  if (form === 'client' && !out.deal && out.budget && !out.rent) out.deal = 'sale';
   // قیمتی که به نوع معامله نمی‌خورد (اجاره در فروش) گیج‌کننده است؛ فقط وقتی نوع معامله معلوم است کنار می‌رود.
   if (form === 'listing' && out.deal) {
     if (out.deal !== 'sale') delete out.total;
@@ -203,11 +205,13 @@ type PriceSlot = 'deposit' | 'rent' | 'total';
 
 /** واژهٔ پیش از مبلغ می‌گوید کدام قیمت است. */
 export function slotOf(before: string): PriceSlot | 'perMeter' | undefined {
-  const b = before.replace(/[\s\u200c،,:]+$/, '');
+  const raw = before.replace(/[\s\u200c،,:]+$/, '');
+  // «رهن تا دویست»، «اجاره حداکثر ده»: قید مبلغ جای آن را عوض نمی‌کند.
+  const b = raw.replace(/\s*(تا|حدود|زیر|سقف|حداکثر|حداکثرش|نهایتا|نهایت|تقریبا|در حد)$/, '') || raw;
   if (/(متری|هر\s*متر|متر\s*مربعی)$/.test(b)) return 'perMeter';
   if (/(رهن|ودیعه|پیش|رهنش|ودیعه‌اش)(\s*کامل)?$/.test(b)) return 'deposit';
   if (/(اجاره|اجاره‌اش|اجارش|کرایه|ماهی|ماهیانه|ماهانه)$/.test(b)) return 'rent';
-  if (/(قیمت|قیمتش|کل|کلش|فروش|بودجه|بودجه‌اش|تا|حدود|زیر|سقف)$/.test(b)) return 'total';
+  if (/(قیمت|قیمتش|کل|کلش|فروش|بودجه|بودجه‌اش|بودجه اش|تا|حدود|زیر|سقف)$/.test(raw)) return 'total';
   return undefined;
 }
 

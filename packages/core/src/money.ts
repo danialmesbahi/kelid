@@ -84,7 +84,11 @@ export function spokenNumbers(text: string): SpokenNumber[] {
         afterAnd = false;
         continue;
       }
-      if (first < 0) break;
+      // «هزار و چهارصد» یعنی یک هزار و چهارصد.
+      if (first < 0 && scaleOf(w) === 1000 && toks[j + 1]?.s === 'و') {
+        first = j;
+        current = 1;
+      } else if (first < 0) break;
       if (w === 'و') {
         afterAnd = true;
         continue;

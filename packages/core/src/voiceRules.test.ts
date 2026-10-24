@@ -17,7 +17,7 @@ describe('voice rules (no language model)', () => {
 
   it('reads rent, short amounts and per-metre prices', () => {
     expect(listing('یه واحد رهن و اجاره تو ونک، هشتاد و پنج متری، یک خوابه، همکف، رهن پانصد میلیون اجاره بیست')).toEqual({
-      deal: 'rent', neighborhood: 'ونک', area: 85, bedrooms: 1, floor: 0, deposit: 500_000_000, rent: 20_000_000,
+      deal: 'rent', kind: 'apartment', neighborhood: 'ونک', area: 85, bedrooms: 1, floor: 0, deposit: 500_000_000, rent: 20_000_000,
     });
     expect(listing('مغازه برای فروش خیابون ولیعصر، چهل متر، متری دویست میلیون')).toEqual({ deal: 'sale', kind: 'shop', street: 'خیابان ولیعصر', area: 40, total: 8_000_000_000 });
     expect(listing('آپارتمان فروشی تو تجریش صد متر')).toMatchObject({ neighborhood: 'تجریش', area: 100 });
@@ -39,6 +39,10 @@ describe('voice rules (no language model)', () => {
       deal: 'full', neighborhood: 'تجریش', street: 'خیابان پاسداران', bedrooms: 4, features: ['لابی و نگهبان'],
     });
     expect(listing('یه خونه دویست و هشتاد متری داخل بوشهر، خب قیمتش بیست و دو میلیارد')).toEqual({ deal: 'sale', area: 280, total: 22_000_000_000 });
+  });
+
+  it('matches spoken zone numbers against the city list', () => {
+    expect(ruleDraft('listing', 'منطقه هجده', ['منطقه ۱۸', 'ونک'], 1405)).toEqual({ neighborhood: 'منطقه ۱۸' });
   });
 
   it('hears a roof garden as a fixed amenity', () => {
@@ -99,11 +103,36 @@ describe('owner and client names', () => {
     ['صاحبش خانم احمدی عصرها جواب میده', 'خانم احمدی'],
     ['آپارتمان ونک صد متر مالک آقای رضایی', 'آقای رضایی'],
     ['به نام حسین محمدی', 'حسین محمدی'],
+    ['این آپارتمان یکصد و هشتاد متری بری مهدی سعادت شماره نهصد و سی و سه چهارصد و چهل و یک سی سی و نه', 'مهدی سعادت'],
+    ['واحد مال آقای کریمی هست', 'آقای کریمی'],
+    ['متعلق به خانم رحیمی', 'خانم رحیمی'],
   ])('%s', (t, name) => expect(listing(t).ownerName).toBe(name));
+
+  it('does not take «برای فروش» or «برای اجاره» as a name', () => {
+    expect(listing('آپارتمان برای فروش صد متر').ownerName).toBeUndefined();
+    expect(listing('این خونه برای اجاره هست').ownerName).toBeUndefined();
+    expect(listing('خونه برای مهدی سعادت شماره صفر نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه')).toMatchObject({ ownerName: 'مهدی سعادت', ownerPhone: '09123456789' });
+  });
 
   it('reads a client name', () => {
     expect(client('مشتری آقای سامان کاظمی شماره صفر نهصد و سی و پنج، یکصد و بیست و سه، چهل و پنج، شصت و هفت دنبال آپارتمان')).toMatchObject({
       name: 'آقای سامان کاظمی', phone: '09351234567',
     });
   });
+});
+
+describe('best time to call the owner', () => {
+  it.each<[string, string | undefined]>([
+    ['مالک آقای رضایی عصرها جواب میده', 'عصرها'],
+    ['صبحا زنگ بزنید', 'صبح‌ها'],
+    ['بهترین زمان تماس بعد از ساعت پنج', 'بعد از ساعت ۵'],
+    ['از ساعت چهار تا هشت شب در دسترسه', 'از ساعت ۴ تا ۸ شب'],
+    ['پنجشنبه‌ها و جمعه‌ها زنگ بزنید', 'پنجشنبه‌ها و جمعه‌ها'],
+    ['ساعت اداری تماس بگیرید', 'ساعت اداری'],
+    ['برای تماس گرفتنم صبح ها تماس بگیرم', 'صبح‌ها'],
+    ['عصر ها بعد از ساعت شش جواب میده', 'عصرها بعد از ساعت ۶'],
+    ['ساعت ده و نیم صبح بهش زنگ بزن', 'ساعت ۱۰ و نیم صبح'],
+    ['آپارتمان فروشی ونک صد متر قیمت هشت میلیارد', undefined],
+    ['خونه آفتابگیره و صبح نور خوبی داره', undefined],
+  ])('%s', (t, time) => expect(listing(t).ownerBestTime).toBe(time));
 });
