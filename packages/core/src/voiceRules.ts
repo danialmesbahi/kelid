@@ -375,7 +375,7 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     raw.bedrooms = bedroomsValue;
 
     const floorNum = nums.find((n) => !n.money && /طبقه( ی)?$/.test(before(t, n)));
-    const ord = [...t.matchAll(/طبقه( ی)? ([^\s،,.]+)/g)].map((m) => ORDINALS[m[2]!]).find((v) => v !== undefined);
+    const ord = [...t.matchAll(/طبقه( ی)? (?=([^\s،,.]+))/g)].map((m) => ORDINALS[m[2]!]).find((v) => v !== undefined);
     raw.floor = /همکف/.test(t) ? 0 : (floorNum?.value ?? ord);
     raw.floorsTotal = nums.find((n) => !n.money && /^طبقه/.test(after(t, n)) && !/طبقه( ی)?$/.test(before(t, n)))?.value;
 
