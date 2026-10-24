@@ -5,7 +5,7 @@ import { LeaveDialog } from '../layout/LeaveDialog';
 import { amountText, FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
 import { PlaceFields } from '../places/PlaceFields';
-import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
+import { CheckBox, Cover, Icon, Segmented, type IconName } from '@kelid/ui';
 import { dealLabel, hasBedrooms, formatToman, toEnDigits, type DealType, type Listing, type ListingDraft, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
 import { VoiceFill } from '../voice/VoiceFill';
 
@@ -65,8 +65,8 @@ function toState(l?: Listing): FormState {
     deal: l?.deal ?? 'sale', kind: l?.kind ?? 'apartment', status: l?.status ?? 'active',
     neighborhood: l?.neighborhood ?? '', street: l?.street ?? '', address: l?.address ?? '',
     area: numText(l?.area), bedrooms: numText(l?.bedrooms), floor: numText(l?.floor), floorsTotal: numText(l?.floorsTotal), yearBuilt: numText(l?.yearBuilt),
-    features: l?.features ?? ['پارکینگ', 'آسانسور'],
-    total: amountText(l?.price.total), deposit: amountText(l?.price.deposit), rent: amountText(l?.price.monthlyRent), negotiable: l?.negotiable ?? true,
+    features: l?.features ?? [],
+    total: amountText(l?.price.total), deposit: amountText(l?.price.deposit), rent: amountText(l?.price.monthlyRent), negotiable: l?.negotiable ?? false,
     description: l?.description ?? '', ownerName: l?.owner.name === '—' ? '' : l?.owner.name ?? '', ownerPhone: l?.owner.phone ?? '', ownerBestTime: l?.owner.bestTime ?? '',
   };
 }
@@ -78,7 +78,12 @@ function withDraft(f: FormState, d: ListingDraft): FormState {
   if (d.kind) n.kind = d.kind;
   for (const k of ['neighborhood', 'street', 'address', 'ownerName', 'ownerBestTime'] as const) if (d[k]) n[k] = d[k];
   for (const k of ['area', 'bedrooms', 'floor', 'floorsTotal', 'yearBuilt'] as const) if (d[k] !== undefined) n[k] = numText(d[k]);
-  if (d.features) n.features = d.features;
+  // فهرست امکانات فقط همان امکانات ثابت فرم است؛ امکانی که در صحبت آمد و در فهرست نیست به توضیحات می‌رود.
+  const extra: string[] = [];
+  for (const x of d.features ?? []) {
+    if (!FEATURES.includes(x)) extra.push(x);
+    else if (!n.features.includes(x)) n.features = [...n.features, x];
+  }
   if (d.total) n.total = amountText(d.total);
   if (d.deposit) n.deposit = amountText(d.deposit);
   // فقط رهن گفته شد و فرم روی فروش بود: رهن کامل است، وگرنه مبلغ در فرم دیده نمی‌شود.
@@ -86,7 +91,8 @@ function withDraft(f: FormState, d: ListingDraft): FormState {
   if (d.rent) n.rent = amountText(d.rent);
   if (d.negotiable !== undefined) n.negotiable = d.negotiable;
   if (d.ownerPhone) n.ownerPhone = toEnDigits(d.ownerPhone);
-  if (d.description) n.description = f.description.trim() && !f.description.includes(d.description) ? `${f.description.trim()}\n${d.description}` : d.description;
+  const more = [d.description, extra.length ? `امکانات دیگر: ${extra.join('، ')}` : ''].filter((x): x is string => !!x && !f.description.includes(x));
+  if (more.length) n.description = [f.description.trim(), ...more].filter(Boolean).join('\n');
   return n;
 }
 
@@ -311,7 +317,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
               {allFeatures.map((x) => (
                 <label key={x} className="chk">
-                  <input type="checkbox" checked={f.features.includes(x)} onChange={(e) => set('features')(e.target.checked ? [...f.features, x] : f.features.filter((y) => y !== x))} />
+                  <CheckBox size={22} label={x} checked={f.features.includes(x)} onChange={(on) => set('features')(on ? [...f.features, x] : f.features.filter((y) => y !== x))} />
                   {x}
                 </label>
               ))}
@@ -333,7 +339,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             )}
             {f.deal === 'full' && <AmountField label="مبلغ رهن کامل (تومان)" value={f.deposit} onChange={set('deposit')} />}
             <label className="chk" style={{ alignSelf: 'flex-start' }}>
-              <input type="checkbox" checked={f.negotiable} onChange={(e) => set('negotiable')(e.target.checked)} />
+              <CheckBox size={22} label="قیمت قابل مذاکره است" checked={f.negotiable} onChange={set('negotiable')} />
               قیمت قابل مذاکره است
             </label>
           </Section>
