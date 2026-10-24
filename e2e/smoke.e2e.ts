@@ -11,6 +11,9 @@ test('add a file, find it with Ctrl+K, and keep it after reload', async ({ page 
   await page.getByLabel('خیابان').fill('فرشته');
   await page.getByLabel('متراژ').fill('۱۸۵');
   await page.getByLabel('قیمت کل (تومان)').fill('۶۵۰۰۰۰۰۰۰۰۰');
+  // رقم فارسی در فیلد همان لحظه انگلیسی می‌شود
+  await expect(page.getByLabel('متراژ')).toHaveValue('185');
+  await expect(page.getByLabel('قیمت کل (تومان)')).toHaveValue('65,000,000,000');
   await page.getByRole('button', { name: 'ثبت فایل' }).click();
   await expect(page.getByRole('heading', { name: 'آپارتمان ۱۸۵ متری' })).toBeVisible();
   await expect(page.getByText('۶۵ میلیارد')).toBeVisible();

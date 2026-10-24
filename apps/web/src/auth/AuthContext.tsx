@@ -16,7 +16,7 @@ interface AuthValue {
   /** رمز گذاشته شد؛ نشست ذخیره‌شده هم باخبر می‌شود تا تنظیمات درست نشانش دهد. */
   markPassword(): Promise<void>;
   /** نام‌ها همان که سرور دارد (بعد از ویرایش در تنظیمات). */
-  setNames(name: string, officeName: string): Promise<void>;
+  setNames(name: string, officeName: string, city?: string): Promise<void>;
   /** دعوت دفتر دیگر رد شد؛ تا تمدید بعدی هم دیگر نشان داده نمی‌شود. */
   dropInvite(): Promise<void>;
   /** پیوستن به دفتری که دعوت کرده؛ نشست تازه (دفتر تازه) جای قبلی را می‌گیرد. */
@@ -197,10 +197,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         saved.current = keep;
         setSession(keep);
       },
-      setNames: async (name, officeName) => {
+      setNames: async (name, officeName, city) => {
         const cur = saved.current;
         if (!cur) return;
-        const keep = { ...cur, user: { ...cur.user, name }, office: { ...cur.office, name: officeName } };
+        const keep = { ...cur, user: { ...cur.user, name }, office: { ...cur.office, name: officeName, ...(city !== undefined ? { city } : {}) } };
         await saveSession(keep);
         saved.current = keep;
         setSession(keep);

@@ -1,9 +1,10 @@
+import { useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Icon, Skeleton } from '@kelid/ui';
 import { formatGrouped, termOf, toFaDigits } from '@kelid/core';
 import type { PaymentStatus } from '../api';
 import { useFlash } from '../live';
-import { dateText, errorText, payTag, planName, useLoad, useSlow } from '../ui';
+import { dateText, errorText, payTag, planName, toListTop, useEnter, useLoad, useSlow } from '../ui';
 
 const FILTERS: Array<{ value: PaymentStatus | ''; label: string }> = [
   { value: '', label: 'همه' },
@@ -16,8 +17,10 @@ const FILTERS: Array<{ value: PaymentStatus | ''; label: string }> = [
 /** همهٔ پرداخت‌های درگاه، تازه‌ترین بالا؛ برای پیگیری با بانک کد پیگیری و کارت هم هست. */
 export function Payments() {
   const [params, setParams] = useSearchParams();
+  const tools = useRef<HTMLDivElement>(null);
   const status = (params.get('s') ?? '') as PaymentStatus | '';
-  const list = useLoad(`payments:${status}`, (a, t) => a.payments(t, status || null));
+  const list = useLoad(`payments:${status}`, (a, t) => a.payments(t, status || null), undefined, true);
+  const enter = useEnter(`payments:${status}`);
   const slow = useSlow(!list.data && list.pending);
   const flash = useFlash();
   const paid = list.data?.filter((p) => p.status === 'paid') ?? [];
@@ -28,11 +31,11 @@ export function Payments() {
         <div className="col" style={{ gap: 4 }}>
           <span className="eb">پنل فروشنده</span>
           <h1 className="t1">پرداخت‌ها</h1>
-          <span className="mute sm">پرداخت‌های درگاه از همهٔ دفترها؛ تمدیدهای دستی در سابقهٔ هر دفتر است.</span>
+          <span className="mute sm ad-sub">پرداخت‌های درگاه از همهٔ دفترها؛ تمدیدهای دستی در سابقهٔ هر دفتر است.</span>
         </div>
       </header>
       <div className="bd">
-        <div className="ad-tools">
+        <div className="ad-tools" ref={tools}>
           <div className="seg" role="tablist" aria-label="وضعیت پرداخت">
             {FILTERS.map((f) => (
               <button
@@ -40,7 +43,10 @@ export function Payments() {
                 type="button"
                 role="tab"
                 aria-selected={status === f.value}
-                onClick={() => setParams((p) => (f.value ? p.set('s', f.value) : p.delete('s'), p), { replace: true })}
+                onClick={() => (
+                  toListTop(tools.current),
+                  setParams((p) => (f.value ? p.set('s', f.value) : p.delete('s'), p), { replace: true, preventScrollReset: true })
+                )}
               >
                 {f.label}
               </button>
@@ -81,7 +87,7 @@ export function Payments() {
             <span>{status ? 'پرداختی با این وضعیت نیست.' : 'هنوز پرداختی انجام نشده است.'}</span>
           </div>
         ) : (
-          <div className="card ad-table">
+          <div className={`card ad-table${list.stale ? ' ad-stale' : ''}`}>
             <div className="ad-row ad-prow ad-head" aria-hidden="true">
               <span>دفتر</span>
               <span>پلن</span>
@@ -89,12 +95,10 @@ export function Payments() {
               <span>وضعیت</span>
               <span>تاریخ و پیگیری</span>
             </div>
-            <div className="stagger">
+            <div className={enter}>
               {list.data.map((p) => (
                 <Link key={p.id} to={`/offices/${p.office.id}`} viewTransition className={`ad-row ad-prow hov${flash.has(p.office.id) ? ' ad-flash' : ''}`}>
-                  <span className="b ad-ell ad-cell-main">
-                    {p.office.name}
-                  </span>
+                  <span className="b ad-ell ad-cell-main">{p.office.name}</span>
                   <span className="sm">
                     {planName(p.plan)}، {termOf(p.period).name}
                   </span>

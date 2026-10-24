@@ -53,7 +53,8 @@ export interface Session {
   deviceId: string;
   /** seeOwnerPhones همان اجازهٔ مؤثر است: مدیر همیشه می‌بیند. */
   user: { id: string; name: string; phone: string; hasPassword: boolean; role: Role; seeOwnerPhones: boolean };
-  office: { id: string; name: string };
+  /** city: شهر دفتر برای پیشنهاد محله و خیابان؛ خالی یعنی هنوز انتخاب نشده. */
+  office: { id: string; name: string; city: string };
   /** دعوت دفتر دیگری برای این شماره، اگر باشد. */
   invite: InviteInfo | null;
   /** مجوز امضاشدهٔ اشتراک دفتر (billing/license.ts). */
@@ -191,12 +192,12 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     '/auth/signup',
     {
       schema: bodySchema(
-        { signupToken: { type: 'string', maxLength: 100 }, name: { type: 'string', maxLength: 100 }, officeName: { type: 'string', maxLength: 200 }, deviceName, password },
+        { signupToken: { type: 'string', maxLength: 100 }, name: { type: 'string', maxLength: 100 }, officeName: { type: 'string', maxLength: 200 }, city: { type: 'string', maxLength: 60 }, deviceName, password },
         ['signupToken', 'name', 'officeName', 'deviceName', 'password'],
       ),
     },
     async (req, reply) => {
-      const body = req.body as { signupToken: string; name: string; officeName: string; deviceName: string; password: string };
+      const body = req.body as { signupToken: string; name: string; officeName: string; city?: string; deviceName: string; password: string };
       const name = body.name.trim();
       const officeName = body.officeName.trim();
       if (!name || !officeName) return reply.status(400).send({ error: 'bad_name' });
@@ -212,7 +213,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
         if (old && !old.removed) return startSession(db, old.id, old.office_id, body.deviceName, true);
         const officeId = randomUUID();
         await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
-        await db.query('insert into offices (id, name) values ($1, $2)', [officeId, officeName]);
+        await db.query('insert into offices (id, name, city) values ($1, $2, $3)', [officeId, officeName, body.city?.trim() || null]);
         const userId = await placeUser(db, old?.id ?? null, { officeId, phone, name, hash, role: 'manager', seeOwnerPhones: true });
         // دفتر خودش را ساخت: دعوت‌های دیگر یعنی «نه، ممنون».
         await db.query('delete from invites where phone = $1', [phone]);
@@ -277,21 +278,23 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
   /** نام شما و نام دفتر؛ روی همهٔ دستگاه‌های دفتر با تمدید بعدی ورود دیده می‌شود. */
   app.post(
     '/auth/profile',
-    { preHandler: requireAuth, schema: bodySchema({ name: { type: 'string', maxLength: 100 }, officeName: { type: 'string', maxLength: 200 } }, []) },
+    { preHandler: requireAuth, schema: bodySchema({ name: { type: 'string', maxLength: 100 }, officeName: { type: 'string', maxLength: 200 }, city: { type: 'string', maxLength: 60 } }, []) },
     async (req, reply) => {
-      const body = req.body as { name?: string; officeName?: string };
+      const body = req.body as { name?: string; officeName?: string; city?: string };
       const name = body.name?.trim();
       const officeName = body.officeName?.trim();
-      if (name === '' || officeName === '') return reply.status(400).send({ error: 'bad_name' });
-      // نام دفتر را فقط مدیر عوض می‌کند.
-      if (officeName !== undefined && req.member!.role !== 'manager') return reply.status(403).send({ error: 'forbidden' });
+      const city = body.city?.trim();
+      if (name === '' || officeName === '' || city === '') return reply.status(400).send({ error: 'bad_name' });
+      // نام و شهر دفتر را فقط مدیر عوض می‌کند.
+      if ((officeName !== undefined || city !== undefined) && req.member!.role !== 'manager') return reply.status(403).send({ error: 'forbidden' });
       const { sub, off } = req.auth!;
       if (name !== undefined) await pool.query('update users set name = $2 where id = $1', [sub, name]);
       // جدول دفترها پشت RLS است؛ فقط دفتر خود کاربر.
       if (officeName !== undefined) await withOffice(pool, off, (db) => db.query('update offices set name = $2 where id = $1', [off, officeName]));
+      if (city !== undefined) await withOffice(pool, off, (db) => db.query('update offices set city = $2 where id = $1', [off, city]));
       const u = await pool.query<{ name: string }>('select name from users where id = $1', [sub]);
-      const o = await withOffice(pool, off, (db) => db.query<{ name: string }>('select name from offices where id = $1', [off]));
-      return { name: u.rows[0]?.name ?? '', officeName: o.rows[0]?.name ?? '' };
+      const o = await withOffice(pool, off, (db) => db.query<{ name: string; city: string | null }>('select name, city from offices where id = $1', [off]));
+      return { name: u.rows[0]?.name ?? '', officeName: o.rows[0]?.name ?? '', city: o.rows[0]?.city ?? '' };
     },
   );
 
@@ -541,7 +544,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
     const invite = me ? await pendingInvite(db, me.phone, officeId) : null;
     // نام دفتر پشت RLS است؛ فقط در تراکنشی که دفتر خودش تنظیم شده دیده می‌شود.
     await db.query("select set_config('kelid.office_id', $1, true)", [officeId]);
-    const o = await db.query<{ name: string }>('select name from offices where id = $1', [officeId]);
+    const o = await db.query<{ name: string; city: string | null }>('select name, city from offices where id = $1', [officeId]);
     const sub = licenseKey ? await readSubscription(db, officeId) : null;
     return {
       accessToken: signAccess(accessKey, { sub: userId, off: officeId, dev: deviceId }, ACCESS_TTL),
@@ -549,7 +552,7 @@ export async function authRoutes(app: FastifyInstance, { pool, sms, jwtSecret, d
       refreshToken,
       deviceId,
       user: { id: userId, name: me?.name ?? '', phone: me?.phone ?? '', hasPassword: me?.has_password ?? false, role: me?.role ?? 'agent', seeOwnerPhones: me?.phones ?? false },
-      office: { id: officeId, name: o.rows[0]?.name ?? '' },
+      office: { id: officeId, name: o.rows[0]?.name ?? '', city: o.rows[0]?.city ?? '' },
       invite,
       ...(licenseKey && sub ? { license: licenseOf(licenseKey, officeId, sub) } : {}),
     };

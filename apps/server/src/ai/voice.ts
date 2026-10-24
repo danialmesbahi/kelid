@@ -43,7 +43,8 @@ export interface VoiceResult<F extends VoiceForm = VoiceForm> {
 }
 
 export interface VoiceAi {
-  fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>>;
+  /** hints: محله‌های خود دفتر (برای شنیدن و مدل)؛ places: همهٔ محله‌های شهر دفتر (فقط برای قاعده‌ها). */
+  fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[], places?: string[]): Promise<VoiceResult<F>>;
 }
 
 const EXT: Record<string, string> = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'mp4', 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/x-m4a': 'm4a' };
@@ -160,7 +161,7 @@ export class OpenAiVoice implements VoiceAi {
     return typeof heard.text === 'string' ? heard.text : '';
   }
 
-  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>> {
+  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[], places: string[] = []): Promise<VoiceResult<F>> {
     const transcript = (await this.transcribe(audio, mime, hints)).trim().slice(0, 4000);
     if (!transcript) return { transcript: '', fields: {} as VoiceDraft<F> };
 
@@ -178,7 +179,7 @@ export class OpenAiVoice implements VoiceAi {
     })) as { choices?: Array<{ message?: { content?: unknown } }> };
     const content = out.choices?.[0]?.message?.content;
     const fields = withSpokenPrices(form, transcript, cleanVoiceDraft(form, parseJson(content)));
-    return { transcript, fields: mergeDrafts(form, fields, ruleDraft(form, transcript, hints, thisYear())) };
+    return { transcript, fields: mergeDrafts(form, fields, ruleDraft(form, transcript, [...hints, ...places], thisYear())) };
   }
 }
 
@@ -204,7 +205,7 @@ export class GeminiVoice implements VoiceAi {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>> {
+  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[], places: string[] = []): Promise<VoiceResult<F>> {
     const base = voiceSchema(form) as Json;
     // متن شنیده‌شده هم در همان پاسخ می‌آید تا کاربر ببیند چه فهمیده شد.
     const schema: Json = {
@@ -225,7 +226,7 @@ export class GeminiVoice implements VoiceAi {
     const transcript = typeof raw?.transcript === 'string' ? raw.transcript.trim().slice(0, 4000) : '';
     if (!transcript) return { transcript: '', fields: {} as VoiceDraft<F> };
     const fields = withSpokenPrices(form, transcript, cleanVoiceDraft(form, raw));
-    return { transcript, fields: mergeDrafts(form, fields, ruleDraft(form, transcript, hints, thisYear())) };
+    return { transcript, fields: mergeDrafts(form, fields, ruleDraft(form, transcript, [...hints, ...places], thisYear())) };
   }
 }
 
@@ -236,9 +237,9 @@ export class AvanegarVoice implements VoiceAi {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[]): Promise<VoiceResult<F>> {
+  async fill<F extends VoiceForm>(form: F, audio: Buffer, mime: string, hints: string[], places: string[] = []): Promise<VoiceResult<F>> {
     const transcript = (await avanegarTranscribe(this.cfg.stt, audio, mime, hints, this.fetchImpl)).trim().slice(0, 4000);
-    return { transcript, fields: transcript ? ruleDraft(form, transcript, hints, thisYear()) : ({} as VoiceDraft<F>) };
+    return { transcript, fields: transcript ? ruleDraft(form, transcript, [...hints, ...places], thisYear()) : ({} as VoiceDraft<F>) };
   }
 }
 

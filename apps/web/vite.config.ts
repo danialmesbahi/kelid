@@ -47,6 +47,9 @@ const config = {
       workbox: {
         // پوستهٔ برنامه، SQLite (wasm) و فونت‌ها از قبل ذخیره می‌شوند تا بدون اینترنت هم باز شود.
         globPatterns: ['**/*.{js,css,html,wasm,woff2,png,ico,webmanifest}'],
+        // محله و خیابان هزار شهر از قبل دانلود نمی‌شود؛ هر دفتر فقط شهر خودش را یک بار می‌گیرد و نگه می‌دارد.
+        globIgnores: ['**/assets/places/**'],
+        runtimeCaching: [{ urlPattern: /\/assets\/places\//, handler: 'CacheFirst', options: { cacheName: 'kelid-places', expiration: { maxEntries: 8 } } }],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
@@ -59,5 +62,10 @@ const config = {
   // فایل wasm باید همان‌طور که هست سرو شود؛ پیش‌بسته‌بندی Vite آن را خراب می‌کند.
   optimizeDeps: { exclude: ['@sqlite.org/sqlite-wasm'] },
   worker: { format: 'es' },
-  build: { outDir: 'dist', emptyOutDir: true },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    // فایل‌های شهرها پوشهٔ جدا دارند تا Service Worker از پیش‌دانلودشان بگذرد (globIgnores بالا).
+    rollupOptions: { output: { chunkFileNames: (c) => (c.facadeModuleId?.includes('/places/data/') ? 'assets/places/[name]-[hash].js' : 'assets/[name]-[hash].js') } },
+  },
 } satisfies UserConfig;

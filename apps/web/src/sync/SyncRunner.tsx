@@ -8,7 +8,7 @@ import { startSync, useSyncStatus } from './state';
 /** وقتی وارد حساب شده‌اید و دیتابیس ماندگار است، همگام‌سازی پشت صحنه کار می‌کند. چیزی نمایش نمی‌دهد. */
 export function SyncRunner() {
   const { session, withToken, api, setNames } = useAuth();
-  const { setUserName, setOfficeName } = usePrefsContext();
+  const { setUserName, setOfficeName, setCity } = usePrefsContext();
   const store = useStore();
   const token = useRef(withToken);
   useEffect(() => {
@@ -42,16 +42,18 @@ export function SyncRunner() {
   // نام‌ها از سرور؛ مگر ویرایشی از همین دستگاه هنوز در راه باشد.
   const userName = session?.user.name;
   const officeName = session?.office.name;
+  const city = session?.office.city;
   useEffect(() => {
     if (pendingProfile()) return;
     if (userName) setUserName(userName);
     if (officeName) setOfficeName(officeName);
-  }, [userName, officeName, setUserName, setOfficeName]);
+    if (city) setCity(city);
+  }, [userName, officeName, city, setUserName, setOfficeName, setCity]);
 
   // ویرایش نام بی‌اینترنت: با برگشت اینترنت می‌رود.
   useEffect(() => {
     if (!api) return;
-    const flush = () => void flushProfile(api, (fn) => token.current(fn), (r) => void setNames(r.name, r.officeName));
+    const flush = () => void flushProfile(api, (fn) => token.current(fn), (r) => void setNames(r.name, r.officeName, r.city));
     flush();
     addEventListener('online', flush);
     return () => removeEventListener('online', flush);

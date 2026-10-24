@@ -74,7 +74,8 @@ const after = (t: string, n: SpokenNumber, len = 25) => t.slice(n.end, n.end + l
 /** محله‌های همین دفتر که در متن آمده‌اند، به ترتیب گفته‌شدن. کلمه‌به‌کلمه، تا «ونک» از دل «پونک» پیدا نشود. */
 function hintsIn(t: string, hints: string[]): string[] {
   const words = t.replace(/[،,.:؛!?؟]/g, ' ').split(' ').filter(Boolean);
-  const want = new Map(hints.filter((h) => h.trim()).map((h) => [normalizeForSearch(h), h] as const));
+  // نام یک‌کلمه‌ای که واژهٔ معمولی هم هست (زون «شهر» در بوشهر) در هر جمله‌ای پیدا می‌شود.
+  const want = new Map(hints.filter((h) => h.trim() && !NOT_NAME.test(h.trim())).map((h) => [normalizeForSearch(h), h] as const));
   const found: string[] = [];
   for (let i = 0; i < words.length; i++) {
     for (let n = 3; n >= 1; n--) {

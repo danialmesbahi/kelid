@@ -23,6 +23,15 @@ describe('voice rules (no language model)', () => {
     expect(listing('آپارتمان فروشی تو تجریش صد متر')).toMatchObject({ neighborhood: 'تجریش', area: 100 });
   });
 
+  it('knows the office city neighbourhoods, but not plain words among them', () => {
+    const bushehr = ['سنگی', 'بهمنی', 'شهر', 'ریشهر', 'عالی آباد'];
+    expect(ruleDraft('client', 'مشتری آقای سامان مغازه می خواهد، تو خیابون سنگی یکصد و بیست متر قیمت: سی و دو میلیارد', [...hints, ...bushehr], 1405)).toMatchObject({
+      neighborhoods: ['سنگی'], areaMin: 120, budget: 32_000_000_000,
+    });
+    expect(ruleDraft('listing', 'آپارتمان فروشی بهمنی صد متر، نزدیک مرکز شهر', bushehr, 1405)).toMatchObject({ neighborhood: 'بهمنی', area: 100 });
+    expect(ruleDraft('listing', 'یه آپارتمان تو شهر صد متر', ['شهر'], 1405)).not.toHaveProperty('neighborhood', 'شهر');
+  });
+
   it('reads a customer as Avanegar wrote it', () => {
     expect(client('مشتری آقای سامان شماره تو مغازه می خواهد، تو خیابون سنگی یکصد و بیست متر قیمت: سی و دو میلیارد')).toEqual({
       name: 'آقای سامان', deal: 'sale', kinds: ['shop'], neighborhoods: ['خیابان سنگی'], areaMin: 120, budget: 32_000_000_000,

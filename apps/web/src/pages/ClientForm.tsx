@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { Icon, Segmented, Switch, type IconName } from '@kelid/ui';
 import {
-  bestMatches, formatGrouped, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
+  bestMatches, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
   type Client, type ClientDraft, type ClientTemperature, type DealType, type NewClient, type PropertyKind,
 } from '@kelid/core';
 import { useQuery, useStore } from '../data';
@@ -10,7 +10,7 @@ import { PageSkeleton } from '../layout/PageSkeleton';
 import { useToast } from '../layout/Toasts';
 import { useGoBack } from '../layout/useGoBack';
 import { LeaveDialog } from '../layout/LeaveDialog';
-import { FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
+import { amountText, FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { VoiceFill } from '../voice/VoiceFill';
 
 // همان کارت‌های فرم فایل، با زبان مشتری: او می‌خرد یا اجاره می‌کند.
@@ -42,8 +42,7 @@ const parseNum = (s: string) => {
   const d = toEnDigits(s).replace(/[^\d]/g, '');
   return d ? Number(d) : undefined;
 };
-const amountText = (n?: number) => (n ? formatGrouped(n) : '');
-const numText = (n?: number) => (n === undefined ? '' : toFaDigits(n));
+const numText = (n?: number) => (n === undefined ? '' : String(n));
 
 type FormState = {
   name: string; phone: string; deal: DealType; kinds: PropertyKind[]; neighborhoods: string[];
@@ -53,7 +52,7 @@ type FormState = {
 
 function toState(c?: Client): FormState {
   return {
-    name: c?.name ?? '', phone: c?.phone ? toFaDigits(c.phone) : '', deal: c?.need.deal ?? 'sale', kinds: c?.need.kinds ?? ['apartment'], neighborhoods: c?.need.neighborhoods ?? [],
+    name: c?.name ?? '', phone: c?.phone ?? '', deal: c?.need.deal ?? 'sale', kinds: c?.need.kinds ?? ['apartment'], neighborhoods: c?.need.neighborhoods ?? [],
     areaMin: numText(c?.need.areaMin), areaMax: numText(c?.need.areaMax), bedroomsMin: numText(c?.need.bedroomsMin),
     budget: amountText(c?.need.budgetMax), rent: amountText(c?.need.rentMax),
     temperature: c?.temperature ?? 'warm', waiting: c?.waitingForNews ?? false, notes: c?.notes ?? '',
@@ -64,7 +63,7 @@ function toState(c?: Client): FormState {
 function withDraft(f: FormState, d: ClientDraft): FormState {
   const n = { ...f };
   if (d.name) n.name = d.name;
-  if (d.phone) n.phone = toFaDigits(d.phone);
+  if (d.phone) n.phone = toEnDigits(d.phone);
   if (d.deal) n.deal = d.deal;
   if (d.kinds) n.kinds = d.kinds;
   if (d.neighborhoods) {

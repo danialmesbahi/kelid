@@ -68,7 +68,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md, DEPLOY.md (produc
 - The runtime DB role is never superuser/BYPASSRLS and doesn't own the tables; migrations run with the owner role. 5xx responses never include internal error text.
 
 **UI / UX**
-- All user-facing text is Persian; the app is `dir="rtl"`. Show numbers with `toFaDigits`, parse input with `toEnDigits`. Money via `formatToman`, dates via `format.ts` (Persian calendar, Asia/Tehran).
+- All user-facing text is Persian; the app is `dir="rtl"`. Show numbers with `toFaDigits`; inside input fields digits are English (`installLatinDigits` in `packages/ui/src/digits.ts` converts Persian/Arabic digits as they are typed), parse input with `toEnDigits`. Money via `formatToman`, dates via `format.ts` (Persian calendar, Asia/Tehran).
 - Colors, radii, spacing only from tokens in `packages/ui/src/kelid.css` (`var(--…)`); dark mode must work. Font: Vazirmatn only, self-hosted.
 - The «پلاک» is the only color code: green = sale, mustard = rent, blue = full mortgage. Don't invent new semantic colors.
 - No full page reloads, ever. Navigate with `<Link viewTransition>` / `navigate(to, { viewTransition: true })`; no `window.location`, no `<a href>` for internal routes. Exception: sidebar and phone tab-bar switches are instant (no view transition) so tabs never feel laggy.

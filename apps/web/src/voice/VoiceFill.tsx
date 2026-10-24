@@ -4,6 +4,7 @@ import { dealLabel, formatToman, toFaDigits, type ClientDraft, type ListingDraft
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../auth/api';
 import { useQuery } from '../data';
+import { useCityPlaces, useOfficeCity } from '../places/hooks';
 import { toWav16k } from './wav';
 import './voice.css';
 
@@ -110,6 +111,9 @@ const mmss = (sec: number) => `${toFaDigits(Math.floor(sec / 60))}:${toFaDigits(
 export function VoiceFill<F extends VoiceForm>({ form, onDraft }: { form: F; onDraft: (d: VoiceDraft<F>) => () => void }) {
   const { status, api, withToken } = useAuth();
   const hoods = useQuery('voice-hoods', async (s) => [...new Set((await s.listListings()).map((l) => l.neighborhood).filter(Boolean))].slice(0, 40));
+  // محله‌های شهر دفتر، تا محله‌ای که هنوز در فایل‌ها نیامده هم شناخته شود.
+  const cityData = useCityPlaces(useOfficeCity().city);
+  const places = cityData ? [...cityData.hoods, ...cityData.zones.map((z) => z.name)] : [];
   const [phase, setPhase] = useState<Phase>({ s: 'idle' });
   const undo = useRef<(() => void) | null>(null);
   const live = useRef<Live | null>(null);
@@ -147,7 +151,7 @@ export function VoiceFill<F extends VoiceForm>({ form, onDraft }: { form: F; onD
       const wav = await toWav16k(blob).catch(() => null);
       const audio = await toBase64(wav ?? blob);
       const type = wav ? 'audio/wav' : mime.split(';')[0]!;
-      const r = await withToken((t) => api!.voiceFill(t, { form, audio, mime: type, hints: hoods ?? [] }));
+      const r = await withToken((t) => api!.voiceFill(t, { form, audio, mime: type, hints: hoods ?? [], places }));
       if (!mounted.current) return;
       const chips = draftChips(form, r.fields);
       undo.current = chips.length ? onDraft(r.fields) : null;

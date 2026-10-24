@@ -18,6 +18,8 @@ const voiceSchema = {
       audio: { type: 'string', minLength: 100, maxLength: Math.ceil((AUDIO_MAX * 4) / 3) + 4 },
       mime: { type: 'string', enum: VOICE_MIMES },
       hints: { type: 'array', maxItems: 60, items: { type: 'string', maxLength: 60 } },
+      // محله‌ها و زون‌های شهر دفتر (بزرگ‌ترین شهر چند صد نام دارد)؛ فقط قاعده‌ها از آن استفاده می‌کنند.
+      places: { type: 'array', maxItems: 1500, items: { type: 'string', maxLength: 60 } },
     },
   },
 } as const;
@@ -32,12 +34,13 @@ export async function aiRoutes(app: FastifyInstance, { pool, jwtSecret, voice }:
     if (!voice) return reply.status(503).send({ error: 'no_ai' });
     const wait = byUser.take(req.auth!.sub);
     if (wait) return reply.status(429).header('retry-after', String(wait)).send({ error: 'too_many', retryAfter: wait });
-    const b = req.body as { form: 'listing' | 'client'; audio: string; mime: string; hints?: string[] };
+    const b = req.body as { form: 'listing' | 'client'; audio: string; mime: string; hints?: string[]; places?: string[] };
     const bytes = Buffer.from(b.audio, 'base64');
     if (bytes.length < 1000 || bytes.length > AUDIO_MAX) return reply.status(400).send({ error: 'bad_audio' });
     const hints = [...new Set((b.hints ?? []).map((h) => h.trim()).filter(Boolean))].slice(0, 40);
+    const places = [...new Set((b.places ?? []).map((h) => h.trim()).filter(Boolean))];
     try {
-      return await voice.fill(b.form, bytes, b.mime, hints);
+      return await voice.fill(b.form, bytes, b.mime, hints, places);
     } catch (e) {
       req.log.error({ err: e }, 'voice fill failed');
       return reply.status(502).send({ error: 'ai_failed' });

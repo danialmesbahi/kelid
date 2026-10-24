@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router';
-import { Icon, Logo } from '@kelid/ui';
+import { NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router';
+import { Icon, Logo, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { DEMO } from './api';
 import { useAuth } from './auth';
@@ -18,10 +18,43 @@ export function Shell() {
   const [theme, setTheme] = useTheme();
   const [leaving, setLeaving] = useState(false);
   const live = useLiveState();
+  // صفحهٔ یک دفتر هم زیر «دفترها» است
+  const inOffice = useLocation().pathname.startsWith('/offices/');
   useLiveConnection();
   // نظرها و خطاهای باز، زنده؛ همان آماری که صفحهٔ دفترها دارد (یک درخواست مشترک در حافظه).
   const stats = useLoad('stats', (a, t) => a.stats(t)).data;
   const open = (stats?.openFeedback ?? 0) + (stats?.openErrors ?? 0);
+  const tickets = stats?.openTickets ?? 0;
+  const nav: { to: string; icon: IconName; label: string; short: string; count: number; badge?: string }[] = [
+    { to: '/', icon: 'files', label: 'دفترها', short: 'دفترها', count: 0 },
+    { to: '/payments', icon: 'receipt', label: 'پرداخت‌ها', short: 'پرداخت‌ها', count: 0 },
+    { to: '/tickets', icon: 'msg', label: 'پشتیبانی', short: 'پشتیبانی', count: tickets, badge: `${toFaDigits(tickets)} تیکت منتظر پاسخ` },
+    { to: '/beta', icon: 'warn', label: 'نظرها و خطاها', short: 'نظر و خطا', count: open, badge: `${toFaDigits(open)} مورد باز` },
+  ];
+  const themeBtn = (
+    <button
+      type="button"
+      className="ib ghost"
+      aria-label={`پوسته: ${themeName[theme]}`}
+      title={`پوسته: ${themeName[theme]}`}
+      onClick={() => setTheme(themeNext[theme])}
+    >
+      <Icon name={theme === 'dark' ? 'moon' : theme === 'light' ? 'today' : 'pc'} />
+    </button>
+  );
+  const outBtn = (
+    <button type="button" className="ib ghost" aria-label="خروج از پنل" title="خروج" onClick={() => setLeaving(true)}>
+      <Icon name="out" />
+    </button>
+  );
+  const status = DEMO ? (
+    <span className="xs mute">پیش‌نمایش با دادهٔ نمونه</span>
+  ) : (
+    <span className={`xs mute ad-live ${live}`} role="status" title="هر تغییری در برنامهٔ دفترها همین لحظه این‌جا دیده می‌شود">
+      <i aria-hidden="true" />
+      {liveText[live]}
+    </span>
+  );
   return (
     <div className="shell ad-shell">
       <aside className="side ad-side" aria-label="منوی پنل">
@@ -29,39 +62,27 @@ export function Shell() {
           <Logo size={36} />
           <span className="col" style={{ lineHeight: 1.35 }}>
             <span className="b sm">پنل فروشنده</span>
-            {DEMO ? (
-              <span className="xs mute">پیش‌نمایش با دادهٔ نمونه</span>
-            ) : (
-              <span className={`xs mute ad-live ${live}`} role="status" title="هر تغییری در برنامهٔ دفترها همین لحظه این‌جا دیده می‌شود">
-                <i aria-hidden="true" />
-                {liveText[live]}
-              </span>
-            )}
+            {status}
           </span>
         </div>
         <nav className="col ad-nav" style={{ gap: 4 }}>
-          <NavLink to="/" end className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
-            <Icon name="files" />
-            دفترها
-          </NavLink>
-          <NavLink to="/payments" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
-            <Icon name="receipt" />
-            پرداخت‌ها
-          </NavLink>
-          <NavLink to="/tickets" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
-            <Icon name="msg" />
-            پشتیبانی
-            {(stats?.openTickets ?? 0) > 0 && (
-              <span className="badge num" aria-label={`${toFaDigits(stats!.openTickets)} تیکت منتظر پاسخ`}>
-                {toFaDigits(stats!.openTickets)}
-              </span>
-            )}
-          </NavLink>
-          <NavLink to="/beta" className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>
-            <Icon name="warn" />
-            نظرها و خطاها
-            {open > 0 && <span className="badge num" aria-label={`${toFaDigits(open)} مورد باز`}>{toFaDigits(open)}</span>}
-          </NavLink>
+          {nav.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.to === '/'}
+              title={n.label}
+              className={({ isActive }) => (isActive || (n.to === '/' && inOffice) ? 'nav on' : 'nav')}
+            >
+              <Icon name={n.icon} />
+              <span className="ad-nl">{n.label}</span>
+              {n.count > 0 && (
+                <span className="badge num" aria-label={n.badge}>
+                  {toFaDigits(n.count)}
+                </span>
+              )}
+            </NavLink>
+          ))}
         </nav>
         <span className="sp" />
         <div className="ad-me">
@@ -72,23 +93,40 @@ export function Shell() {
             <span className="b sm ad-ell">{admin?.name}</span>
             <span className="xs mute">{admin && <Phone value={admin.phone} />}</span>
           </span>
-          <button
-            type="button"
-            className="ib ghost"
-            aria-label={`پوسته: ${themeName[theme]}`}
-            title={`پوسته: ${themeName[theme]}`}
-            onClick={() => setTheme(themeNext[theme])}
-          >
-            <Icon name={theme === 'dark' ? 'moon' : theme === 'light' ? 'today' : 'pc'} />
-          </button>
-          <button type="button" className="ib ghost" aria-label="خروج از پنل" title="خروج" onClick={() => setLeaving(true)}>
-            <Icon name="out" />
-          </button>
+          {themeBtn}
+          {outBtn}
         </div>
       </aside>
       <main className="main">
+        {/* گوشی: نوار بالا جای ستون کناری را می‌گیرد و بخش‌ها به نوار پایین می‌روند، زیر انگشت شست */}
+        <div className="ad-top">
+          <Logo size={32} />
+          <span className="col sp" style={{ lineHeight: 1.35, minWidth: 0 }}>
+            <span className="b sm">پنل فروشنده</span>
+            {status}
+          </span>
+          {themeBtn}
+          {outBtn}
+        </div>
         <Outlet />
       </main>
+      {/* صفحهٔ تازه از بالا باز می‌شود و «برگشت» همان‌جای قبلی فهرست برمی‌گردد */}
+      <ScrollRestoration />
+      <nav className="ad-tabs" aria-label="منوی پنل">
+        {nav.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.to === '/'} className={({ isActive }) => (isActive || (n.to === '/' && inOffice) ? 'tab on' : 'tab')}>
+            <span className="ad-tab-ic">
+              <Icon name={n.icon} />
+              {n.count > 0 && (
+                <span className="badge num" aria-label={n.badge}>
+                  {toFaDigits(n.count)}
+                </span>
+              )}
+            </span>
+            {n.short}
+          </NavLink>
+        ))}
+      </nav>
       {leaving && (
         <Dialog title="از پنل خارج می‌شوید؟" onClose={() => setLeaving(false)}>
           <div className="ad-dlg-bd">
