@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeDrafts, ruleDraft } from './voiceRules';
+import { mergeDrafts, ruleDraft, spokenPhone } from './voiceRules';
 
 const hints = ['ونک', 'پونک', 'سعادت‌آباد'];
 const listing = (t: string) => ruleDraft('listing', t, hints, 1405);
@@ -66,5 +66,44 @@ describe('voice rules (no language model)', () => {
 
   it('fills only what the model left empty', () => {
     expect(mergeDrafts('listing', { area: 110 }, { area: 120, bedrooms: 2 })).toEqual({ area: 110, bedrooms: 2 });
+  });
+});
+
+describe('spoken phone numbers', () => {
+  const cases: Array<[string, string]> = [
+    ['شماره صفر نهصد و دوازده، سیصد و چهل و پنج، شصت و هفت، هشتاد و نه', '09123456789'],
+    ['شمارش صفر نهصد و دوازده سیصد و چهل و پنج شش هزار و هفتصد و هشتاد و نه', '09123456789'],
+    ['شماره نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه', '09123456789'],
+    ['تلفنش صفر نه، دوازده، سی و چهار، پنجاه و شش، هفتاد و هشت، نه', '09123456789'],
+    ['موبایل صفر نود و یک دویست و سی و چهار پنجاه و شش هفتاد و هشت نه', '09123456789'],
+    ['شماره صفر نه یک دو سه چهار پنج شش هفت هشت نه', '09123456789'],
+    ['شماره صفر نهصد و دوازده، سه تا هفت، دو تا صفر، سی و پنج', '09127770035'],
+    ['شماره ما مثبت نود و هشت نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه', '09123456789'],
+    ['تلفن صفر هفتاد و هفت، سی و سه، سی و چهار، پنجاه و شش، هفتاد و هشت', '07733345678'],
+    ['مالکش آقای رضایی ۰۹۱۲ ۳۴۵ ۶۷ ۸۹', '09123456789'],
+    ['آقای رضایی صفر نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه', '09123456789'],
+  ];
+  it.each(cases)('%s', (t, phone) => expect(spokenPhone(t)).toEqual({ phone }));
+
+  it('keeps an incomplete number in the description instead of guessing', () => {
+    const d = listing('شماره ما یک هزار و نهصد و سی و سی چهارصد و چهل و یک سی سی و نه');
+    expect(d.ownerPhone).toBeUndefined();
+    expect(d.description).toContain('۱۹۳۰۳۰۴۴۱۳۰۳۹');
+  });
+});
+
+describe('owner and client names', () => {
+  it.each<[string, string]>([
+    ['مالکش آقای محمد رضایی شماره صفر نهصد و دوازده', 'آقای محمد رضایی'],
+    ['اسم مالک علی کریمی هست', 'علی کریمی'],
+    ['صاحبش خانم احمدی عصرها جواب میده', 'خانم احمدی'],
+    ['آپارتمان ونک صد متر مالک آقای رضایی', 'آقای رضایی'],
+    ['به نام حسین محمدی', 'حسین محمدی'],
+  ])('%s', (t, name) => expect(listing(t).ownerName).toBe(name));
+
+  it('reads a client name', () => {
+    expect(client('مشتری آقای سامان کاظمی شماره صفر نهصد و سی و پنج، یکصد و بیست و سه، چهل و پنج، شصت و هفت دنبال آپارتمان')).toMatchObject({
+      name: 'آقای سامان کاظمی', phone: '09351234567',
+    });
   });
 });

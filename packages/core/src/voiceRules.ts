@@ -1,6 +1,6 @@
 import type { PropertyKind } from './model';
 import { spokenNumbers, type SpokenNumber } from './money';
-import { normalizeForSearch, toEnDigits } from './persian';
+import { normalizeForSearch, toEnDigits, toFaDigits } from './persian';
 import { normalizePhone } from './store';
 import { VOICE_FEATURES, cleanVoiceDraft, slotOf, withSpokenPrices, type VoiceDraft, type VoiceForm } from './voice';
 
@@ -124,31 +124,134 @@ function featuresOf(t: string): string[] {
   }).map(([f]) => f);
 }
 
-function phoneOf(t: string, nums: SpokenNumber[]): string | undefined {
-  const digits = /(?:\+98|0098|0)?9\d{2}[\s-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}/.exec(t);
-  if (digits) return normalizePhone(digits[0]);
-  // «صفر نهصد و دوازده، سیصد و چهل و پنج…»: گروه‌های پشت سر هم بعد از «شماره».
-  const key = /(شماره|تلفن|موبایل|تماس|شمارش)/.exec(t);
-  if (!key) return undefined;
-  const groups = nums.filter((n) => n.start > key.index && n.start < key.index + 120 && !n.money);
-  let d = '';
-  let last = -1;
-  for (const g of groups) {
-    if (last >= 0 && t.slice(last, g.start).replace(/[\s،,-]/g, '')) break;
-    d += t.slice(g.start, g.end).trim().startsWith('صفر') ? `0${g.value || ''}` : String(g.value);
-    last = g.end;
+/** رتبهٔ جایگاه هر عدد در خواندن فارسی: هزار ۴، صدگان ۳، دهگان ۲، یکان و ده‌تا‌نوزده ۱. */
+const rankOf = (v: number) => (v >= 1000 ? 4 : v >= 100 ? 3 : v >= 20 ? 2 : 1);
+const PHONE_KEY = /(شماره|تلفن|تلفنش|موبایل|موبایلش|همراه|تماس|شمارش|شماره‌اش|شمارشون)/;
+const PHONE_SKIP = /^(مثبت|ما|من|مالک|صاحب|صاحبش|مالکش|ایشون|ایشان|اش|ش|هم|هست|است|اینه|این|اینجوریه|بنویس|یادداشت|کن|خط|همراه|موبایل|تلفن|شماره|تماس|:)$/;
+
+/**
+ * شمارهٔ موبایل گفته‌شده، به هر شکلی که عامیانه خوانده می‌شود:
+ * «صفر نهصد و دوازده، سیصد و چهل و پنج، شصت و هفت، هشتاد و نه»، «صفر نه یک دو…» رقم‌به‌رقم،
+ * «سه تا هفت» (۷۷۷)، «هزار و دویست و سی و چهار» (۱۲۳۴)، رقم‌های نوشته‌شده با فاصله، و بی «صفر» اول.
+ * دو عدد پشت هم فقط وقتی جمع می‌شوند که با «و» آمده باشند و جایگاه دومی کوچک‌تر باشد («نهصد و سی»)، وگرنه دو تکه‌اند («سی و سی» = ۳۰۳۰).
+ */
+export function spokenPhone(t: string): { phone?: string; raw?: string } {
+  const written = /(?:\+98|0098|0)?9\d{2}[\s-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}/.exec(toEnDigits(t));
+  if (written) return { phone: normalizePhone(written[0]) };
+  const key = PHONE_KEY.exec(t);
+  // بی کلمهٔ «شماره» هم «صفر نهصد…» یا «صفر نه…» آغاز شماره است.
+  const bare = /(^|\s)صفر\s+(نهصد|نود|نه)(\s|‌|و|$)/.exec(t);
+  const at = key ? key.index + key[0].length : bare ? bare.index : -1;
+  if (at < 0) return {};
+  const words = t.slice(at).replace(/[،,.:؛!?؟()«»-]/g, ' ').split(/\s+/).filter(Boolean);
+  let digits = '';
+  let cur = 0;
+  let has = false;
+  let rank = 9;
+  let and = false;
+  let skipped = 0;
+  const flush = () => {
+    if (has) digits += String(cur);
+    cur = 0;
+    has = false;
+    rank = 9;
+  };
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]!;
+    if (/^[0-9۰-۹]+$/.test(w)) {
+      flush();
+      digits += toEnDigits(w);
+      and = false;
+      continue;
+    }
+    if (w === 'و') {
+      and = true;
+      continue;
+    }
+    if (/^(صفر)+$/.test(w)) {
+      flush();
+      digits += '0'.repeat(w.length / 3);
+      and = false;
+      continue;
+    }
+    if (w === 'هزار' && has) {
+      cur *= 1000;
+      rank = 4;
+      and = false;
+      continue;
+    }
+    if (/^(دو|سه|چهار|پنج)تا$/.test(w)) {
+      words.splice(i, 1, w.slice(0, -2), 'تا');
+      i--;
+      continue;
+    }
+    const v = spokenNumbers(w)[0];
+    const num = v && v.start === 0 && v.end === w.length && Number.isInteger(v.value) ? v.value : undefined;
+    if (num === undefined) {
+      if (!digits && !has && PHONE_SKIP.test(w) && skipped++ < 3) continue;
+      break;
+    }
+    // «سه تا هفت» یا «دوتا یک»: یک رقم چند بار.
+    const next = words[i + 2];
+    if (num >= 2 && num <= 5 && words[i + 1] === 'تا' && next) {
+      const d = next === 'صفر' ? 0 : spokenNumbers(next)[0]?.value;
+      if (d !== undefined && d >= 0 && d <= 9 && Number.isInteger(d)) {
+        flush();
+        digits += String(d).repeat(num);
+        i += 2;
+        and = false;
+        continue;
+      }
+    }
+    if (has && and && rankOf(num) < rank) {
+      cur += num;
+    } else {
+      flush();
+      cur = num;
+      has = true;
+    }
+    rank = rankOf(num);
+    and = false;
   }
-  const p = normalizePhone(d);
-  return /^09\d{9}$/.test(p) ? p : undefined;
+  flush();
+  // «مثبت نود و هشت…» یا بی «صفر» اول
+  digits = digits.replace(/^(?:00)?98(?=9\d{9}$)/, '').replace(/^(?=9\d{9}$)/, '0');
+  // موبایل، یا تلفن ثابت با پیش‌شمارهٔ شهر (مثلاً ۰۷۷ بوشهر)
+  if (/^0[1-9]\d{9}$/.test(digits)) return { phone: digits };
+  return digits.length >= 7 ? { raw: digits } : {};
 }
 
+const NAME_STOP = /^(هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون)$/;
+// «آقای سامان مغازه می‌خواد»: نوع ملک یا امکانات جزو نام نیست.
+const nameWord = (w: string | undefined) => !!w && !NOT_NAME.test(w) && !NAME_STOP.test(w) && !kindsOf(w).length && !featuresOf(w).length && !/^(می|نمی)/.test(w) && !/ها$/.test(w) && !/\d/.test(w) && !spokenNumbers(w).length;
+
+/** «آقای محمد رضایی»، «مالکش خانم احمدی»، «اسم مالک علی کریمی»: نام و نام خانوادگی تا دو کلمه. */
 function personOf(t: string, near?: RegExp): string | undefined {
-  const re = /(آقای|آقا|جناب|خانم|خانوم) ([^\s،,.:؛]+)/g;
-  const all = [...t.matchAll(re)].filter((m) => !NOT_NAME.test(m[2]!));
-  const pick = (near && all.find((m) => near.test(t.slice(Math.max(0, m.index - 20), m.index)))) || all[0];
-  if (pick) return `${/خانم|خانوم/.test(pick[1]!) ? 'خانم' : 'آقای'} ${pick[2]}`;
-  const named = /(?:به اسم|اسمش|اسم) ([^\s،,.:؛]+)/.exec(t);
-  return named && !NOT_NAME.test(named[1]!) ? named[1] : undefined;
+  const words = t.replace(/[،,.:؛!?؟()«»]/g, ' ').split(/\s+/).filter(Boolean);
+  type Hit = { name: string; at: number; near: boolean };
+  const hits: Hit[] = [];
+  const take = (i: number) => {
+    const first = words[i];
+    if (!nameWord(first)) return undefined;
+    return nameWord(words[i + 1]) ? `${first} ${words[i + 1]}` : first;
+  };
+  words.forEach((w, i) => {
+    const prev = words.slice(Math.max(0, i - 2), i).join(' ');
+    const isNear = !!near && near.test(prev);
+    if (/^(آقای|آقا|جناب|خانم|خانوم)$/.test(w)) {
+      const n = take(i + 1);
+      if (n) hits.push({ name: `${/خانم|خانوم/.test(w) ? 'خانم' : 'آقای'} ${n}`, at: i, near: isNear || (!!near && near.test(words[i - 1] ?? '')) });
+    } else if (/^(مالکش|صاحبش|مالک|صاحب)$/.test(w) || (/^(اسم|اسمش|نام|بنام)$/.test(w))) {
+      // «به نام»، «اسم مالک»، «مالکش» و بعد خود نام (اگر «آقای» نیامده باشد)
+      let j = i + 1;
+      while (/^(ملک|مالک|مالکش|صاحبش|هم|هست|است|:)$/.test(words[j] ?? '')) j++;
+      if (/^(آقای|آقا|جناب|خانم|خانوم)$/.test(words[j] ?? '')) return;
+      const n = take(j);
+      if (n) hits.push({ name: n, at: i, near: /^(مالک|صاحب)/.test(w) || /^(مالک|صاحب)/.test(words[i + 1] ?? '') });
+    }
+  });
+  const pick = (near && hits.find((h) => h.near)) || hits[0];
+  return pick?.name;
 }
 
 /** «اجاره بیست»، «رهن پانصد»: عدد بی‌واحد پس از رهن/اجاره میلیون تومان است. */
@@ -207,11 +310,16 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     if (/قابل مذاکره|جای چانه|چونه|تخفیف/.test(t)) raw.negotiable = true;
     else if (/مقطوع/.test(t)) raw.negotiable = false;
     raw.ownerName = personOf(t, /(مالک|صاحب)/);
-    raw.ownerPhone = phoneOf(t, nums);
+    const phone = spokenPhone(t);
+    raw.ownerPhone = phone.phone;
+    // شماره‌ای که کامل شنیده نشد گم نشود؛ مشاور خودش درستش می‌کند.
+    if (phone.raw) raw.description = `شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`;
     Object.assign(raw, shortPrices(t, nums));
   } else {
     raw.name = personOf(t);
-    raw.phone = phoneOf(t, nums);
+    const phone = spokenPhone(t);
+    raw.phone = phone.phone;
+    if (phone.raw) raw.notes = `شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`;
     const kinds = kindsOf(t);
     if (kinds.length) raw.kinds = kinds;
     const wanted = [...places, ...hoods];
