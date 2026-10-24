@@ -6,13 +6,14 @@ import { amountText, FieldError, onlyAmount, onlyDigits, Req } from '../layout/F
 import { useMember } from '../auth/AuthContext';
 import { PlaceFields } from '../places/PlaceFields';
 import { CheckBox, Cover, Icon, Segmented, type IconName } from '@kelid/ui';
-import { dealLabel, hasBedrooms, formatToman, toEnDigits, type DealType, type Listing, type ListingDraft, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { dealLabel, hasBedrooms, formatToman, toEnDigits, type DealType, type Listing, type ListingDraft, type ListingStatus, type NewListing, type PropertyKind, VOICE_FEATURES } from '@kelid/core';
 import { VoiceFill } from '../voice/VoiceFill';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
 
-const FEATURES = ['پارکینگ', 'آسانسور', 'انباری', 'بالکن', 'لابی و نگهبان', 'استخر و سونا'];
+// همان فهرستی که پر کردن با صدا می‌شناسد، تا امکان گفته‌شده همین‌جا تیک بخورد.
+const FEATURES = VOICE_FEATURES;
 
 /** نوع معامله با نشانهٔ خودش؛ رنگ هر کارت همان رنگ پلاک است. */
 const DEALS: Array<{ value: DealType; cls: string; icon: IconName; hint: string }> = [
@@ -323,7 +324,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
               ))}
             </div>
             <div className="rw" style={{ gap: 8 }}>
-              <input className="fld" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="امکان دیگر، مثلاً روف گاردن" aria-label="افزودن امکان دیگر"
+              <input className="fld" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="امکان دیگر، مثلاً شومینه" aria-label="افزودن امکان دیگر"
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} style={{ flex: 1 }} />
               <button type="button" className="btn btn-s" onClick={addCustom} disabled={!custom.trim()}><Icon name="plus" size="s" />افزودن</button>
             </div>

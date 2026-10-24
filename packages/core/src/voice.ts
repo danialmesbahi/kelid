@@ -52,7 +52,7 @@ export interface ClientDraft {
 export type VoiceDraft<F extends VoiceForm> = F extends 'listing' ? ListingDraft : ClientDraft;
 
 /** امکاناتی که فرم فایل تیک‌شان را دارد؛ مدل بهتر است همین نام‌ها را برگرداند. */
-export const VOICE_FEATURES = ['پارکینگ', 'آسانسور', 'انباری', 'بالکن', 'لابی و نگهبان', 'استخر و سونا'];
+export const VOICE_FEATURES = ['پارکینگ', 'آسانسور', 'انباری', 'بالکن', 'لابی و نگهبان', 'استخر و سونا', 'روف گاردن'];
 
 const DEALS: DealType[] = ['sale', 'rent', 'full'];
 const KINDS: PropertyKind[] = ['apartment', 'villa', 'shop', 'office', 'land'];

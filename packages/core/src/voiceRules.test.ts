@@ -23,6 +23,10 @@ describe('voice rules (no language model)', () => {
     expect(listing('آپارتمان فروشی تو تجریش صد متر')).toMatchObject({ neighborhood: 'تجریش', area: 100 });
   });
 
+  it('hears a roof garden as a fixed amenity', () => {
+    expect(listing('آپارتمان فروشی ونک صد متر، روف گاردن و پارکینگ داره')).toMatchObject({ features: ['پارکینگ', 'روف گاردن'] });
+  });
+
   it('knows the office city neighbourhoods, but not plain words among them', () => {
     const bushehr = ['سنگی', 'بهمنی', 'شهر', 'ریشهر', 'عالی آباد'];
     expect(ruleDraft('client', 'مشتری آقای سامان مغازه می خواهد، تو خیابون سنگی یکصد و بیست متر قیمت: سی و دو میلیارد', [...hints, ...bushehr], 1405)).toMatchObject({

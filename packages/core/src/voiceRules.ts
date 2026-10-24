@@ -37,6 +37,7 @@ const FEATURE_WORDS: Array<[string, RegExp]> = [
   [VOICE_FEATURES[3]!, /بالکن|تراس/],
   [VOICE_FEATURES[4]!, /لابی|نگهبان|سرایدار/],
   [VOICE_FEATURES[5]!, /استخر|سونا|جکوزی/],
+  [VOICE_FEATURES[6]!, /روف ?گاردن|باغ (روی )?بام|پشت بام سبز/],
 ];
 
 const ORDINALS: Record<string, number> = {
