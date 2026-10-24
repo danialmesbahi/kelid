@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon, Skeleton } from '@kelid/ui';
-import { dealLabel, formatToman, toFaDigits, type ClientDraft, type ListingDraft, type VoiceDraft, type VoiceForm } from '@kelid/core';
+import { dealLabel, formatToman, normalizeForSearch, toFaDigits, type ClientDraft, type ListingDraft, type VoiceDraft, type VoiceForm } from '@kelid/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../auth/api';
 import { useQuery } from '../data';
-import { useCityPlaces, useOfficeCity } from '../places/hooks';
+import type { CityRef } from '../places/places';
+import { useCities, useCityPlaces, useOfficeCity } from '../places/hooks';
 import { toWav16k } from './wav';
 import './voice.css';
 
@@ -98,6 +99,27 @@ interface Live {
   raf: number;
   timer: number;
   cancelled: boolean;
+  /** بلندترین صدا تا این‌جا (۰ تا ۱۲۸)؛ undefined یعنی سطح صدا اندازه‌گیری نشد. */
+  peak?: number;
+}
+
+// ضبطی که کوتاه‌تر از این یا تقریباً بی‌صدا باشد، لمس اشتباهی است و به سرور فرستاده نمی‌شود.
+const MIN_MS = 1000;
+const MIN_PEAK = 2;
+
+/** «منطقهٔ تهران»: نام شهر محله نیست، مگر اینکه در شهر دفتر محله‌ای به همین نام باشد. */
+function withoutCities<F extends VoiceForm>(form: F, d: VoiceDraft<F>, cities: CityRef[] | undefined, places: string[]): VoiceDraft<F> {
+  if (!cities?.length) return d;
+  const local = new Set(places.map(normalizeForSearch));
+  const names = new Set(cities.map((c) => normalizeForSearch(c.name)));
+  const isCity = (n: string) => !local.has(normalizeForSearch(n)) && names.has(normalizeForSearch(n.replace(/^(شهر|منطقه)\s+/, '')));
+  if (form === 'listing') {
+    const l = d as ListingDraft;
+    return (l.neighborhood && isCity(l.neighborhood) ? { ...l, neighborhood: undefined } : l) as VoiceDraft<F>;
+  }
+  const c = d as ClientDraft;
+  const kept = c.neighborhoods?.filter((n) => !isCity(n));
+  return (kept && kept.length !== c.neighborhoods?.length ? { ...c, neighborhoods: kept.length ? kept : undefined } : c) as VoiceDraft<F>;
 }
 
 const supported = () => typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
@@ -114,6 +136,7 @@ export function VoiceFill<F extends VoiceForm>({ form, onDraft }: { form: F; onD
   // محله‌های شهر دفتر، تا محله‌ای که هنوز در فایل‌ها نیامده هم شناخته شود.
   const cityData = useCityPlaces(useOfficeCity().city);
   const places = cityData ? [...cityData.hoods, ...cityData.zones.map((z) => z.name)] : [];
+  const cities = useCities();
   const [phase, setPhase] = useState<Phase>({ s: 'idle' });
   const undo = useRef<(() => void) | null>(null);
   const live = useRef<Live | null>(null);
@@ -153,8 +176,9 @@ export function VoiceFill<F extends VoiceForm>({ form, onDraft }: { form: F; onD
       const type = wav ? 'audio/wav' : mime.split(';')[0]!;
       const r = await withToken((t) => api!.voiceFill(t, { form, audio, mime: type, hints: hoods ?? [], places }));
       if (!mounted.current) return;
-      const chips = draftChips(form, r.fields);
-      undo.current = chips.length ? onDraft(r.fields) : null;
+      const fields = withoutCities(form, r.fields, cities, places);
+      const chips = draftChips(form, fields);
+      undo.current = chips.length ? onDraft(fields) : null;
       setPhase({ s: 'done', transcript: r.transcript, chips });
     } catch (e) {
       if (mounted.current) setPhase({ s: 'error', text: errorText(e) });
@@ -172,9 +196,12 @@ export function VoiceFill<F extends VoiceForm>({ form, onDraft }: { form: F; onD
       rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
       rec.onstop = () => {
         const cancelled = live.current?.cancelled ?? true;
+        const peak = live.current?.peak;
         release();
         const type = rec.mimeType || mime || 'audio/webm';
-        if (!cancelled && mounted.current) void send(new Blob(chunks, { type }), type);
+        if (cancelled || !mounted.current) return;
+        if (Date.now() - begun < MIN_MS || (peak !== undefined && peak < MIN_PEAK)) setPhase({ s: 'error', text: 'صدایی شنیده نشد؛ دکمه را بزنید و بلندتر بگویید.' });
+        else void send(new Blob(chunks, { type }), type);
       };
       const begun = Date.now();
       const l: Live = { rec, stream, raf: 0, timer: 0, cancelled: false };
@@ -190,6 +217,7 @@ export function VoiceFill<F extends VoiceForm>({ form, onDraft }: { form: F; onD
           an.getByteTimeDomainData(buf);
           let peak = 0;
           for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
+          l.peak = Math.max(l.peak ?? 0, peak);
           bars.current?.style.setProperty('--lvl', String(Math.min(1, peak / 64)));
           l.raf = requestAnimationFrame(tick);
         };

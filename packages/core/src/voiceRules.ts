@@ -40,6 +40,8 @@ const FEATURE_WORDS: Array<[string, RegExp]> = [
   [VOICE_FEATURES[6]!, /روف ?گاردن|باغ (روی )?بام|پشت بام سبز/],
 ];
 
+const GLUED_BEDS: Record<string, number> = { یک: 1, یه: 1, دو: 2, سه: 3, چهار: 4, پنج: 5, شش: 6, شیش: 6 };
+
 const ORDINALS: Record<string, number> = {
   اول: 1, دوم: 2, سوم: 3, چهارم: 4, پنجم: 5, ششم: 6, شیشم: 6, هفتم: 7, هشتم: 8, نهم: 9, دهم: 10,
   یازدهم: 11, دوازدهم: 12, سیزدهم: 13, چهاردهم: 14, پانزدهم: 15, پونزدهم: 15,
@@ -67,6 +69,12 @@ function nameAfter(t: string, lead: RegExp): Array<{ lead: string; name: string 
     if (name) out.push({ lead: w, name });
   });
   return out;
+}
+
+/** «سال ۹۳» یعنی ۱۳۹۳ و «سال ۴۰۵» یعنی ۱۴۰۵؛ مشاورها سال را کوتاه می‌گویند. سال آینده پذیرفته نیست. */
+function fullYear(v: number, year: number): number | undefined {
+  const y = v >= 1300 ? v : v >= 300 && v < 500 ? 1000 + v : v < 100 ? (1400 + v <= year ? 1400 + v : 1300 + v) : undefined;
+  return y && y >= 1300 && y <= year ? y : undefined;
 }
 
 const before = (t: string, n: SpokenNumber, len = 25) => t.slice(Math.max(0, n.start - len), n.start).trimEnd();
@@ -165,7 +173,9 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
 
   const areas = nums.filter((n) => !n.money && /^(متر|متری|مترمربع)/.test(after(t, n)) && !/(متری|هر متر)$/.test(before(t, n)));
   const bedrooms = nums.find((n) => !n.money && /^خواب/.test(after(t, n)));
-  const bedroomsValue = bedrooms?.value ?? (/تک خواب/.test(t) ? 1 : /بدون خواب|استودیو/.test(t) ? 0 : undefined);
+  // «چهارخوابه» سرهم نوشته می‌شود و عدد جدا پیدا نمی‌شود.
+  const glued = /(?:^|\s)(یک|یه|دو|سه|چهار|پنج|شش|شیش)\u200c?خوابه?(?=$|[\s،,.])/.exec(t);
+  const bedroomsValue = bedrooms?.value ?? (glued ? GLUED_BEDS[glued[1]!] : /تک خواب/.test(t) ? 1 : /بدون خواب|استودیو/.test(t) ? 0 : undefined);
   const places = hintsIn(t, hints);
   const streets = nameAfter(t, /^(خیابان|بلوار|کوچه|میدان)$/);
   const hoods = nameAfter(t, /^(محله|منطقه|محدوده|حوالی|شهرک)$/).map((x) => (x.lead === 'شهرک' ? `شهرک ${x.name}` : x.name));
@@ -188,9 +198,9 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     raw.floor = /همکف/.test(t) ? 0 : (floorNum?.value ?? (ord ? ORDINALS[ord[2]!] : undefined));
     raw.floorsTotal = nums.find((n) => !n.money && /^طبقه/.test(after(t, n)) && !/طبقه( ی)?$/.test(before(t, n)))?.value;
 
-    const built = nums.find((n) => n.value >= 1300 && n.value <= 1500 && /(ساخت|سال|سازه)$/.test(before(t, n)));
+    const built = nums.find((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|سال|سازه)[:،]?$/.test(before(t, n)) && !/^(سال|ساله)/.test(after(t, n)));
     const age = nums.find((n) => n.value < 100 && /^(سال ساخت|ساله)/.test(after(t, n)));
-    raw.yearBuilt = built?.value ?? (age ? year - age.value : /نوساز|کلید نخورده/.test(t) ? year : undefined);
+    raw.yearBuilt = (built && fullYear(built.value, year)) ?? (age ? year - age.value : /نوساز|کلید نخورده/.test(t) ? year : undefined);
 
     const features = featuresOf(t);
     if (features.length) raw.features = features;

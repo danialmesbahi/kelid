@@ -23,6 +23,24 @@ describe('voice rules (no language model)', () => {
     expect(listing('آپارتمان فروشی تو تجریش صد متر')).toMatchObject({ neighborhood: 'تجریش', area: 100 });
   });
 
+  it('reads short build years', () => {
+    expect(listing('آپارتمان ونک صد متر سال ۴۰۵')).toMatchObject({ yearBuilt: 1405 });
+    expect(listing('آپارتمان ونک صد متر ساخت سال نود و سه')).toMatchObject({ yearBuilt: 1393 });
+    expect(listing('آپارتمان ونک صد متر، سال ساخت: 98')).toMatchObject({ yearBuilt: 1398 });
+    expect(listing('آپارتمان ونک صد متر سال ۱۴۰۲')).toMatchObject({ yearBuilt: 1402 });
+    expect(listing('آپارتمان ونک صد متر ساخت سه')).toMatchObject({ yearBuilt: 1403 });
+    expect(listing('آپارتمان ونک صد متر ده سال ساخت')).toMatchObject({ yearBuilt: 1395 });
+    expect(listing('آپارتمان ونک صد متر سال ۴۰۹')).not.toHaveProperty('yearBuilt');
+  });
+
+  it('reads Mahdi\'s real sentences', () => {
+    expect(listing('سال چهارصد و پنج')).toEqual({ yearBuilt: 1405 });
+    expect(listing('این خونه برای رهن کامله تو منطقه تجریش، خیابون پاسداران، چهارخوابه، سه طبقه. لابی هم داره.')).toMatchObject({
+      deal: 'full', neighborhood: 'تجریش', street: 'خیابان پاسداران', bedrooms: 4, features: ['لابی و نگهبان'],
+    });
+    expect(listing('یه خونه دویست و هشتاد متری داخل بوشهر، خب قیمتش بیست و دو میلیارد')).toEqual({ deal: 'sale', area: 280, total: 22_000_000_000 });
+  });
+
   it('hears a roof garden as a fixed amenity', () => {
     expect(listing('آپارتمان فروشی ونک صد متر، روف گاردن و پارکینگ داره')).toMatchObject({ features: ['پارکینگ', 'روف گاردن'] });
   });
