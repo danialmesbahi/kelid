@@ -1,0 +1,59 @@
+{"form":"listing","transcript":"صد متر تا ساحل فاصله داره","hints":"bushehr","expected":{"area":null}}
+{"form":"listing","transcript":"پنج دقیقه تا مترو","hints":"bushehr","expected":{"area":null,"bedrooms":null,"floor":null}}
+{"form":"listing","transcript":"دویست متر بالاتر از میدون","hints":"bushehr","expected":{"area":null}}
+{"form":"listing","transcript":"نزدیک دو تا مدرسه","hints":"bushehr","expected":{"bedrooms":null}}
+{"form":"client","transcript":"سه تا بچه داره","hints":"bushehr","expected":{"bedroomsMin":null}}
+{"form":"client","transcript":"دو تا ماشین داره پارکینگ میخواد","hints":"bushehr","expected":{"bedroomsMin":null}}
+{"form":"listing","transcript":"دو تا واحد در هر طبقه","hints":"bushehr","expected":{"floor":null,"floorsTotal":null,"bedrooms":null}}
+{"form":"listing","transcript":"سال گذشته بازسازی شده","hints":"bushehr","expected":{"yearBuilt":null}}
+{"form":"listing","transcript":"ده سال پیش بازسازی کامل شده","hints":"bushehr","expected":{"yearBuilt":null}}
+{"form":"listing","transcript":"پارسال قیمتش ده میلیارد بود","hints":"bushehr","expected":{"yearBuilt":null}}
+{"form":"listing","transcript":"سه سال اجاره داده بودن","hints":"bushehr","expected":{"yearBuilt":null}}
+{"form":"listing","transcript":"قرارداد یک ساله","hints":"bushehr","expected":{"yearBuilt":null}}
+{"form":"listing","transcript":"صبح رفتیم بازدید","hints":"bushehr","expected":{"ownerBestTime":null}}
+{"form":"listing","transcript":"شب ها سر و صدا نداره","hints":"bushehr","expected":{"ownerBestTime":null}}
+{"form":"listing","transcript":"آفتاب صبح میخوره","hints":"bushehr","expected":{"ownerBestTime":null}}
+{"form":"listing","transcript":"پلاک دوازده واحد سه","hints":"bushehr","expected":{"ownerPhone":null,"floor":null}}
+{"form":"listing","transcript":"قیمتش نه میلیارد و نهصد و دوازده میلیون","hints":"bushehr","expected":{"ownerPhone":null,"total":9912000000}}
+{"form":"listing","transcript":"کد پستی هفت پنج یک چهار شش سه دو یک هشت نه","hints":"bushehr","expected":{"ownerPhone":null}}
+{"form":"listing","transcript":"صد و بیست متر دو خواب طبقه سوم سال نود و هشت","hints":"bushehr","expected":{"ownerPhone":null,"area":120,"bedrooms":2,"floor":3,"yearBuilt":1398}}
+{"form":"client","transcript":"نهصد و دوازده میلیون پول داره","hints":"bushehr","expected":{"phone":null,"budget":912000000}}
+{"form":"client","transcript":"بین نهصد تا یک میلیارد","hints":"bushehr","expected":{"phone":null}}
+{"form":"listing","transcript":"کوچه پنج","hints":"bushehr","expected":{"street":"کوچه پنج","floor":null}}
+{"form":"listing","transcript":"خیابان دوازدهم","hints":"bushehr","expected":{"floor":null}}
+{"form":"listing","transcript":"بلوک دو فاز یک","hints":"bushehr","expected":{"floor":null,"bedrooms":null}}
+{"form":"listing","transcript":"بیست متری اول","hints":"bushehr","expected":{"area":null}}
+{"form":"listing","transcript":"خیابون سی متری","hints":"bushehr","expected":{"area":null}}
+{"form":"listing","transcript":"بدون پارکینگ","hints":"bushehr","expected":{"features":null}}
+{"form":"listing","transcript":"آسانسور خرابه","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"جای پارک تو کوچه هست","hints":"bushehr","expected":{"features":null}}
+{"form":"listing","transcript":"پارکینگ عمومی نزدیکشه","hints":"bushehr","expected":{"features":null}}
+{"form":"listing","transcript":"نه آسانسور داره نه پارکینگ","hints":"bushehr","expected":{"features":null}}
+{"form":"listing","transcript":"مالکش خودش مشاوره","hints":"bushehr","expected":{"ownerName":null}}
+{"form":"listing","transcript":"مالک خارج از کشوره","hints":"bushehr","expected":{"ownerName":null}}
+{"form":"listing","transcript":"آقای مشاور گفت","hints":"bushehr","expected":{}}
+{"form":"client","transcript":"برای پسرش میخواد","hints":"bushehr","expected":{"name":null}}
+{"form":"client","transcript":"برای سرمایه گذاری میخواد","hints":"bushehr","expected":{"name":null}}
+{"form":"listing","transcript":"برای سکونت مناسبه","hints":"bushehr","expected":{"ownerName":null}}
+{"form":"listing","transcript":"برای کار تجاری خوبه","hints":"bushehr","expected":{"ownerName":null}}
+{"form":"listing","transcript":"خیلی خونه خوبیه","hints":"bushehr","expected":{"neighborhood":null}}
+{"form":"listing","transcript":"تو یه کوچه آرومه","hints":"bushehr","expected":{"neighborhood":null}}
+{"form":"listing","transcript":"در حد نوئه","hints":"bushehr","expected":{"neighborhood":null}}
+{"form":"listing","transcript":"تو شهر","hints":"bushehr","expected":{}}
+{"form":"client","transcript":"هر جای شهر باشه","hints":"bushehr","expected":{"neighborhoods":null}}
+{"form":"listing","transcript":"قبلا اجاره بوده الان فروشیه","hints":"bushehr","expected":{"deal":"sale"}}
+{"form":"listing","transcript":"مستاجر داره ولی فروشیه","hints":"bushehr","expected":{"deal":"sale"}}
+{"form":"listing","transcript":"فروشی نیست فقط اجاره","hints":"bushehr","expected":{"deal":"rent"}}
+{"form":"client","transcript":"نمیخواد بخره فقط رهن","hints":"bushehr","expected":{"deal":"full"}}
+{"form":"listing","transcript":"آپارتمان روبروی پارک","hints":"bushehr","expected":{"kind":"apartment"}}
+{"form":"listing","transcript":"دفتر املاک کناریشه","hints":"bushehr","expected":{"kind":null}}
+{"form":"listing","transcript":"زمین بازی بچه ها داره","hints":"bushehr","expected":{"kind":null}}
+{"form":"listing","transcript":"ویلای کناری فروخته شده آپارتمان ما فروشیه","hints":"bushehr","expected":{"kind":"apartment"}}
+{"form":"listing","transcript":"وام صد میلیونی داره","hints":"bushehr","expected":{"total":null}}
+{"form":"listing","transcript":"شارژ ماهانه پونصد هزار تومن","hints":"bushehr","expected":{"total":null,"rent":null}}
+{"form":"listing","transcript":"قیمت منطقه متری صد میلیونه","hints":"bushehr","expected":{"total":null}}
+{"form":"listing","transcript":"دو میلیارد زیر قیمت","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"فقط عصرها جواب میده","hints":"bushehr","expected":{"ownerBestTime":"عصرها"}}
+{"form":"listing","transcript":"ساعت ده صبح به بعد زنگ بزنید","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"یه آپارتمان صد و ده متری تو بهمنی طبقه دوم از چهار طبقه سال ساخت نود و پنج دو خواب پارکینگ داره آسانسور نداره قیمت شش میلیارد و پونصد مالکش خانم کریمی شماره صفر نهصد و سی و پنج یک دو سه چهل و پنج شصت و هفت عصرها زنگ بزنید","hints":"bushehr","expected":{"kind":"apartment","area":110,"neighborhood":"بهمنی","floor":2,"floorsTotal":4,"yearBuilt":1395,"bedrooms":2,"features":["پارکینگ"],"total":6500000000,"ownerName":"خانم کریمی","ownerPhone":"09351234567","ownerBestTime":"عصرها"}}
+{"form":"client","transcript":"خانم رحیمی شمارش نهصد و سی و پنج یک دو سه چهل و پنج شصت و هفت رهن و اجاره میخواد تو سنگی یا بهمنی دو خواب حداقل نود متر رهن سیصد اجاره ده خیلی فوریه","hints":"bushehr","expected":{"name":"خانم رحیمی","phone":"09351234567","deal":"rent","neighborhoods":["سنگی","بهمنی"],"bedroomsMin":2,"areaMin":90,"budget":300000000,"rent":10000000,"temperature":"hot"}}

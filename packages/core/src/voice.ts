@@ -206,6 +206,8 @@ type PriceSlot = 'deposit' | 'rent' | 'total';
 /** واژهٔ پیش از مبلغ می‌گوید کدام قیمت است. */
 export function slotOf(before: string): PriceSlot | 'perMeter' | undefined {
   const raw = before.replace(/[\s\u200c،,:]+$/, '');
+  // «شارژ ماهانه پونصد هزار»، «وام صد میلیونی»: هزینه یا بدهی است، نه قیمت.
+  if (/(وام|شارژ|بدهی|مالیات|قسط|اقساط|هزینه|جریمه)(ش)?( ماهانه| ماهیانه| ماهی| ماه)?( \S+)?$/.test(raw)) return undefined;
   // «رهن تا دویست»، «اجاره حداکثر ده»: قید مبلغ جای آن را عوض نمی‌کند.
   const b = raw.replace(/\s*(تا|حدود|زیر|سقف|حداکثر|حداکثرش|نهایتا|نهایت|تقریبا|در حد)$/, '') || raw;
   if (/(متری|هر\s*متر|متر\s*مربعی)$/.test(b)) return 'perMeter';
@@ -227,7 +229,9 @@ export function withSpokenPrices<F extends VoiceForm>(form: F, transcript: strin
     if (d[k] === undefined) d[k] = v;
   };
   for (const a of amounts) {
-    let slot = slotOf(transcript.slice(Math.max(0, a.start - 30), a.start));
+    const pre = transcript.slice(Math.max(0, a.start - 30), a.start);
+    if (/(وام|شارژ|بدهی|مالیات|قسط|اقساط|هزینه|جریمه)(ش)?( ماهانه| ماهیانه| ماهی| ماه)?[\s\u200c،,:]*$/.test(pre)) continue;
+    let slot = slotOf(pre);
     if (slot === 'perMeter') {
       if (form === 'listing' && typeof d.area === 'number') set('total', a.value * d.area);
       continue;
