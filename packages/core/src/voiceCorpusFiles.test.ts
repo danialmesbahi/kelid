@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { VoiceForm } from './voice';
 import { ruleDraft } from './voiceRules';
 
-// ۱۱۴ جملهٔ عامیانه با فهرست محله‌های واقعی بوشهر و تهران. «expected» زیرمجموعه است؛ null یعنی آن فیلد نباید پر شود.
+// جمله‌های عامیانه (۱۱۴ + ۱۲۰ + ۱۵۰) با فهرست محله‌های واقعی بوشهر و تهران. «expected» زیرمجموعه است؛ null یعنی آن فیلد نباید پر شود.
 type Case = { form: VoiceForm; transcript: string; hints: 'bushehr' | 'tehran'; expected: Record<string, unknown> };
 type City = { h: string[]; z: [string, string[]][] };
 
@@ -13,10 +13,12 @@ const placesOf = (name: string) => {
   return [...c.h, ...c.z.map((z) => z[0])];
 };
 const places = { bushehr: placesOf('bushehr'), tehran: placesOf('tehran') };
-const cases = read('./voiceCorpus.jsonl')
-  .split('\n')
-  .filter(Boolean)
-  .map((l) => JSON.parse(l) as Case);
+const cases = ['./voiceCorpus.jsonl', './voiceCorpus2.jsonl', './voiceCorpus3.jsonl'].flatMap((f) =>
+  read(f)
+    .split('\n')
+    .filter(Boolean)
+    .map((l) => JSON.parse(l) as Case),
+);
 
 const sorted = (v: unknown) => (Array.isArray(v) ? [...(v as string[])].sort() : v);
 

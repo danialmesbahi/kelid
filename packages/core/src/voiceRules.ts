@@ -1,5 +1,5 @@
 import type { PropertyKind } from './model';
-import { spokenNumbers, type SpokenNumber } from './money';
+import { NUMBER_WORDS, spokenNumbers, type SpokenNumber } from './money';
 import { normalizeForSearch, toEnDigits, toFaDigits } from './persian';
 import { normalizePhone } from './store';
 import { VOICE_FEATURES, cleanVoiceDraft, slotOf, withSpokenPrices, type VoiceDraft, type VoiceForm } from './voice';
@@ -18,16 +18,36 @@ function norm(t: string): string {
     .replace(/خیابون/g, 'خیابان')
     .replace(/میدون/g, 'میدان')
     .replace(/خونه/g, 'خانه')
+    .replace(/(^|\s)(یک|دو|سه|سی|چهار|پنج|پان|پون|شش|شیش|هفت|هشت|نه) صد(?=\s|$|[،,.])/g, (_, s: string, w: string) => `${s}${HUNDREDS[w]}`)
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .split(' ')
+    .map(unglue)
+    .join(' ');
+}
+
+// «نه صد» → «نهصد»: آوانگار گاهی صدگان را جدا می‌نویسد.
+const HUNDREDS: Record<string, string> = {
+  یک: 'یکصد', دو: 'دویست', سه: 'سیصد', سی: 'سیصد', چهار: 'چهارصد', پنج: 'پانصد', پان: 'پانصد', پون: 'پانصد',
+  شش: 'ششصد', شیش: 'ششصد', هفت: 'هفتصد', هشت: 'هشتصد', نه: 'نهصد',
+};
+
+/** «نهصدوسی»، «وپنج»، «یکصدو»، «صفرنهصد»: عددهای سرهم جدا می‌شوند تا شماره و مبلغ درست خوانده شوند. */
+function unglue(w: string): string {
+  if (NUMBER_WORDS.has(w)) return w;
+  const zero = /^صفر(?=\S)/.exec(w);
+  if (zero && (NUMBER_WORDS.has(w.slice(3)) || unglue(w.slice(3)) !== w.slice(3))) return `صفر ${unglue(w.slice(3))}`;
+  const parts = w.split('و');
+  if (parts.length < 2 || !parts.some(Boolean) || !parts.every((p) => !p || NUMBER_WORDS.has(p))) return w;
+  return parts.flatMap((p, i) => [...(p ? [p] : []), ...(i < parts.length - 1 ? ['و'] : [])]).join(' ');
 }
 
 const KIND_WORDS: Array<[PropertyKind, RegExp]> = [
   ['shop', /مغازه|تجاری|دکان|دکه|سوله/],
-  ['office', /دفتر|اداری|مطب/],
+  ['office', /دفتر|(?<!(ساعت|وقت|تایم) )اداری|مطب/],
   ['land', /زمین|کلنگی/],
   ['villa', /ویلا|ویلایی|حیاط دار|خانه حیاط/],
-  ['apartment', /آپارتمان|اپارتمان|سوئیت|سوییت|واحد(?! (اداری|تجاری))|برج|مسکونی/],
+  ['apartment', /آپارتمان|اپارتمان|پنت ?هاوس|سوئیت|سوییت|واحد(?! (اداری|تجاری))|برج|مسکونی/],
 ];
 
 const FEATURE_WORDS: Array<[string, RegExp]> = [
@@ -59,7 +79,8 @@ function nameAt(words: string[], i: number): string | undefined {
   if (words[i] === 'ی') i++;
   if (words[i] && NAME_TITLE.test(words[i]!)) {
     const rest = nameAt(words, i + 1);
-    return rest ? `${words[i]} ${rest}` : undefined;
+    // «خیابان امام» خودش نام است؛ «خیابان شهید» تنها نه.
+    return rest ? `${words[i]} ${rest}` : /^(امام|استاد|دکتر)$/.test(words[i]!) ? words[i] : undefined;
   }
   const w = words[i];
   if (!w || NOT_NAME.test(w) || /\d/.test(w) || spokenNumbers(w).length) return undefined;
@@ -98,6 +119,10 @@ function hintsIn(t: string, hints: string[]): string[] {
   return found;
 }
 
+// نام محله‌هایی که واژهٔ معمولی یا نام شهر هم هستند.
+const COMMON_PLACE = /^(ری|جی|حر|کن|کاج|صفا|سرو|ارم|آهنگ|قیام|شاهد|مقدم|شورا|بهار|بهاران|جهاد|دریا|دریاچه|حکمت|شهادت|ایران|آگاهی|بازار|آبشار|مخصوص|توحید|عدالت|کرمان|گرگان|استخر|آسمان|پرواز|بهداشت|پرستار|پیروزی|جمهوری|اندیشه|دبستان|مدیریت|گلستان|ساحلی|پودر|نیایش|دانشگاه|زمزم|کوثر|فلاح|شیوا|گمرک|مصلی|نیلوفر|شکوفه|فرزانه|درختی|اوقاف|امامت|ابوذر|سجاد)$/;
+const PLACE_LEAD = /^(محله|منطقه|محدوده|حوالی|سمت|نزدیک|نزدیکی|تو|توی|در|خیابان|بلوار|میدان|کوچه|شهرک|کوی|طرف|اطراف|بالای|پایین|ی)$/;
+
 function wordHints(t: string, hints: string[]): string[] {
   const words = t.replace(/[،,.:؛!?؟]/g, ' ').split(' ').filter(Boolean);
   // نام یک‌کلمه‌ای که واژهٔ معمولی هم هست (زون «شهر» در بوشهر) در هر جمله‌ای پیدا می‌شود.
@@ -106,6 +131,10 @@ function wordHints(t: string, hints: string[]): string[] {
   for (let i = 0; i < words.length; i++) {
     for (let n = 3; n >= 1; n--) {
       const h = want.get(normalizeForSearch(words.slice(i, i + n).join(' ')));
+      // «آقای شکری» نام است نه محلهٔ شکری؛ «ساحلی» یا «استخر» هم بی «محله/تو/نزدیک» واژهٔ معمولی‌اند.
+      const prev = words[i - 1] ?? '';
+      const asName = TITLE.test(prev) || TITLE.test(words[i - 2] ?? '') || /^(اسم|اسمش|نام|بنام|مالکش|صاحبش|مالک)$/.test(prev);
+      if (h && (asName || (n === 1 && COMMON_PLACE.test(words[i]!) && !PLACE_LEAD.test(prev)))) continue;
       if (h && i + n <= words.length) {
         if (!found.includes(h)) found.push(h);
         i += n - 1;
@@ -116,19 +145,24 @@ function wordHints(t: string, hints: string[]): string[] {
   return found;
 }
 
-function dealOf(t: string) {
-  if (/رهن (و )?کامل|رهن کامله|فقط رهن/.test(t)) return 'full' as const;
-  if (/(رهن|ودیعه) (و |، ?)?اجاره|پیش و پس|پیش پس|اجاره|کرایه|(رهن|ودیعه).*(ماهی|ماهانه|ماهیانه|در ماه)/.test(t)) return 'rent' as const;
-  if (/فروش|فروشی|خرید|بخره|بفروش|میفروش/.test(t)) return 'sale' as const;
-  if (/رهن|ودیعه/.test(t)) return 'full' as const;
+// (?<!\S): آغاز واژه، تا «رهن» از دل «فرهنگیان» پیدا نشود.
+function dealOf(t: string, form: VoiceForm) {
+  if (/(?<!\S)(رهن (و )?کامل|رهن کامله|فقط رهن)/.test(t)) return 'full' as const;
+  if (/(?<!\S)((رهن|ودیعه) (و |، ?)?اجاره|پیش و پس|پیش پس|اجاره|کرایه)|(?<!\S)(رهن|ودیعه)\s.*(?<!\S)(ماهی|ماهانه|ماهیانه|در ماه)/.test(t)) return 'rent' as const;
+  // «ده سال پیش خریده» در فایل یعنی مالک خریده، نه اینکه فروشی است.
+  if (/(?<!\S)(فروش|بفروش|میفروش)/.test(t) || (form === 'client' && /(?<!\S)(خرید|بخره|خریدار)/.test(t))) return 'sale' as const;
+  if (/(?<!\S)(رهن|ودیعه)/.test(t)) return 'full' as const;
   return undefined;
 }
 
 function kindsOf(t: string): PropertyKind[] {
-  return KIND_WORDS.map(([k, re]) => ({ k, at: t.search(re) }))
+  const kinds = KIND_WORDS.map(([k, re]) => ({ k, at: t.search(re) }))
     .filter((x) => x.at >= 0)
     .sort((a, b) => a.at - b.at)
     .map((x) => x.k);
+  // «ویلایی، دویست متر زمین»: زمینِ بعد از «متر» اندازهٔ همان ملک است، نه نوع دیگر.
+  if (kinds.length > 1 && !/کلنگی/.test(t) && [...t.matchAll(/زمین/g)].every((m) => /متری? $/.test(t.slice(0, m.index)))) return kinds.filter((k) => k !== 'land');
+  return kinds;
 }
 
 function featuresOf(t: string): string[] {
@@ -143,41 +177,41 @@ function featuresOf(t: string): string[] {
 
 /** رتبهٔ جایگاه هر عدد در خواندن فارسی: هزار ۴، صدگان ۳، دهگان ۲، یکان و ده‌تا‌نوزده ۱. */
 const rankOf = (v: number) => (v >= 1000 ? 4 : v >= 100 ? 3 : v >= 20 ? 2 : 1);
-const PHONE_KEY = /(شماره|تلفن|تلفنش|موبایل|موبایلش|همراه|تماس|شمارش|شماره‌اش|شمارشون)/;
-const PHONE_SKIP = /^(ثابت|منزل|خونه|خانه|دفتر|مثبت|ما|من|مالک|صاحب|صاحبش|مالکش|ایشون|ایشان|اش|ش|هم|هست|است|اینه|این|اینجوریه|بنویس|یادداشت|کن|خط|همراه|موبایل|تلفن|شماره|تماس|:)$/;
+const PHONE_KEY = /^(شماره|شمارش|شمارشون|تلفن|تلفنش|موبایل|موبایلش|همراه|همراهش|تماس|تماسش)$/;
+const PHONE_SKIP = /^(شماره|شمارش|شمارشون|تلفن|تلفنش|موبایل|موبایلش|همراه|همراهش|تماس|تماسش|ثابت|منزل|خانه|دفتر|مثبت|ما|من|مالک|صاحب|صاحبش|مالکش|مشتری|ایشون|ایشان|اش|ش|شون|هم|هست|است|اینه|این|اینو|اینجوریه|رو|را|بنویس|بنویسید|یادداشت|کن|کنید|خط|:)$/;
+
+type Tok = { w: string; start: number; end: number };
+const BREAK = /^[،,؛.]$/;
+const tokensOf = (t: string): Tok[] => [...t.matchAll(/[،,؛.]|[^\s،,.:؛!?؟()«»"-]+/g)].map((m) => ({ w: m[0], start: m.index, end: m.index + m[0].length }));
+
+/** عدد درست یک واژه («نهصد»، «دوازده»)؛ میلیون و تومان شماره نیستند. */
+function wordNum(w: string): number | undefined {
+  const v = spokenNumbers(w)[0];
+  return v && v.start === 0 && v.end === w.length && !v.money && Number.isInteger(v.value) ? v.value : undefined;
+}
 
 /**
- * شمارهٔ موبایل گفته‌شده، به هر شکلی که عامیانه خوانده می‌شود:
- * «صفر نهصد و دوازده، سیصد و چهل و پنج، شصت و هفت، هشتاد و نه»، «صفر نه یک دو…» رقم‌به‌رقم،
- * «سه تا هفت» (۷۷۷)، «هزار و دویست و سی و چهار» (۱۲۳۴)، رقم‌های نوشته‌شده با فاصله، و بی «صفر» اول.
- * دو عدد پشت هم فقط وقتی جمع می‌شوند که با «و» آمده باشند و جایگاه دومی کوچک‌تر باشد («نهصد و سی»)، وگرنه دو تکه‌اند («سی و سی» = ۳۰۳۰).
+ * رقم‌های پشت هم از توکن i. دو عدد وقتی یک عددند که با «و» آمده باشند و جایگاه دومی کوچک‌تر باشد («نهصد و سی»)،
+ * وگرنه دو تکه‌اند («سی و سی» = ۳۰۳۰). glue یعنی «سیصد چهل» بی «و» هم یک عدد است، چون آوانگار گاهی «و» را نمی‌نویسد.
  */
-export function spokenPhone(t: string): { phone?: string; raw?: string } {
-  const written = /(?:\+98|0098|0)?9\d{2}[\s-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}/.exec(toEnDigits(t));
-  if (written) return { phone: normalizePhone(written[0]) };
-  const key = PHONE_KEY.exec(t);
-  // بی کلمهٔ «شماره» هم «صفر نهصد…» یا «صفر نه…» آغاز شماره است.
-  const bare = /(^|\s)صفر\s+(نهصد|نود|نه)(\s|‌|و|$)/.exec(t);
-  const at = key ? key.index + key[0].length : bare ? bare.index : -1;
-  if (at < 0) return {};
-  const words = t.slice(at).replace(/[،,.:؛!?؟()«»-]/g, ' ').split(/\s+/).filter(Boolean);
+function phoneRun(toks: Tok[], i: number, glue: boolean): { digits: string; next: number; end: number } {
   let digits = '';
   let cur = 0;
   let has = false;
   let rank = 9;
   let and = false;
-  let skipped = 0;
+  let end = toks[i]?.start ?? 0;
   const flush = () => {
     if (has) digits += String(cur);
     cur = 0;
     has = false;
     rank = 9;
   };
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i]!;
-    if (/^[0-9۰-۹]+$/.test(w)) {
+  let j = i;
+  for (; j < toks.length; j++) {
+    const w = toks[j]!.w;
+    if (BREAK.test(w)) {
       flush();
-      digits += toEnDigits(w);
       and = false;
       continue;
     }
@@ -185,66 +219,120 @@ export function spokenPhone(t: string): { phone?: string; raw?: string } {
       and = true;
       continue;
     }
-    if (/^(صفر)+$/.test(w)) {
+    if (/^\d+$/.test(w)) {
+      flush();
+      digits += w;
+    } else if (/^(صفر)+$/.test(w)) {
       flush();
       digits += '0'.repeat(w.length / 3);
-      and = false;
-      continue;
-    }
-    if (w === 'هزار' && has) {
-      cur *= 1000;
-      rank = 4;
-      and = false;
-      continue;
-    }
-    if (/^(دو|سه|چهار|پنج)تا$/.test(w)) {
-      words.splice(i, 1, w.slice(0, -2), 'تا');
-      i--;
-      continue;
-    }
-    const v = spokenNumbers(w)[0];
-    const num = v && v.start === 0 && v.end === w.length && Number.isInteger(v.value) ? v.value : undefined;
-    if (num === undefined) {
-      if (!digits && !has && PHONE_SKIP.test(w) && skipped++ < 3) continue;
-      break;
-    }
-    // «سه تا هفت» یا «دوتا یک»: یک رقم چند بار.
-    const next = words[i + 2];
-    if (num >= 2 && num <= 5 && words[i + 1] === 'تا' && next) {
-      const d = next === 'صفر' ? 0 : spokenNumbers(next)[0]?.value;
-      if (d !== undefined && d >= 0 && d <= 9 && Number.isInteger(d)) {
+    } else if (w === 'هزار') {
+      // «شش هزار و هفتصد» = ۶۷۰۰، «هزار و دویست» = ۱۲۰۰
+      if (has && rank < 4) cur *= 1000;
+      else {
         flush();
-        digits += String(d).repeat(num);
-        i += 2;
-        and = false;
-        continue;
+        cur = 1000;
+        has = true;
+      }
+      rank = 4;
+    } else {
+      // «سه تا هفت» یا «دوتا یک»: یک رقم چند بار.
+      const glued = /^(دو|سه|چهار|پنج)تا$/.exec(w);
+      const n = wordNum(glued ? glued[1]! : w);
+      if (n === undefined) break;
+      const dTok = glued ? toks[j + 1] : toks[j + 1]?.w === 'تا' ? toks[j + 2] : undefined;
+      const d = dTok ? (dTok.w === 'صفر' ? 0 : wordNum(dTok.w)) : undefined;
+      if (n >= 2 && n <= 5 && d !== undefined && d <= 9) {
+        flush();
+        digits += String(d).repeat(n);
+        j += glued ? 1 : 2;
+      } else if (glued) break;
+      else if (has && rankOf(n) < rank && (and || (glue && (rank > 2 || n < 10)))) {
+        cur += n;
+        rank = rankOf(n);
+      } else {
+        flush();
+        cur = n;
+        has = true;
+        rank = rankOf(n);
       }
     }
-    if (has && and && rankOf(num) < rank) {
-      cur += num;
-    } else {
-      flush();
-      cur = num;
-      has = true;
-    }
-    rank = rankOf(num);
     and = false;
+    end = toks[j]!.end;
   }
   flush();
-  // «مثبت نود و هشت…» یا بی «صفر» اول
-  digits = digits.replace(/^(?:00)?98(?=9\d{9}$)/, '').replace(/^(?=9\d{9}$)/, '0');
-  // موبایل، یا تلفن ثابت با پیش‌شمارهٔ شهر (مثلاً ۰۷۷ بوشهر)
-  if (/^0[1-9]\d{9}$/.test(digits)) return { phone: digits };
-  return digits.length >= 7 ? { raw: digits } : {};
+  return { digits, next: j, end };
+}
+
+/** «مثبت نود و هشت…»، بی «صفر» اول، یا ثابت بی صفر («هفتاد و هفت…» = ۰۷۷…). */
+const fixDigits = (d: string) => d.replace(/^(?:00)?98(?=9\d{9}$)/, '').replace(/^(?=[1-9]\d{9}$)/, '0');
+const isMobile = (d: string) => /^09\d{9}$/.test(d);
+// موبایل، ثابت با پیش‌شماره (۰۷۷ بوشهر)، یا ثابت هشت‌رقمی همان شهر
+const isPhone = (d: string) => isMobile(d) || /^0[1-8]\d{9}$/.test(d) || /^[2-8]\d{7}$/.test(d);
+
+/** هر دو خوانش (با «و» و بی «و») امتحان می‌شود و آنکه شمارهٔ درست می‌دهد برنده است. */
+function bestRun(toks: Tok[], i: number, ok: (d: string) => boolean) {
+  const strict = phoneRun(toks, i, false);
+  const loose = phoneRun(toks, i, true);
+  const s = fixDigits(strict.digits);
+  const l = fixDigits(loose.digits);
+  if (ok(s)) return { ...strict, digits: s, valid: true };
+  if (ok(l)) return { ...loose, digits: l, valid: true };
+  return { ...strict, digits: s, valid: false };
+}
+
+type PhoneHit = { phone?: string; raw?: string; start: number; end: number };
+
+function findPhone(t: string): PhoneHit | undefined {
+  const s = toEnDigits(t);
+  const toks = tokensOf(s);
+  // ۱. بعد از «شماره/تلفن/موبایل…»
+  let raw: PhoneHit | undefined;
+  for (let i = 0; i < toks.length; i++) {
+    if (!PHONE_KEY.test(toks[i]!.w)) continue;
+    let j = i + 1;
+    while (j < toks.length && j - i <= 4 && PHONE_SKIP.test(toks[j]!.w)) j++;
+    if (j >= toks.length) continue;
+    const r = bestRun(toks, j, isPhone);
+    if (r.valid) return { phone: r.digits, start: toks[i]!.start, end: r.end };
+    if (!raw && r.digits.length >= 5) raw = { raw: r.digits, start: toks[i]!.start, end: r.end };
+    i = Math.max(i, r.next - 1);
+  }
+  // ۲. رقم نوشته‌شده با فاصله یا خط تیره: «۰۹۱۲-۳۴۵-۶۷-۸۹»، «+98 912…»، «۰۷۷ ۳۳۳۳ ۴۴۵۵»
+  const written = /(?<!\d)(?:(?:\+|00)?98[\s-]*|0)?9\d{2}(?:[\s-]*\d){7}(?!\d)/.exec(s) ?? /(?<!\d)0[1-8]\d(?:[\s-]*\d){8}(?!\d)/.exec(s);
+  if (written) return { phone: normalizePhone(written[0]), start: written.index, end: written.index + written[0].length };
+  // ۳. بی هیچ کلمه‌ای: هر رشته عددی که دقیقاً یک موبایل بدهد («آقای رضایی نهصد و دوازده…»)
+  for (let i = 0; i < toks.length; ) {
+    const w = toks[i]!.w;
+    if (!/^\d/.test(w) && !/^صفر/.test(w) && w !== 'هزار' && wordNum(w) === undefined) {
+      i++;
+      continue;
+    }
+    const r = bestRun(toks, i, isMobile);
+    if (r.valid) return { phone: r.digits, start: toks[i]!.start, end: r.end };
+    i = Math.max(r.next, i + 1);
+  }
+  return raw;
+}
+
+/**
+ * شمارهٔ گفته‌شده، به هر شکلی که عامیانه خوانده می‌شود:
+ * «صفر نهصد و دوازده، سیصد و چهل و پنج، شصت و هفت، هشتاد و نه»، «صفر نه یک دو…» رقم‌به‌رقم،
+ * «سه تا هفت» (۷۷۷)، «شش هزار و هفتصد و هشتاد و نه»، رقم‌های نوشته‌شده با فاصله، بی «صفر» اول و بی کلمهٔ «شماره».
+ * شمارهٔ ناقص (دست‌کم ۵ رقم بعد از «شماره») در raw می‌آید تا گم نشود.
+ */
+export function spokenPhone(t: string): { phone?: string; raw?: string } {
+  const hit = findPhone(norm(t));
+  return hit ? (hit.phone ? { phone: hit.phone } : { raw: hit.raw }) : {};
 }
 
 // «عصرها»، «بعد از ساعت پنج»، «از ساعت چهار تا هشت شب»، «پنجشنبه‌ها»، «ساعت اداری»: بهترین زمان تماس با مالک.
-const T_NUM = '(?:[0-9۰-۹]{1,2}(?::[0-9۰-۹]{2})?|(?:یک|یه|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|یازده|دوازده)(?: و نیم)?)';
+const T_NUM = '(?:[0-9۰-۹]{1,2}(?::[0-9۰-۹]{2})?|(?:یازده|دوازده|یک|یه|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده)(?= |$|[،,.])(?: و نیم)?)';
 const T_PART = '(?:صبح|ظهر|بعد ?از ?ظهر|عصر|غروب|شب)';
 const T_DAY = '(?:شنبه|یکشنبه|دوشنبه|سه ?شنبه|چهارشنبه|پنج ?شنبه|جمعه)';
 const T_UNIT = [
-  `${T_PART}(?: ?ها|ا)?`,
-  `(?:بعد از |قبل از |از )?ساعت ${T_NUM}(?: ${T_PART})?(?: به بعد)?`,
+  `(?:از|بین) (?:ساعت )?${T_NUM}(?: ${T_PART})? (?:تا|الی) (?:ساعت )?${T_NUM}(?: ${T_PART})?`,
+  `(?:قبل از |قبل )?${T_PART}(?: ?ها|ا)?(?: زود)?(?: به بعد)?`,
+  `(?:بعد از |قبل از |از |تا |بین )?ساعت ${T_NUM}(?: ${T_PART})?(?: به بعد)?`,
   `روزهای (?:زوج|فرد|تعطیل|کاری)`,
   `آخر هفته(?: ?ها)?`,
   `${T_DAY}(?: ?ها)?`,
@@ -255,7 +343,7 @@ const T_UNIT = [
 const T_MORE = `(?:${T_UNIT}|(?:تا|الی) (?:ساعت )?${T_NUM}(?: ${T_PART})?)`;
 export const TIME_RE = new RegExp(`(?:${T_UNIT})(?:(?: و |، ?| )${T_MORE})*`, 'g');
 const CALL_HINT = /(?:^|\s)(زنگ|تماس|جواب|در دسترس|بهترین (زمان|وقت|موقع)|وقت (تماس|زنگ)|بگیرید|بگیرین|بگیر)/;
-const STRONG_TIME = /(صبح|ظهر|عصر|غروب|شب)( ?ها|ا)|ساعت|روزهای|اداری|شنبه/;
+const STRONG_TIME = /(صبح|ظهر|عصر|غروب|شب)( ?ها|ا)|ساعت|روزهای|اداری|شنبه|^(از|بین) \S+ .*(تا|الی) /;
 
 export function bestTimeOf(t: string): string | undefined {
   const hint = CALL_HINT.exec(t);
@@ -265,6 +353,8 @@ export function bestTimeOf(t: string): string | undefined {
     ? all.sort((a, b) => Math.abs(a.index - hint.index) - Math.abs(b.index - hint.index))[0]
     : all.find((m) => STRONG_TIME.test(m[0]) && !/^(صبح|ظهر|عصر|غروب|شب)$/.test(m[0]));
   if (!pick) return undefined;
+  // «صبح زود زنگ نزنید»، «ظهرها در دسترس نیست»: زمانی که نباید زنگ زد.
+  if (/^\s*(\S+\s){0,2}(نزنید|نزن|نزنین|نگیرید|نگیرین|نیست|نمیده|نمی ده|نمیدن|نداره)/.test(t.slice(pick.index + pick[0].length, pick.index + pick[0].length + 30))) return undefined;
   let out = pick[0].trim()
     .replace(/(^|\s)(صبح|ظهر|عصر|غروب|شب)ا(?=\s|$)/g, (_, s: string, w: string) => `${s}${w === 'عصر' || w === 'ظهر' ? `${w}ها` : `${w}‌ها`}`)
     .replace(/بعد ?از ?ظهر/g, 'بعدازظهر')
@@ -285,9 +375,18 @@ const CITY_NAMES = /^(تهران|مشهد|اصفهان|شیراز|تبریز|ک�
 // «در دسترسه»، «در حال ساخت»، «تو این ساختمون»: این‌ها بعد از «در/تو» محله نیستند.
 const LOOSE_STOP = /^(دسترس|دسترسه|دسترسی|خدمت|حال|نظر|مورد|جریان|اختیار|اسرع|کل|ضمن|واقع|عوض|همون|همان|این|اون|آن|یه|یک|ساختمون|ساختمان|مجتمع|برج|خانه|شهر|بالا|پایین|طبقه|کوچه|خیابان|بلوار)$/;
 
-const NAME_STOP = /^(زیر|بالای|حداقل|حداکثر|حدود|بین|دنبال|بعد|قبل|فقط|ساعت|داره|دارن|دارد|گفت|گفته|میگه|برای|بری|مال|الان|خیلی|اینجا|اونجا|ولی|اما|یا|هم|تا|از|به|رو|را|صبح|عصر|ظهر|شب|طبقه|آپارتمان|واحد|تماس|زنگ|هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون)$/;
+const NAME_STOP = /^(زیر|بالای|حداقل|حداکثر|حدود|بین|دنبال|بعد|قبل|فقط|ساعت|داره|دارن|دارد|گفت|گفته|میگه|برای|بری|مال|الان|خیلی|اینجا|اونجا|ولی|اما|یا|هم|تا|از|به|رو|را|صبح|عصر|ظهر|شب|طبقه|آپارتمان|واحد|تماس|زنگ|هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون|شمارش|شمارشون|تلفنش|موبایلش|همراهش|تماسش|مناسب|مناسبه|خانواده|زوج|زوجین|دانشجو|دانشجویی|سکونت|کار|سرمایه|سرمایه‌گذاری|مسکونی|شما|ما|من|همه|بچه|مجرد|متاهل|مستاجر|زندگی|بازدید|خرید|دیدن|عجله|فعلا|هنوز|دیگه|پول|بودجه|بودجش|نیاز|لازم|مشتری|جدی|جدیه|فوری|منتظر|دنبال|میخواست|زنگ|زد)$/;
 // «آقای سامان مغازه می‌خواد»: نوع ملک یا امکانات جزو نام نیست.
 const nameWord = (w: string | undefined) => !!w && !NOT_NAME.test(w) && !NAME_STOP.test(w) && !kindsOf(w).length && !featuresOf(w).length && !/^(می|نمی)/.test(w) && !/ها$/.test(w) && !/\d/.test(w) && !spokenNumbers(w).length;
+
+const TITLE = /^(جناب|حاج|حاجی|آقا|آقای|خانم|خانوم|دکتر|مهندس|استاد)$/;
+/** «جناب» نوشته نمی‌شود؛ «آقا» تنها «آقای» می‌شود ولی «حاج آقا» همان می‌ماند. */
+function titleOf(chain: string[]): string {
+  const out = chain
+    .filter((w) => w !== 'جناب')
+    .map((w, i, all) => (w === 'خانوم' ? 'خانم' : w === 'آقا' && !/^حاج/.test(all[i - 1] ?? '') ? 'آقای' : w));
+  return out.length ? out.join(' ') : 'آقای';
+}
 
 /** «آقای محمد رضایی»، «مالکش خانم احمدی»، «اسم مالک علی کریمی»: نام و نام خانوادگی تا دو کلمه. */
 function personOf(t: string, near?: RegExp): string | undefined {
@@ -302,14 +401,18 @@ function personOf(t: string, near?: RegExp): string | undefined {
   words.forEach((w, i) => {
     const prev = words.slice(Math.max(0, i - 2), i).join(' ');
     const isNear = !!near && near.test(prev);
-    if (/^(آقای|آقا|جناب|خانم|خانوم)$/.test(w)) {
-      const n = take(i + 1);
-      if (n) hits.push({ name: `${/خانم|خانوم/.test(w) ? 'خانم' : 'آقای'} ${n}`, at: i, near: isNear || (!!near && near.test(words[i - 1] ?? '')) });
+    if (TITLE.test(w)) {
+      if (TITLE.test(words[i - 1] ?? '')) return;
+      // «حاج آقا رحیمی»، «خانم دکتر نوری»، «جناب آقای کریمی»: همهٔ عنوان‌ها پشت هم، بعد خود نام.
+      let j = i;
+      while (TITLE.test(words[j] ?? '')) j++;
+      const n = take(j);
+      if (n) hits.push({ name: `${titleOf(words.slice(i, j))} ${n}`, at: i, near: isNear || (!!near && near.test(words[i - 1] ?? '')) });
     } else if (/^(مالکش|صاحبش|مالک|صاحب)$/.test(w) || (/^(اسم|اسمش|نام|بنام)$/.test(w))) {
       // «به نام»، «اسم مالک»، «مالکش» و بعد خود نام (اگر «آقای» نیامده باشد)
       let j = i + 1;
       while (/^(ملک|مالک|مالکش|صاحبش|هم|هست|است|:)$/.test(words[j] ?? '')) j++;
-      if (/^(آقای|آقا|جناب|خانم|خانوم)$/.test(words[j] ?? '')) return;
+      if (TITLE.test(words[j] ?? '')) return;
       const n = take(j);
       if (n) hits.push({ name: n, at: i, near: /^(مالک|صاحب)/.test(w) || /^(مالک|صاحب)/.test(words[i + 1] ?? '') });
     }
@@ -329,36 +432,84 @@ function personOf(t: string, near?: RegExp): string | undefined {
 }
 
 /** «اجاره بیست»، «رهن پانصد»: عدد بی‌واحد پس از رهن/اجاره میلیون تومان است. */
-function shortPrices(t: string, nums: SpokenNumber[]): { deposit?: number; rent?: number } {
-  const out: { deposit?: number; rent?: number } = {};
+/** «هشت و دویست» بعد از «قیمت» یعنی هشت میلیارد و دویست میلیون (عدد کوچک‌تر اول آمده، پس دو مرتبه است). */
+function billionAndMillion(src: string): number | undefined {
+  const atoms = src.split(' و ').map((p) => wordNum(p.trim()));
+  if (atoms.length < 2 || atoms.some((x) => x === undefined)) return undefined;
+  const k = atoms.findIndex((x) => x! >= 100);
+  if (k < 1) return undefined;
+  const sum = (xs: Array<number | undefined>) => xs.reduce<number>((acc, x) => acc + x!, 0);
+  const hi = sum(atoms.slice(0, k));
+  const lo = sum(atoms.slice(k));
+  return hi >= 1 && hi < 100 && lo >= 100 && lo < 1000 ? hi * 1e9 + lo * 1e6 : undefined;
+}
+
+/**
+ * عدد بی‌واحد بعد از رهن/اجاره/قیمت، همان‌طور که مشاورها می‌گویند:
+ * «اجاره بیست» و «اجاره هفت تومن» = میلیون؛ «رهن پونصد» = میلیون ولی «رهن دو» = میلیارد؛
+ * «قیمتش هشت و نیم» = میلیارد و «قیمت نهصد» = میلیون؛ «رهن کامل هزار و پونصد» = یک و نیم میلیارد.
+ * buying: مشتری خرید که «تا پنج» می‌گوید.
+ */
+function shortPrices(t: string, nums: SpokenNumber[], buying = false): { deposit?: number; rent?: number; total?: number } {
+  const out: { deposit?: number; rent?: number; total?: number } = {};
   for (const n of nums) {
-    if (n.money || n.value < 1 || n.value >= 1000 || /^\s*(متر|خواب|طبقه|سال|ساله|تا)/.test(after(t, n))) continue;
-    const slot = slotOf(before(t, n, 30));
-    if (slot === 'deposit' || slot === 'rent') out[slot] ??= Math.round(n.value * 1e6);
+    if (n.value < 1 || /^\s*(متر|خواب|طبقه|سال|ساله|تا)/.test(after(t, n))) continue;
+    const b = before(t, n, 30);
+    const slot = slotOf(b);
+    if (slot !== 'deposit' && slot !== 'rent' && slot !== 'total') continue;
+    if (n.money) {
+      if (n.value < 1000 && slot !== 'total') out[slot] ??= Math.round(n.value * 1e6);
+      continue;
+    }
+    if (slot === 'rent') {
+      if (n.value < 1000) out.rent ??= Math.round(n.value * 1e6);
+      continue;
+    }
+    const key = b.replace(/[\s،:]+$/, '').replace(/\s*(تا|حدود|زیر|سقف|حداکثر|حداکثرش|نهایتا|تقریبا)$/, '');
+    if (slot === 'total' && !buying && !/(قیمت|قیمتش|کل|کلش|بودجه|بودجش|بودجه اش|بودجه‌اش)$/.test(key)) continue;
+    const mixed = billionAndMillion(t.slice(n.start, n.end));
+    const value = mixed ?? (n.value >= 100_000 ? undefined : n.value * (n.value < (slot === 'total' ? 100 : 20) ? 1e9 : 1e6));
+    if (value) out[slot] ??= Math.round(value);
+  }
+  return out;
+}
+
+/** «منطقه هجده» یا «منطقه یک یا دو» بی فهرست محله: خود «منطقه ۱۸». */
+function zonesOf(t: string): string[] {
+  const m = /(?:^|\s)منطقه (?:ی )?/.exec(t);
+  if (!m) return [];
+  const out: string[] = [];
+  for (const part of t.slice(m.index + m[0].length).split(/ یا |، ?| یا اینکه /)) {
+    const n = spokenNumbers(part)[0];
+    if (!n || n.start !== 0 || !Number.isInteger(n.value) || n.value < 1 || n.value >= 30) break;
+    out.push(`منطقه ${toFaDigits(n.value)}`);
+    if (part.slice(n.end).trim()) break;
   }
   return out;
 }
 
 /** فیلدهای فرم از متن گفته‌شده. year سال شمسی جاری است (برای «ده سال ساخت» و «نوساز»). */
 export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hints: string[], year: number): VoiceDraft<F> {
-  const t = norm(transcript);
-  if (!t) return {} as VoiceDraft<F>;
+  const said = norm(transcript);
+  if (!said) return {} as VoiceDraft<F>;
+  const phone = findPhone(said);
+  // رقم‌های شماره از متن برداشته می‌شوند تا قیمت، متراژ یا اسم حساب نشوند؛ «شماره» می‌ماند تا اسمِ پیش از آن تمام شود.
+  const t = phone ? `${said.slice(0, phone.start)} شماره، ${said.slice(phone.end)}`.replace(/\s+/g, ' ').trim() : said;
   const nums = spokenNumbers(t);
   const raw: Record<string, unknown> = {};
-  const deal = dealOf(t);
+  const deal = dealOf(t, form);
   if (deal) raw.deal = deal;
 
-  const areas = nums.filter((n) => !n.money && ((/^(متر|متری|مترمربع)/.test(after(t, n)) && !/(متری|هر متر)$/.test(before(t, n))) || /(متراژ|متراژش|زیربنا|زیربناش|بنا|مساحت|مساحتش)[:،]?$/.test(before(t, n))));
-  const bedrooms = nums.find((n) => !n.money && n.value < 20 && /^((تا )?اتاق( خواب)?|خواب)/.test(after(t, n)));
+  // «پونصد متر تا دریا فاصله داره» متراژ نیست.
+  const areas = nums.filter((n) => !n.money && !/^متر( \S+){0,3} فاصله|^متر تا (دریا|ساحل|خیابان|بلوار|میدان|پارک|مدرسه|ایستگاه|مترو)/.test(after(t, n, 40)) && ((/^(متر|متری|مترمربع)/.test(after(t, n)) && !/(متری|هر متر)$/.test(before(t, n))) || /(متراژ|متراژش|زیربنا|زیربناش|بنا|مساحت|مساحتش)[:،]?$/.test(before(t, n))));
+  const bedrooms = nums.find((n) => !n.money && n.value < 20 && /^(تا )?(اتاق( خواب)?|خواب)/.test(after(t, n)));
   // «چهارخوابه» سرهم نوشته می‌شود و عدد جدا پیدا نمی‌شود.
   const glued = /(?:^|\s)(یک|یه|دو|سه|چهار|پنج|شش|شیش)\u200c?خوابه?(?=$|[\s،,.])/.exec(t);
   const bedroomsValue = bedrooms?.value ?? (glued ? GLUED_BEDS[glued[1]!] : /تک خواب/.test(t) ? 1 : /بدون خواب|استودیو/.test(t) ? 0 : undefined);
   const places = hintsIn(t, hints);
   const streets = nameAfter(t, /^(خیابان|بلوار|کوچه|میدان)$/);
   // «منطقه هجده» بی فهرست محله: خود «منطقه ۱۸».
-  const zone = /(?:^|\s)منطقه (?:ی )?([^\s،,.]+(?: و [^\s،,.]+)?)/.exec(t);
-  const zoneNum = zone ? spokenNumbers(zone[1]!)[0] : undefined;
-  const hoods = (zoneNum && zoneNum.start === 0 && Number.isInteger(zoneNum.value) && zoneNum.value > 0 && zoneNum.value < 30 ? [`منطقه ${toFaDigits(zoneNum.value)}`] : [])
+  const hoods = zonesOf(t)
     .concat(nameAfter(t, /^(محله|منطقه|محدوده|حوالی|شهرک)$/).map((x) => (x.lead === 'شهرک' ? `شهرک ${x.name}` : x.name)).filter((x) => !CITY_NAMES.test(x)));
   // «آپارتمان فروشی تو تجریش»: نام بعد از «تو/در» وقتی هیچ محلهٔ دیگری گفته نشده.
   if (!places.length && !hoods.length) {
@@ -371,15 +522,24 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     if (kind) raw.kind = kind;
     raw.neighborhood = places[0] ?? hoods[0];
     if (streets[0]) raw.street = `${streets[0].lead} ${streets[0].name}`;
-    raw.area = areas[0]?.value;
+    // «دویست متر زمین، صد و هشتاد متر بنا»: برای خانه زیربنا مهم است، برای زمین خود زمین.
+    const builtArea = areas.find((n) => /^(متر|متری|مترمربع) ?(بنا|زیربنا|مفید)/.test(after(t, n)) || /(زیربنا|زیربناش|بنا)[:،]?$/.test(before(t, n)));
+    raw.area = (kind !== 'land' && builtArea ? builtArea : areas[0])?.value;
+    const landArea = builtArea && kind !== 'land' ? areas.find((n) => n !== builtArea && /^(متر|متری|مترمربع) زمین|^زمین/.test(after(t, n))) : undefined;
+    const notes: string[] = [];
+    if (landArea) notes.push(`زمین ${toFaDigits(landArea.value)} متر`);
     raw.bedrooms = bedroomsValue;
 
     const floorNum = nums.find((n) => !n.money && /طبقه( ی)?$/.test(before(t, n)));
     const ord = [...t.matchAll(/طبقه( ی)? (?=([^\s،,.]+))/g)].map((m) => ORDINALS[m[2]!]).find((v) => v !== undefined);
     raw.floor = /همکف/.test(t) ? 0 : (floorNum?.value ?? ord);
-    raw.floorsTotal = nums.find((n) => !n.money && /^طبقه/.test(after(t, n)) && !/طبقه( ی)?$/.test(before(t, n)))?.value;
+    raw.floorsTotal =
+      nums.find((n) => !n.money && /^طبقه/.test(after(t, n)) && !/طبقه( ی)?$/.test(before(t, n)))?.value ??
+      nums.find((n) => !n.money && /طبقه( ی)? \S+ از$/.test(before(t, n)))?.value;
 
-    const built = nums.find((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|سال|سازه|مدل)[:،]?$/.test(before(t, n)) && !/^(سال|ساله)/.test(after(t, n)));
+    // «سال ۹۸ بازسازی شده» سال ساخت نیست؛ «ساخت سال ۸۵» بر «سال ۸۵» مقدم است.
+    const years = nums.filter((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|سال|سازه|مدل)[:،]?$/.test(before(t, n)) && !/^(سال|ساله|بازسازی|تعمیر|نوسازی|خرید|خریده|خریدم|خریدن)/.test(after(t, n)));
+    const built = years.find((n) => /ساخت( سال)?[:،]?$/.test(before(t, n))) ?? years[0];
     const age = nums.find((n) => n.value < 100 && /^(سال ساخت|ساله)/.test(after(t, n)));
     raw.yearBuilt = (built && fullYear(built.value, year)) ?? (age ? year - age.value : /نوساز|کلید نخورده/.test(t) ? year : undefined);
 
@@ -389,16 +549,17 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     else if (/مقطوع/.test(t)) raw.negotiable = false;
     raw.ownerName = personOf(t, /(مالک|صاحب)/);
     raw.ownerBestTime = bestTimeOf(t);
-    const phone = spokenPhone(t);
-    raw.ownerPhone = phone.phone;
+    raw.ownerPhone = phone?.phone;
     // شماره‌ای که کامل شنیده نشد گم نشود؛ مشاور خودش درستش می‌کند.
-    if (phone.raw) raw.description = `شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`;
+    if (phone?.raw) notes.push(`شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`);
+    if (notes.length) raw.description = notes.join('، ');
     Object.assign(raw, shortPrices(t, nums));
   } else {
     raw.name = personOf(t);
-    const phone = spokenPhone(t);
-    raw.phone = phone.phone;
-    if (phone.raw) raw.notes = `شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`;
+    raw.phone = phone?.phone;
+    // مشتری فیلد زمان تماس ندارد؛ در یادداشت می‌ماند تا گم نشود.
+    const time = bestTimeOf(t);
+    raw.notes = [time && `بهترین زمان تماس: ${time}`, phone?.raw && `شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`].filter(Boolean).join('، ') || undefined;
     const kinds = kindsOf(t);
     if (kinds.length) raw.kinds = kinds;
     const wanted = [...places, ...hoods];
@@ -412,14 +573,18 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     const loWord = nums.find((n, i) => !n.money && nums[i + 1] && hi && nums[i + 1] === hi && /^تا/.test(after(t, n)));
     raw.areaMin = range ? Number(range[1]) : (lo?.value ?? loWord?.value ?? (hi ? undefined : areas[0]?.value));
     raw.areaMax = range ? Number(range[2]) : hi?.value;
-    raw.bedroomsMin = bedroomsValue;
-    if (/عجله نداره|عجله ندارد|فقط نگاه|فعلا نگاه|سر فرصت|بعدا/.test(t)) raw.temperature = 'cold';
-    else if (/فوری|عجله داره|عجله دارد|خیلی جدی|سریع/.test(t)) raw.temperature = 'hot';
+    // «دو یا سه خواب»: کمترینش.
+    const orBeds = bedrooms && /(?:^|\s)(\S+) یا$/.exec(before(t, bedrooms));
+    const lowBeds = orBeds ? wordNum(orBeds[1]!) : undefined;
+    raw.bedroomsMin = lowBeds !== undefined && bedrooms && lowBeds < bedrooms.value ? lowBeds : bedroomsValue;
+    if (/عجله ?(ای )?(نداره|ندارد|نداریم)|فقط نگاه|فعلا نگاه|سر فرصت|(?<!\S)بعدا(?!\S)/.test(t)) raw.temperature = 'cold';
+    else if (/فوری|عجله (داره|دارد)|(^|\s)جدی(ه|ست)?(?=\s|$|[،,.])|سریع/.test(t)) raw.temperature = 'hot';
     if (/منتظر|خبرش کن|بهش خبر|خبر بدم|زنگ بزنم|تماس بگیرم/.test(t)) raw.waiting = true;
     // «قیمت» برای مشتری یعنی خرید؛ رهن و اجاره «قیمت» ندارد.
     if (!raw.deal && /قیمت|بخره|خرید/.test(t)) raw.deal = 'sale';
-    const short = shortPrices(t, nums);
+    const short = shortPrices(t, nums, raw.deal !== 'rent' && raw.deal !== 'full');
     if (short.deposit) raw.budget = short.deposit;
+    else if (short.total) raw.budget = short.total;
     if (short.rent) raw.rent = short.rent;
   }
   return withSpokenPrices(form, t, cleanVoiceDraft(form, raw));

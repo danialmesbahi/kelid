@@ -1,0 +1,120 @@
+{"form":"client","transcript":"شمارش نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شماره تلفنش نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شماره همراهش صفر نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شماره تماس نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"موبایل نه یک دو سه چهار پنج شش هفت هشت نه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه شمارشه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"آقای رضایی نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"name":"آقای رضایی","phone":"09123456789"}}
+{"form":"client","transcript":"صفر نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شماره ش صفر نهصد و دوازده سیصد و چهل و پنج شش هزار و هفتصد و هشتاد و نه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شمارش صفر نهصد و دوازده سی و چهار پنجاه و شش هفتاد و هشت نه","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شمارش ۰۹۱۲ ۳۴۵ ۶۷ ۸۹","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شمارش 9123456789","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شمارش نهصد و دوازده سیصد و چهل و پنج","hints":"bushehr","expected":{"phone":null}}
+{"form":"listing","transcript":"شماره تلفن نهصد و هفده هفتصد و هفتاد و یک","hints":"bushehr","expected":{"ownerPhone":null}}
+{"form":"listing","transcript":"شماره مالک نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"ownerPhone":"09123456789"}}
+{"form":"listing","transcript":"تلفن مالک نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"ownerPhone":"09123456789"}}
+{"form":"listing","transcript":"آقای کریمی نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه","hints":"bushehr","expected":{"ownerName":"آقای کریمی","ownerPhone":"09123456789"}}
+{"form":"listing","transcript":"شماره مالک صفر نهصد و دوازده، سیصد و چهل و پنج، شصت و هفت، هشتاد و نه","hints":"bushehr","expected":{"ownerPhone":"09123456789"}}
+{"form":"listing","transcript":"شمارش صفر نهصد و دوازده یه دو سه چهار پنج شش هفت","hints":"bushehr","expected":{"ownerPhone":"09121234567"}}
+{"form":"listing","transcript":"شماره صفر نهصد و دوازده صد و بیست و سه چهل و پنج شصت و هفت","hints":"bushehr","expected":{"ownerPhone":"09121234567"}}
+{"form":"listing","transcript":"شماره صفر نهصد و دوازده دویست سی و چهار پنجاه و شش","hints":"bushehr","expected":{"ownerPhone":"09122003456"}}
+{"form":"listing","transcript":"تلفن ثابت هفتاد و هفت سی و سه سی و سه چهل و پنج شصت و هفت","hints":"bushehr","expected":{"ownerPhone":"07733334567"}}
+{"form":"listing","transcript":"تلفن خونه سی و سه سی و سه چهل و پنج شصت و هفت","hints":"bushehr","expected":{"ownerPhone":"33334567"}}
+{"form":"client","transcript":"اسمش علی رضایی","hints":"bushehr","expected":{"name":"علی رضایی"}}
+{"form":"client","transcript":"مشتری جدید آقای محمدی","hints":"bushehr","expected":{"name":"آقای محمدی"}}
+{"form":"client","transcript":"خانم کریمی میخواد آپارتمان بخره","hints":"bushehr","expected":{"name":"خانم کریمی","deal":"sale","kinds":["apartment"]}}
+{"form":"client","transcript":"حاج آقا رحیمی دنبال مغازه است","hints":"bushehr","expected":{"name":"حاج آقا رحیمی","kinds":["shop"]}}
+{"form":"client","transcript":"دکتر صادقی یه واحد دو خوابه میخواد","hints":"bushehr","expected":{"name":"دکتر صادقی","bedroomsMin":2}}
+{"form":"client","transcript":"به اسم مهدی سعادت","hints":"bushehr","expected":{"name":"مهدی سعادت"}}
+{"form":"listing","transcript":"مالک خانم زهرا احمدی","hints":"bushehr","expected":{"ownerName":"خانم زهرا احمدی"}}
+{"form":"listing","transcript":"صاحب خونه آقای موسوی","hints":"bushehr","expected":{"ownerName":"آقای موسوی"}}
+{"form":"listing","transcript":"متعلق به آقای نوری","hints":"bushehr","expected":{"ownerName":"آقای نوری"}}
+{"form":"listing","transcript":"مال حاج آقا رحیمی","hints":"bushehr","expected":{"ownerName":"حاج آقا رحیمی"}}
+{"form":"listing","transcript":"برای فروش","hints":"bushehr","expected":{"ownerName":null}}
+{"form":"listing","transcript":"برای اجاره","hints":"bushehr","expected":{"ownerName":null}}
+{"form":"listing","transcript":"برای رهن کامل","hints":"bushehr","expected":{"ownerName":null}}
+{"form":"listing","transcript":"برای خانواده مناسبه","hints":"bushehr","expected":{"ownerName":null}}
+{"form":"client","transcript":"بودجش پنج میلیارده","hints":"bushehr","expected":{"budget":5000000000}}
+{"form":"client","transcript":"سقف بودجه پنج میلیارد","hints":"bushehr","expected":{"budget":5000000000}}
+{"form":"client","transcript":"حداکثر پنج میلیارد","hints":"bushehr","expected":{"budget":5000000000}}
+{"form":"client","transcript":"تا پنج میلیارد میتونه بده","hints":"bushehr","expected":{"budget":5000000000}}
+{"form":"client","transcript":"پنج میلیارد پول داره","hints":"bushehr","expected":{"budget":5000000000}}
+{"form":"client","transcript":"دو و نیم میلیارد","hints":"bushehr","expected":{"budget":2500000000}}
+{"form":"client","transcript":"رهن کامل تا یک میلیارد","hints":"bushehr","expected":{"deal":"full","budget":1000000000}}
+{"form":"client","transcript":"رهن دویست میلیون اجاره ده میلیون","hints":"bushehr","expected":{"deal":"rent","budget":200000000,"rent":10000000}}
+{"form":"client","transcript":"رهن صد و پنجاه اجاره هفت تومن","hints":"bushehr","expected":{"deal":"rent","budget":150000000,"rent":7000000}}
+{"form":"client","transcript":"ودیعه سیصد ماهی پنج","hints":"bushehr","expected":{"deal":"rent","budget":300000000,"rent":5000000}}
+{"form":"client","transcript":"اجاره ماهانه تا ده میلیون","hints":"bushehr","expected":{"deal":"rent","rent":10000000}}
+{"form":"listing","transcript":"اجاره ماهی هشت تومن رهن صد","hints":"bushehr","expected":{"deal":"rent","rent":8000000,"deposit":100000000}}
+{"form":"listing","transcript":"ودیعه پونصد میلیون","hints":"bushehr","expected":{"deal":"full","deposit":500000000}}
+{"form":"client","transcript":"دنبال خرید آپارتمانه","hints":"bushehr","expected":{"deal":"sale","kinds":["apartment"]}}
+{"form":"client","transcript":"میخواد بخره","hints":"bushehr","expected":{"deal":"sale"}}
+{"form":"client","transcript":"خریداره","hints":"bushehr","expected":{"deal":"sale"}}
+{"form":"client","transcript":"مستاجره دنبال اجاره است","hints":"bushehr","expected":{"deal":"rent"}}
+{"form":"client","transcript":"رهن کامل میخواد","hints":"bushehr","expected":{"deal":"full"}}
+{"form":"client","transcript":"حدود صد متر","hints":"bushehr","expected":{"areaMin":100}}
+{"form":"client","transcript":"صد متر به بالا","hints":"bushehr","expected":{"areaMin":100}}
+{"form":"client","transcript":"بالای صد متر","hints":"bushehr","expected":{"areaMin":100}}
+{"form":"client","transcript":"زیر صد و پنجاه متر","hints":"bushehr","expected":{"areaMax":150}}
+{"form":"client","transcript":"از صد تا صد و پنجاه متر","hints":"bushehr","expected":{"areaMin":100,"areaMax":150}}
+{"form":"client","transcript":"صد تا صد و بیست متری","hints":"bushehr","expected":{"areaMin":100,"areaMax":120}}
+{"form":"client","transcript":"سه خوابه به بالا","hints":"bushehr","expected":{"bedroomsMin":3}}
+{"form":"client","transcript":"حداقل سه اتاق خواب","hints":"bushehr","expected":{"bedroomsMin":3}}
+{"form":"client","transcript":"دو یا سه خواب","hints":"bushehr","expected":{"bedroomsMin":2}}
+{"form":"client","transcript":"بهمنی، سنگی یا ریشهر","hints":"bushehr","expected":{"neighborhoods":["بهمنی","سنگی","ریشهر"]}}
+{"form":"client","transcript":"فقط منطقه بهمنی","hints":"bushehr","expected":{"neighborhoods":["بهمنی"]}}
+{"form":"client","transcript":"آپارتمان یا ویلایی","hints":"bushehr","expected":{"kinds":["apartment","villa"]}}
+{"form":"client","transcript":"مغازه یا دفتر کار","hints":"bushehr","expected":{"kinds":["shop","office"]}}
+{"form":"client","transcript":"منطقه یک یا دو","hints":"tehran","expected":{"neighborhoods":["منطقه ۱","منطقه ۲"]}}
+{"form":"client","transcript":"سعادت آباد یا شهرک غرب","hints":"tehran","expected":{"neighborhoods":["سعادت آباد","شهرک غرب"]}}
+{"form":"client","transcript":"فوری میخواد","hints":"bushehr","expected":{"temperature":"hot"}}
+{"form":"client","transcript":"مشتری جدیه","hints":"bushehr","expected":{"temperature":"hot"}}
+{"form":"client","transcript":"عجله ای نداره","hints":"bushehr","expected":{"temperature":"cold"}}
+{"form":"client","transcript":"هر وقت چیزی اومد خبرش کنم","hints":"bushehr","expected":{"waiting":true}}
+{"form":"client","transcript":"بهش زنگ بزنم","hints":"bushehr","expected":{"waiting":true}}
+{"form":"listing","transcript":"طبقه آخر","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"طبقه همکف","hints":"bushehr","expected":{"floor":0}}
+{"form":"listing","transcript":"طبقه چهارم از شش","hints":"bushehr","expected":{"floor":4,"floorsTotal":6}}
+{"form":"listing","transcript":"ساختمون چهار طبقه است","hints":"bushehr","expected":{"floorsTotal":4}}
+{"form":"listing","transcript":"واحد طبقه دو","hints":"bushehr","expected":{"floor":2}}
+{"form":"listing","transcript":"طبقه دهم","hints":"bushehr","expected":{"floor":10}}
+{"form":"listing","transcript":"طبقه پونزدهم","hints":"bushehr","expected":{"floor":15}}
+{"form":"listing","transcript":"سال ساخت هزار و سیصد و نود و هشت","hints":"bushehr","expected":{"yearBuilt":1398}}
+{"form":"listing","transcript":"ساخت هزار و چهارصد","hints":"bushehr","expected":{"yearBuilt":1400}}
+{"form":"listing","transcript":"ساخت چهارصد","hints":"bushehr","expected":{"yearBuilt":1400}}
+{"form":"listing","transcript":"بیست سال ساخت","hints":"bushehr","expected":{"yearBuilt":1385}}
+{"form":"listing","transcript":"یک ساله","hints":"bushehr","expected":{"yearBuilt":1404}}
+{"form":"listing","transcript":"نوسازه","hints":"bushehr","expected":{"yearBuilt":1405}}
+{"form":"listing","transcript":"سال ساخت نود و نه","hints":"bushehr","expected":{"yearBuilt":1399}}
+{"form":"listing","transcript":"بنا سال هشتاد و پنج","hints":"bushehr","expected":{"yearBuilt":1385}}
+{"form":"listing","transcript":"حدود صد متر","hints":"bushehr","expected":{"area":100}}
+{"form":"listing","transcript":"صد و بیست و پنج متر","hints":"bushehr","expected":{"area":125}}
+{"form":"listing","transcript":"زیربنا صد و ده","hints":"bushehr","expected":{"area":110}}
+{"form":"listing","transcript":"متراژ صد و ده متر و زمین دویست متر","hints":"bushehr","expected":{"area":110}}
+{"form":"listing","transcript":"دو هزار متر زمین","hints":"bushehr","expected":{"area":2000}}
+{"form":"listing","transcript":"قیمت کل هشت میلیارد","hints":"bushehr","expected":{"total":8000000000}}
+{"form":"listing","transcript":"هشت میلیارد و هشتصد","hints":"bushehr","expected":{"total":8800000000}}
+{"form":"listing","transcript":"دوازده میلیارد و پونصد میلیون","hints":"bushehr","expected":{"total":12500000000}}
+{"form":"listing","transcript":"قیمتش هشت و نیم","hints":"bushehr","expected":{"total":8500000000}}
+{"form":"listing","transcript":"متری شصت میلیون صد متر","hints":"bushehr","expected":{"area":100,"total":6000000000}}
+{"form":"listing","transcript":"یک میلیارد و دویست","hints":"bushehr","expected":{"total":1200000000}}
+{"form":"listing","transcript":"پنت هاوس","hints":"bushehr","expected":{"kind":"apartment"}}
+{"form":"listing","transcript":"یه خونه حیاط دار","hints":"bushehr","expected":{"kind":"villa"}}
+{"form":"listing","transcript":"یه باب مغازه","hints":"bushehr","expected":{"kind":"shop"}}
+{"form":"listing","transcript":"دفتر اداری","hints":"bushehr","expected":{"kind":"office"}}
+{"form":"listing","transcript":"یه قطعه زمین","hints":"bushehr","expected":{"kind":"land"}}
+{"form":"listing","transcript":"کلنگیه","hints":"bushehr","expected":{"kind":"land"}}
+{"form":"listing","transcript":"فروشیه","hints":"bushehr","expected":{"deal":"sale"}}
+{"form":"listing","transcript":"اجاره ایه","hints":"bushehr","expected":{"deal":"rent"}}
+{"form":"listing","transcript":"پارکینگ نداره","hints":"bushehr","expected":{"features":null}}
+{"form":"listing","transcript":"آسانسور داره پارکینگ هم داره انباری نداره","hints":"bushehr","expected":{"features":["آسانسور","پارکینگ"]}}
+{"form":"listing","transcript":"دو تا پارکینگ","hints":"bushehr","expected":{"features":["پارکینگ"]}}
+{"form":"listing","transcript":"بالکن داره","hints":"bushehr","expected":{"features":["بالکن"]}}
+{"form":"listing","transcript":"سرایدار داره","hints":"bushehr","expected":{"features":["لابی و نگهبان"]}}
+{"form":"listing","transcript":"شبا زنگ بزنید","hints":"bushehr","expected":{"ownerBestTime":"شب‌ها"}}
+{"form":"listing","transcript":"فقط صبح ها","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"ظهرها در دسترس نیست","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"بعد از ظهر تماس بگیرید","hints":"bushehr","expected":{"ownerBestTime":"بعدازظهر"}}
+{"form":"client","transcript":"مشتری آقای رضایی شمارش نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه دنبال آپارتمان دو خوابه تو بهمنی تا پنج میلیارد عجله داره","hints":"bushehr","expected":{"name":"آقای رضایی","phone":"09123456789","kinds":["apartment"],"bedroomsMin":2,"neighborhoods":["بهمنی"],"budget":5000000000,"temperature":"hot"}}
+{"form":"listing","transcript":"یه خونه ویلایی یکصد و هشتاد متری تو خیابون مبارزان مالکش آقای سعادت شماره تلفن نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه عصرها زنگ بزنید","hints":"bushehr","expected":{"kind":"villa","street":"خیابان مبارزان","area":180,"ownerName":"آقای سعادت","ownerPhone":"09123456789"}}

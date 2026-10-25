@@ -13,6 +13,9 @@ const SMALL: Record<string, number> = {
   ششصد: 600, شیشصد: 600, هفتصد: 700, هشتصد: 800, نهصد: 900,
 };
 
+/** واژه‌های عدد، برای جدا کردن «نهصدوسی» یا «وپنج» که سرهم نوشته شده‌اند. */
+export const NUMBER_WORDS: ReadonlySet<string> = new Set(Object.keys(SMALL));
+
 const SCALES: Array<[string, number]> = [
   ['میلیارد', 1e9], ['ملیارد', 1e9], ['میلیون', 1e6], ['ملیون', 1e6], ['هزار', 1e3], ['تومن', 1], ['تومان', 1], ['ریال', 0.1],
 ];
@@ -119,7 +122,9 @@ export function spokenNumbers(text: string): SpokenNumber[] {
     }
     if (current && total && last >= 1e6) {
       // «دو میلیارد و سیصد» یعنی دو میلیارد و سیصد میلیون؛ ولی در «سه میلیارد و دو خوابه» «دو» جزو مبلغ نیست.
-      if (current >= 50 && current < 1000) total += current * (last / 1000);
+      // «شصت میلیون صد متر»: عددی که واحد خودش را دارد جزو مبلغ نیست.
+      const unit = /^\s*(متر|متری|مترمربع|خواب|خوابه|اتاق|طبقه|سال|ساله)/.test(text.slice(toks[end]!.end));
+      if (current >= 50 && current < 1000 && !unit) total += current * (last / 1000);
       else end = scaleEnd;
     } else total += current;
     if (rial) total /= 10;
