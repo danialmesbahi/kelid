@@ -3,3 +3,5 @@
 {"form":"listing","transcript":"یه خونه ویلایی یکصد و هشتاد متری تو خیابون مبارزان شماره تلفن نهصد و هفده هفتصد و هفتاد و یک","hints":"bushehr","expected":{"kind":"villa","street":"خیابان مبارزان","area":180,"ownerPhone":null,"description":"شمارهٔ گفته‌شده (کامل شنیده نشد): ۹۱۷۷۷۱"}}
 {"form":"listing","transcript":"آپارتمان رهن و اجاره، رهن صد اجاره هفت تومن","hints":"bushehr","expected":{"deal":"rent","deposit":100000000,"rent":7000000,"total":null}}
 {"form":"client","transcript":"بودجش هفت تومنه","hints":"bushehr","expected":{"budget":7000000000}}
+{"form":"listing","transcript":"یه آپارتمان یکصد و نود و شش متری هفت و سیصد و پنجاه تومن شوهر ان اصلا رفته ین چهار تا می کرد","hints":"bushehr","expected":{"kind":"apartment","area":196,"total":7350000000,"bedrooms":null,"floor":null,"ownerName":null}}
+{"form":"listing","transcript":"آپارتمان صد متری هشت میلیارد","hints":"bushehr","expected":{"kind":"apartment","area":100,"total":8000000000}}

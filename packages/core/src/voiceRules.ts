@@ -482,7 +482,10 @@ function shortPrices(t: string, nums: SpokenNumber[], buying = false, sale = buy
     // «هفت تومن» بی میلیون/میلیارد: در اجاره هفت میلیون، در فروش هفت میلیارد.
     if (n.money) {
       const s = slot ?? (sale ? 'total' : undefined);
-      if (n.value < 1000 && s) out[s] ??= Math.round(n.value * (s === 'rent' ? 1e6 : n.value < (s === 'total' ? 100 : 20) ? 1e9 : 1e6));
+      // «هفت و سیصد و پنجاه تومن» = هفت میلیارد و سیصد و پنجاه میلیون
+      const mixed = s && s !== 'rent' ? billionAndMillion(t.slice(n.start, n.end).replace(/\s*(تومن|تومان)$/, '')) : undefined;
+      if (mixed) out[s!] ??= mixed;
+      else if (n.value < 1000 && s) out[s] ??= Math.round(n.value * (s === 'rent' ? 1e6 : n.value < (s === 'total' ? 100 : 20) ? 1e9 : 1e6));
       continue;
     }
     if (!slot) continue;

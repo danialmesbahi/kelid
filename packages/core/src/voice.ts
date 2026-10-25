@@ -1,5 +1,5 @@
 import type { ClientTemperature, DealType, PropertyKind } from './model';
-import { spokenAmounts } from './money';
+import { spokenAmounts, spokenNumbers } from './money';
 import { normalizePhone } from './store';
 
 export { annotateAmounts, spokenAmounts, type SpokenAmount } from './money';
@@ -210,7 +210,8 @@ export function slotOf(before: string): PriceSlot | 'perMeter' | undefined {
   if (/(وام|شارژ|بدهی|مالیات|قسط|اقساط|هزینه|جریمه)(ش)?( ماهانه| ماهیانه| ماهی| ماه)?( \S+)?$/.test(raw)) return undefined;
   // «رهن تا دویست»، «اجاره حداکثر ده»: قید مبلغ جای آن را عوض نمی‌کند.
   const b = raw.replace(/\s*(تا|حدود|زیر|سقف|حداکثر|حداکثرش|نهایتا|نهایت|تقریبا|در حد)$/, '') || raw;
-  if (/(متری|هر\s*متر|متر\s*مربعی)$/.test(b)) return 'perMeter';
+  // «صد متری هشت میلیارد»: «متری» مال متراژ است، نه قیمت هر متر.
+  if (/(متری|هر\s*متر|متر\s*مربعی)$/.test(b)) return /متری$/.test(b) && spokenNumbers(b).some((n) => /^\s*متری$/.test(b.slice(n.end))) ? undefined : 'perMeter';
   if (/(رهن|ودیعه|پیش|رهنش|ودیعه‌اش)(\s*کامل)?$/.test(b)) return 'deposit';
   if (/(اجاره|اجاره‌اش|اجارش|کرایه|ماهی|ماهیانه|ماهانه)$/.test(b)) return 'rent';
   if (/(قیمت|قیمتش|کل|کلش|فروش|بودجه|بودجه‌اش|بودجه اش|تا|حدود|زیر|سقف)$/.test(raw)) return 'total';
