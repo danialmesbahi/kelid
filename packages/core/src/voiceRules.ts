@@ -470,19 +470,22 @@ function billionAndMillion(src: string): number | undefined {
  * عدد بی‌واحد بعد از رهن/اجاره/قیمت، همان‌طور که مشاورها می‌گویند:
  * «اجاره بیست» و «اجاره هفت تومن» = میلیون؛ «رهن پونصد» = میلیون ولی «رهن دو» = میلیارد؛
  * «قیمتش هشت و نیم» = میلیارد و «قیمت نهصد» = میلیون؛ «رهن کامل هزار و پونصد» = یک و نیم میلیارد.
- * buying: مشتری خرید که «تا پنج» می‌گوید.
+ * buying: مشتری خرید که «تا پنج» می‌گوید. sale: فایل فروشی (یا بی نوع معامله) که «هفت تومن» بی برچسب گفته.
  */
-function shortPrices(t: string, nums: SpokenNumber[], buying = false): { deposit?: number; rent?: number; total?: number } {
+function shortPrices(t: string, nums: SpokenNumber[], buying = false, sale = buying): { deposit?: number; rent?: number; total?: number } {
   const out: { deposit?: number; rent?: number; total?: number } = {};
   for (const n of nums) {
     if (n.value < 1 || /^\s*(متر|خواب|طبقه|سال|ساله|تا)/.test(after(t, n))) continue;
     const b = before(t, n, 30);
     const slot = slotOf(b);
-    if (slot !== 'deposit' && slot !== 'rent' && slot !== 'total') continue;
+    if (slot === 'perMeter') continue;
+    // «هفت تومن» بی میلیون/میلیارد: در اجاره هفت میلیون، در فروش هفت میلیارد.
     if (n.money) {
-      if (n.value < 1000 && slot !== 'total') out[slot] ??= Math.round(n.value * 1e6);
+      const s = slot ?? (sale ? 'total' : undefined);
+      if (n.value < 1000 && s) out[s] ??= Math.round(n.value * (s === 'rent' ? 1e6 : n.value < (s === 'total' ? 100 : 20) ? 1e9 : 1e6));
       continue;
     }
+    if (!slot) continue;
     if (slot === 'rent') {
       if (n.value < 1000) out.rent ??= Math.round(n.value * 1e6);
       continue;
@@ -544,7 +547,10 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
   if (form === 'listing') {
     const kind = kindsOf(t)[0];
     if (kind) raw.kind = kind;
-    raw.neighborhood = places[0] ?? hoods[0];
+    // «منطقه مبارزان، محله سعدی»: «محله» دقیق‌تر است و برنده است.
+    const said = nameAfter(t, /^محله$/)[0]?.name;
+    const saidHood = said && !CITY_NAMES.test(said) ? (places.find((p) => normalizeForSearch(p) === normalizeForSearch(said)) ?? said) : undefined;
+    raw.neighborhood = saidHood ?? places[0] ?? hoods[0];
     if (streets[0]) raw.street = `${streets[0].lead} ${streets[0].name}`;
     // «دویست متر زمین، صد و هشتاد متر بنا»: برای خانه زیربنا مهم است، برای زمین خود زمین.
     const builtArea = areas.find((n) => /^(متر|متری|مترمربع) ?(بنا|زیربنا|مفید)/.test(after(t, n)) || /(زیربنا|زیربناش|بنا)[:،]?$/.test(before(t, n)));
@@ -563,7 +569,8 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
 
     // «سال ۹۸ بازسازی شده» سال ساخت نیست؛ «ساخت سال ۸۵» بر «سال ۸۵» مقدم است.
     const years = nums.filter((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|ساختش|سال|سازه|مدل)[:،]?$/.test(before(t, n)) && !/^(سال|ساله|بازسازی|تعمیر|نوسازی|خرید|خریده|خریدم|خریدن)/.test(after(t, n)));
-    const built = years.find((n) => /ساختش?( سال)?[:،]?$/.test(before(t, n))) ?? years[0];
+    // «سال نود صنعتی، مدل نود و شش»: «ساخت/مدل» از «سال» تنها مطمئن‌تر است.
+    const built = years.find((n) => /(ساختش?|مدل|سازه)( سال)?[:،]?$/.test(before(t, n))) ?? years[0];
     // «قرارداد یک ساله» سن ساختمان نیست.
     const age = nums.find((n) => n.value < 100 && /^(سال ساخت|ساله)/.test(after(t, n)) && !/(قرارداد|اجاره|مستاجر|وام|قسط|اقساط|اجاره نامه)$/.test(before(t, n)));
     raw.yearBuilt = (built && fullYear(built.value, year)) ?? (age ? year - age.value : /نوساز|کلید نخورده/.test(t) ? year : undefined);
@@ -578,7 +585,7 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     // شماره‌ای که کامل شنیده نشد گم نشود؛ مشاور خودش درستش می‌کند.
     if (phone?.raw) notes.push(`شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`);
     if (notes.length) raw.description = notes.join('، ');
-    Object.assign(raw, shortPrices(t, nums));
+    Object.assign(raw, shortPrices(t, nums, false, raw.deal !== 'rent' && raw.deal !== 'full'));
   } else {
     raw.name = personOf(t);
     raw.phone = phone?.phone;
