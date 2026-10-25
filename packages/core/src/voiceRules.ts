@@ -136,7 +136,9 @@ function wordHints(t: string, hints: string[]): string[] {
       // «آقای شکری» نام است نه محلهٔ شکری؛ «ساحلی» یا «استخر» هم بی «محله/تو/نزدیک» واژهٔ معمولی‌اند.
       const prev = words[i - 1] ?? '';
       const asName = TITLE.test(prev) || TITLE.test(words[i - 2] ?? '') || /^(اسم|اسمش|نام|بنام|مالکش|صاحبش|مالک)$/.test(prev);
-      if (h && (asName || (n === 1 && COMMON_PLACE.test(words[i]!) && !PLACE_LEAD.test(prev)))) continue;
+      // «هر جایی جز ریشهر»، «غیر از سنگی»: محلهٔ نخواسته.
+      const except = /^(جز|بجز|الا|غیراز)$/.test(prev) || (prev === 'از' && words[i - 2] === 'غیر');
+      if (h && (asName || except || (n === 1 && COMMON_PLACE.test(words[i]!) && !PLACE_LEAD.test(prev)))) continue;
       if (h && i + n <= words.length) {
         if (!found.includes(h)) found.push(h);
         i += n - 1;
@@ -386,16 +388,18 @@ const CITY_NAMES = /^(تهران|مشهد|اصفهان|شیراز|تبریز|ک�
 // «در دسترسه»، «در حال ساخت»، «تو این ساختمون»: این‌ها بعد از «در/تو» محله نیستند.
 const LOOSE_STOP = /^(حد|حدود|طول|عرض|کنار|وسط|اول|آخر|نزدیکی|جوار|مقابل|انتظار|حین|دسترس|دسترسه|دسترسی|خدمت|حال|نظر|مورد|جریان|اختیار|اسرع|کل|ضمن|واقع|عوض|همون|همان|این|اون|آن|یه|یک|ساختمون|ساختمان|مجتمع|برج|خانه|شهر|بالا|پایین|طبقه|کوچه|خیابان|بلوار)$/;
 
-const NAME_STOP = /^(زیر|بالای|حداقل|حداکثر|حدود|بین|دنبال|بعد|قبل|فقط|ساعت|داره|دارن|دارد|گفت|گفته|میگه|برای|بری|مال|الان|خیلی|اینجا|اونجا|ولی|اما|یا|هم|تا|از|به|رو|را|صبح|عصر|ظهر|شب|طبقه|آپارتمان|واحد|تماس|زنگ|هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون|شمارش|شمارشون|تلفنش|موبایلش|همراهش|تماسش|مناسب|مناسبه|خانواده|زوج|زوجین|دانشجو|دانشجویی|سکونت|کار|سرمایه|سرمایه‌گذاری|مسکونی|شما|ما|من|همه|بچه|مجرد|متاهل|مستاجر|زندگی|بازدید|خرید|دیدن|عجله|فعلا|هنوز|دیگه|پول|بودجه|بودجش|نیاز|لازم|مشتری|جدی|جدیه|فوری|منتظر|دنبال|میخواست|زنگ|زد|خارج|ایران|شهرستان|تهران|اینجا|نیست|سفر|مسافرت|کشور|کشوره|مشاور|مشاوره|گفت|میگه)$/;
+const NAME_STOP = /^(زیر|بالای|حداقل|حداکثر|حدود|بین|دنبال|بعد|قبل|فقط|ساعت|داره|دارن|دارد|گفت|گفته|میگه|برای|بری|مال|الان|خیلی|اینجا|اونجا|ولی|اما|یا|هم|تا|از|به|رو|را|صبح|عصر|ظهر|شب|طبقه|آپارتمان|واحد|تماس|زنگ|هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون|شمارش|شمارشون|تلفنش|موبایلش|همراهش|تماسش|مناسب|مناسبه|خانواده|زوج|زوجین|دانشجو|دانشجویی|سکونت|کار|سرمایه|سرمایه‌گذاری|مسکونی|شما|ما|من|همه|بچه|مجرد|متاهل|مستاجر|زندگی|بازدید|خرید|دیدن|عجله|فعلا|هنوز|دیگه|پول|بودجه|بودجش|نیاز|لازم|مشتری|جدی|جدیه|فوری|منتظر|دنبال|میخواست|زنگ|زد|خارج|ایران|شهرستان|تهران|اینجا|نیست|سفر|مسافرت|کشور|کشوره|مشاور|مشاوره|گفت|میگه|ساکن|مقیم|ساکنه|مقیمه)$/;
+// «میخواد» فعل است ولی «میرزایی» و «میری» نام‌اند.
+const VERB = /^ن?می(خواد|خواهد|خوان|خوام|خواست|ده|دن|دم|دی|گه|گن|گم|گفت|کنه|کنن|کنم|کرد|اد|آد|ان|آن|شه|شن|شد|تونه|تونن|فروشه|فروشن|خره|خرن|ره|رن|رم|زنه|بینه|گیره|ذاره|زاره|دونه|پرسه|مونه|خوره|گرده|بره|پسنده)$/;
 // «آقای سامان مغازه می‌خواد»: نوع ملک یا امکانات جزو نام نیست.
-const nameWord = (w: string | undefined) => !!w && !NOT_NAME.test(w) && !NAME_STOP.test(w) && !kindsOf(w).length && !featuresOf(w).length && !/^(می|نمی)/.test(w) && !/ها$/.test(w) && !/\d/.test(w) && !spokenNumbers(w).length;
+const nameWord = (w: string | undefined) => !!w && !NOT_NAME.test(w) && !NAME_STOP.test(w) && !kindsOf(w).length && !featuresOf(w).length && !VERB.test(w) && !/ها$/.test(w) && !/\d/.test(w) && !spokenNumbers(w).length;
 
 const TITLE = /^(جناب|حاج|حاجی|آقا|آقای|خانم|خانوم|دکتر|مهندس|استاد)$/;
 /** «جناب» نوشته نمی‌شود؛ «آقا» تنها «آقای» می‌شود ولی «حاج آقا» همان می‌ماند. */
 function titleOf(chain: string[]): string {
   const out = chain
     .filter((w) => w !== 'جناب')
-    .map((w, i, all) => (w === 'خانوم' ? 'خانم' : w === 'آقا' && !/^حاج/.test(all[i - 1] ?? '') ? 'آقای' : w));
+    .map((w) => (w === 'خانوم' ? 'خانم' : w));
   return out.length ? out.join(' ') : 'آقای';
 }
 
@@ -436,6 +440,13 @@ function personOf(t: string, near?: RegExp): string | undefined {
       const n = take(j);
       const end = words[j + (n?.split(' ').length ?? 0)];
       if (n && (!end || /^(شماره|شمارش|تلفن|تلفنش|موبایل|موبایلش|هست|است|که)$/.test(end))) hits.push({ name: n, at: i, near: true });
+    });
+  }
+  // «علی آقا»، «زهرا خانم»: نام کوچک و بعد عنوان.
+  if (!hits.length) {
+    words.forEach((w, i) => {
+      if (hits.length || i === 0 || !/^(آقا|خانم|خانوم)$/.test(w) || TITLE.test(words[i - 2] ?? '') || !nameWord(words[i - 1])) return;
+      hits.push({ name: `${words[i - 1]} ${w === 'خانوم' ? 'خانم' : w}`, at: i - 1, near: !!near && near.test(words[i - 2] ?? '') });
     });
   }
   const pick = (near && hits.find((h) => h.near)) || hits[0];
@@ -545,22 +556,22 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
 
     const floorNum = nums.find((n) => !n.money && /طبقه( ی)?$/.test(before(t, n)));
     const ord = [...t.matchAll(/طبقه( ی)? (?=([^\s،,.]+))/g)].map((m) => ORDINALS[m[2]!]).find((v) => v !== undefined);
-    raw.floor = /همکف/.test(t) ? 0 : (floorNum?.value ?? ord);
+    raw.floor = /(?<!زیر )همکف/.test(t) ? 0 : /زیر ?همکف|زیرزمین|منفی/.test(t) ? undefined : (floorNum?.value ?? ord);
     raw.floorsTotal =
       nums.find((n) => !n.money && /^طبقه/.test(after(t, n)) && !/طبقه( ی)?$/.test(before(t, n)))?.value ??
       nums.find((n) => !n.money && /طبقه( ی)? \S+ از$/.test(before(t, n)))?.value;
 
     // «سال ۹۸ بازسازی شده» سال ساخت نیست؛ «ساخت سال ۸۵» بر «سال ۸۵» مقدم است.
-    const years = nums.filter((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|سال|سازه|مدل)[:،]?$/.test(before(t, n)) && !/^(سال|ساله|بازسازی|تعمیر|نوسازی|خرید|خریده|خریدم|خریدن)/.test(after(t, n)));
-    const built = years.find((n) => /ساخت( سال)?[:،]?$/.test(before(t, n))) ?? years[0];
+    const years = nums.filter((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|ساختش|سال|سازه|مدل)[:،]?$/.test(before(t, n)) && !/^(سال|ساله|بازسازی|تعمیر|نوسازی|خرید|خریده|خریدم|خریدن)/.test(after(t, n)));
+    const built = years.find((n) => /ساختش?( سال)?[:،]?$/.test(before(t, n))) ?? years[0];
     // «قرارداد یک ساله» سن ساختمان نیست.
     const age = nums.find((n) => n.value < 100 && /^(سال ساخت|ساله)/.test(after(t, n)) && !/(قرارداد|اجاره|مستاجر|وام|قسط|اقساط|اجاره نامه)$/.test(before(t, n)));
     raw.yearBuilt = (built && fullYear(built.value, year)) ?? (age ? year - age.value : /نوساز|کلید نخورده/.test(t) ? year : undefined);
 
     const features = featuresOf(t);
     if (features.length) raw.features = features;
-    if (/قابل مذاکره|جای چانه|چونه|تخفیف/.test(t)) raw.negotiable = true;
-    else if (/مقطوع/.test(t)) raw.negotiable = false;
+    if (/مقطوع|(?<!\S)قطعی(ه)?(?!\S)|قیمت نهایی|تخفیف نمیده|تخفیف نداره|کوتاه نمیاد|پایین نمیاد/.test(t)) raw.negotiable = false;
+    else if (/قابل مذاکره|توافقی|جای چانه|چونه|تخفیف|میاد پایین|میاد پائین|کوتاه میاد|قابل جابجایی/.test(t)) raw.negotiable = true;
     raw.ownerName = personOf(t, /(مالک|صاحب)/);
     raw.ownerBestTime = bestTimeOf(t);
     raw.ownerPhone = phone?.phone;
@@ -590,8 +601,10 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     // «دو یا سه خواب»: کمترینش.
     const orBeds = bedrooms && /(?:^|\s)(\S+) یا$/.exec(before(t, bedrooms));
     const lowBeds = orBeds ? wordNum(orBeds[1]!) : undefined;
-    raw.bedroomsMin = lowBeds !== undefined && bedrooms && lowBeds < bedrooms.value ? lowBeds : bedroomsValue;
-    if (/عجله ?(ای )?(نداره|ندارد|نداریم)|فقط نگاه|فعلا نگاه|سر فرصت|(?<!\S)بعدا(?!\S)/.test(t)) raw.temperature = 'cold';
+    // «حداکثر دو خواب» حداقل نیست.
+    const maxBeds = bedrooms && /(حداکثر|نهایتا|نهایت|زیر|کمتر از)$/.test(before(t, bedrooms));
+    raw.bedroomsMin = maxBeds ? undefined : lowBeds !== undefined && bedrooms && lowBeds < bedrooms.value ? lowBeds : bedroomsValue;
+    if (/عجله ?(ای )?(نداره|ندارد|نداریم|نیست)|فقط نگاه|فعلا نگاه|سر فرصت|(?<!\S)بعدا(?!\S)/.test(t)) raw.temperature = 'cold';
     else if (/فوری|عجله (داره|دارد)|(^|\s)جدی(ه|ست)?(?=\s|$|[،,.])|سریع/.test(t)) raw.temperature = 'hot';
     if (/منتظر|خبرش کن|بهش خبر|خبر بدم|زنگ بزنم|تماس بگیرم/.test(t)) raw.waiting = true;
     // «قیمت» برای مشتری یعنی خرید؛ رهن و اجاره «قیمت» ندارد.

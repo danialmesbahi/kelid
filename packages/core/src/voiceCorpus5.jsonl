@@ -1,0 +1,57 @@
+{"form":"listing","transcript":"پول پیش صد میلیون اجاره پنج میلیون","hints":"bushehr","expected":{"deal":"rent","deposit":100000000,"rent":5000000}}
+{"form":"listing","transcript":"کرایه ماهی پنج میلیون","hints":"bushehr","expected":{"deal":"rent","rent":5000000}}
+{"form":"client","transcript":"کرایه نشینه دنبال اجاره است پول پیش دویست داره","hints":"bushehr","expected":{"deal":"rent","budget":200000000}}
+{"form":"listing","transcript":"هشت میلیارد ولی تا هفت و نیم میاد پایین","hints":"bushehr","expected":{"total":8000000000,"negotiable":true}}
+{"form":"listing","transcript":"قیمتش قطعیه","hints":"bushehr","expected":{"negotiable":false}}
+{"form":"listing","transcript":"رهن صد با اجاره پنج قابل جابجاییه","hints":"bushehr","expected":{"deal":"rent","deposit":100000000,"rent":5000000}}
+{"form":"listing","transcript":"قیمتش حدود هشت میلیارده","hints":"bushehr","expected":{"total":8000000000}}
+{"form":"listing","transcript":"هشت و پونصد","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"قیمت هشت و پونصد","hints":"bushehr","expected":{"total":8500000000}}
+{"form":"listing","transcript":"معاوضه هم میکنه","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"زیر همکف","hints":"bushehr","expected":{"floor":null}}
+{"form":"listing","transcript":"طبقه منفی یک","hints":"bushehr","expected":{"floor":null}}
+{"form":"listing","transcript":"طبقه سوم بدون آسانسور","hints":"bushehr","expected":{"floor":3,"features":null}}
+{"form":"listing","transcript":"پیلوت پارکینگ داره","hints":"bushehr","expected":{"features":["پارکینگ"]}}
+{"form":"listing","transcript":"پارکینگ مسقف و انباری بزرگ","hints":"bushehr","expected":{"features":["پارکینگ","انباری"]}}
+{"form":"listing","transcript":"آسانسور هم داره","hints":"bushehr","expected":{"features":["آسانسور"]}}
+{"form":"listing","transcript":"بدون آسانسور ولی با پارکینگ","hints":"bushehr","expected":{"features":["پارکینگ"]}}
+{"form":"client","transcript":"خانم دکتر احمدی","hints":"bushehr","expected":{"name":"خانم دکتر احمدی"}}
+{"form":"client","transcript":"مهندس کریمی","hints":"bushehr","expected":{"name":"مهندس کریمی"}}
+{"form":"client","transcript":"آقا رضا میخواد بخره","hints":"bushehr","expected":{"name":"آقا رضا"}}
+{"form":"client","transcript":"علی آقا دنبال مغازه است","hints":"bushehr","expected":{"name":"علی آقا"}}
+{"form":"listing","transcript":"مالکش آقای حسین زاده","hints":"bushehr","expected":{"ownerName":"آقای حسین زاده"}}
+{"form":"listing","transcript":"مالکش آقای میرزایی هست شماره نداریم","hints":"bushehr","expected":{"ownerName":"آقای میرزایی","ownerPhone":null}}
+{"form":"client","transcript":"شمارش رو بعدا میدم","hints":"bushehr","expected":{"phone":null}}
+{"form":"listing","transcript":"مالکش آقای رضایی ساکن تهرانه","hints":"bushehr","expected":{"ownerName":"آقای رضایی"}}
+{"form":"client","transcript":"شمارش ۰۹۱۲۳۴۵۶۷۸۹","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"client","transcript":"شمارش صفر نهصد و دوازده ۳۴۵ ۶۷ ۸۹","hints":"bushehr","expected":{"phone":"09123456789"}}
+{"form":"listing","transcript":"شماره مالک ۹۱۲۳۴۵۶۷۸۹","hints":"bushehr","expected":{"ownerPhone":"09123456789"}}
+{"form":"listing","transcript":"خیابان امام خمینی","hints":"bushehr","expected":{"street":"خیابان امام خمینی"}}
+{"form":"listing","transcript":"بلوار شهید چمران","hints":"bushehr","expected":{"street":"بلوار شهید چمران"}}
+{"form":"listing","transcript":"خیابون عاشوری کوچه سوم","hints":"bushehr","expected":{"street":"خیابان عاشوری"}}
+{"form":"listing","transcript":"نزدیک میدون انقلاب","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"بین بهمنی و سنگی","hints":"bushehr","expected":{}}
+{"form":"listing","transcript":"نزدیک بهمنی","hints":"bushehr","expected":{}}
+{"form":"client","transcript":"هر جایی جز ریشهر","hints":"bushehr","expected":{"neighborhoods":null}}
+{"form":"client","transcript":"ترجیحا بهمنی","hints":"bushehr","expected":{"neighborhoods":["بهمنی"]}}
+{"form":"listing","transcript":"سال ساختش ۱۴۰۰","hints":"bushehr","expected":{"yearBuilt":1400}}
+{"form":"listing","transcript":"ساخت سال هزار و چهارصد و سه","hints":"bushehr","expected":{"yearBuilt":1403}}
+{"form":"listing","transcript":"بیست و پنج سال ساخت","hints":"bushehr","expected":{"yearBuilt":1380}}
+{"form":"listing","transcript":"قدیمی ساخته","hints":"bushehr","expected":{"yearBuilt":null}}
+{"form":"listing","transcript":"صد و بیست متر مفید","hints":"bushehr","expected":{"area":120}}
+{"form":"listing","transcript":"دو خواب و یک کار","hints":"bushehr","expected":{"bedrooms":2}}
+{"form":"listing","transcript":"سه خوابه که یکیش مستره","hints":"bushehr","expected":{"bedrooms":3}}
+{"form":"listing","transcript":"صد و بیست متر بنا دویست متر زمین","hints":"bushehr","expected":{"area":120}}
+{"form":"client","transcript":"حداکثر دو خواب","hints":"bushehr","expected":{"bedroomsMin":null}}
+{"form":"client","transcript":"صد متر یا بیشتر","hints":"bushehr","expected":{"areaMin":100}}
+{"form":"client","transcript":"زیر سه میلیارد","hints":"bushehr","expected":{"budget":3000000000}}
+{"form":"client","transcript":"دنبال یه چیز ارزونه","hints":"bushehr","expected":{"budget":null}}
+{"form":"client","transcript":"بودجش محدوده","hints":"bushehr","expected":{"budget":null}}
+{"form":"client","transcript":"فعلا عجله ای نیست","hints":"bushehr","expected":{"temperature":"cold"}}
+{"form":"client","transcript":"سریع میخواد","hints":"bushehr","expected":{"temperature":"hot"}}
+{"form":"client","transcript":"قرار شد خبرش کنیم","hints":"bushehr","expected":{"waiting":true}}
+{"form":"client","transcript":"کار داره نمیتونه بیاد بازدید","hints":"bushehr","expected":{"temperature":null}}
+{"form":"listing","transcript":"سوییت","hints":"bushehr","expected":{"kind":"apartment"}}
+{"form":"listing","transcript":"موقعیت اداری داره","hints":"bushehr","expected":{"kind":"office"}}
+{"form":"listing","transcript":"آپارتمان با موقعیت اداری","hints":"bushehr","expected":{"kind":"apartment"}}
+{"form":"client","transcript":"هر نوعی باشه","hints":"bushehr","expected":{"kinds":null}}
