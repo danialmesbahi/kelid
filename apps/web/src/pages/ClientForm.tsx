@@ -3,7 +3,7 @@ import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { Icon, Segmented, Switch, type IconName } from '@kelid/ui';
 import {
   bestMatches, formatToman, normalizeForSearch, normalizePhone, toEnDigits, toFaDigits,
-  type Client, type ClientTemperature, type DealType, type NewClient, type PropertyKind,
+  type Client, type ClientDraft, type ClientTemperature, type DealType, type NewClient, type PropertyKind,
 } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { PageSkeleton } from '../layout/PageSkeleton';
@@ -11,6 +11,7 @@ import { useToast } from '../layout/Toasts';
 import { useGoBack } from '../layout/useGoBack';
 import { LeaveDialog } from '../layout/LeaveDialog';
 import { amountText, FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
+import { VoiceFill } from '../voice/VoiceFill';
 
 // همان کارت‌های فرم فایل، با زبان مشتری: او می‌خرد یا اجاره می‌کند.
 const DEALS: Array<{ value: DealType; cls: string; icon: IconName; label: string; hint: string }> = [
@@ -56,6 +57,26 @@ function toState(c?: Client): FormState {
     budget: amountText(c?.need.budgetMax), rent: amountText(c?.need.rentMax),
     temperature: c?.temperature ?? 'warm', waiting: c?.waitingForNews ?? false, notes: c?.notes ?? '',
   };
+}
+
+/** فقط آنچه در صحبت آمده روی فرم می‌نشیند؛ محله‌های تازه کنار محله‌های قبلی می‌آیند. */
+function withDraft(f: FormState, d: ClientDraft): FormState {
+  const n = { ...f };
+  if (d.name) n.name = d.name;
+  if (d.phone) n.phone = toEnDigits(d.phone);
+  if (d.deal) n.deal = d.deal;
+  if (d.kinds) n.kinds = d.kinds;
+  if (d.neighborhoods) {
+    const have = new Set(f.neighborhoods.map(normalizeForSearch));
+    n.neighborhoods = [...f.neighborhoods, ...d.neighborhoods.filter((x) => !have.has(normalizeForSearch(x)))];
+  }
+  for (const k of ['areaMin', 'areaMax', 'bedroomsMin'] as const) if (d[k] !== undefined) n[k] = numText(d[k]);
+  if (d.budget) n.budget = amountText(d.budget);
+  if (d.rent) n.rent = amountText(d.rent);
+  if (d.temperature) n.temperature = d.temperature;
+  if (d.waiting !== undefined) n.waiting = d.waiting;
+  if (d.notes) n.notes = f.notes.trim() && !f.notes.includes(d.notes) ? `${f.notes.trim()}\n${d.notes}` : d.notes;
+  return n;
 }
 
 const NAME_MSG = 'نام مشتری را بنویسید.';
@@ -185,6 +206,20 @@ function ClientForm({ client, onSaved }: { client?: Client; onSaved: (c: Client,
         {blocker.state === 'blocked' && <LeaveDialog onStay={() => blocker.reset()} onLeave={() => blocker.proceed()} />}
 
         <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
+          {!client && (
+            <VoiceFill
+              form="client"
+              onDraft={(d) => {
+                let before: FormState | null = null;
+                setF((x) => ((before = x), withDraft(x, d)));
+                if (d.name && nameErr) {
+                  setNameErr(false);
+                  setError('');
+                }
+                return () => before && setF(before);
+              }}
+            />
+          )}
           <Section legend="۱. چه کسی است؟">
             <div style={grid(220)}>
               <label className="lbl">

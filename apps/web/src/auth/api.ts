@@ -1,4 +1,4 @@
-import { encodeLicense, nextExpiry, PLANS, planById, priceOf, seatsFor, TRIAL_DAYS, type Period, type Plan, type PlanId } from '@kelid/core';
+import { cleanVoiceDraft, encodeLicense, nextExpiry, PLANS, planById, priceOf, seatsFor, TRIAL_DAYS, type Period, type Plan, type PlanId, type VoiceDraft, type VoiceForm } from '@kelid/core';
 import { phoneDigits } from './phone';
 
 // ارتباط با سرور ورود (apps/server/src/auth/routes.ts). نشانی سرور در زمان ساخت: VITE_KELID_API_URL.
@@ -104,6 +104,8 @@ export type ApiErrorCode =
   | 'bad_phone' | 'bad_code' | 'bad_name' | 'bad_password' | 'wrong' | 'expired' | 'too_many' | 'sms_failed' | 'unauthorized' | 'not_found' | 'bad_photo'
   | 'forbidden' | 'no_seat' | 'member' | 'last_manager' | 'self' | 'not_alone'
   | 'subscription' | 'too_small' | 'no_gateway' | 'gateway'
+  // پر کردن فرم با صدا: سرور سرویس هوش مصنوعی ندارد، سرویس جواب نداد، یا صدا خراب بود.
+  | 'no_ai' | 'ai_failed' | 'bad_audio'
   // دستگاه‌های دفتر به سقف نفرات اشتراک رسیده؛ ApiError.limit فهرست و بلیت ادامه را دارد.
   | 'device_limit'
   // فقط سمت برنامه: توکن مال دفتر دیگری است (کاربر دفترش را عوض کرد)؛ همگام‌سازی دفتر قبلی همان‌جا می‌ایستد.
@@ -224,12 +226,19 @@ export interface AuthApi {
   checkout(accessToken: string, plan: PlanId, period: Period, seats?: number): Promise<{ id: string; payUrl: string }>;
   /** وضعیت یک پرداخت؛ بعد از پرداخت مجوز تازه هم دارد. */
   payment(accessToken: string, id: string): Promise<Receipt & { license: string | null }>;
+  /** صحبت ضبط‌شده → متن و فیلدهای فرم (صدا base64؛ hints نام محله‌های دفتر برای املای درست). */
+  voiceFill<F extends VoiceForm>(accessToken: string, v: { form: F; audio: string; mime: string; hints: string[]; places?: string[] }): Promise<VoiceFill<F>>;
+}
+
+export interface VoiceFill<F extends VoiceForm = VoiceForm> {
+  transcript: string;
+  fields: VoiceDraft<F>;
 }
 
 const CODES: readonly string[] = [
   'bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo',
   'forbidden', 'no_seat', 'member', 'last_manager', 'self', 'not_alone',
-  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit',
+  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit', 'no_ai', 'ai_failed', 'bad_audio',
 ];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
@@ -295,6 +304,12 @@ export function httpApi(base: string): AuthApi {
     billing: (token) => call('GET', '/billing', undefined, token),
     checkout: (token, plan, period, seats) => call('POST', '/billing/checkout', { plan, period, ...(seats ? { seats } : {}) }, token),
     payment: (token, id) => call('GET', `/billing/payments/${encodeURIComponent(id)}`, undefined, token),
+    // دو گام هوش مصنوعی (گفتار به متن، متن به فیلد) روی اینترنت کند بیشتر از ۱۲ ثانیه طول می‌کشد.
+    voiceFill: async (token, v) => {
+      const r = await request<VoiceFill>(root, 'POST', '/ai/voice', v, token, 90_000);
+      // پاسخ سرور هم دوباره پاک‌سازی می‌شود تا فرم هیچ‌وقت مقدار عجیب نگیرد.
+      return { transcript: r.transcript, fields: cleanVoiceDraft(v.form, r.fields) };
+    },
   };
 }
 
@@ -634,6 +649,22 @@ export function demoApi(): AuthApi {
     async reportErrors(_t, errors) {
       await wait(100);
       console.info('[demo errors]', errors.length);
+    },
+    // پیش‌نمایش بی هوش مصنوعی: هر صحبتی یک نمونهٔ ثابت می‌دهد تا رابط دیده شود.
+    async voiceFill(_t, v) {
+      await wait(1400);
+      const sample: Record<VoiceForm, { transcript: string; fields: unknown }> = {
+        listing: {
+          transcript: 'یه آپارتمان فروشی تو سعادت‌آباد، خیابون سرو، صد و بیست متر، دو خواب، طبقه سوم از پنج طبقه، ساخت ۹۸. پارکینگ و انباری و آسانسور داره. قیمتش هشت و نیم میلیارده، جای چونه داره. مالک آقای رضایی، شماره ۰۹۱۲۳۴۵۶۷۸۹، عصرها جواب میده.',
+          fields: { deal: 'sale', kind: 'apartment', neighborhood: 'سعادت‌آباد', street: 'سرو', area: 120, bedrooms: 2, floor: 3, floorsTotal: 5, yearBuilt: 1398, features: ['پارکینگ', 'انباری', 'آسانسور'], total: 8_500_000_000, negotiable: true, ownerName: 'آقای رضایی', ownerPhone: '09123456789', ownerBestTime: 'عصرها' },
+        },
+        client: {
+          transcript: 'خانم احمدی، شماره ۰۹۳۵۱۲۳۴۵۶۷، دنبال آپارتمان رهن و اجاره تو ونک یا جردنه، حدود هشتاد تا صد متر، دو خواب. تا پونصد میلیون رهن و ماهی پونزده میلیون اجاره می‌تونه بده. خیلی فوریه، آخر ماه باید جابه‌جا بشه.',
+          fields: { name: 'خانم احمدی', phone: '09351234567', deal: 'rent', kinds: ['apartment'], neighborhoods: ['ونک', 'جردن'], areaMin: 80, areaMax: 100, bedroomsMin: 2, budget: 500_000_000, rent: 15_000_000, temperature: 'hot', waiting: true, notes: 'تا آخر ماه باید جابه‌جا شود.' },
+        },
+      };
+      const s = sample[v.form];
+      return { transcript: s.transcript, fields: cleanVoiceDraft(v.form, s.fields) };
     },
     // پیش‌نمایش پشتیبانی: تیکت‌ها در همین مرورگر می‌مانند و «تیم کلید» چند ثانیه بعد خودش جواب می‌دهد.
     async tickets() {

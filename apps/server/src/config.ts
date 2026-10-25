@@ -1,5 +1,6 @@
 import type { S3Config } from './storage/s3';
 import { DEV_LICENSE_SEED } from './billing/license';
+import type { AiConfig } from './ai/voice';
 
 // تنظیمات سرور فقط از متغیرهای محیطی (‎.env‎ در توسعه). مقدار اشتباه = توقف با پیام روشن.
 export interface Config {
@@ -21,6 +22,8 @@ export interface Config {
   /** فضای ذخیره‌سازی عکس‌ها (آروان، لیارا، MinIO)؛ null = بایت عکس‌ها در خود دیتابیس. */
   s3: S3Config | null;
   billing: BillingConfig;
+  /** پر کردن فرم با صدا (اوپن‌ای‌آی یا سازگارش، یا جمینای)؛ null = خاموش. */
+  ai: AiConfig | null;
 }
 
 export interface BillingConfig {
@@ -112,8 +115,29 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const publicUrl = (env.PUBLIC_URL ?? (production ? '' : `http://localhost:${port}`)).replace(/\/+$/, '');
   if (!isWebUrl(publicUrl, production)) problems.push(production ? 'PUBLIC_URL باید نشانی https:// همین سرور باشد' : 'PUBLIC_URL باید نشانی http(s):// همین سرور باشد');
 
+  let ai: AiConfig | null = null;
+  const aiProvider = env.AI_PROVIDER || 'openai';
+  if (aiProvider !== 'openai' && aiProvider !== 'gemini') problems.push('AI_PROVIDER باید openai یا gemini باشد');
+  else if (env.AI_API_KEY) {
+    const gemini = aiProvider === 'gemini';
+    const baseUrl = (env.AI_BASE_URL || (gemini ? 'https://generativelanguage.googleapis.com/v1beta' : 'https://api.openai.com/v1')).replace(/\/+$/, '');
+    if (!isWebUrl(baseUrl, production)) problems.push(production ? 'AI_BASE_URL باید آدرس https:// باشد' : 'AI_BASE_URL باید آدرس http(s):// باشد');
+    ai = gemini
+      ? { provider: 'gemini', apiKey: env.AI_API_KEY, baseUrl, model: env.AI_MODEL || 'gemini-2.5-flash' }
+      : { provider: 'openai', apiKey: env.AI_API_KEY, baseUrl, transcribeModel: env.AI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe', extractModel: env.AI_EXTRACT_MODEL || 'gpt-4.1' };
+  }
+  const stt = env.STT_PROVIDER || 'ai';
+  if (stt === 'avanegar') {
+    const url = env.AVANEGAR_URL || 'https://partai.gw.isahab.ir/avanegar/v2/avanegar/request';
+    if (!env.AVANEGAR_TOKEN) problems.push('STT_PROVIDER=avanegar به AVANEGAR_TOKEN نیاز دارد');
+    else if (!isWebUrl(url, production)) problems.push('AVANEGAR_URL آدرس درستی نیست');
+    else if (!ai) ai = { provider: 'avanegar', stt: { provider: 'avanegar', token: env.AVANEGAR_TOKEN, url } };
+    else if (ai.provider !== 'openai') problems.push('STT_PROVIDER=avanegar فقط با AI_PROVIDER=openai (یا سازگارش، مثل AvalAI) یا بی AI_API_KEY کار می‌کند');
+    else ai = { ...ai, stt: { provider: 'avanegar', token: env.AVANEGAR_TOKEN, url } };
+  } else if (stt !== 'ai') problems.push('STT_PROVIDER باید ai یا avanegar باشد');
+
   if (problems.length) throw new ConfigError(`تنظیمات سرور ناقص است:\n- ${problems.join('\n- ')}`);
-  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3, billing: { licenseSeed, gateway, publicUrl } };
+  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3, billing: { licenseSeed, gateway, publicUrl }, ai };
 }
 
 function isWebUrl(url: string, httpsOnly: boolean): boolean {

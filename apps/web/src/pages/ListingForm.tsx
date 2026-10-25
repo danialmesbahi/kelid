@@ -5,13 +5,15 @@ import { LeaveDialog } from '../layout/LeaveDialog';
 import { amountText, FieldError, onlyAmount, onlyDigits, Req } from '../layout/Field';
 import { useMember } from '../auth/AuthContext';
 import { PlaceFields } from '../places/PlaceFields';
-import { Cover, Icon, Segmented, type IconName } from '@kelid/ui';
-import { dealLabel, hasBedrooms, formatToman, toEnDigits, type DealType, type Listing, type ListingStatus, type NewListing, type PropertyKind } from '@kelid/core';
+import { CheckBox, Cover, Icon, Segmented, type IconName } from '@kelid/ui';
+import { dealLabel, hasBedrooms, formatToman, toEnDigits, type DealType, type Listing, type ListingDraft, type ListingStatus, type NewListing, type PropertyKind, VOICE_FEATURES } from '@kelid/core';
+import { VoiceFill } from '../voice/VoiceFill';
 
 /** همهٔ فیلدهای فرم؛ کاور و تعداد عکس جدا مدیریت می‌شوند. */
 export type ListingFields = Omit<NewListing, 'cover' | 'photoCount'>;
 
-const FEATURES = ['پارکینگ', 'آسانسور', 'انباری', 'بالکن', 'لابی و نگهبان', 'استخر و سونا'];
+// همان فهرستی که پر کردن با صدا می‌شناسد، تا امکان گفته‌شده همین‌جا تیک بخورد.
+const FEATURES = VOICE_FEATURES;
 
 /** نوع معامله با نشانهٔ خودش؛ رنگ هر کارت همان رنگ پلاک است. */
 const DEALS: Array<{ value: DealType; cls: string; icon: IconName; hint: string }> = [
@@ -64,10 +66,35 @@ function toState(l?: Listing): FormState {
     deal: l?.deal ?? 'sale', kind: l?.kind ?? 'apartment', status: l?.status ?? 'active',
     neighborhood: l?.neighborhood ?? '', street: l?.street ?? '', address: l?.address ?? '',
     area: numText(l?.area), bedrooms: numText(l?.bedrooms), floor: numText(l?.floor), floorsTotal: numText(l?.floorsTotal), yearBuilt: numText(l?.yearBuilt),
-    features: l?.features ?? ['پارکینگ', 'آسانسور'],
-    total: amountText(l?.price.total), deposit: amountText(l?.price.deposit), rent: amountText(l?.price.monthlyRent), negotiable: l?.negotiable ?? true,
+    features: l?.features ?? [],
+    total: amountText(l?.price.total), deposit: amountText(l?.price.deposit), rent: amountText(l?.price.monthlyRent), negotiable: l?.negotiable ?? false,
     description: l?.description ?? '', ownerName: l?.owner.name === '—' ? '' : l?.owner.name ?? '', ownerPhone: l?.owner.phone ?? '', ownerBestTime: l?.owner.bestTime ?? '',
   };
+}
+
+/** فقط آنچه در صحبت آمده روی فرم می‌نشیند؛ توضیح تازه به توضیح قبلی اضافه می‌شود. */
+function withDraft(f: FormState, d: ListingDraft): FormState {
+  const n = { ...f };
+  if (d.deal) n.deal = d.deal;
+  if (d.kind) n.kind = d.kind;
+  for (const k of ['neighborhood', 'street', 'address', 'ownerName', 'ownerBestTime'] as const) if (d[k]) n[k] = d[k];
+  for (const k of ['area', 'bedrooms', 'floor', 'floorsTotal', 'yearBuilt'] as const) if (d[k] !== undefined) n[k] = numText(d[k]);
+  // فهرست امکانات فقط همان امکانات ثابت فرم است؛ امکانی که در صحبت آمد و در فهرست نیست به توضیحات می‌رود.
+  const extra: string[] = [];
+  for (const x of d.features ?? []) {
+    if (!FEATURES.includes(x)) extra.push(x);
+    else if (!n.features.includes(x)) n.features = [...n.features, x];
+  }
+  if (d.total) n.total = amountText(d.total);
+  if (d.deposit) n.deposit = amountText(d.deposit);
+  // فقط رهن گفته شد و فرم روی فروش بود: رهن کامل است، وگرنه مبلغ در فرم دیده نمی‌شود.
+  if (!d.deal && d.deposit && !d.rent && n.deal === 'sale') n.deal = 'full';
+  if (d.rent) n.rent = amountText(d.rent);
+  if (d.negotiable !== undefined) n.negotiable = d.negotiable;
+  if (d.ownerPhone) n.ownerPhone = toEnDigits(d.ownerPhone);
+  const more = [d.description, extra.length ? `امکانات دیگر: ${extra.join('، ')}` : ''].filter((x): x is string => !!x && !f.description.includes(x));
+  if (more.length) n.description = [f.description.trim(), ...more].filter(Boolean).join('\n');
+  return n;
 }
 
 type Required = 'neighborhood' | 'area';
@@ -230,6 +257,22 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
         {blocker.state === 'blocked' && <LeaveDialog onStay={() => blocker.reset()} onLeave={() => blocker.proceed()} />}
 
         <div className="col enter" style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '28px 20px 40px', gap: 36, flex: 1 }}>
+          {!listing && (
+            <VoiceFill
+              form="listing"
+              onDraft={(d) => {
+                let before: FormState | null = null;
+                setF((x) => ((before = x), withDraft(x, d)));
+                setErrs((e) => {
+                  const n = { ...e };
+                  if (d.neighborhood) delete n.neighborhood;
+                  if (d.area) delete n.area;
+                  return n;
+                });
+                return () => before && setF(before);
+              }}
+            />
+          )}
           <Section legend="۱. این ملک برای چیست؟">
             <div className="dealpick">
               {DEALS.map((d) => (
@@ -275,13 +318,13 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
               {allFeatures.map((x) => (
                 <label key={x} className="chk">
-                  <input type="checkbox" checked={f.features.includes(x)} onChange={(e) => set('features')(e.target.checked ? [...f.features, x] : f.features.filter((y) => y !== x))} />
+                  <CheckBox size={22} label={x} checked={f.features.includes(x)} onChange={(on) => set('features')(on ? [...f.features, x] : f.features.filter((y) => y !== x))} />
                   {x}
                 </label>
               ))}
             </div>
             <div className="rw" style={{ gap: 8 }}>
-              <input className="fld" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="امکان دیگر، مثلاً روف گاردن" aria-label="افزودن امکان دیگر"
+              <input className="fld" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="امکان دیگر، مثلاً شومینه" aria-label="افزودن امکان دیگر"
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} style={{ flex: 1 }} />
               <button type="button" className="btn btn-s" onClick={addCustom} disabled={!custom.trim()}><Icon name="plus" size="s" />افزودن</button>
             </div>
@@ -297,7 +340,7 @@ export function ListingForm({ listing, title, submitLabel, cancelTo, showStatus,
             )}
             {f.deal === 'full' && <AmountField label="مبلغ رهن کامل (تومان)" value={f.deposit} onChange={set('deposit')} />}
             <label className="chk" style={{ alignSelf: 'flex-start' }}>
-              <input type="checkbox" checked={f.negotiable} onChange={(e) => set('negotiable')(e.target.checked)} />
+              <CheckBox size={22} label="قیمت قابل مذاکره است" checked={f.negotiable} onChange={set('negotiable')} />
               قیمت قابل مذاکره است
             </label>
           </Section>

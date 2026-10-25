@@ -21,7 +21,37 @@ describe('loadConfig', () => {
       corsOrigins: [],
       s3: null,
       billing: { licenseSeed: DEV_LICENSE_SEED, gateway: { provider: 'dev' }, publicUrl: 'http://localhost:3000' },
+      ai: null,
     });
+  });
+
+  it('turns voice filling on with an API key', () => {
+    expect(loadConfig({ ...base, AI_API_KEY: 'k', AI_BASE_URL: 'https://api.avalai.ir/v1/' }).ai).toEqual({
+      provider: 'openai',
+      apiKey: 'k',
+      baseUrl: 'https://api.avalai.ir/v1',
+      transcribeModel: 'gpt-4o-transcribe',
+      extractModel: 'gpt-4.1',
+    });
+    expect(loadConfig({ ...base, AI_API_KEY: 'k', AI_PROVIDER: 'gemini' }).ai).toEqual({
+      provider: 'gemini',
+      apiKey: 'k',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      model: 'gemini-2.5-flash',
+    });
+    expect(() => loadConfig({ ...base, AI_API_KEY: 'k', AI_BASE_URL: 'ftp://x' })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...base, AI_PROVIDER: 'siri' })).toThrow(ConfigError);
+    expect(loadConfig({ ...base, AI_API_KEY: 'k', STT_PROVIDER: 'avanegar', AVANEGAR_TOKEN: 't' }).ai).toMatchObject({
+      provider: 'openai',
+      stt: { provider: 'avanegar', token: 't', url: 'https://partai.gw.isahab.ir/avanegar/v2/avanegar/request' },
+    });
+    expect(() => loadConfig({ ...base, AI_API_KEY: 'k', STT_PROVIDER: 'avanegar' })).toThrow(ConfigError);
+    // فقط آوانگار: فیلدها را قاعده‌های خود برنامه پر می‌کنند.
+    expect(loadConfig({ ...base, STT_PROVIDER: 'avanegar', AVANEGAR_TOKEN: 't' }).ai).toEqual({
+      provider: 'avanegar',
+      stt: { provider: 'avanegar', token: 't', url: 'https://partai.gw.isahab.ir/avanegar/v2/avanegar/request' },
+    });
+    expect(() => loadConfig({ ...base, AI_PROVIDER: 'gemini', AI_API_KEY: 'k', STT_PROVIDER: 'avanegar', AVANEGAR_TOKEN: 't' })).toThrow(ConfigError);
   });
 
   it('uses a separate migration role when given', () => {
