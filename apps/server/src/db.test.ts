@@ -829,6 +829,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
         db: app,
         logLevel: 'silent',
         auth: { pool: app, sms, jwtSecret: 's'.repeat(48) },
+        corsOrigins: ['https://app.kelid.test', 'null'],
         billing: { licenseKey: key, gateway: new DevGateway(), publicUrl: 'http://kelid.test' },
       });
     const get = (a: ReturnType<typeof newApp>, url: string, token?: string) => a.inject({ method: 'GET', url, headers: token ? { authorization: `Bearer ${token}` } : {} });
@@ -873,7 +874,9 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const paid = await get(a, local(ok));
       expect(paid.statusCode).toBe(200);
       expect(paid.body).toContain('پرداخت انجام شد');
-      expect(paid.body).toContain('به کلید برگردید');
+      // ویندوز نشانی برگشت نمی‌فرستد: صفحه فقط می‌گوید به برنامه برگردید، بی پیوند و بی رفتن خودکار.
+      expect(paid.body).toContain('به برنامهٔ کلید برگردید');
+      expect(paid.body).not.toContain('http-equiv="refresh"');
 
       const r = (await get(a, `/billing/payments/${id}`, s.accessToken)).json();
       expect(r).toMatchObject({ status: 'paid', plan: 'pro', period: 'year' });
@@ -889,6 +892,35 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(b).toMatchObject({ plan: 'pro', trial: false, seats: 14 });
       expect(b.payments).toHaveLength(1);
       expect(Math.abs(Date.parse(b.expiresAt) - lic.exp * 1000)).toBeLessThan(1000);
+      await a.close();
+    });
+
+    it('sends the web app back to itself after the gateway, only to a listed origin', async () => {
+      const a = billApp();
+      const s = await signUp(a, freshPhone());
+      const font = await get(a, '/billing/font.woff2');
+      expect(font.statusCode).toBe(200);
+      expect(font.headers['content-type']).toBe('font/woff2');
+      expect(font.headers['cache-control']).toContain('immutable');
+
+      const web = (await post(a, '/billing/checkout', { plan: 'office', period: 'month', back: 'https://app.kelid.test' }, s.accessToken)).json();
+      const gate = await get(a, local(web.payUrl));
+      expect(gate.headers['content-security-policy']).toContain("font-src 'self'");
+      const ok = gate.body.match(/href="([^"]+Status=OK)"/)![1]!.replace(/&#38;/g, '&');
+      const paid = await get(a, local(ok));
+      expect(paid.body).toContain('پرداخت انجام شد');
+      const home = `https://app.kelid.test/#/plans?pay=${web.id}`;
+      expect(paid.body).toContain(`http-equiv="refresh" content="6;url=${home}"`);
+      expect(paid.body).toContain(`href="${home}"`);
+
+      // مبدأ ناشناس، چه در خرید چه دستکاری‌شده در نشانی برگشت، نادیده گرفته می‌شود.
+      const evil = (await post(a, '/billing/checkout', { plan: 'office', period: 'month', back: 'https://evil.test' }, s.accessToken)).json();
+      expect(evil.payUrl).not.toContain('evil');
+      const u = new URL(evil.payUrl);
+      const forged = `/billing/callback?o=${u.searchParams.get('o')}&p=${evil.id}&Authority=${u.searchParams.get('Authority')}&Status=NOK&b=${encodeURIComponent('https://evil.test')}`;
+      const no = await get(a, forged);
+      expect(no.body).toContain('پرداخت لغو شد');
+      expect(no.body).not.toContain('evil');
       await a.close();
     });
 

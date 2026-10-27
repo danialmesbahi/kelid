@@ -222,8 +222,11 @@ export interface AuthApi {
   removeMember(accessToken: string, id: string): Promise<void>;
   /** اشتراک دفتر، پلن‌ها و رسیدها، با مجوز تازه. */
   billing(accessToken: string): Promise<Billing>;
-  /** شروع پرداخت (فقط مدیر)؛ مبلغ را سرور از پلن حساب می‌کند. payUrl خالی = پیش‌نمایش بی‌درگاه. */
-  checkout(accessToken: string, plan: PlanId, period: Period, seats?: number): Promise<{ id: string; payUrl: string }>;
+  /**
+   * شروع پرداخت (فقط مدیر)؛ مبلغ را سرور از پلن حساب می‌کند. payUrl خالی = پیش‌نمایش بی‌درگاه.
+   * back = مبدأ همین برنامهٔ وب تا بانک کاربر را به آن برگرداند؛ نسخهٔ ویندوز نمی‌فرستد.
+   */
+  checkout(accessToken: string, plan: PlanId, period: Period, seats?: number, back?: string): Promise<{ id: string; payUrl: string }>;
   /** وضعیت یک پرداخت؛ بعد از پرداخت مجوز تازه هم دارد. */
   payment(accessToken: string, id: string): Promise<Receipt & { license: string | null }>;
   /** صحبت ضبط‌شده → متن و فیلدهای فرم (صدا base64؛ hints نام محله‌های دفتر برای املای درست). */
@@ -302,7 +305,8 @@ export function httpApi(base: string): AuthApi {
     updateMember: (token, id, p) => call('POST', `/team/members/${encodeURIComponent(id)}`, p, token),
     removeMember: (token, id) => call('DELETE', `/team/members/${encodeURIComponent(id)}`, undefined, token),
     billing: (token) => call('GET', '/billing', undefined, token),
-    checkout: (token, plan, period, seats) => call('POST', '/billing/checkout', { plan, period, ...(seats ? { seats } : {}) }, token),
+    checkout: (token, plan, period, seats, back) =>
+      call('POST', '/billing/checkout', { plan, period, ...(seats ? { seats } : {}), ...(back ? { back } : {}) }, token),
     payment: (token, id) => call('GET', `/billing/payments/${encodeURIComponent(id)}`, undefined, token),
     // دو گام هوش مصنوعی (گفتار به متن، متن به فیلد) روی اینترنت کند بیشتر از ۱۲ ثانیه طول می‌کشد.
     voiceFill: async (token, v) => {

@@ -41,8 +41,11 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
 
   app.addHook('onSend', async (_req, reply) => {
     // صفحه‌های HTML برگشت از درگاه استایل درون‌خطی دارند؛ هیچ اسکریپتی هیچ‌جا اجرا نمی‌شود.
-    const html = String(reply.getHeader('content-type') ?? '').startsWith('text/html');
+    const type = String(reply.getHeader('content-type') ?? '');
+    const html = type.startsWith('text/html');
     reply.headers(html ? { ...securityHeaders, 'content-security-policy': pageCsp } : securityHeaders);
+    // فونت صفحه‌های پرداخت هیچ‌وقت عوض نمی‌شود؛ هر بار دوباره دانلود نشود.
+    if (type.startsWith('font/')) reply.header('cache-control', 'public, max-age=31536000, immutable');
   });
 
   // فقط مبدأهای فهرست‌شده؛ بقیهٔ سایت‌ها پاسخ را نمی‌توانند بخوانند.
@@ -90,7 +93,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
     const hub = new LiveHub(auth.pool, app.log);
     app.addHook('preClose', async () => hub.close());
     void app.register(authRoutes, { ...auth, licenseKey: billing?.licenseKey });
-    if (billing) void app.register(billingRoutes, { ...billing, pool: auth.pool, jwtSecret: auth.jwtSecret });
+    if (billing) void app.register(billingRoutes, { appOrigins: corsOrigins, ...billing, pool: auth.pool, jwtSecret: auth.jwtSecret });
     void app.register(adminRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, hub });
     void app.register(betaRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret });
     void app.register(aiRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, voice });
