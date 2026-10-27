@@ -97,10 +97,10 @@ const CLIENT: Record<keyof ClientDraft, Spec> = {
   deal: { t: 'enum', of: DEALS, d: 'what the customer wants: sale = buy (خرید), rent = رهن و اجاره, full = رهن کامل' },
   kinds: { t: 'enums', of: KINDS, d: 'property types wanted: apartment, villa, shop, office, land' },
   neighborhoods: { t: 'texts', max: 80, d: 'neighbourhoods wanted, each one a Persian name' },
-  areaMin: { t: 'int', min: 1, max: 1_000_000, d: 'minimum area in square metres' },
-  areaMax: { t: 'int', min: 1, max: 1_000_000, d: 'maximum area in square metres' },
-  bedroomsMin: { t: 'int', min: 0, max: 50, d: 'minimum bedrooms' },
-  budget: { t: 'int', min: 1, max: TOMAN, d: 'buy: max total price; rent / full: max deposit (رهن/ودیعه). In Toman' },
+  areaMin: { t: 'int', min: 1, max: 1_000_000, d: 'minimum area in square metres. «از ۸۰ تا ۱۰۰ متر»، «هشتاد نود متری»، «بین ۸۰ و ۱۰۰» → 80; «۱۰۰ متر به بالا» → 100' },
+  areaMax: { t: 'int', min: 1, max: 1_000_000, d: 'maximum area in square metres. «از ۸۰ تا ۱۰۰ متر» → 100; «زیر ۱۰۰»، «۱۰۰ به پایین»، «از ۱۰۰ بیشتر نباشه» → 100' },
+  bedroomsMin: { t: 'int', min: 0, max: 50, d: 'minimum bedrooms («دو سه خوابه» → 2)' },
+  budget: { t: 'int', min: 1, max: TOMAN, d: 'buy: max total price; rent / full: max deposit (رهن/ودیعه/پول پیش). For a range («پنج شش میلیارد») the upper end. In Toman' },
   rent: { t: 'int', min: 1, max: TOMAN, d: 'rent only: max monthly rent in Toman' },
   temperature: { t: 'enum', of: TEMPS, d: 'hot = serious and urgent (فوری، جدی), warm = normal, cold = just looking / later' },
   waiting: { t: 'bool', d: 'true if the agent must call the customer back with news (منتظر خبر است)' },
@@ -203,18 +203,32 @@ export function cleanVoiceDraft<F extends VoiceForm>(form: F, raw: unknown): Voi
 
 type PriceSlot = 'deposit' | 'rent' | 'total';
 
-/** واژهٔ پیش از مبلغ می‌گوید کدام قیمت است. */
-export function slotOf(before: string): PriceSlot | 'perMeter' | undefined {
+/**
+ * واژهٔ پیش از مبلغ می‌گوید کدام قیمت است؛ اگر نبود یا در جملهٔ قبل (پیش از ویرگول) بود، واژهٔ بعد از مبلغ:
+ * «صد میلیون پول پیش دارن»، «پنج تومن اجاره».
+ */
+export function slotOf(before: string, follow = ''): PriceSlot | 'perMeter' | undefined {
+  const own = slotBefore(before);
+  const f = /^\s*(پول پیش|پیش|رهن|ودیعه|اجاره|کرایه)(?=\s|$|[،,.])/.exec(follow);
+  if (!f || own === 'perMeter') return own;
+  return own === undefined || /[،,][\s\u200c]*$/.test(before) ? (/اجاره|کرایه/.test(f[1]!) ? 'rent' : 'deposit') : own;
+}
+
+function slotBefore(before: string): PriceSlot | 'perMeter' | undefined {
   const raw = before.replace(/[\s\u200c،,:]+$/, '');
   // «شارژ ماهانه پونصد هزار»، «وام صد میلیونی»: هزینه یا بدهی است، نه قیمت.
   if (/(وام|شارژ|بدهی|مالیات|قسط|اقساط|هزینه|جریمه)(ش)?( ماهانه| ماهیانه| ماهی| ماه)?( \S+)?$/.test(raw)) return undefined;
-  // «رهن تا دویست»، «اجاره حداکثر ده»: قید مبلغ جای آن را عوض نمی‌کند.
-  const b = raw.replace(/\s*(تا|حدود|زیر|سقف|حداکثر|حداکثرش|نهایتا|نهایت|تقریبا|در حد)$/, '') || raw;
+  // «رهن تا دویست»، «اجاره هم حداکثر ده»: قید مبلغ جای آن را عوض نمی‌کند.
+  let b = raw;
+  for (let prev = ''; prev !== b; ) {
+    prev = b;
+    b = b.replace(/\s*(تا|حدود|حدودا|زیر|سقف|حداکثر|حداکثرش|نهایتا|نهایت|تقریبا|در حد|هم|هم که|میتونه|می تونه)$/, '') || b;
+  }
   // «صد متری هشت میلیارد»: «متری» مال متراژ است، نه قیمت هر متر.
   if (/(متری|هر\s*متر|متر\s*مربعی)$/.test(b)) return /متری$/.test(b) && spokenNumbers(b).some((n) => /^\s*متری$/.test(b.slice(n.end))) ? undefined : 'perMeter';
-  if (/(رهن|ودیعه|پیش|رهنش|ودیعه‌اش)(\s*کامل)?$/.test(b)) return 'deposit';
+  if (/(رهن|ودیعه|پیش|رهنش|ودیعه‌اش|ودیعش|پیشش)(\s*(کامل|فول))?$/.test(b)) return 'deposit';
   if (/(اجاره|اجاره‌اش|اجارش|کرایه|ماهی|ماهیانه|ماهانه)$/.test(b)) return 'rent';
-  if (/(قیمت|قیمتش|کل|کلش|فروش|بودجه|بودجه‌اش|بودجه اش|تا|حدود|زیر|سقف)$/.test(raw)) return 'total';
+  if (/(قیمت|قیمتش|کل|کلش|فروش|بودجه|بودجه‌اش|بودجه اش|بودجش|پولش|نقد|نقدش|دستش|تا|حدود|زیر|سقف)$/.test(raw)) return 'total';
   return undefined;
 }
 
@@ -232,7 +246,7 @@ export function withSpokenPrices<F extends VoiceForm>(form: F, transcript: strin
   for (const a of amounts) {
     const pre = transcript.slice(Math.max(0, a.start - 30), a.start);
     if (/(وام|شارژ|بدهی|مالیات|قسط|اقساط|هزینه|جریمه)(ش)?( ماهانه| ماهیانه| ماهی| ماه)?[\s\u200c،,:]*$/.test(pre)) continue;
-    let slot = slotOf(pre);
+    let slot = slotOf(pre, transcript.slice(a.end, a.end + 20));
     if (slot === 'perMeter') {
       if (form === 'listing' && typeof d.area === 'number') set('total', a.value * d.area);
       continue;

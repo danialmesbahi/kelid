@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { annotateAmounts, spokenAmounts } from './money';
+import { annotateAmounts, spokenAmounts, spokenNumbers } from './money';
 
 const values = (t: string) => spokenAmounts(t).map((a) => a.value);
 
@@ -24,6 +24,15 @@ describe('spoken amounts', () => {
     expect(values('آپارتمان صد و بیست متری، دو خواب، طبقه سوم، ساخت ۱۴۰۲')).toEqual([]);
     expect(values('قیمت سه میلیارد و دو خوابه')).toEqual([3_000_000_000]);
     expect(values('نه، سه میلیارد')).toEqual([3_000_000_000]);
+  });
+
+  it('keeps colloquial ranges as two numbers', () => {
+    const nums = (t: string) => spokenNumbers(t).map((n) => n.value);
+    expect(nums('هشتاد نود متر')).toEqual([80, 90]);
+    expect(nums('هشتاد صد متری')).toEqual([80, 100]);
+    expect(nums('بین صد و صد و بیست')).toEqual([100, 120]);
+    expect(nums('سیصد چهل')).toEqual([340]);
+    expect(values('هفت هشت میلیارد')).toEqual([8_000_000_000]);
   });
 
   it('marks each amount in the text for the model', () => {

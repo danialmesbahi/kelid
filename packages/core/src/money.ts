@@ -53,6 +53,11 @@ function scaleOf(w: string): number | undefined {
   return SCALES.find(([k]) => t === k || t === `${k}ی` || t === `${k}ه`)?.[1];
 }
 
+/** مرتبهٔ بزرگ‌ترین رقم: یکان ۱، ده تا نود ۲، صدگان ۳، هزار به بالا ۴. */
+const placeOf = (n: number) => (n >= 1000 ? 4 : n >= 100 ? 3 : n >= 10 ? 2 : 1);
+/** کوچک‌ترین مرتبه‌ای که در عدد پر است؛ عدد بعدی فقط از این کوچک‌تر می‌تواند به آن اضافه شود. */
+const lowestPlace = (n: number) => (n % 10 ? 1 : n % 100 ? 2 : n % 1000 ? 3 : 4);
+
 export interface SpokenNumber extends SpokenAmount {
   /** میلیون/میلیارد یا تومان/ریال داشت، یا خودش دست‌کم یک میلیون است */
   money: boolean;
@@ -81,6 +86,9 @@ export function spokenNumbers(text: string): SpokenNumber[] {
       if (num !== undefined && Number.isFinite(num)) {
         // «طبقه سه دو خوابه» یا «نه سه میلیارد»: دو عدد پشت هم بی «و» دو عبارت‌اند، نه جمع.
         if (current && !afterAnd && current % 10 !== 0 && !total) break;
+        // «هشتاد نود متر»، «هشتاد صد متری»، «صد و صد و بیست»: بازه است، نه «صد و هفتاد». با «و» فقط هم‌مرتبه جدا می‌شود
+        // چون «هشت و دویست» (هشت میلیارد و دویست میلیون) را بعداً billionAndMillion می‌خواند.
+        if (current && Number.isInteger(current) && Number.isInteger(num) && (afterAnd ? placeOf(num) === lowestPlace(current) : placeOf(num) >= lowestPlace(current))) break;
         if (first < 0) first = j;
         current += num;
         end = j;
