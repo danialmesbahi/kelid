@@ -19,7 +19,12 @@ describe('support attachments', () => {
   it('cleans names and enforces the size cap', () => {
     expect(parseFiles([{ name: 'C:\\Users\\x\\"عکس"\n.png', data: b64(png) }])).toEqual([{ name: 'عکس.png', mime: 'image/png', bytes: png }]);
     expect(parseFiles([{ name: `${'a'.repeat(300)}.pdf`, data: b64('%PDF-1') }])).toMatchObject([{ name: `${'a'.repeat(116)}.pdf` }]);
-    expect(parseFiles([{ name: 'big.pdf', data: b64(Buffer.concat([Buffer.from('%PDF-'), Buffer.alloc(FILE_MAX)])) }])).toBe('too_big');
+    // ۵ مگابایت دهدهی، همان که مک و گوشی نشان می‌دهند: فایل «۵٫۲ مگابایتی» رد می‌شود
+    const pdf = (n: number) => b64(Buffer.concat([Buffer.from('%PDF-'), Buffer.alloc(n - 5)]));
+    expect(FILE_MAX).toBe(5_000_000);
+    expect(parseFiles([{ name: 'ok.pdf', data: pdf(FILE_MAX) }])).toHaveLength(1);
+    expect(parseFiles([{ name: 'big.pdf', data: pdf(FILE_MAX + 1) }])).toBe('too_big');
+    expect(parseFiles([{ name: 'big.pdf', data: pdf(5_200_000) }])).toBe('too_big');
     expect(parseFiles([{ name: 'x.exe', data: b64('MZ') }])).toBe('bad_file');
     expect(parseFiles(undefined)).toEqual([]);
   });

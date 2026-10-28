@@ -5,7 +5,8 @@ import type { S3 } from '../storage/s3';
 import { sniffImage } from '../storage/photos';
 
 // پیوست تیکت: هر پیام تا سه فایل، هر کدام تا ۵ مگابایت. نوع فایل را سرور از خود بایت‌ها می‌فهمد، نه از نام یا حرف دستگاه.
-export const FILE_MAX = 5 * 1024 * 1024;
+// مگابایت دهدهی، همان که دستگاه‌ها نشان می‌دهند.
+export const FILE_MAX = 5_000_000;
 export const FILES_MAX = 3;
 const NAME_MAX = 120;
 /** جای base64 (یک‌سوم بیشتر) و خود JSON پیام. */

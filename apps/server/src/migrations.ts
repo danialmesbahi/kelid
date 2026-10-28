@@ -409,7 +409,7 @@ export const migrations: readonly string[] = [
     message_id uuid not null,
     name text not null check (length(name) between 1 and 120),
     mime text not null,
-    size int not null check (size between 1 and 5242880),
+    size int not null check (size between 1 and 5000000),
     bytes bytea,
     object_key text,
     created_at timestamptz not null default now(),

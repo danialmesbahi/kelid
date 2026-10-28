@@ -4,7 +4,8 @@ import { Icon } from './components';
 import type { IconName } from './icons';
 
 // پیوست پیام‌های پشتیبانی؛ همان سقف سرور: هر پیام تا سه فایل، هر کدام تا ۵ مگابایت.
-export const FILE_MAX = 5 * 1024 * 1024;
+// مگابایتِ دهدهی (میلیون بایت)، همان که مک و گوشی‌ها نشان می‌دهند؛ فایلی که آنجا «۵٫۲ مگابایت» است اینجا هم بزرگ است.
+export const FILE_MAX = 5_000_000;
 export const FILES_MAX = 3;
 const ACCEPT = '.jpg,.jpeg,.png,.webp,.pdf,.docx,.xlsx,.txt';
 const EXT = new Set(ACCEPT.split(',').map((x) => x.slice(1)));
@@ -17,8 +18,9 @@ export interface AttachedFile {
 }
 
 export function fileSize(n: number): string {
-  if (n < 1024 * 1024) return `${toFaDigits(Math.max(1, Math.round(n / 1024)))} کیلوبایت`;
-  return `${toFaDigits((n / 1024 / 1024).toFixed(1).replace('.', '٫'))} مگابایت`;
+  if (n < 1_000_000) return `${toFaDigits(Math.max(1, Math.round(n / 1000)))} کیلوبایت`;
+  // رو به بالا، تا فایل کمی بزرگ‌تر از ۵ مگابایت «۵٫۰» دیده نشود.
+  return `${toFaDigits((Math.ceil(n / 100_000) / 10).toFixed(1).replace('.', '٫'))} مگابایت`;
 }
 
 const iconOf = (name: string, mime = ''): IconName => (mime.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(name) ? 'cam' : 'doc');
