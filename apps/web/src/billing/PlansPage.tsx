@@ -14,7 +14,8 @@ import './billing.css';
 type Flow =
   | { step: 'idle' }
   | { step: 'opening' }
-  | { step: 'waiting'; id: string; payUrl: string; at: number; blocked: boolean }
+  | { step: 'going' }
+  | { step: 'waiting'; id: string; payUrl: string; at: number }
   | { step: 'paid'; receipt: Receipt }
   | { step: 'failed'; status: PaymentStatus };
 
@@ -27,12 +28,15 @@ const PENDING = 'kelid.pay';
 const POLL_MS = 2500;
 
 function savedFlow(): Flow {
+  // برگشت از بانک: نشانی ‎#/plans?pay=…‎ است (مسیریاب hash)؛ اگر حافظهٔ برگه پاک شده باشد، همان شناسه کافی است.
+  const back = new URLSearchParams(location.hash.split('?')[1] ?? '').get('pay');
   try {
     const f = JSON.parse(sessionStorage.getItem(PENDING) ?? 'null') as Extract<Flow, { step: 'waiting' }> | null;
-    return f && typeof f.id === 'string' ? { ...f, step: 'waiting' } : { step: 'idle' };
+    if (f && typeof f.id === 'string' && (!back || f.id === back)) return { ...f, step: 'waiting' };
   } catch {
-    return { step: 'idle' };
+    /* حافظهٔ موقت در دسترس نیست */
   }
+  return back ? { step: 'waiting', id: back, payUrl: '', at: Date.now() } : { step: 'idle' };
 }
 
 function keepFlow(f: Flow) {
@@ -45,8 +49,9 @@ function keepFlow(f: Flow) {
 }
 
 /**
- * خرید و تمدید اشتراک. پلن و دوره انتخاب می‌شود، تاریخ پایان تازه پیش از پرداخت دیده می‌شود، درگاه در برگه‌ای جدا باز می‌شود
- * و همین صفحه منتظر می‌ماند تا بانک تأیید کند؛ کاربر جز بستن برگهٔ بانک کاری ندارد.
+ * خرید و تمدید اشتراک. پلن و دوره انتخاب می‌شود، تاریخ پایان تازه پیش از پرداخت دیده می‌شود، بعد درگاه.
+ * وب: همین برگه به بانک می‌رود و بانک آن را به ‎#/plans?pay=…‎ برمی‌گرداند (برگهٔ دوم کلید پایگاه دادهٔ OPFS را قفل می‌دید).
+ * ویندوز: بانک در مرورگر سیستم باز می‌شود و همین صفحه منتظر می‌ماند تا بانک تأیید کند.
  */
 export function PlansPage() {
   const { session, api, withToken, status } = useAuth();
@@ -141,28 +146,46 @@ export function PlansPage() {
           : 'ارزش روزهای باقی‌ماندهٔ پلن فعلی به این پلن منتقل می‌شود.';
 
   const pay = async () => {
-    if (!plan || flow.step === 'opening') return;
-    // برگهٔ بانک همین لحظهٔ کلیک باز می‌شود؛ بعد از منتظر ماندن برای سرور، مرورگر آن را «پنجرهٔ ناخواسته» می‌گرفت.
-    // ویندوز برگه باز نمی‌کند: نشانی بانک در مرورگر خود سیستم باز می‌شود.
-    const tab = !window.kelid && !DEMO ? window.open('', '_blank') : null;
-    if (tab) {
-      tab.opener = null;
-      tab.document.title = 'درگاه پرداخت';
-      tab.document.body.style.cssText = 'font:16px system-ui,sans-serif;padding:32px;direction:rtl;text-align:center;color:#5C625E';
-      tab.document.body.textContent = 'در حال رفتن به صفحهٔ پرداخت بانک…';
-    }
+    if (!plan || flow.step === 'opening' || flow.step === 'going') return;
+    const web = !window.kelid;
     setFlow({ step: 'opening' });
     try {
-      const r = await withToken((t) => api.checkout(t, plan.id, period, plan.extra ? seats : undefined));
-      if (r.payUrl && tab) tab.location.href = r.payUrl;
-      else if (r.payUrl && window.kelid) window.open(r.payUrl, '_blank');
-      setFlow({ step: 'waiting', id: r.id, payUrl: r.payUrl, at: Date.now(), blocked: !!r.payUrl && !tab && !window.kelid });
+      const r = await withToken((t) => api.checkout(t, plan.id, period, plan.extra ? seats : undefined, web ? location.origin : undefined));
+      const waiting: Flow = { step: 'waiting', id: r.id, payUrl: r.payUrl, at: Date.now() };
+      if (r.payUrl && web) {
+        // رفتن به بانک بیرون از برنامه است، نه جابه‌جایی صفحه‌های کلید؛ پرداخت در انتظار در حافظهٔ برگه می‌ماند تا برگشت.
+        keepFlow(waiting);
+        setFlowState({ step: 'going' });
+        location.assign(r.payUrl);
+        return;
+      }
+      // ویندوز برگه باز نمی‌کند: نشانی بانک در مرورگر خود سیستم باز می‌شود.
+      if (r.payUrl) window.open(r.payUrl, '_blank');
+      setFlow(waiting);
     } catch (e) {
-      tab?.close();
       setFlow({ step: 'idle' });
       toast(payError(e));
     }
   };
+
+  if (flow.step === 'going') {
+    return (
+      <div className="pl-center">
+        <section className="pl-result card enter" aria-live="polite">
+          <span className="pl-mark pl-wait" aria-hidden="true">
+            <Icon name="shield" size="l" />
+          </span>
+          <h1 className="t2">در حال رفتن به درگاه بانک</h1>
+          <p className="mute">چند لحظه صبر کنید. بعد از پرداخت، بانک خودش شما را به کلید برمی‌گرداند.</p>
+          <span className="pl-dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+        </section>
+      </div>
+    );
+  }
 
   if (flow.step === 'waiting') {
     return (
@@ -171,13 +194,13 @@ export function PlansPage() {
           <span className="pl-mark pl-wait" aria-hidden="true">
             <Icon name="card" size="l" />
           </span>
-          <h1 className="t2">{flow.blocked ? 'صفحهٔ پرداخت را باز کنید' : 'پرداخت را در صفحهٔ بانک کامل کنید'}</h1>
+          <h1 className="t2">{window.kelid ? 'پرداخت را در صفحهٔ بانک کامل کنید' : 'در حال گرفتن تأیید بانک'}</h1>
           <p className="mute">
-            {flow.blocked
-              ? 'مرورگر جلوی باز شدن خودکار صفحهٔ بانک را گرفت. دکمهٔ زیر را بزنید.'
-              : DEMO
-                ? 'پیش‌نمایش: پرداخت چند لحظه دیگر خودکار انجام می‌شود.'
-                : 'بعد از پرداخت، برگهٔ بانک را ببندید. این صفحه خودش باخبر می‌شود و اشتراک فعال می‌شود.'}
+            {DEMO
+              ? 'پیش‌نمایش: پرداخت چند لحظه دیگر خودکار انجام می‌شود.'
+              : window.kelid
+                ? 'بعد از پرداخت، صفحهٔ بانک را ببندید. این صفحه خودش باخبر می‌شود و اشتراک فعال می‌شود.'
+                : 'اگر پرداخت را کامل کرده‌اید، چند لحظه صبر کنید؛ اشتراک همین‌جا فعال می‌شود.'}
           </p>
           <span className="pl-dots" aria-label="منتظر تأیید بانک">
             <i />
@@ -186,9 +209,9 @@ export function PlansPage() {
           </span>
           <div className="pl-acts">
             {flow.payUrl && (
-              <a className={flow.blocked ? 'btn btn-p btn-lg' : 'btn btn-s'} href={flow.payUrl} target="_blank" rel="noopener noreferrer">
+              <a className="btn btn-s" href={flow.payUrl} {...(window.kelid ? { target: '_blank', rel: 'noopener noreferrer' } : { rel: 'noreferrer' })}>
                 <Icon name="fwd" size="s" />
-                {flow.blocked ? 'رفتن به صفحهٔ پرداخت' : 'باز کردن دوبارهٔ صفحهٔ پرداخت'}
+                باز کردن دوبارهٔ صفحهٔ پرداخت
               </a>
             )}
             <button type="button" className="btn btn-g" onClick={() => setFlow({ step: 'idle' })}>

@@ -7,7 +7,7 @@ import { authGuard } from '../auth/routes';
 import { RateLimiter } from '../auth/rateLimit';
 import { withOffice, type Db, type Pool } from '../db';
 import type { PaymentGateway } from './gateway';
-import { page } from './pages';
+import { FONT_PATH, fontFile, page } from './pages';
 import { licenseOf, readSubscription } from './subscription';
 
 export interface BillingOptions {
@@ -18,6 +18,8 @@ export interface BillingOptions {
   gateway: PaymentGateway | null;
   /** نشانی عمومی همین سرور، برای برگشت از درگاه. */
   publicUrl: string;
+  /** مبدأهای برنامهٔ وب (CORS_ORIGINS)؛ بعد از درگاه فقط به یکی از این‌ها برگردانده می‌شود. */
+  appOrigins?: string[];
 }
 
 type Status = 'pending' | 'paid' | 'failed' | 'canceled';
@@ -49,6 +51,7 @@ const callbackQuery = {
     p: { type: 'string', format: 'uuid' },
     Authority: { type: 'string', maxLength: 64 },
     Status: { type: 'string', maxLength: 10 },
+    b: { type: 'string', maxLength: 200 },
   },
 } as const;
 
@@ -60,7 +63,18 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
   const { pool, gateway, licenseKey } = o;
   const requireAuth = authGuard(pool, o.jwtSecret);
   const checkoutsByOffice = new RateLimiter(20, 60 * 60_000);
-  const callbackUrl = (office: string, id: string) => `${o.publicUrl}/billing/callback?o=${office}&p=${id}`;
+  const appOrigins = new Set((o.appOrigins ?? []).filter((x) => x !== 'null'));
+  // b = برنامهٔ وبی که کاربر از آن آمده؛ نسخهٔ ویندوز آن را نمی‌فرستد چون درگاه در مرورگر سیستم باز می‌شود و برگشتی ندارد.
+  const callbackUrl = (office: string, id: string, back?: string | null) =>
+    `${o.publicUrl}/billing/callback?o=${office}&p=${id}${back ? `&b=${encodeURIComponent(back)}` : ''}`;
+  // نشانی برگشت از خود درخواست می‌آید؛ فقط مبدأهای فهرست‌شده، وگرنه این صفحه کاربر را به هر سایتی می‌فرستاد.
+  const backTo = (b: string | undefined) => (b && appOrigins.has(b) ? b : null);
+
+  app.get(FONT_PATH, async (_req, reply) => {
+    const f = await fontFile();
+    if (!f) return reply.status(404).send({ error: 'not_found' });
+    return reply.header('content-type', 'font/woff2').send(f);
+  });
 
   const managerOnly = async (req: FastifyRequest, reply: FastifyReply) => {
     if (req.member?.role !== 'manager') return reply.status(403).send({ error: 'forbidden' });
@@ -101,13 +115,14 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
             plan: { type: 'string', enum: PLANS.map((p) => p.id) },
             period: { type: 'string', enum: TERMS.map((t) => t.id) },
             seats: { type: 'integer', minimum: 1, maximum: 500 },
+            back: { type: 'string', maxLength: 200 },
           },
         },
       },
     },
     async (req, reply) => {
       if (!gateway) return reply.status(503).send({ error: 'no_gateway' });
-      const body = req.body as { plan: PlanId; period: Period; seats?: number };
+      const body = req.body as { plan: PlanId; period: Period; seats?: number; back?: string };
       const plan = planById(body.plan)!;
       const seats = seatsFor(plan, body.seats);
       const { off, sub } = req.auth!;
@@ -142,7 +157,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
         started = await gateway.request({
           amount,
           description: `اشتراک کلید، پلن ${plan.name}${seats > plan.seats ? ` برای ${seats} نفر` : ''} (${termOf(body.period).name})`,
-          callbackUrl: callbackUrl(off, id),
+          callbackUrl: callbackUrl(off, id, backTo(body.back)),
           mobile: made.phone,
         });
       } catch (e) {
@@ -170,10 +185,15 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
 
   /** درگاه کاربر را این‌جا برمی‌گرداند. فقط خبر است: پرداخت با verify خود درگاه ثابت می‌شود. */
   app.get('/billing/callback', { schema: { querystring: callbackQuery } }, async (req, reply) => {
-    const q = req.query as { o: string; p: string; Authority?: string; Status?: string };
+    const q = req.query as { o: string; p: string; Authority?: string; Status?: string; b?: string };
     const html = (status: number, body: string) => reply.status(status).header('content-type', 'text/html; charset=utf-8').send(body);
-    // درگاه در برگه یا مرورگر جدا باز شده و کلید سر جایش منتظر است؛ پیوند «برگشت» یک کلید دوم باز می‌کرد.
-    const closeNote = 'این صفحه را ببندید و به کلید برگردید؛ اشتراک همان‌جا خودکار به‌روز می‌شود.';
+    // وب: کاربر در همان برگه به درگاه رفته و برمی‌گردد به صفحهٔ اشتراک؛ آن‌جا خودش رسید را از سرور می‌گیرد.
+    // ویندوز: درگاه در مرورگر سیستم باز شده و کلید سر جایش منتظر است؛ پیوند «برگشت» یک کلید دوم باز می‌کرد.
+    const back = backTo(q.b);
+    const home = back ? `${back}/#/plans?pay=${q.p}` : null;
+    const homeAction = home ? [{ label: 'بازگشت به کلید', href: home, primary: true }] : [];
+    const closeNote = home ? undefined : 'این صفحه را ببندید و به برنامهٔ کلید برگردید؛ اشتراک همان‌جا خودکار به‌روز می‌شود.';
+    const refund = 'اگر مبلغی از حسابتان کم شده، بانک تا ۷۲ ساعت خودکار برمی‌گرداند.';
 
     const row = await withOffice(
       pool,
@@ -184,12 +204,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
     if (!row || !row.authority || row.authority !== q.Authority) {
       return html(
         404,
-        page({
-          tone: 'bad',
-          title: 'پرداخت پیدا نشد',
-          lines: ['این نشانی پرداخت معتبر نیست.', 'اگر مبلغی از حسابتان کم شده، تا ۷۲ ساعت خودکار برمی‌گردد.'],
-          note: closeNote,
-        }),
+        page({ tone: 'bad', title: 'پرداخت پیدا نشد', lines: ['این نشانی پرداخت معتبر نیست.', refund], actions: homeAction, note: closeNote }),
       );
     }
 
@@ -203,15 +218,15 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
         try {
           verified = gateway && gateway.name === row.gateway ? await gateway.verify({ authority: row.authority, amount: Number(row.amount) }) : { ok: false };
         } catch (e) {
-          // درگاه جواب نداد: پرداخت در انتظار می‌ماند و با بازکردن دوبارهٔ همین صفحه دوباره سنجیده می‌شود.
+          // درگاه جواب نداد: پرداخت در انتظار می‌ماند و همین صفحه چند ثانیه بعد خودش دوباره می‌سنجد.
           req.log.error({ err: e, payment: q.p }, 'payment verify failed');
           return html(
             503,
             page({
-              tone: 'info',
+              tone: 'wait',
               title: 'در حال بررسی پرداخت',
-              lines: ['پاسخ بانک هنوز نرسیده است.', 'چند لحظه دیگر همین صفحه را دوباره باز کنید.'],
-              note: closeNote,
+              lines: ['پاسخ بانک هنوز نرسیده است.', 'این صفحه را نبندید؛ چند ثانیهٔ دیگر خودش دوباره بررسی می‌کند.'],
+              refresh: { seconds: 8, text: 'بررسی دوباره…' },
             }),
           );
         }
@@ -228,7 +243,14 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
         page({
           tone: 'ok',
           title: 'پرداخت انجام شد',
-          lines: [`اشتراک ${plan?.name ? `پلن ${plan.name}` : ''} تا ${formatDate(new Date(r.expiresAt!))} فعال است.`, `کد پیگیری: ${toFaDigits(r.refId ?? '')}`],
+          lines: [`اشتراک ${plan ? `پلن ${plan.name} ` : ''}تا ${formatDate(new Date(r.expiresAt!))} فعال است.`],
+          rows: [
+            ['مبلغ', `${formatGrouped(r.amount)} تومان`],
+            ['کد پیگیری', toFaDigits(r.refId ?? '')],
+            ...(r.card ? ([['کارت', toFaDigits(r.card)]] as [string, string][]) : []),
+          ],
+          actions: homeAction,
+          refresh: home ? { seconds: 6, url: home, text: 'چند ثانیهٔ دیگر خودکار به کلید برمی‌گردید.' } : undefined,
           note: closeNote,
         }),
       );
@@ -238,7 +260,8 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       page({
         tone: 'bad',
         title: status === 'canceled' ? 'پرداخت لغو شد' : 'پرداخت انجام نشد',
-        lines: ['اشتراک تغییری نکرد.', 'اگر مبلغی از حسابتان کم شده، تا ۷۲ ساعت خودکار برمی‌گردد.'],
+        lines: ['اشتراک تغییری نکرد.', refund],
+        actions: home ? [{ label: 'بازگشت به کلید', href: home, primary: true }] : [],
         note: closeNote,
       }),
     );
@@ -247,7 +270,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
   // درگاه آزمایشی سرور محلی: به جای بانک، همین صفحه «پرداخت» یا «انصراف» را می‌پرسد.
   if (gateway?.name === 'dev') {
     app.get('/billing/dev-pay', { schema: { querystring: callbackQuery } }, async (req, reply) => {
-      const q = req.query as { o: string; p: string; Authority?: string };
+      const q = req.query as { o: string; p: string; Authority?: string; b?: string };
       const row = await withOffice(
         pool,
         q.o,
@@ -255,23 +278,21 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       );
       const html = (status: number, body: string) => reply.status(status).header('content-type', 'text/html; charset=utf-8').send(body);
       if (!row || !row.authority || row.authority !== q.Authority || row.status !== 'pending')
-        return html(404, page({ tone: 'bad', title: 'پرداخت پیدا نشد', lines: ['این پرداخت دیگر در انتظار نیست.'] }));
+        return html(404, page({ tone: 'bad', title: 'پرداخت پیدا نشد', lines: ['این پرداخت دیگر در انتظار نیست.'], dev: true }));
       const plan = planById(row.plan);
-      const back = `${callbackUrl(q.o, q.p)}&Authority=${encodeURIComponent(row.authority)}`;
+      const back = `${callbackUrl(q.o, q.p, backTo(q.b))}&Authority=${encodeURIComponent(row.authority)}`;
       return html(
         200,
         page({
           tone: 'info',
           title: 'درگاه آزمایشی',
-          lines: [
-            `${formatGrouped(Number(row.amount) / 10)} تومان`,
-            `پلن ${plan?.name ?? row.plan}، ${termOf(row.period).name}`,
-            'این صفحه فقط روی سرور توسعه است و پولی جابه‌جا نمی‌شود.',
-          ],
+          lines: [`پلن ${plan?.name ?? row.plan}، ${termOf(row.period).name}`, 'این صفحه فقط روی سرور توسعه است و پولی جابه‌جا نمی‌شود.'],
+          rows: [['مبلغ', `${formatGrouped(Number(row.amount) / 10)} تومان`]],
           actions: [
             { label: 'پرداخت موفق', href: `${back}&Status=OK`, primary: true },
             { label: 'انصراف از پرداخت', href: `${back}&Status=NOK` },
           ],
+          dev: true,
         }),
       );
     });

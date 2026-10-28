@@ -8,5 +8,5 @@ export const securityHeaders = {
   'cache-control': 'no-store',
 };
 
-/** صفحه‌های HTML سرور (برگشت از درگاه): فقط استایل درون‌خطی، بی اسکریپت، بی فرم، بی قاب. */
-export const pageCsp = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+/** صفحه‌های HTML سرور (برگشت از درگاه): فقط استایل درون‌خطی و فونت همین سرور، بی اسکریپت، بی فرم، بی قاب. */
+export const pageCsp = "default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
