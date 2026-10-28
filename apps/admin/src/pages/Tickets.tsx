@@ -1,6 +1,6 @@
 import { type FormEvent, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { Icon, Skeleton } from '@kelid/ui';
+import { AttachPicker, FileChips, Icon, readFiles, Skeleton } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import type { AdminApi, TicketDetail, TicketStatus, TicketTopic } from '../api';
 import { useAuth } from '../auth';
@@ -125,6 +125,7 @@ export function TicketPage() {
   const detail = useLoad(`ticket:${office}/${id}`, (a, t) => a.ticket(t, office, id), office);
   const slow = useSlow(!detail.data && detail.pending);
   const [draft, setDraft] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
 
   const run = async (fn: (a: AdminApi, t: string) => Promise<TicketDetail>, done?: string) => {
@@ -145,7 +146,11 @@ export function TicketPage() {
     e?.preventDefault();
     const body = draft.trim();
     if (!body || busy) return;
-    if (await run((a, t) => a.replyTicket(t, office, id, body), 'پاسخ فرستاده شد.')) setDraft('');
+    const attached = await readFiles(files);
+    if (await run((a, t) => a.replyTicket(t, office, id, body, attached), 'پاسخ فرستاده شد.')) {
+      setDraft('');
+      setFiles([]);
+    }
   };
 
   const back = (
@@ -225,6 +230,7 @@ export function TicketPage() {
               <p className="ad-fb-body" style={{ margin: 0 }}>
                 {m.body}
               </p>
+              <FileChips files={m.files} open={(f) => call((a, tk) => a.ticketFile(tk, office, id, f.id))} />
               <span className="xs mute">{ago(m.createdAt)}</span>
             </li>
           ))}
@@ -241,6 +247,7 @@ export function TicketPage() {
             onKeyDown={(e) => e.key === 'Enter' && (e.ctrlKey || e.metaKey) && void send()}
             style={{ lineHeight: 1.9, resize: 'vertical' }}
           />
+          <AttachPicker files={files} onChange={setFiles} onError={(text) => toast(text, { bad: true })} />
           <div className="rw ad-reply-ft">
             <span className="xs mute sp">کاربر پاسخ را در بخش «پشتیبانی» برنامه می‌بیند و کنارش نشان می‌خورد.</span>
             <button type="submit" className="btn btn-p" disabled={busy || !draft.trim()}>

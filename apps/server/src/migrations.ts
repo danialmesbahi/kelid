@@ -400,6 +400,34 @@ export const migrations: readonly string[] = [
   `
   alter table offices add column city text check (length(city) between 1 and 60);
   `,
+  // 16: پیوست پیام‌های پشتیبانی (عکس، PDF، Word/Excel، متن). بایت‌ها یا در خود جدول یا در S3 (object_key)؛ مشخصات همیشه پشت RLS.
+  `
+  create table support_files (
+    office_id uuid not null default kelid_office(),
+    id uuid not null,
+    ticket_id uuid not null,
+    message_id uuid not null,
+    name text not null check (length(name) between 1 and 120),
+    mime text not null,
+    size int not null check (size between 1 and 5242880),
+    bytes bytea,
+    object_key text,
+    created_at timestamptz not null default now(),
+    primary key (office_id, id),
+    foreign key (office_id, ticket_id) references support_tickets (office_id, id),
+    foreign key (office_id, message_id) references support_messages (office_id, id),
+    check ((bytes is null) <> (object_key is null))
+  );
+  create index support_files_ticket on support_files (office_id, ticket_id);
+  alter table support_files enable row level security;
+  alter table support_files force row level security;
+  create policy office_isolation on support_files
+    using (office_id = kelid_office())
+    with check (office_id = kelid_office());
+  create policy vendor_access on support_files
+    using (kelid_vendor())
+    with check (kelid_vendor());
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

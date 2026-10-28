@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
-import { Icon, Logo, Skeleton } from '@kelid/ui';
+import { AttachPicker, Icon, Logo, readFiles, Skeleton } from '@kelid/ui';
 import { newId, toFaDigits } from '@kelid/core';
 import { useAuth } from '../auth/AuthContext';
 import { seen } from '../auth/AccountSection';
@@ -11,6 +11,7 @@ import { useToast } from '../layout/Toasts';
 import { NewTicketDialog } from './NewTicketDialog';
 import { AFTER_ANSWER, STATUS, ticketFailText, topicIcon, topicLabel } from './topics';
 import { setSupportUnread } from './unread';
+import { TicketFiles } from './Attach';
 import './support.css';
 
 // آخرین دادهٔ دیده‌شده تا برگشتن به پشتیبانی فوری باشد؛ تازه‌اش پشت صحنه می‌آید.
@@ -162,6 +163,7 @@ function TicketPage({ id }: { id: string }) {
   const [confirming, setConfirming] = useState(false);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const slow = useSlow(!thread && !failed);
@@ -201,9 +203,11 @@ function TicketPage({ id }: { id: string }) {
     if (!api || busy) return;
     setBusy(true);
     try {
-      show(await withToken((t) => api.replyTicket(t, id, { id: msgId.current, body })));
+      const attached = await readFiles(files);
+      show(await withToken((t) => api.replyTicket(t, id, { id: msgId.current, body, ...(attached.length ? { files: attached } : {}) })));
       msgId.current = newId();
       setDraft('');
+      setFiles([]);
       setError('');
       setWriting(false);
     } catch (err) {
@@ -305,6 +309,7 @@ function TicketPage({ id }: { id: string }) {
               <span className="xs mute">{seen(m.createdAt)}</span>
             </div>
             <p>{m.body}</p>
+            <TicketFiles ticketId={t.id} files={m.files} />
           </li>
         ))}
       </ol>
@@ -340,6 +345,14 @@ function TicketPage({ id }: { id: string }) {
             }}
             onKeyDown={onKeyDown}
             style={{ lineHeight: 1.9, resize: 'vertical' }}
+          />
+          <AttachPicker
+            files={files}
+            onChange={(f) => {
+              setFiles(f);
+              setError('');
+            }}
+            onError={setError}
           />
           <div className="rw" style={{ gap: 10, flexWrap: 'wrap' }}>
             {error && (
@@ -394,11 +407,19 @@ function TicketPage({ id }: { id: string }) {
               <Icon name="edit" size="s" />
               توضیح بیشتر
             </button>
-            {t.status === 'answered' && (
+            {t.status === 'answered' ? (
               <button type="button" className="btn btn-p" onClick={() => setConfirming(true)}>
                 <Icon name="check" size="s" />
                 {AFTER_ANSWER[t.topic].close}
               </button>
+            ) : (
+              // مشکل یا سؤالی که خود کاربر پیش از پاسخ ما حلش کرد، لازم نیست باز بماند.
+              (t.topic === 'problem' || t.topic === 'question') && (
+                <button type="button" className="btn btn-s" onClick={() => setConfirming(true)}>
+                  <Icon name="check" size="s" />
+                  بستن تیکت
+                </button>
+              )
             )}
           </div>
         </div>

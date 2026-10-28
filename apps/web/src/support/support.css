@@ -171,6 +171,9 @@
   display: block;
   border-radius: 9px;
 }
+.tk-letter .att-list {
+  margin-top: 12px;
+}
 .tk-letter p {
   margin: 0;
   line-height: 2;

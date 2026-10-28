@@ -125,9 +125,23 @@ export interface Ticket {
   user: { name: string; phone: string; role: string };
 }
 
+/** پیوست پیام؛ بایت‌ها فقط وقتی کسی بازش کرد می‌آیند. */
+export interface TicketFile {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/** پیوستی که می‌فرستیم؛ data = بایت‌ها به base64. نوعش را سرور از خود بایت‌ها می‌فهمد. */
+export interface NewTicketFile {
+  name: string;
+  data: string;
+}
+
 export interface TicketDetail {
   ticket: Ticket;
-  messages: Array<{ id: string; body: string; from: 'user' | 'support'; author: string; createdAt: string }>;
+  messages: Array<{ id: string; body: string; from: 'user' | 'support'; author: string; createdAt: string; files: TicketFile[] }>;
 }
 
 /** یک باگ در همهٔ دفترها (با اثرانگشت یکی شده). */
@@ -147,7 +161,7 @@ export interface ClientError {
 
 export type OfficeFilter = OfficeStatus | 'pilot';
 
-export type ErrorCode = 'offline' | 'unauthorized' | 'bad_login' | 'locked' | 'too_many' | 'too_small' | 'not_found' | 'already' | 'server';
+export type ErrorCode = 'offline' | 'unauthorized' | 'bad_login' | 'locked' | 'too_many' | 'too_small' | 'not_found' | 'already' | 'bad_file' | 'too_big' | 'server';
 
 export class ApiError extends Error {
   constructor(
@@ -177,7 +191,8 @@ export interface AdminApi {
   tickets(token: string, status: TicketStatus): Promise<Ticket[]>;
   ticket(token: string, office: string, id: string): Promise<TicketDetail>;
   /** پاسخ ما؛ تیکت «پاسخ داده شد» می‌شود و کاربر در برنامه نشان می‌بیند. */
-  replyTicket(token: string, office: string, id: string, body: string): Promise<TicketDetail>;
+  replyTicket(token: string, office: string, id: string, body: string, files?: NewTicketFile[]): Promise<TicketDetail>;
+  ticketFile(token: string, office: string, id: string, file: string): Promise<Blob>;
   setTicketStatus(token: string, office: string, id: string, status: TicketStatus): Promise<TicketDetail>;
   /**
    * اتصال زنده: changed با شناسهٔ دفترهایی که عوض شدند (فهرست خالی = همه‌چیز را تازه کن). تا بسته شدن اتصال
@@ -209,7 +224,7 @@ function httpApi(base: string): AdminApi {
     if (res.status === 204) return undefined as T;
     if (res.ok) return (await res.json()) as T;
     const e = (await res.json().catch(() => ({}))) as { error?: string; retryAfter?: number };
-    const known: ErrorCode[] = ['unauthorized', 'bad_login', 'locked', 'too_many', 'too_small', 'not_found', 'already'];
+    const known: ErrorCode[] = ['unauthorized', 'bad_login', 'locked', 'too_many', 'too_small', 'not_found', 'already', 'bad_file', 'too_big'];
     throw new ApiError(known.includes(e.error as ErrorCode) ? (e.error as ErrorCode) : 'server', e.retryAfter ?? 0);
   }
   const qs = (o: Record<string, string | null>) => {
@@ -239,7 +254,17 @@ function httpApi(base: string): AdminApi {
     resolveError: (t, fp, resolved) => call('POST', `/admin/errors/${fp}`, t, { resolved }),
     tickets: async (t, status) => (await call<{ tickets: Ticket[] }>('GET', `/admin/tickets${qs({ status })}`, t)).tickets,
     ticket: (t, office, id) => call('GET', `/admin/tickets/${office}/${id}`, t),
-    replyTicket: (t, office, id, body) => call('POST', `/admin/tickets/${office}/${id}/messages`, t, { body }),
+    replyTicket: (t, office, id, body, files) => call('POST', `/admin/tickets/${office}/${id}/messages`, t, { body, ...(files?.length ? { files } : {}) }),
+    ticketFile: async (t, office, id, file) => {
+      let res: Response;
+      try {
+        res = await fetch(`${base}/admin/tickets/${office}/${id}/files/${file}`, { headers: { authorization: `Bearer ${t}` }, credentials: 'omit', cache: 'no-store' });
+      } catch {
+        throw new ApiError('offline');
+      }
+      if (!res.ok) throw new ApiError(res.status === 401 ? 'unauthorized' : res.status === 404 ? 'not_found' : 'server');
+      return res.blob();
+    },
     setTicketStatus: (t, office, id, status) => call('POST', `/admin/tickets/${office}/${id}/status`, t, { status }),
     listen: async (token, on, signal) => {
       // fetch به‌جای EventSource: توکن در هدر می‌رود، نه در آدرس (که در لاگ‌ها می‌ماند).
@@ -455,6 +480,7 @@ function demoApi(): AdminApi {
       from,
       author: from === 'user' ? m.name : 'سارا نوری',
       createdAt: new Date(now - hours * 3_600_000).toISOString(),
+      files: [] as TicketFile[],
     }));
     return {
       ticket: {
@@ -529,6 +555,8 @@ function demoApi(): AdminApi {
     d.office.paidTotal = d.payments.filter((x) => x.status === 'paid').reduce((s, x) => s + x.amount, 0);
     return structuredClone(d);
   };
+  // بایت پیوست‌های پیش‌نمایش فقط تا بستن صفحه.
+  const fileData = new Map<string, string>();
   const findTicket = (id: string) => {
     const x = tickets.find((t) => t.ticket.id === id);
     if (!x) throw new ApiError('not_found');
@@ -677,13 +705,24 @@ function demoApi(): AdminApi {
         ),
       ),
     ticket: (_t, _o, id) => wait(() => structuredClone(findTicket(id))),
-    replyTicket: (_t, _o, id, body) =>
+    replyTicket: (_t, _o, id, body, files) =>
       wait(() => {
         const x = findTicket(id);
         const at = new Date().toISOString();
-        x.messages.push({ id: `${id}-${x.messages.length}`, body: body.trim(), from: 'support', author: 'شما', createdAt: at });
+        const attached = (files ?? []).map((f) => {
+          const fid = crypto.randomUUID();
+          fileData.set(fid, f.data);
+          return { id: fid, name: f.name, mime: f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream', size: Math.floor((f.data.length * 3) / 4) };
+        });
+        x.messages.push({ id: `${id}-${x.messages.length}`, body: body.trim(), from: 'support', author: 'شما', createdAt: at, files: attached });
         x.ticket = { ...x.ticket, status: 'answered', updatedAt: at, messages: x.messages.length, last: { body: body.trim(), from: 'support' } };
         return structuredClone(x);
+      }),
+    ticketFile: (_t, _o, _id, file) =>
+      wait(() => {
+        const data = fileData.get(file);
+        if (!data) throw new ApiError('not_found');
+        return new Blob([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))]);
       }),
     setTicketStatus: (_t, _o, id, st) =>
       wait(() => {

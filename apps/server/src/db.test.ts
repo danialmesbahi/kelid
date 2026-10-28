@@ -1276,13 +1276,37 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect((await get(a, '/support/tickets', s2.accessToken)).json().tickets).toEqual([]);
       expect((await get(a, `/support/tickets/${tid}`, s2.accessToken)).statusCode).toBe(404);
 
+      // پیوست: نوع را سرور از بایت‌ها می‌فهمد؛ فقط صاحب تیکت دانلودش می‌کند
+      const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+      const fid = randomUUID();
+      const withFile = await post(a, '/support/tickets', { ...t, id: fid, files: [{ name: '../عکس صفحه.png', data: png.toString('base64') }] }, s1.accessToken);
+      expect(withFile.statusCode).toBe(201);
+      const att = withFile.json().messages[0].files;
+      expect(att).toEqual([{ id: expect.any(String), name: 'عکس صفحه.png', mime: 'image/png', size: png.length }]);
+      const dl = await get(a, `/support/tickets/${fid}/files/${att[0].id}`, s1.accessToken);
+      expect(dl.statusCode).toBe(200);
+      expect(dl.headers['content-type']).toBe('image/png');
+      expect(dl.headers['content-disposition']).toMatch(/^attachment;/);
+      expect(dl.rawPayload.equals(png)).toBe(true);
+      expect((await get(a, `/support/tickets/${fid}/files/${att[0].id}`, s2.accessToken)).statusCode).toBe(404);
+      const exe = { name: 'a.pdf', data: Buffer.from('MZ\x90\x00not a pdf').toString('base64') };
+      expect((await post(a, '/support/tickets', { ...t, id: randomUUID(), files: [exe] }, s1.accessToken)).json()).toEqual({ error: 'bad_file' });
+      expect((await get(a, '/support/tickets', s1.accessToken)).json().tickets).toHaveLength(2);
+
       const token = await login(a, await newAdmin());
       const queue = (await get(a, '/admin/tickets', token)).json().tickets;
       expect(queue.find((x: { id: string }) => x.id === tid)).toMatchObject({ topic: 'billing', messages: 1, office: { id: s1.office.id }, user: { name: 'علی رضایی' }, last: { from: 'user' } });
       expect((await get(a, '/admin/stats', token)).json().openTickets).toBeGreaterThan(0);
 
-      const answered = await post(a, `/admin/tickets/${s1.office.id}/${tid}/messages`, { body: 'حتماً؛ همکارمان تماس می‌گیرد.' }, token);
-      expect(answered.json()).toMatchObject({ ticket: { status: 'answered' }, messages: [{ from: 'user' }, { from: 'support', author: expect.any(String) }] });
+      const pdf = Buffer.from('%PDF-1.4\n%راهنما\n');
+      const answered = await post(a, `/admin/tickets/${s1.office.id}/${tid}/messages`, { body: 'حتماً؛ همکارمان تماس می‌گیرد.', files: [{ name: 'راهنما.pdf', data: pdf.toString('base64') }] }, token);
+      expect(answered.json()).toMatchObject({
+        ticket: { status: 'answered' },
+        messages: [{ from: 'user', files: [] }, { from: 'support', author: expect.any(String), files: [{ name: 'راهنما.pdf', mime: 'application/pdf' }] }],
+      });
+      const guide = answered.json().messages[1].files[0].id;
+      expect((await get(a, `/admin/tickets/${s1.office.id}/${tid}/files/${guide}`, token)).rawPayload.equals(pdf)).toBe(true);
+      expect((await get(a, `/support/tickets/${tid}/files/${guide}`, s1.accessToken)).rawPayload.equals(pdf)).toBe(true);
       expect((await post(a, `/admin/tickets/${s2.office.id}/${tid}/messages`, { body: 'x' }, token)).statusCode).toBe(404);
       expect((await get(a, '/admin/tickets', token)).json().tickets.some((x: { id: string }) => x.id === tid)).toBe(false);
       expect((await get(a, '/admin/tickets?status=answered', token)).json().tickets.some((x: { id: string }) => x.id === tid)).toBe(true);
