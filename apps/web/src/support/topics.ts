@@ -29,6 +29,7 @@ export function ticketFailText(e: ApiError | null): string {
   if (e?.code === 'offline') return 'برای فرستادن، اینترنت لازم است.';
   if (e?.code === 'closed') return 'این تیکت بسته شده است؛ برای موضوع تازه، تیکت تازه بزنید.';
   if (e?.code === 'too_big') return 'جمع پیوست‌های هر پیام حداکثر ۵ مگابایت است.';
+  if (e?.code === 'quota') return 'سقف پیوست امروز شما پر شده؛ پیام را بی پیوست بفرستید یا فردا دوباره امتحان کنید.';
   if (e?.code === 'bad_file') return 'این نوع فایل پذیرفته نیست؛ فقط عکس، PDF، Word، Excel یا متن.';
   if (e?.code === 'too_many') return 'پیام‌ها زیاد شد؛ کمی بعد دوباره بفرستید.';
   return 'فرستاده نشد؛ دوباره امتحان کنید.';

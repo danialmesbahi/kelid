@@ -11,7 +11,7 @@ import { useToast } from '../layout/Toasts';
 import { NewTicketDialog } from './NewTicketDialog';
 import { AFTER_ANSWER, STATUS, ticketFailText, topicIcon, topicLabel } from './topics';
 import { setSupportUnread } from './unread';
-import { TicketFiles } from './Attach';
+import { shrinkImage, TicketFiles } from './Attach';
 import './support.css';
 
 // آخرین دادهٔ دیده‌شده تا برگشتن به پشتیبانی فوری باشد؛ تازه‌اش پشت صحنه می‌آید.
@@ -353,6 +353,7 @@ function TicketPage({ id }: { id: string }) {
               setError('');
             }}
             onError={setError}
+            shrink={shrinkImage}
           />
           <div className="rw" style={{ gap: 10, flexWrap: 'wrap' }}>
             {error && (

@@ -8,6 +8,8 @@ import { sniffImage } from '../storage/photos';
 // مگابایت دهدهی، همان که دستگاه‌ها نشان می‌دهند.
 export const FILE_MAX = 5_000_000;
 export const FILES_MAX = 3;
+/** سقف پیوست هر کاربر در ۲۴ ساعت؛ کار عادی پشتیبانی هیچ‌وقت به آن نمی‌رسد، فقط جلوی پر کردن فضای ذخیره را می‌گیرد. */
+export const DAILY_MAX = 30_000_000;
 const NAME_MAX = 120;
 /** جای base64 (یک‌سوم بیشتر) و خود JSON پیام. */
 export const FILES_BODY_LIMIT = Math.ceil((FILE_MAX * 4) / 3) + 64 * 1024;
@@ -44,8 +46,10 @@ const ZIP_KINDS: Record<string, string> = {
 
 /** نام بی مسیر و بی نویسهٔ کنترلی؛ نام خالی «پیوست» می‌شود. */
 function cleanName(raw: string): string {
-  // eslint-disable-next-line no-control-regex -- نویسه‌های کنترلی عمداً پاک می‌شوند
-  const base = raw.split(/[\\/]/).pop()!.replace(/[\u0000-\u001f\u007f"]/g, '').trim();
+  // نویسه‌های کنترلی عمداً پاک می‌شوند
+  // eslint-disable-next-line no-control-regex
+  const CONTROL = /[\u0000-\u001f\u007f"]/g;
+  const base = raw.split(/[\\/]/).pop()!.replace(CONTROL, '').trim();
   if (!base) return 'پیوست';
   if (base.length <= NAME_MAX) return base;
   const dot = base.lastIndexOf('.');
@@ -109,6 +113,19 @@ interface Stored {
  */
 export class SupportFiles {
   constructor(private readonly s3: S3 | null) {}
+
+  /** پیوست‌های تازه با آنچه این کاربر در ۲۴ ساعت گذشته فرستاده از سقف روزانه بیشتر می‌شود؟ */
+  async overDaily(db: Db, user: string, adding: ParsedFile[]): Promise<boolean> {
+    const size = adding.reduce((n, f) => n + f.bytes.length, 0);
+    if (!size) return false;
+    const { rows } = await db.query<{ n: string }>(
+      `select coalesce(sum(f.size), 0) as n from support_files f
+         join support_messages m on m.office_id = f.office_id and m.id = f.message_id
+        where m.user_id = $1 and f.created_at > now() - interval '1 day'`,
+      [user],
+    );
+    return Number(rows[0]?.n ?? 0) + size > DAILY_MAX;
+  }
 
   async upload(office: string, files: ParsedFile[]): Promise<Array<ParsedFile & { id: string; key: string | null }>> {
     const out = [];

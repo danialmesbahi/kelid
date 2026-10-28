@@ -9,6 +9,7 @@ export const FILE_MAX = 5_000_000;
 export const FILES_MAX = 3;
 const ACCEPT = '.jpg,.jpeg,.png,.webp,.pdf,.docx,.xlsx,.txt';
 const EXT = new Set(ACCEPT.split(',').map((x) => x.slice(1)));
+const IMAGE_EXT = new Set(['jpg', 'jpeg', 'png', 'webp']);
 
 export interface AttachedFile {
   id: string;
@@ -40,14 +41,29 @@ export async function readFiles(files: File[]): Promise<Array<{ name: string; da
   );
 }
 
-/** دکمهٔ «پیوست فایل» و فایل‌های انتخاب‌شده؛ نوع و حجم همین‌جا سنجیده می‌شود تا کسی منتظر سرور نماند. */
-export function AttachPicker({ files, onChange, onError }: { files: File[]; onChange: (f: File[]) => void; onError: (text: string) => void }) {
+/**
+ * دکمهٔ «پیوست فایل» و فایل‌های انتخاب‌شده؛ نوع و حجم همین‌جا سنجیده می‌شود تا کسی منتظر سرور نماند.
+ * shrink (اختیاری) عکس را پیش از سنجش حجم کوچک می‌کند؛ عکس گوشی ۶ مگابایتی هم پذیرفته و سبک فرستاده می‌شود.
+ */
+export function AttachPicker({
+  files,
+  onChange,
+  onError,
+  shrink,
+}: {
+  files: File[];
+  onChange: (f: File[]) => void;
+  onError: (text: string) => void;
+  shrink?: (f: File) => Promise<File>;
+}) {
   const input = useRef<HTMLInputElement>(null);
-  const add = (picked: FileList | null) => {
+  const [preparing, setPreparing] = useState(false);
+  const add = async (picked: File[]) => {
     const next = [...files];
-    for (const f of picked ?? []) {
-      const ext = f.name.toLowerCase().split('.').pop() ?? '';
-      if (!EXT.has(ext)) return onError(`«${f.name}» پذیرفته نیست؛ فقط عکس، PDF، Word، Excel یا متن.`);
+    for (const raw of picked) {
+      const ext = raw.name.toLowerCase().split('.').pop() ?? '';
+      if (!EXT.has(ext)) return onError(`«${raw.name}» پذیرفته نیست؛ فقط عکس، PDF، Word، Excel یا متن.`);
+      const f = shrink && IMAGE_EXT.has(ext) ? await shrink(raw).catch(() => raw) : raw;
       if (f.size > FILE_MAX) return onError(`«${f.name}» بزرگ‌تر از ۵ مگابایت است.`);
       if (next.length >= FILES_MAX) return onError('هر پیام حداکثر ۳ پیوست دارد.');
       if (next.reduce((n, x) => n + x.size, f.size) > FILE_MAX) return onError(`با «${f.name}» جمع پیوست‌ها از ۵ مگابایت بیشتر می‌شود.`);
@@ -64,11 +80,19 @@ export function AttachPicker({ files, onChange, onError }: { files: File[]; onCh
         accept={ACCEPT}
         hidden
         onChange={(e) => {
-          add(e.target.files);
+          const picked = [...(e.target.files ?? [])];
           e.target.value = '';
+          setPreparing(true);
+          void add(picked).finally(() => setPreparing(false));
         }}
       />
-      <button type="button" className="btn btn-g att-add" disabled={files.length >= FILES_MAX} onClick={() => input.current?.click()}>
+      <button
+        type="button"
+        className="btn btn-g att-add"
+        disabled={files.length >= FILES_MAX || preparing}
+        aria-busy={preparing}
+        onClick={() => input.current?.click()}
+      >
         <Icon name="doc" size="s" />
         پیوست فایل
       </button>

@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ApiError, type TicketThread, type TicketTopic } from '../auth/api';
 import { APP_VERSION, currentPage, platform } from '../beta/beta';
 import { TOPICS, ticketFailText } from './topics';
+import { shrinkImage } from './Attach';
 
 const HINT: Record<TicketTopic, string> = {
   problem: 'بنویسید چه کار می‌کردید و چه شد؛ مثلاً «فایل را ذخیره زدم ولی در فهرست نیامد».',
@@ -173,6 +174,7 @@ export function NewTicketDialog({
                 setError('');
               }}
               onError={setError}
+              shrink={shrinkImage}
             />
             <span id="tk-note" className="xs mute rw" style={{ gap: 8 }}>
               <span className="sp">جواب همین‌جا در بخش «پشتیبانی» می‌آید و کنارش نشان می‌خورد.</span>

@@ -109,7 +109,7 @@ export type ApiErrorCode =
   // دستگاه‌های دفتر به سقف نفرات اشتراک رسیده؛ ApiError.limit فهرست و بلیت ادامه را دارد.
   | 'device_limit'
   // تیکتی که بسته شده پیام تازه نمی‌گیرد؛ پیوستی که نوعش پذیرفته نیست یا از سقف حجم بزرگ‌تر است.
-  | 'closed' | 'bad_file' | 'too_big'
+  | 'closed' | 'bad_file' | 'too_big' | 'quota'
   // فقط سمت برنامه: توکن مال دفتر دیگری است (کاربر دفترش را عوض کرد)؛ همگام‌سازی دفتر قبلی همان‌جا می‌ایستد.
   | 'office_changed'
   | 'offline' | 'server';
@@ -261,7 +261,7 @@ export interface VoiceFill<F extends VoiceForm = VoiceForm> {
 const CODES: readonly string[] = [
   'bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo',
   'forbidden', 'no_seat', 'member', 'last_manager', 'self', 'not_alone',
-  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit', 'no_ai', 'ai_failed', 'bad_audio', 'closed', 'bad_file', 'too_big',
+  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit', 'no_ai', 'ai_failed', 'bad_audio', 'closed', 'bad_file', 'too_big', 'quota',
 ];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */

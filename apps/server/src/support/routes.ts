@@ -124,7 +124,8 @@ export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret, fil
     const parsed = parseFiles(b.files);
     if (typeof parsed === 'string') return reply.status(400).send({ error: parsed });
     // شناسه را دستگاه می‌سازد؛ پاسخِ گم‌شده و دوباره فرستادن، تیکت تکراری نمی‌سازد (و از سهمیه هم کم نمی‌کند).
-    const had = await withOffice(pool, off, (db) => detail(db, files, sub, b.id));
+    const had = await withOffice(pool, off, async (db) => (await detail(db, files, sub, b.id)) ?? ((await files.overDaily(db, sub, parsed)) ? 'quota' : null));
+    if (had === 'quota') return reply.status(429).send({ error: 'quota' });
     if (had) return reply.status(201).send(had);
     const uploaded = await files.upload(off, parsed);
     const out = await withOffice(pool, off, async (db) => {
@@ -176,6 +177,7 @@ export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret, fil
         [id, sub, b.id],
       ),
     );
+    if (known.rowCount && (await withOffice(pool, off, (db) => files.overDaily(db, sub, parsed)))) return reply.status(429).send({ error: 'quota' });
     const uploaded = known.rowCount ? await files.upload(off, parsed) : [];
     const out = await withOffice(pool, off, async (db) => {
       const own = await db.query<{ status: string }>('select status from support_tickets where id = $1 and user_id = $2 for update', [id, sub]);
