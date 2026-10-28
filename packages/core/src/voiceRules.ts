@@ -18,6 +18,8 @@ function norm(t: string): string {
     .replace(/خیابون/g, 'خیابان')
     .replace(/میدون/g, 'میدان')
     .replace(/خونه/g, 'خانه')
+    // «هشت ممیز پنج میلیارد» همان «هشت و نیم» است.
+    .replace(/ (ممیز|مُمَیز|اعشار) (پنج|5)(?=\s|$|[،,.])/g, ' و نیم')
     .replace(/(^|\s)(یک|دو|سه|سی|چهار|پنج|پان|پون|شش|شیش|هفت|هشت|نه) صد(?=\s|$|[،,.])/g, (_, s: string, w: string) => `${s}${HUNDREDS[w]}`)
     .replace(/\s+/g, ' ')
     .trim()
@@ -526,8 +528,9 @@ function shortPrices(t: string, nums: SpokenNumber[], buying = false, sale = buy
   const out: { deposit?: number; rent?: number; total?: number } = {};
   const RANGE_GAP = /^\s*(تا|الی|یا|-)?\s*$/;
   for (const [i, n] of nums.entries()) {
-    if (n.value < 1 || /^\s*(متر|خواب|طبقه|سال|ساله|تا)/.test(after(t, n))) continue;
-    // «اجاره هفت هشت تومن»: سر پایین بازه کنار می‌رود؛ سقف همان عدد بزرگ‌تر است.
+    // «دو تا خواب» شمارش است؛ ولی «قیمت پونزده تا» یعنی پونزده میلیارد.
+    if (n.value < 1 || /^\s*(متر|خواب|طبقه|سال|ساله|تا\s+(خواب|اتاق|طبقه|واحد|پارکینگ|انباری|متر))/.test(after(t, n))) continue;
+    // «اجاره هفت هشت تومن»، «پنج تا شش میلیارد»: سر پایین بازه کنار می‌رود؛ سقف همان عدد بزرگ‌تر است.
     const next = nums[i + 1];
     if (next && next.value > n.value && RANGE_GAP.test(t.slice(n.end, next.start))) continue;
     // «رهن صد تا صد و پنجاه»: برچسب سقف بازه پیش از عدد اول آمده است.
@@ -544,7 +547,12 @@ function shortPrices(t: string, nums: SpokenNumber[], buying = false, sale = buy
       else if (n.value < 1000 && s) out[s] ??= Math.round(n.value * (s === 'rent' ? 1e6 : n.value < (s === 'total' ? 100 : 20) ? 1e9 : 1e6));
       continue;
     }
-    if (!slot) continue;
+    if (!slot) {
+      // «هشت و پونصد» بی برچسب در فایل فروشی: فقط همین شکل میلیارد و میلیون روشن است.
+      const mixed = sale ? billionAndMillion(t.slice(n.start, n.end)) : undefined;
+      if (mixed) out.total ??= mixed;
+      continue;
+    }
     if (slot === 'rent') {
       if (n.value < 1000) out.rent ??= Math.round(n.value * 1e6);
       continue;
@@ -738,6 +746,9 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     if (phone?.raw) notes.push(`شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`);
     if (notes.length) raw.description = notes.join('، ');
     Object.assign(raw, shortPrices(t, nums, false, raw.deal !== 'rent' && raw.deal !== 'full'));
+    // «متری هشتاد، صد متر»: قیمت هر متر بی «میلیون» و متراژ بعدش آمده.
+    const perMeter = raw.total === undefined && typeof raw.area === 'number' && raw.deal !== 'rent' && raw.deal !== 'full' ? nums.find((n) => !n.money && n.value >= 1 && n.value < 1000 && slotOf(before(t, n, 30)) === 'perMeter') : undefined;
+    if (perMeter) raw.total = Math.round(perMeter.value * 1e6 * (raw.area as number));
   } else {
     raw.name = personOf(t);
     raw.phone = phone?.phone;

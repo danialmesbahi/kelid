@@ -95,8 +95,8 @@ export function spokenNumbers(text: string): SpokenNumber[] {
         afterAnd = false;
         continue;
       }
-      // «هزار و چهارصد» یعنی یک هزار و چهارصد.
-      if (first < 0 && scaleOf(w) === 1000 && toks[j + 1]?.s === 'و') {
+      // «هزار و چهارصد» یعنی یک هزار و چهارصد؛ «میلیارد و دویست» هم یک میلیارد و دویست میلیون.
+      if (first < 0 && (scaleOf(w) ?? 0) >= 1000 && toks[j + 1]?.s === 'و') {
         first = j;
         current = 1;
       } else if (first < 0) break;
@@ -137,7 +137,8 @@ export function spokenNumbers(text: string): SpokenNumber[] {
     } else total += current;
     if (rial) total /= 10;
     const isMoney = total > 0 && (money || last >= 1e6 || total >= 1e6);
-    out.push({ value: isMoney ? Math.round(total) : total, start: toks[first]!.start, end: toks[end]!.end, money: isMoney });
+    // «هفت و نیم تومن» (۷٫۵ میلیارد) گرد نمی‌شود؛ میلیون و میلیاردش را بعداً قاعده‌ها می‌گذارند.
+    out.push({ value: isMoney && total >= 1000 ? Math.round(total) : total, start: toks[first]!.start, end: toks[end]!.end, money: isMoney });
     i = Math.max(end, i) + 1;
   }
   return out;

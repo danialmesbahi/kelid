@@ -33,6 +33,8 @@ describe('spoken amounts', () => {
     expect(nums('بین صد و صد و بیست')).toEqual([100, 120]);
     expect(nums('سیصد چهل')).toEqual([340]);
     expect(values('هفت هشت میلیارد')).toEqual([8_000_000_000]);
+    expect(values('میلیارد و دویست')).toEqual([1_200_000_000]);
+    expect(spokenNumbers('هفت و نیم تومن')[0]?.value).toBe(7.5);
   });
 
   it('marks each amount in the text for the model', () => {

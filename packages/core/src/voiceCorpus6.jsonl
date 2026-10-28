@@ -106,3 +106,89 @@
 {"form": "listing", "transcript": "یه واحد نود متری، دو خواب، کلید نخورده، تو پونک", "hints": "tehran", "expected": {"kind": "apartment", "neighborhood": "پونک", "area": 90, "bedrooms": 2, "yearBuilt": 1405}}
 {"form": "client", "transcript": "یه چیزی تو مایه های صد متر", "hints": "tehran", "expected": {"areaMin": 100, "neighborhoods": null}}
 {"form": "client", "transcript": "یک و نیم میلیارد رهن کامل", "hints": "tehran", "expected": {"deal": "full", "budget": 1500000000}}
+{"form":"client","transcript":"اجاره ۱۰","hints":"bushehr","expected":{"deal":"rent","rent":10000000}}
+{"form":"client","transcript":"با ۵ میلیارد پول دنبال آپارتمانه","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"بودجش ۲ و نیم","hints":"bushehr","expected":{"budget":2500000000,"deal":"sale"}}
+{"form":"client","transcript":"بودجه دو میلیارد و پونصد","hints":"bushehr","expected":{"budget":2500000000,"deal":"sale"}}
+{"form":"client","transcript":"بودجه ۵","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"بودجه ۵ میلیارد","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"تا ۵ میلیارد","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"خرید، ۳ میلیارد","hints":"bushehr","expected":{"deal":"sale","budget":3000000000}}
+{"form":"client","transcript":"رهن تا ۳۰۰ میلیون، اجاره تا ۱۰ میلیون","hints":"bushehr","expected":{"deal":"rent","budget":300000000,"rent":10000000}}
+{"form":"client","transcript":"رهن کامل ۸۰۰ میلیون","hints":"bushehr","expected":{"deal":"full","budget":800000000}}
+{"form":"client","transcript":"رهن ۳۰۰ اجاره ۱۰","hints":"bushehr","expected":{"deal":"rent","budget":300000000,"rent":10000000}}
+{"form":"client","transcript":"رهن ۵۰۰","hints":"bushehr","expected":{"deal":"full","budget":500000000}}
+{"form":"client","transcript":"سقف بودجش پنج و نیم","hints":"bushehr","expected":{"budget":5500000000,"deal":"sale"}}
+{"form":"client","transcript":"ماکزیمم شیش میلیارد","hints":"bushehr","expected":{"budget":6000000000,"deal":"sale"}}
+{"form":"client","transcript":"مبلغش تا ۵ میلیارد","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"مشتری خرید داره با بودجه حدود ۵ میلیارد","hints":"bushehr","expected":{"deal":"sale","budget":5000000000}}
+{"form":"client","transcript":"میتونه ۵ میلیارد بده","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"نهایت ۵ میلیارد","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"پنج میلیارد داره","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"۲۰۰ میلیون رهن داره، ماهی ۵ تومن","hints":"bushehr","expected":{"deal":"rent","budget":200000000,"rent":5000000}}
+{"form":"client","transcript":"۵ تا ۶ میلیارد","hints":"bushehr","expected":{"budget":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"آپارتمان صد متری، هشت میلیارد و پونصد میلیون","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"آپارتمان ۱۰۰ متری ۸ تومن","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"آپارتمان ۱۰۰ متری ۸ میلیارد","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"آپارتمان ۹۰ متری فروشی ۴ میلیارد و ۳۰۰ میلیون تومان","hints":"bushehr","expected":{"deal":"sale","total":4300000000}}
+{"form":"listing","transcript":"اجاره ماهی ده تومن رهن صد تومن","hints":"bushehr","expected":{"deal":"rent","deposit":100000000,"rent":10000000}}
+{"form":"listing","transcript":"ارزش ملک ۶ میلیارد","hints":"bushehr","expected":{"total":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"برای اجاره با ۲۰۰ میلیون پیش و ۸ میلیون اجاره","hints":"bushehr","expected":{"deal":"rent","deposit":200000000,"rent":8000000}}
+{"form":"listing","transcript":"رهن کامل یه میلیارد و دویست","hints":"bushehr","expected":{"deal":"full","deposit":1200000000}}
+{"form":"listing","transcript":"رهن کامل یک و دویست","hints":"bushehr","expected":{"deal":"full","deposit":1200000000}}
+{"form":"listing","transcript":"رهن کامل ۱ میلیارد و ۲۰۰","hints":"bushehr","expected":{"deal":"full","deposit":1200000000}}
+{"form":"listing","transcript":"رهن کامل ۸۰۰","hints":"bushehr","expected":{"deal":"full","deposit":800000000}}
+{"form":"listing","transcript":"رهن یک میلیارد","hints":"bushehr","expected":{"deal":"full","deposit":1000000000}}
+{"form":"listing","transcript":"رهن ۲۰۰ اجاره ۵","hints":"bushehr","expected":{"deal":"rent","deposit":200000000,"rent":5000000}}
+{"form":"listing","transcript":"رهن ۲۰۰ تومن اجاره ۵ تومن","hints":"bushehr","expected":{"deal":"rent","deposit":200000000,"rent":5000000}}
+{"form":"listing","transcript":"رهن ۲۰۰ میلیون اجاره ۵ میلیون","hints":"bushehr","expected":{"deal":"rent","deposit":200000000,"rent":5000000}}
+{"form":"listing","transcript":"رهن ۳۰۰ میلیون تومان و اجاره ماهیانه ۱۲ میلیون تومان","hints":"bushehr","expected":{"deal":"rent","deposit":300000000,"rent":12000000}}
+{"form":"listing","transcript":"رهن ۵۰۰ میلیون، ماهی ۲۰ تومن","hints":"bushehr","expected":{"deal":"rent","deposit":500000000,"rent":20000000}}
+{"form":"listing","transcript":"فروشی، ۱۲۰ متر، ۶ میلیارد","hints":"bushehr","expected":{"deal":"sale","total":6000000000}}
+{"form":"listing","transcript":"قیمت دوازده میلیارد و هشتصد میلیون","hints":"bushehr","expected":{"total":12800000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت سه میلیارد هفتصد و پنجاه","hints":"bushehr","expected":{"total":3750000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت نهصد میلیون","hints":"bushehr","expected":{"total":900000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت هر متر ۸۰ میلیون، ۱۰۰ متر","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت هشت","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت هشت ممیز پنج میلیارد","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت هفت و نیم تومن","hints":"bushehr","expected":{"total":7500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت پونزده تا","hints":"bushehr","expected":{"total":15000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت پیشنهادی ۶ میلیارد","hints":"bushehr","expected":{"total":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت یک میلیارد و هشتصد","hints":"bushehr","expected":{"total":1800000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۱/۵ میلیارد","hints":"bushehr","expected":{"total":1500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۱۵ تا","hints":"bushehr","expected":{"total":15000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۳ میلیارد ۷۵۰","hints":"bushehr","expected":{"total":3750000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۷ و ۳۵۰","hints":"bushehr","expected":{"total":7350000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۷ و ۳۵۰ تومن","hints":"bushehr","expected":{"total":7350000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸ میلیارد","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸ میلیارد و ۵۰۰","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸ میلیارد و ۵۰۰ میلیون","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸ میلیاردی","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸,۵۰۰,۰۰۰,۰۰۰ تومان","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸.۵","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸۵۰۰","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸۵۰۰۰۰۰۰۰۰ تومان","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۹۰۰","hints":"bushehr","expected":{"total":900000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۹۰۰ میلیون","hints":"bushehr","expected":{"total":900000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمتش سه میلیارد و هفتصد و پنجاه میلیون","hints":"bushehr","expected":{"total":3750000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمتش یه میلیارد و هشتصده","hints":"bushehr","expected":{"total":1800000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمتش ۸ و نیم میلیارد","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمتش ۸۵۰۰ میلیون","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"مالک ۶ میلیارد میخواد","hints":"bushehr","expected":{"total":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"مبلغ ۶ میلیارد","hints":"bushehr","expected":{"total":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"متری ۸۰، ۱۰۰ متر","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"میخواد ۶ میلیارد بفروشه","hints":"bushehr","expected":{"deal":"sale","total":6000000000}}
+{"form":"listing","transcript":"میلیارد و دویست","hints":"bushehr","expected":{"total":1200000000,"deal":"sale"}}
+{"form":"listing","transcript":"هشت و پونصد","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"هفت تومن","hints":"bushehr","expected":{"total":7000000000,"deal":"sale"}}
+{"form":"listing","transcript":"ودیعه ۳۰۰ ماهیانه ۱۰","hints":"bushehr","expected":{"deal":"rent","deposit":300000000,"rent":10000000}}
+{"form":"listing","transcript":"پونزده میلیارد","hints":"bushehr","expected":{"total":15000000000,"deal":"sale"}}
+{"form":"listing","transcript":"پیش ۵۰ اجاره ۳","hints":"bushehr","expected":{"deal":"rent","deposit":50000000,"rent":3000000}}
+{"form":"listing","transcript":"کل قیمت ۸ میلیارد، متری ۸۰","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"یه آپارتمان ۱۲۰ متری دو خوابه طبقه سوم قیمتش ۸ میلیارد و ۵۰۰ هست","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"۱۰۰ تومن رهن، ۱۰ تومن اجاره","hints":"bushehr","expected":{"deal":"rent","deposit":100000000,"rent":10000000}}
+{"form":"listing","transcript":"۱۰۰ متر، متری ۸۰ میلیون","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"۱۲۰ متر، فروش ۶ میلیارد و ۲۰۰","hints":"bushehr","expected":{"deal":"sale","total":6200000000}}
+{"form":"listing","transcript":"۱۵ میلیارد","hints":"bushehr","expected":{"total":15000000000,"deal":"sale"}}
+{"form":"listing","transcript":"۳ میلیارد ۷۵۰ میلیون","hints":"bushehr","expected":{"total":3750000000,"deal":"sale"}}
+{"form":"listing","transcript":"۸ میلیارد تومن قیمتشه","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
