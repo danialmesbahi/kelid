@@ -1,0 +1,194 @@
+{"form": "listing", "transcript": "آسانسور و پارکینگ و انباری، همه چی داره", "hints": "tehran", "expected": {"features": ["پارکینگ", "آسانسور", "انباری"]}}
+{"form": "client", "transcript": "آقای امینی، شماره صفر نهصد و سی و پنج، یکصد و بیست و سه، چهل و پنج، شصت و هفت، طبقه همکف نباشه، دو خواب، هشتاد متری", "hints": "tehran", "expected": {"name": "آقای امینی", "phone": "09351234567", "areaMin": 80, "bedroomsMin": 2}}
+{"form": "client", "transcript": "آقای حسینی دنبال دفتر کار اداری، رهن کامل، تا دو میلیارد، حدودا هفتاد متر، نزدیک مترو", "hints": "tehran", "expected": {"name": "آقای حسینی", "deal": "full", "kinds": ["office"], "areaMin": 70, "budget": 2000000000}}
+{"form": "client", "transcript": "آقای رحیمی، شماره نهصد و دوازده یکصد و بیست و سه چهل و پنج شصت و هفت، میخواد اجاره کنه، رهن صد تا صد و پنجاه، اجاره هفت هشت تومن", "hints": "tehran", "expected": {"name": "آقای رحیمی", "phone": "09121234567", "deal": "rent", "budget": 150000000, "rent": 8000000}}
+{"form": "client", "transcript": "آقای نادری یه زمین میخواد واسه ساخت، دویست سیصد متر، تا بیست میلیارد", "hints": "tehran", "expected": {"name": "آقای نادری", "kinds": ["land"], "areaMin": 200, "areaMax": 300, "budget": 20000000000, "deal": "sale"}}
+{"form": "client", "transcript": "آقای کاظمی ویلایی میخواد، زمینش دویست تا سیصد متر، بنا صد و پنجاه، بودجه بیست", "hints": "tehran", "expected": {"name": "آقای کاظمی", "kinds": ["villa"], "areaMin": 200, "areaMax": 300, "budget": 20000000000, "deal": "sale"}}
+{"form": "client", "transcript": "آقای کریمی واسه خرید یه واحد هشتاد تا صد متری تو نارمک، تا شش میلیارد، دو خواب", "hints": "tehran", "expected": {"name": "آقای کریمی", "deal": "sale", "kinds": ["apartment"], "neighborhoods": ["نارمک"], "areaMin": 80, "areaMax": 100, "bedroomsMin": 2, "budget": 6000000000}}
+{"form": "listing", "transcript": "آپارتمان بیست ساله، بازسازی شده، هشتاد و پنج متر، طبقه همکف، حیاط داره", "hints": "tehran", "expected": {"kind": "apartment", "area": 85, "floor": 0, "yearBuilt": 1385, "description": "بازسازی‌شده"}}
+{"form": "listing", "transcript": "آپارتمان رهن و اجاره، هفتاد متر، یه خوابه، پول پیش صد و پنجاه، ماهی هفت، قابل تبدیله، تخلیه است", "hints": "tehran", "expected": {"deal": "rent", "kind": "apartment", "area": 70, "bedrooms": 1, "deposit": 150000000, "rent": 7000000, "description": "رهن و اجاره قابل تبدیل، تخلیه"}}
+{"form": "listing", "transcript": "آپارتمان شمالی، نورگیر، ویو ابدی", "hints": "tehran", "expected": {"kind": "apartment", "description": "شمالی، نورگیر، ویو دارد"}}
+{"form": "listing", "transcript": "آپارتمان صد متری، پول پیش دویست، اجاره ده", "hints": "tehran", "expected": {"deal": "rent", "kind": "apartment", "area": 100, "deposit": 200000000, "rent": 10000000}}
+{"form": "listing", "transcript": "آپارتمان نود متری، سن بنا هشت سال، طبقه دوم، شمالی، نورگیر، قیمت متری صد و ده میلیون", "hints": "tehran", "expected": {"kind": "apartment", "area": 90, "floor": 2, "yearBuilt": 1397, "total": 9900000000, "description": "شمالی، نورگیر", "deal": "sale"}}
+{"form": "listing", "transcript": "آپارتمان پنج ساله، صد و ده متری، طبقه چهار", "hints": "tehran", "expected": {"kind": "apartment", "area": 110, "floor": 4, "yearBuilt": 1400}}
+{"form": "listing", "transcript": "اجاره ماهی دوازده تومن، رهن صد و پنجاه، قابل تبدیل", "hints": "tehran", "expected": {"deal": "rent", "deposit": 150000000, "rent": 12000000, "description": "رهن و اجاره قابل تبدیل"}}
+{"form": "client", "transcript": "اجاره میخواد، ماهی پونزده تومن، پول پیش صد", "hints": "tehran", "expected": {"deal": "rent", "budget": 100000000, "rent": 15000000}}
+{"form": "client", "transcript": "از صد و بیست متر بیشتر نباشه", "hints": "tehran", "expected": {"areaMax": 120}}
+{"form": "client", "transcript": "از هشتاد تا صد متر", "hints": "tehran", "expected": {"areaMin": 80, "areaMax": 100}}
+{"form": "client", "transcript": "از هشتاد متر تا صد متر", "hints": "tehran", "expected": {"areaMin": 80, "areaMax": 100}}
+{"form": "client", "transcript": "اسم مشتری محمد نوری، رهن کامل میخواد، هفتصد هشتصد میلیون، دو خواب، اکباتان", "hints": "tehran", "expected": {"deal": "full", "neighborhoods": ["اکباتان"], "bedroomsMin": 2, "budget": 800000000}}
+{"form": "client", "transcript": "اگه چیزی بود بهش زنگ بزن", "hints": "tehran", "expected": {"waiting": true}}
+{"form": "client", "transcript": "با سیصد میلیون رهن و ماهی ده تومن اجاره، دو خواب، تو تهرانپارس", "hints": "tehran", "expected": {"deal": "rent", "neighborhoods": ["تهران پارس"], "bedroomsMin": 2, "budget": 300000000, "rent": 10000000}}
+{"form": "client", "transcript": "بودجه اش بین هشت تا ده میلیارد", "hints": "tehran", "expected": {"budget": 10000000000, "deal": "sale", "notes": null}}
+{"form": "client", "transcript": "بودجه اش پنج تا شش میلیارده", "hints": "tehran", "expected": {"budget": 6000000000, "deal": "sale"}}
+{"form": "client", "transcript": "بودجه حدودا هشت میلیارد تومن", "hints": "tehran", "expected": {"budget": 8000000000, "deal": "sale"}}
+{"form": "listing", "transcript": "تخلیه است، کلید دست ماست", "hints": "tehran", "expected": {"description": "تخلیه، کلید در دفتر"}}
+{"form": "client", "transcript": "حداقل دو خواب، حداقل صد متر، حداکثر پنج میلیارد", "hints": "tehran", "expected": {"areaMin": 100, "bedroomsMin": 2, "budget": 5000000000, "deal": "sale"}}
+{"form": "client", "transcript": "حداقل صد متر، حداکثر صد و پنجاه", "hints": "tehran", "expected": {"areaMin": 100, "areaMax": 150}}
+{"form": "client", "transcript": "حدود صد متر، حدود پنج میلیارد، تو صادقیه", "hints": "tehran", "expected": {"neighborhoods": ["صادقیه"], "areaMin": 100, "budget": 5000000000, "deal": "sale"}}
+{"form": "client", "transcript": "خانم احمدی دنبال آپارتمان نوساز با آسانسور و پارکینگ", "hints": "tehran", "expected": {"name": "خانم احمدی", "kinds": ["apartment"], "notes": "امکانات: پارکینگ، آسانسور، نوساز"}}
+{"form": "client", "transcript": "خانم رضایی دنبال سوئیت، سی چهل متری، رهن دویست ماهی پنج", "hints": "tehran", "expected": {"name": "خانم رضایی", "deal": "rent", "kinds": ["apartment"], "areaMin": 30, "areaMax": 40, "budget": 200000000, "rent": 5000000}}
+{"form": "client", "transcript": "خانم صادقی مستاجره، پول پیشش دویست میلیونه، ماهی هم تا هشت تومن میتونه بده، دو خوابه میخواد، قراردادش آخر ماه تموم میشه", "hints": "tehran", "expected": {"name": "خانم صادقی", "deal": "rent", "bedroomsMin": 2, "budget": 200000000, "rent": 8000000, "temperature": "hot"}}
+{"form": "client", "transcript": "خانم موسوی، فعلا داره تحقیق میکنه، سال دیگه میخواد بخره", "hints": "tehran", "expected": {"name": "خانم موسوی", "deal": "sale", "temperature": "cold"}}
+{"form": "client", "transcript": "خانم کریمی، دنبال آپارتمان زیر ده سال ساخت، صد و ده تا صد و سی متر، تهرانپارس یا نارمک", "hints": "tehran", "expected": {"name": "خانم کریمی", "kinds": ["apartment"], "neighborhoods": ["تهران پارس", "نارمک"], "areaMin": 110, "areaMax": 130, "notes": "حداکثر ۱۰ سال ساخت"}}
+{"form": "client", "transcript": "خریدار نقد، دو سه میلیارد، یه واحد کوچیک پنجاه متری، تو جنت آباد", "hints": "tehran", "expected": {"deal": "sale", "kinds": ["apartment"], "neighborhoods": ["جنت آباد"], "areaMin": 50, "budget": 3000000000}}
+{"form": "client", "transcript": "خریدار ویلا تو لواسان، بودجه بیست تا بیست و پنج میلیارد", "hints": "tehran", "expected": {"deal": "sale", "kinds": ["villa"], "neighborhoods": ["لواسان"], "budget": 25000000000}}
+{"form": "listing", "transcript": "خونه کلید نخورده، صد و بیست متر، سه خواب، طبقه آخر از شش طبقه، روف گاردن و لابی داره", "hints": "tehran", "expected": {"area": 120, "bedrooms": 3, "floor": 6, "floorsTotal": 6, "yearBuilt": 1405, "features": ["لابی و نگهبان", "روف گاردن"]}}
+{"form": "client", "transcript": "دستش پنج میلیارده", "hints": "tehran", "expected": {"budget": 5000000000, "deal": "sale"}}
+{"form": "client", "transcript": "دنبال آپارتمان با متراژ بالای صد و بیست، حداقل دو خواب، بودجه پونزده میلیارد", "hints": "tehran", "expected": {"kinds": ["apartment"], "areaMin": 120, "bedroomsMin": 2, "budget": 15000000000, "deal": "sale"}}
+{"form": "client", "transcript": "دنبال خونه ای حدود صد متر، سه میلیارد بیشتر نداره", "hints": "tehran", "expected": {"areaMin": 100, "budget": 3000000000, "deal": "sale"}}
+{"form": "client", "transcript": "دنبال مغازه است، دهنه حداقل چهار متر، سی چهل متر، رهن و اجاره", "hints": "tehran", "expected": {"deal": "rent", "kinds": ["shop"], "areaMin": 30, "areaMax": 40}}
+{"form": "client", "transcript": "دنبال یه سوئیت یا آپارتمان کوچیک، پنجاه شصت متر", "hints": "tehran", "expected": {"kinds": ["apartment"], "areaMin": 50, "areaMax": 60}}
+{"form": "client", "transcript": "دو سه خوابه میخواد", "hints": "tehran", "expected": {"bedroomsMin": 2}}
+{"form": "client", "transcript": "دو یا سه خوابه", "hints": "tehran", "expected": {"bedroomsMin": 2}}
+{"form": "listing", "transcript": "دوبلکس دویست متری، طبقه آخر", "hints": "tehran", "expected": {"kind": "apartment", "area": 200}}
+{"form": "listing", "transcript": "رهن دویست ماهی پنج، قابل تبدیله", "hints": "tehran", "expected": {"deal": "rent", "deposit": 200000000, "rent": 5000000, "description": "رهن و اجاره قابل تبدیل"}}
+{"form": "client", "transcript": "رهن فول تا یک میلیارد", "hints": "tehran", "expected": {"deal": "full", "budget": 1000000000}}
+{"form": "listing", "transcript": "رهن فول پونصد میلیون", "hints": "tehran", "expected": {"deal": "full", "deposit": 500000000}}
+{"form": "client", "transcript": "رهنش تا پونصد، اجاره هم تا پونزده", "hints": "tehran", "expected": {"deal": "rent", "budget": 500000000, "rent": 15000000}}
+{"form": "listing", "transcript": "زمین کلنگی دویست و پنجاه متر، دوازده متر بر، متری هشتاد میلیون", "hints": "tehran", "expected": {"kind": "land", "area": 250, "total": 20000000000, "description": "بر ۱۲ متر", "deal": "sale"}}
+{"form": "listing", "transcript": "ساختمون ده سالشه، طبقه سوم", "hints": "tehran", "expected": {"floor": 3, "yearBuilt": 1395}}
+{"form": "listing", "transcript": "سن بنا پنج سال، صد و بیست متر", "hints": "tehran", "expected": {"area": 120, "yearBuilt": 1400}}
+{"form": "listing", "transcript": "سند تک برگ، شش دانگ، بازسازی شده، جنوبی", "hints": "tehran", "expected": {"description": "سند تک‌برگ، شش‌دانگ، بازسازی‌شده، جنوبی"}}
+{"form": "client", "transcript": "سه خواب، صد و پنجاه متری، منطقه یک یا سه", "hints": "tehran", "expected": {"neighborhoods": ["منطقه ۱", "منطقه ۳"], "areaMin": 150, "bedroomsMin": 3}}
+{"form": "client", "transcript": "سه میلیارد نقد داره", "hints": "tehran", "expected": {"budget": 3000000000, "temperature": "hot", "deal": "sale"}}
+{"form": "client", "transcript": "سه چهار میلیارد پول داره", "hints": "tehran", "expected": {"budget": 4000000000, "deal": "sale"}}
+{"form": "client", "transcript": "شماره اش صفر نهصد و دوازده سیصد و چهل و پنج شصت و هفت هشتاد و نه، اسمش علی رضایی", "hints": "tehran", "expected": {"name": "علی رضایی", "phone": "09123456789"}}
+{"form": "client", "transcript": "صد متر به بالا", "hints": "tehran", "expected": {"areaMin": 100}}
+{"form": "client", "transcript": "صد متر به پایین", "hints": "tehran", "expected": {"areaMax": 100}}
+{"form": "client", "transcript": "صد، صد و بیست متری", "hints": "tehran", "expected": {"areaMin": 100, "areaMax": 120}}
+{"form": "listing", "transcript": "طبقه دوم از چهار، هر طبقه دو واحد", "hints": "tehran", "expected": {"kind": "apartment", "floor": 2, "floorsTotal": 4}}
+{"form": "listing", "transcript": "طبقه سه، ساختمون پنج طبقه، ده واحدی", "hints": "tehran", "expected": {"kind": "apartment", "floor": 3, "floorsTotal": 5}}
+{"form": "client", "transcript": "طرفای سعادت آباد یا شهرک غرب", "hints": "tehran", "expected": {"neighborhoods": ["سعادت آباد", "شهرک غرب"]}}
+{"form": "listing", "transcript": "عمر ساختمان پانزده سال", "hints": "tehran", "expected": {"yearBuilt": 1390}}
+{"form": "listing", "transcript": "فروشی، صد متر، سه میلیارد و هشتصد، مستاجر داره تا آخر سال", "hints": "tehran", "expected": {"deal": "sale", "area": 100, "total": 3800000000, "description": "مستاجر دارد"}}
+{"form": "client", "transcript": "فعلا داره قیمت میگیره", "hints": "tehran", "expected": {"temperature": "cold"}}
+{"form": "client", "transcript": "فقط شمال تهران", "hints": "tehran", "expected": {"notes": "محدوده: شمال تهران"}}
+{"form": "listing", "transcript": "فول امکانات، استخر و سونا و جکوزی داره", "hints": "tehran", "expected": {"features": ["پارکینگ", "آسانسور", "انباری", "استخر و سونا"]}}
+{"form": "listing", "transcript": "قیمت کلش دوازده میلیارد، وام هم داره سیصد میلیون", "hints": "tehran", "expected": {"total": 12000000000, "description": "وام دارد", "deal": "sale"}}
+{"form": "listing", "transcript": "قیمتش سه و هشتصد، جای چونه داره", "hints": "tehran", "expected": {"total": 3800000000, "negotiable": true, "deal": "sale"}}
+{"form": "listing", "transcript": "مالکش آقای فرهادی، شماره صفر نهصد و دوازده، سیصد و چهل و پنج، شصت و هفت، هشتاد و نه، صبح ها زنگ بزنید، تخفیف میده", "hints": "tehran", "expected": {"negotiable": true, "ownerName": "آقای فرهادی", "ownerPhone": "09123456789", "ownerBestTime": "صبح‌ها"}}
+{"form": "client", "transcript": "متراژ از صد تا صد و پنجاه", "hints": "tehran", "expected": {"areaMin": 100, "areaMax": 150, "budget": null, "deal": null}}
+{"form": "client", "transcript": "متراژ بالای صد", "hints": "tehran", "expected": {"areaMin": 100}}
+{"form": "client", "transcript": "متراژ بین هفتاد و نود", "hints": "tehran", "expected": {"areaMin": 70, "areaMax": 90}}
+{"form": "client", "transcript": "متراژ زیر صد، حداقل دو خواب، پارکینگ حتما داشته باشه", "hints": "tehran", "expected": {"areaMax": 100, "bedroomsMin": 2, "notes": "امکانات: پارکینگ", "budget": null, "deal": null}}
+{"form": "client", "transcript": "متراژ صد، صد و ده", "hints": "tehran", "expected": {"areaMin": 100, "areaMax": 110}}
+{"form": "client", "transcript": "متراژ هشتاد به بالا تا صد و بیست", "hints": "tehran", "expected": {"areaMin": 80, "areaMax": 120}}
+{"form": "client", "transcript": "متراژش بین صد و صد و بیست باشه", "hints": "tehran", "expected": {"areaMin": 100, "areaMax": 120}}
+{"form": "client", "transcript": "متراژش هر چی باشه مهم نیست، فقط دو خواب باشه، تا پنج میلیارد", "hints": "tehran", "expected": {"bedroomsMin": 2, "budget": 5000000000, "deal": "sale"}}
+{"form": "listing", "transcript": "متری صد و ده میلیون، هشتاد متر", "hints": "tehran", "expected": {"area": 80, "total": 8800000000, "deal": "sale"}}
+{"form": "listing", "transcript": "مستاجر داره تا آخر سال", "hints": "tehran", "expected": {"description": "مستاجر دارد"}}
+{"form": "client", "transcript": "مستاجره، دنبال دو خوابه است تو پونک", "hints": "tehran", "expected": {"deal": "rent", "neighborhoods": ["پونک"], "bedroomsMin": 2}}
+{"form": "client", "transcript": "مشتری اجاره ای، اجاره ماهی بیست، ودیعه حداکثر سیصد", "hints": "tehran", "expected": {"deal": "rent", "budget": 300000000, "rent": 20000000}}
+{"form": "client", "transcript": "مشتری جدی، نقد، چهار میلیارد، هر جای شهر باشه", "hints": "tehran", "expected": {"budget": 4000000000, "temperature": "hot", "deal": "sale"}}
+{"form": "client", "transcript": "مشتری رهن کامل، تا یک میلیارد و دویست، شصت هفتاد متری، یه خوابه هم باشه قبوله", "hints": "tehran", "expected": {"deal": "full", "areaMin": 60, "areaMax": 70, "bedroomsMin": 1, "budget": 1200000000}}
+{"form": "client", "transcript": "مشتری میخواد بخره، نود متر به بالا، سه خواب، حداکثر نه میلیارد، آسانسور و پارکینگ حتما", "hints": "tehran", "expected": {"deal": "sale", "areaMin": 90, "bedroomsMin": 3, "budget": 9000000000, "notes": "امکانات: پارکینگ، آسانسور"}}
+{"form": "client", "transcript": "مشتری ویلا میخواد تو لواسان، زمین حداقل پونصد متر، تا سی میلیارد", "hints": "tehran", "expected": {"kinds": ["villa"], "neighborhoods": ["لواسان"], "areaMin": 500, "budget": 30000000000, "deal": "sale"}}
+{"form": "listing", "transcript": "مغازه دهنه چهار متر، سی متر، رهن کامل یک میلیارد", "hints": "tehran", "expected": {"deal": "full", "kind": "shop", "area": 30, "deposit": 1000000000, "description": "دهنه ۴ متر"}}
+{"form": "listing", "transcript": "مغازه سی متری، دهنه پنج متر، بر خیابون اصلی، رهن کامل دو میلیارد", "hints": "tehran", "expected": {"deal": "full", "kind": "shop", "area": 30, "deposit": 2000000000, "description": "دهنه ۵ متر"}}
+{"form": "client", "transcript": "میخواد بخره، تا دوازده میلیارد، صد و پنجاه متر به بالا، سه خواب، سعادت آباد یا شهرک غرب یا پونک", "hints": "tehran", "expected": {"deal": "sale", "neighborhoods": ["سعادت آباد", "پونک", "شهرک غرب"], "areaMin": 150, "bedroomsMin": 3, "budget": 12000000000}}
+{"form": "client", "transcript": "هشتاد نود متر", "hints": "tehran", "expected": {"areaMin": 80, "areaMax": 90}}
+{"form": "client", "transcript": "هفت هشت میلیارد میتونه بده", "hints": "tehran", "expected": {"budget": 8000000000, "deal": "sale"}}
+{"form": "listing", "transcript": "ویلایی دویست متر زمین، صد و شصت متر بنا، دو طبقه، شش دانگ، قیمت بیست و پنج میلیارد مقطوع", "hints": "tehran", "expected": {"kind": "villa", "area": 160, "floorsTotal": 2, "total": 25000000000, "negotiable": false, "description": "زمین ۲۰۰ متر، شش‌دانگ", "deal": "sale"}}
+{"form": "listing", "transcript": "ویلایی صد و پنجاه متر زمین، صد و بیست متر بنا، دو طبقه", "hints": "tehran", "expected": {"kind": "villa", "area": 120, "floorsTotal": 2, "description": "زمین ۱۵۰ متر"}}
+{"form": "listing", "transcript": "پارکینگ مشاعی داره، انبار هم داره", "hints": "tehran", "expected": {"features": ["پارکینگ", "انباری"]}}
+{"form": "client", "transcript": "پول پیش دویست، اجاره تا پنج تومن", "hints": "tehran", "expected": {"deal": "rent", "budget": 200000000, "rent": 5000000}}
+{"form": "client", "transcript": "پول پیشش سیصد میلیونه، ماهی هم تا ده میلیون میتونه بده", "hints": "tehran", "expected": {"deal": "rent", "budget": 300000000, "rent": 10000000}}
+{"form": "listing", "transcript": "پول پیشش سیصده، ماهی هشت", "hints": "tehran", "expected": {"deal": "rent", "deposit": 300000000, "rent": 8000000}}
+{"form": "client", "transcript": "پولش آماده ست، همین هفته میخواد معامله کنه", "hints": "tehran", "expected": {"temperature": "hot"}}
+{"form": "client", "transcript": "کمتر از صد متر نباشه", "hints": "tehran", "expected": {"areaMin": 100}}
+{"form": "client", "transcript": "یه آپارتمان دویست متری به بالا میخواد، چهار خواب، بودجه چهل میلیارد، شمال شهر", "hints": "tehran", "expected": {"kinds": ["apartment"], "areaMin": 200, "bedroomsMin": 4, "budget": 40000000000, "notes": "محدوده: شمال شهر", "deal": "sale"}}
+{"form": "client", "transcript": "یه خوابه هم باشه اشکال نداره", "hints": "tehran", "expected": {"bedroomsMin": 1}}
+{"form": "client", "transcript": "یه زوج جوون، دنبال رهن و اجاره، صد میلیون پول پیش دارن، اجاره نهایتا شش هفت تومن، شصت تا هشتاد متر", "hints": "tehran", "expected": {"deal": "rent", "areaMin": 60, "areaMax": 80, "budget": 100000000, "rent": 7000000}}
+{"form": "client", "transcript": "یه مشتری دارم آقای جعفری، واسه خرید آپارتمان میخواد، متراژش از صد تا صد و بیست باشه، دو خواب، بودجش هم شش هفت میلیارده، طرفای پونک", "hints": "tehran", "expected": {"name": "آقای جعفری", "deal": "sale", "kinds": ["apartment"], "neighborhoods": ["پونک"], "areaMin": 100, "areaMax": 120, "bedroomsMin": 2, "budget": 7000000000}}
+{"form": "client", "transcript": "یه مغازه بیست سی متری میخواد برای اجاره", "hints": "tehran", "expected": {"deal": "rent", "kinds": ["shop"], "areaMin": 20, "areaMax": 30}}
+{"form": "listing", "transcript": "یه واحد صد و ده متری تو پونک، طبقه سوم از پنج، دو خواب، پارکینگ و انباری داره، آسانسور هم داره، سند تک برگ، قیمتش هفت و نیم، جای چونه داره", "hints": "tehran", "expected": {"kind": "apartment", "neighborhood": "پونک", "area": 110, "bedrooms": 2, "floor": 3, "floorsTotal": 5, "features": ["پارکینگ", "آسانسور", "انباری"], "total": 7500000000, "negotiable": true, "description": "سند تک‌برگ", "deal": "sale"}}
+{"form": "listing", "transcript": "یه واحد نود متری، دو خواب، کلید نخورده، تو پونک", "hints": "tehran", "expected": {"kind": "apartment", "neighborhood": "پونک", "area": 90, "bedrooms": 2, "yearBuilt": 1405}}
+{"form": "client", "transcript": "یه چیزی تو مایه های صد متر", "hints": "tehran", "expected": {"areaMin": 100, "neighborhoods": null}}
+{"form": "client", "transcript": "یک و نیم میلیارد رهن کامل", "hints": "tehran", "expected": {"deal": "full", "budget": 1500000000}}
+{"form":"client","transcript":"اجاره ۱۰","hints":"bushehr","expected":{"deal":"rent","rent":10000000}}
+{"form":"client","transcript":"با ۵ میلیارد پول دنبال آپارتمانه","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"بودجش ۲ و نیم","hints":"bushehr","expected":{"budget":2500000000,"deal":"sale"}}
+{"form":"client","transcript":"بودجه دو میلیارد و پونصد","hints":"bushehr","expected":{"budget":2500000000,"deal":"sale"}}
+{"form":"client","transcript":"بودجه ۵","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"بودجه ۵ میلیارد","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"تا ۵ میلیارد","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"خرید، ۳ میلیارد","hints":"bushehr","expected":{"deal":"sale","budget":3000000000}}
+{"form":"client","transcript":"رهن تا ۳۰۰ میلیون، اجاره تا ۱۰ میلیون","hints":"bushehr","expected":{"deal":"rent","budget":300000000,"rent":10000000}}
+{"form":"client","transcript":"رهن کامل ۸۰۰ میلیون","hints":"bushehr","expected":{"deal":"full","budget":800000000}}
+{"form":"client","transcript":"رهن ۳۰۰ اجاره ۱۰","hints":"bushehr","expected":{"deal":"rent","budget":300000000,"rent":10000000}}
+{"form":"client","transcript":"رهن ۵۰۰","hints":"bushehr","expected":{"deal":"full","budget":500000000}}
+{"form":"client","transcript":"سقف بودجش پنج و نیم","hints":"bushehr","expected":{"budget":5500000000,"deal":"sale"}}
+{"form":"client","transcript":"ماکزیمم شیش میلیارد","hints":"bushehr","expected":{"budget":6000000000,"deal":"sale"}}
+{"form":"client","transcript":"مبلغش تا ۵ میلیارد","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"مشتری خرید داره با بودجه حدود ۵ میلیارد","hints":"bushehr","expected":{"deal":"sale","budget":5000000000}}
+{"form":"client","transcript":"میتونه ۵ میلیارد بده","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"نهایت ۵ میلیارد","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"پنج میلیارد داره","hints":"bushehr","expected":{"budget":5000000000,"deal":"sale"}}
+{"form":"client","transcript":"۲۰۰ میلیون رهن داره، ماهی ۵ تومن","hints":"bushehr","expected":{"deal":"rent","budget":200000000,"rent":5000000}}
+{"form":"client","transcript":"۵ تا ۶ میلیارد","hints":"bushehr","expected":{"budget":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"آپارتمان صد متری، هشت میلیارد و پونصد میلیون","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"آپارتمان ۱۰۰ متری ۸ تومن","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"آپارتمان ۱۰۰ متری ۸ میلیارد","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"آپارتمان ۹۰ متری فروشی ۴ میلیارد و ۳۰۰ میلیون تومان","hints":"bushehr","expected":{"deal":"sale","total":4300000000}}
+{"form":"listing","transcript":"اجاره ماهی ده تومن رهن صد تومن","hints":"bushehr","expected":{"deal":"rent","deposit":100000000,"rent":10000000}}
+{"form":"listing","transcript":"ارزش ملک ۶ میلیارد","hints":"bushehr","expected":{"total":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"برای اجاره با ۲۰۰ میلیون پیش و ۸ میلیون اجاره","hints":"bushehr","expected":{"deal":"rent","deposit":200000000,"rent":8000000}}
+{"form":"listing","transcript":"رهن کامل یه میلیارد و دویست","hints":"bushehr","expected":{"deal":"full","deposit":1200000000}}
+{"form":"listing","transcript":"رهن کامل یک و دویست","hints":"bushehr","expected":{"deal":"full","deposit":1200000000}}
+{"form":"listing","transcript":"رهن کامل ۱ میلیارد و ۲۰۰","hints":"bushehr","expected":{"deal":"full","deposit":1200000000}}
+{"form":"listing","transcript":"رهن کامل ۸۰۰","hints":"bushehr","expected":{"deal":"full","deposit":800000000}}
+{"form":"listing","transcript":"رهن یک میلیارد","hints":"bushehr","expected":{"deal":"full","deposit":1000000000}}
+{"form":"listing","transcript":"رهن ۲۰۰ اجاره ۵","hints":"bushehr","expected":{"deal":"rent","deposit":200000000,"rent":5000000}}
+{"form":"listing","transcript":"رهن ۲۰۰ تومن اجاره ۵ تومن","hints":"bushehr","expected":{"deal":"rent","deposit":200000000,"rent":5000000}}
+{"form":"listing","transcript":"رهن ۲۰۰ میلیون اجاره ۵ میلیون","hints":"bushehr","expected":{"deal":"rent","deposit":200000000,"rent":5000000}}
+{"form":"listing","transcript":"رهن ۳۰۰ میلیون تومان و اجاره ماهیانه ۱۲ میلیون تومان","hints":"bushehr","expected":{"deal":"rent","deposit":300000000,"rent":12000000}}
+{"form":"listing","transcript":"رهن ۵۰۰ میلیون، ماهی ۲۰ تومن","hints":"bushehr","expected":{"deal":"rent","deposit":500000000,"rent":20000000}}
+{"form":"listing","transcript":"فروشی، ۱۲۰ متر، ۶ میلیارد","hints":"bushehr","expected":{"deal":"sale","total":6000000000}}
+{"form":"listing","transcript":"قیمت دوازده میلیارد و هشتصد میلیون","hints":"bushehr","expected":{"total":12800000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت سه میلیارد هفتصد و پنجاه","hints":"bushehr","expected":{"total":3750000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت نهصد میلیون","hints":"bushehr","expected":{"total":900000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت هر متر ۸۰ میلیون، ۱۰۰ متر","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت هشت","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت هشت ممیز پنج میلیارد","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت هفت و نیم تومن","hints":"bushehr","expected":{"total":7500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت پونزده تا","hints":"bushehr","expected":{"total":15000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت پیشنهادی ۶ میلیارد","hints":"bushehr","expected":{"total":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت یک میلیارد و هشتصد","hints":"bushehr","expected":{"total":1800000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۱/۵ میلیارد","hints":"bushehr","expected":{"total":1500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۱۵ تا","hints":"bushehr","expected":{"total":15000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۳ میلیارد ۷۵۰","hints":"bushehr","expected":{"total":3750000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۷ و ۳۵۰","hints":"bushehr","expected":{"total":7350000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۷ و ۳۵۰ تومن","hints":"bushehr","expected":{"total":7350000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸ میلیارد","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸ میلیارد و ۵۰۰","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸ میلیارد و ۵۰۰ میلیون","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸ میلیاردی","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸,۵۰۰,۰۰۰,۰۰۰ تومان","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸.۵","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸۵۰۰","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۸۵۰۰۰۰۰۰۰۰ تومان","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۹۰۰","hints":"bushehr","expected":{"total":900000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمت ۹۰۰ میلیون","hints":"bushehr","expected":{"total":900000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمتش سه میلیارد و هفتصد و پنجاه میلیون","hints":"bushehr","expected":{"total":3750000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمتش یه میلیارد و هشتصده","hints":"bushehr","expected":{"total":1800000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمتش ۸ و نیم میلیارد","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"قیمتش ۸۵۰۰ میلیون","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"مالک ۶ میلیارد میخواد","hints":"bushehr","expected":{"total":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"مبلغ ۶ میلیارد","hints":"bushehr","expected":{"total":6000000000,"deal":"sale"}}
+{"form":"listing","transcript":"متری ۸۰، ۱۰۰ متر","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"میخواد ۶ میلیارد بفروشه","hints":"bushehr","expected":{"deal":"sale","total":6000000000}}
+{"form":"listing","transcript":"میلیارد و دویست","hints":"bushehr","expected":{"total":1200000000,"deal":"sale"}}
+{"form":"listing","transcript":"هشت و پونصد","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"هفت تومن","hints":"bushehr","expected":{"total":7000000000,"deal":"sale"}}
+{"form":"listing","transcript":"ودیعه ۳۰۰ ماهیانه ۱۰","hints":"bushehr","expected":{"deal":"rent","deposit":300000000,"rent":10000000}}
+{"form":"listing","transcript":"پونزده میلیارد","hints":"bushehr","expected":{"total":15000000000,"deal":"sale"}}
+{"form":"listing","transcript":"پیش ۵۰ اجاره ۳","hints":"bushehr","expected":{"deal":"rent","deposit":50000000,"rent":3000000}}
+{"form":"listing","transcript":"کل قیمت ۸ میلیارد، متری ۸۰","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"یه آپارتمان ۱۲۰ متری دو خوابه طبقه سوم قیمتش ۸ میلیارد و ۵۰۰ هست","hints":"bushehr","expected":{"total":8500000000,"deal":"sale"}}
+{"form":"listing","transcript":"۱۰۰ تومن رهن، ۱۰ تومن اجاره","hints":"bushehr","expected":{"deal":"rent","deposit":100000000,"rent":10000000}}
+{"form":"listing","transcript":"۱۰۰ متر، متری ۸۰ میلیون","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}
+{"form":"listing","transcript":"۱۲۰ متر، فروش ۶ میلیارد و ۲۰۰","hints":"bushehr","expected":{"deal":"sale","total":6200000000}}
+{"form":"listing","transcript":"۱۵ میلیارد","hints":"bushehr","expected":{"total":15000000000,"deal":"sale"}}
+{"form":"listing","transcript":"۳ میلیارد ۷۵۰ میلیون","hints":"bushehr","expected":{"total":3750000000,"deal":"sale"}}
+{"form":"listing","transcript":"۸ میلیارد تومن قیمتشه","hints":"bushehr","expected":{"total":8000000000,"deal":"sale"}}

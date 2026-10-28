@@ -18,12 +18,20 @@ function norm(t: string): string {
     .replace(/خیابون/g, 'خیابان')
     .replace(/میدون/g, 'میدان')
     .replace(/خونه/g, 'خانه')
+    // «هشت ممیز پنج میلیارد» همان «هشت و نیم» است.
+    .replace(/ (ممیز|مُمَیز|اعشار) (پنج|5)(?=\s|$|[،,.])/g, ' و نیم')
     .replace(/(^|\s)(یک|دو|سه|سی|چهار|پنج|پان|پون|شش|شیش|هفت|هشت|نه) صد(?=\s|$|[،,.])/g, (_, s: string, w: string) => `${s}${HUNDREDS[w]}`)
     .replace(/\s+/g, ' ')
     .trim()
     .split(' ')
-    .map(unglue)
+    .map((w) => unglue(uncopula(w)))
     .join(' ');
+}
+
+/** «پول پیشش سیصده»، «صده»: «ه» آخر عدد یعنی «است»؛ ولی «هفته» و «شیشه» عدد نیستند. */
+function uncopula(w: string): string {
+  const m = /^(\S+)ه([،,.!?؟]*)$/.exec(w);
+  return m && !NUMBER_WORDS.has(`${m[1]}ه`) && NUMBER_WORDS.has(m[1]!) && !/^(هفت|شیش|ده|یک)$/.test(m[1]!) ? `${m[1]}${m[2]}` : w;
 }
 
 // «نه صد» → «نهصد»: آوانگار گاهی صدگان را جدا می‌نویسد.
@@ -47,13 +55,13 @@ const KIND_WORDS: Array<[PropertyKind, RegExp]> = [
   ['office', /دفتر(?! املاک| مشاور| مشاوره| اسناد)|(?<!(ساعت|وقت|تایم) )اداری|مطب/],
   ['land', /زمین(?! بازی| فوتبال| ورزشی| تنیس| بسکتبال| چمن)|کلنگی/],
   ['villa', /ویلا|ویلایی|حیاط دار|خانه حیاط/],
-  ['apartment', /آپارتمان|اپارتمان|پنت ?هاوس|سوئیت|سوییت|واحد(?! (اداری|تجاری))|برج|مسکونی/],
+  ['apartment', /آپارتمان|اپارتمان|پنت ?هاوس|سوئیت|سوییت|دوبلکس|تریپلکس|واحد(?! (اداری|تجاری))|برج|مسکونی/],
 ];
 
 const FEATURE_WORDS: Array<[string, RegExp]> = [
   [VOICE_FEATURES[0]!, /پارکینگ/],
   [VOICE_FEATURES[1]!, /آسانسور|اسانسور/],
-  [VOICE_FEATURES[2]!, /انباری/],
+  [VOICE_FEATURES[2]!, /انباری?/],
   [VOICE_FEATURES[3]!, /بالکن|تراس/],
   [VOICE_FEATURES[4]!, /لابی|نگهبان|سرایدار/],
   [VOICE_FEATURES[5]!, /استخر|سونا|جکوزی/],
@@ -157,11 +165,14 @@ function dealOf(t: string, form: VoiceForm): 'sale' | 'rent' | 'full' | undefine
 }
 
 function dealIn(t: string, form: VoiceForm) {
-  if (/(?<!\S)(رهن (و )?کامل|رهن کامله|فقط رهن)/.test(t)) return 'full' as const;
-  if (/(?<!\S)((رهن|ودیعه) (و |، ?)?اجاره|پیش و پس|پیش پس|اجاره|کرایه)|(?<!\S)(رهن|ودیعه)\s.*(?<!\S)(ماهی|ماهانه|ماهیانه|در ماه)/.test(t)) return 'rent' as const;
+  if (/(?<!\S)(رهن (و )?کامل|رهن کامله|رهن فول|فول رهن|فقط رهن)/.test(t)) return 'full' as const;
+  if (/(?<!\S)((رهن|ودیعه) (و |، ?)?اجاره|پیش و پس|پیش پس|اجاره|کرایه)|(?<!\S)(رهن|ودیعه|پیش|پیشش)\s.*(?<!\S)(ماهی|ماهانه|ماهیانه|در ماه)/.test(t)) return 'rent' as const;
   // «ده سال پیش خریده» در فایل یعنی مالک خریده، نه اینکه فروشی است.
   if (/(?<!\S)(فروش|بفروش|میفروش)/.test(t) || (form === 'client' && /(?<!\S)(خرید|بخره|خریدار)/.test(t))) return 'sale' as const;
-  if (/(?<!\S)(رهن|ودیعه)/.test(t)) return 'full' as const;
+  // «پول پیش» تنها همان رهن است.
+  if (/(?<!\S)(رهن|ودیعه|پول پیش)/.test(t)) return 'full' as const;
+  // مشتری «مستاجر» است ولی مبلغی نگفته: رهن و اجاره رایج‌ترین حالت است.
+  if (form === 'client' && /(?<!\S)مستاجر/.test(t)) return 'rent' as const;
   return undefined;
 }
 
@@ -172,19 +183,59 @@ function kindsOf(t: string): PropertyKind[] {
     .sort((a, b) => a.at - b.at)
     .map((x) => x.k);
   // «ویلایی، دویست متر زمین»: زمینِ بعد از «متر» اندازهٔ همان ملک است، نه نوع دیگر.
-  if (kinds.length > 1 && !/کلنگی/.test(t) && [...t.matchAll(/زمین/g)].every((m) => /متری? $/.test(t.slice(0, m.index)))) return kinds.filter((k) => k !== 'land');
+  // «ویلا، زمین حداقل پونصد متر» هم همین است.
+  if (kinds.length > 1 && !/کلنگی/.test(t) && [...t.matchAll(/زمین/g)].every((m) => /متری? $/.test(t.slice(0, m.index)) || /^ش? (\S+ ){0,5}متر/.test(t.slice(m.index + m[0].length, m.index + 50)))) return kinds.filter((k) => k !== 'land');
   return kinds;
 }
 
 function featuresOf(t: string): string[] {
-  return FEATURE_WORDS.filter(([, re]) => {
+  // «فول امکانات»، «همه امکانات رو داره»: در زبان بنگاه یعنی پارکینگ و آسانسور و انباری.
+  const full = /(فول|همه|تمام|کلیه) ?(ی )?امکانات/.test(t);
+  return FEATURE_WORDS.filter(([f, re]) => {
+    if (full && VOICE_FEATURES.indexOf(f) < 3) return true;
     const m = re.exec(t);
     if (!m) return false;
     const pre = t.slice(Math.max(0, m.index - 8), m.index);
-    const post = t.slice(m.index + m[0].length, m.index + m[0].length + 12);
-    // «نه آسانسور داره نه پارکینگ»، «پارکینگ عمومی نزدیکشه»: نه منفی است نه مال همین واحد.
-    return !/(بدون|بی|(?:^|\s)نه)\s*$/.test(pre) && !/^\s*(ندار|نداره|نیست|نمی|خرابه|خراب|عمومی|محله|شهرداری)/.test(post);
+    const post = t.slice(m.index + m[0].length, m.index + m[0].length + 16);
+    // «نه آسانسور داره نه پارکینگ»، «پارکینگ عمومی نزدیکشه»، «انباری مهم نیست»: نه منفی است نه مال همین واحد.
+    return !/(بدون|بی|(?:^|\s)نه)\s*$/.test(pre) && !/^\s*(هم )?(ندار|نداره|نیست|نمی|خرابه|خراب|عمومی|محله|شهرداری|مهم نیست|لازم نیست|نخواست|اشکال نداره)/.test(post);
   }).map(([f]) => f);
+}
+
+/** نکته‌های رایج فایل که فیلد جدا ندارند ولی مشاورها همیشه می‌گویند؛ در توضیحات می‌مانند تا گم نشوند. */
+const EXTRAS: Array<[RegExp, (m: RegExpExecArray) => string]> = [
+  [/سند (تک ?برگ|تک برگه|تکبرگ)/, () => 'سند تک‌برگ'],
+  [/شش ?دانگ/, () => 'شش‌دانگ'],
+  [/قولنامه ?ای/, () => 'قولنامه‌ای'],
+  [/(?<!\S)(اوقافی|زمین وقفی)/, () => 'اوقافی'],
+  [/بازسازی ?(شده|کامل)|(?<!\S)بازسازیه/, () => 'بازسازی‌شده'],
+  [/(?<!\S)(دو|سه) ?نبش/, (m) => `${m[1]}‌نبش`],
+  [/(?:^|[،,.]\s*|(?:واحد|ملک|آپارتمان|خانه|ساختمان|ساختمون|ویلا|ویلایی|مغازه|زمین|حیاط)\s)(شمالی|جنوبی|شرقی|غربی)(?=\s|$|[،,.])/, (m) => m[1]!],
+  [/نورگیر|پر ?نور|نور (عالی|خوب)|نورش (خوبه|عالیه)/, () => 'نورگیر'],
+  [/(?<!\S)(ویو|ویوی|چشم ?انداز)(?!\S*\s+(نداره|ندارد))/, () => 'ویو دارد'],
+  [/(?<!\S)دهنه(?:ش)? (\S+(?: و \S+)?) متر|(?<!\S)(\S+(?: و \S+)?) متر دهنه/, (m) => `دهنه ${m[1] ?? m[2]} متر`],
+  [/(?<!\S)(\S+(?: و \S+)?) متر بر(?=\s|$|[،,.])|(?<!\S)برش (\S+(?: و \S+)?) متر/, (m) => `بر ${m[1] ?? m[2]} متر`],
+  [/قابل تبدیل/, () => 'رهن و اجاره قابل تبدیل'],
+  [/(?<!\S)تخلیه/, () => 'تخلیه'],
+  [/مستاجر (داره|دارد|نشسته)|مستاجر ?نشین/, () => 'مستاجر دارد'],
+  [/کلید(ش)? (دست|پیش) (ما|من|دفتر|خودمون)/, () => 'کلید در دفتر'],
+  [/وام (\S+ ){0,4}(داره|دارد)|(?<!\S)وام ?دار/, () => 'وام دارد'],
+  [/(?<!\S)معاوضه/, () => 'معاوضه'],
+];
+
+function extrasOf(t: string): string[] {
+  const out: string[] = [];
+  for (const [re, label] of EXTRAS) {
+    const m = re.exec(t);
+    if (!m) continue;
+    // «دهنه چهار متر» با رقم فارسی
+    const v = label(m).replace(/(\S+(?: و \S+)?)(?= متر$)/, (w) => {
+      const n = spokenNumbers(w)[0];
+      return n && n.start === 0 && n.end === w.length ? toFaDigits(n.value) : w;
+    });
+    if (!out.includes(v)) out.push(v);
+  }
+  return out;
 }
 
 /** رتبهٔ جایگاه هر عدد در خواندن فارسی: هزار ۴، صدگان ۳، دهگان ۲، یکان و ده‌تا‌نوزده ۱. */
@@ -360,7 +411,8 @@ const STRONG_TIME = /ساعت|روزهای|اداری|شنبه|^(از|بین) \S
 
 export function bestTimeOf(t: string): string | undefined {
   const hint = CALL_HINT.exec(t);
-  const all = [...t.matchAll(TIME_RE)].filter((m) => /\s|ها$|^(صبح|عصر|ظهر|شب|غروب)ا$/.test(m[0]) || hint);
+  // «بین هشت تا ده میلیارد»، «از صد تا صد و بیست متر»: بازهٔ مبلغ و متراژ است، نه ساعت.
+  const all = [...t.matchAll(TIME_RE)].filter((m) => (/\s|ها$|^(صبح|عصر|ظهر|شب|غروب)ا$/.test(m[0]) || hint) && !/^\s*(میلیون|میلیارد|ملیون|ملیارد|تومن|تومان|متر|متری|خواب|سال|طبقه)/.test(t.slice(m.index + m[0].length)));
   // نزدیک «زنگ/تماس/جواب» باشد؛ بی آن فقط شکل‌های روشن مثل «عصرها» پذیرفته است.
   const pick = hint
     ? all.sort((a, b) => Math.abs(a.index - hint.index) - Math.abs(b.index - hint.index))[0]
@@ -386,9 +438,9 @@ export function bestTimeOf(t: string): string | undefined {
 const CITY_NAMES = /^(تهران|مشهد|اصفهان|شیراز|تبریز|کرج|اهواز|قم|کرمانشاه|ارومیه|رشت|زاهدان|همدان|کرمان|یزد|اردبیل|بندرعباس|بندر عباس|اراک|زنجان|سنندج|قزوین|خرم آباد|گرگان|ساری|بجنورد|بیرجند|ایلام|شهرکرد|یاسوج|سمنان|بوشهر|کیش|قشم|برازجان|گناوه|کنگان|عسلویه|دیر|جم)$/;
 
 // «در دسترسه»، «در حال ساخت»، «تو این ساختمون»: این‌ها بعد از «در/تو» محله نیستند.
-const LOOSE_STOP = /^(حد|حدود|طول|عرض|کنار|وسط|اول|آخر|نزدیکی|جوار|مقابل|انتظار|حین|دسترس|دسترسه|دسترسی|خدمت|حال|نظر|مورد|جریان|اختیار|اسرع|کل|ضمن|واقع|عوض|همون|همان|این|اون|آن|یه|یک|ساختمون|ساختمان|مجتمع|برج|خانه|شهر|بالا|پایین|طبقه|کوچه|خیابان|بلوار)$/;
+const LOOSE_STOP = /^(حد|حدود|طول|عرض|کنار|وسط|اول|آخر|نزدیکی|جوار|مقابل|انتظار|حین|دسترس|دسترسه|دسترسی|خدمت|حال|نظر|مورد|جریان|اختیار|اسرع|کل|ضمن|واقع|عوض|همون|همان|این|اون|آن|یه|یک|ساختمون|ساختمان|مجتمع|برج|خانه|شهر|بالا|پایین|طبقه|کوچه|خیابان|بلوار|مایه|مایه های|مایه‌های)$/;
 
-const NAME_STOP = /^(زیر|بالای|حداقل|حداکثر|حدود|بین|دنبال|بعد|قبل|فقط|ساعت|داره|دارن|دارد|گفت|گفته|میگه|برای|بری|مال|الان|خیلی|اینجا|اونجا|ولی|اما|یا|هم|تا|از|به|رو|را|صبح|عصر|ظهر|شب|طبقه|آپارتمان|واحد|تماس|زنگ|هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون|شمارش|شمارشون|تلفنش|موبایلش|همراهش|تماسش|مناسب|مناسبه|خانواده|زوج|زوجین|دانشجو|دانشجویی|سکونت|کار|سرمایه|سرمایه‌گذاری|مسکونی|شما|ما|من|همه|بچه|مجرد|متاهل|مستاجر|زندگی|بازدید|خرید|دیدن|عجله|فعلا|هنوز|دیگه|پول|بودجه|بودجش|نیاز|لازم|مشتری|جدی|جدیه|فوری|منتظر|دنبال|میخواست|زنگ|زد|خارج|ایران|شهرستان|تهران|اینجا|نیست|سفر|مسافرت|کشور|کشوره|مشاور|مشاوره|گفت|میگه|ساکن|مقیم|ساکنه|مقیمه)$/;
+const NAME_STOP = /^(زیر|بالای|حداقل|حداکثر|حدود|بین|دنبال|بعد|قبل|فقط|ساعت|داره|دارن|دارد|گفت|گفته|میگه|برای|بری|مال|الان|خیلی|اینجا|اونجا|ولی|اما|یا|هم|تا|از|به|رو|را|صبح|عصر|ظهر|شب|طبقه|آپارتمان|واحد|تماس|زنگ|هست|است|هستن|هستند|که|و|با|شماره|تلفن|موبایل|مالک|صاحب|عصرها|صبح‌ها|صبحها|شبها|شب‌ها|ظهرها|خونه|خانه|ملک|فایل|دنبال|میخواد|می‌خواد|میخواهد|می‌خواهد|بود|باشه|خودش|ایشون|شمارش|شمارشون|تلفنش|موبایلش|همراهش|تماسش|مناسب|مناسبه|خانواده|زوج|زوجین|دانشجو|دانشجویی|سکونت|کار|سرمایه|سرمایه‌گذاری|مسکونی|شما|ما|من|همه|بچه|مجرد|متاهل|مستاجر|زندگی|بازدید|خرید|دیدن|عجله|فعلا|هنوز|دیگه|پول|بودجه|بودجش|نیاز|لازم|مشتری|جدی|جدیه|فوری|منتظر|دنبال|میخواست|زنگ|زد|خارج|ایران|شهرستان|تهران|اینجا|نیست|سفر|مسافرت|کشور|کشوره|مشاور|مشاوره|گفت|میگه|ساکن|مقیم|ساکنه|مقیمه|واسه|واسش|برا|براش|خریدار|متقاضی|نقد|پولش|مستاجره)$/;
 // «میخواد» فعل است ولی «میرزایی» و «میری» نام‌اند.
 const VERB = /^ن?می(خواد|خواهد|خوان|خوام|خواست|ده|دن|دم|دی|گه|گن|گم|گفت|کنه|کنن|کنم|کرد|اد|آد|ان|آن|شه|شن|شد|تونه|تونن|فروشه|فروشن|خره|خرن|ره|رن|رم|زنه|بینه|گیره|ذاره|زاره|دونه|پرسه|مونه|خوره|گرده|بره|پسنده)$/;
 // «آقای سامان مغازه می‌خواد»: نوع ملک یا امکانات جزو نام نیست.
@@ -474,10 +526,17 @@ function billionAndMillion(src: string): number | undefined {
  */
 function shortPrices(t: string, nums: SpokenNumber[], buying = false, sale = buying): { deposit?: number; rent?: number; total?: number } {
   const out: { deposit?: number; rent?: number; total?: number } = {};
-  for (const n of nums) {
-    if (n.value < 1 || /^\s*(متر|خواب|طبقه|سال|ساله|تا)/.test(after(t, n))) continue;
-    const b = before(t, n, 30);
-    const slot = slotOf(b);
+  const RANGE_GAP = /^\s*(تا|الی|یا|-)?\s*$/;
+  for (const [i, n] of nums.entries()) {
+    // «دو تا خواب» شمارش است؛ ولی «قیمت پونزده تا» یعنی پونزده میلیارد.
+    if (n.value < 1 || /^\s*(متر|خواب|طبقه|سال|ساله|تا\s+(خواب|اتاق|طبقه|واحد|پارکینگ|انباری|متر))/.test(after(t, n))) continue;
+    // «اجاره هفت هشت تومن»، «پنج تا شش میلیارد»: سر پایین بازه کنار می‌رود؛ سقف همان عدد بزرگ‌تر است.
+    const next = nums[i + 1];
+    if (next && next.value > n.value && RANGE_GAP.test(t.slice(n.end, next.start))) continue;
+    // «رهن صد تا صد و پنجاه»: برچسب سقف بازه پیش از عدد اول آمده است.
+    const prev = nums[i - 1];
+    const b = before(t, prev && prev.value < n.value && RANGE_GAP.test(t.slice(prev.end, n.start)) ? prev : n, 30);
+    const slot = slotOf(b, t.slice(n.end, n.end + 20));
     if (slot === 'perMeter') continue;
     // «هفت تومن» بی میلیون/میلیارد: در اجاره هفت میلیون، در فروش هفت میلیارد.
     if (n.money) {
@@ -488,7 +547,12 @@ function shortPrices(t: string, nums: SpokenNumber[], buying = false, sale = buy
       else if (n.value < 1000 && s) out[s] ??= Math.round(n.value * (s === 'rent' ? 1e6 : n.value < (s === 'total' ? 100 : 20) ? 1e9 : 1e6));
       continue;
     }
-    if (!slot) continue;
+    if (!slot) {
+      // «هشت و پونصد» بی برچسب در فایل فروشی: فقط همین شکل میلیارد و میلیون روشن است.
+      const mixed = sale ? billionAndMillion(t.slice(n.start, n.end)) : undefined;
+      if (mixed) out.total ??= mixed;
+      continue;
+    }
     if (slot === 'rent') {
       if (n.value < 1000) out.rent ??= Math.round(n.value * 1e6);
       continue;
@@ -516,6 +580,91 @@ function zonesOf(t: string): string[] {
   return out;
 }
 
+const AREA_GAP = /^\s*(متر|متری|مترمربع)?\s*(تا|الی|یا|و|،|-)?\s*$/;
+
+/**
+ * متراژی که مشتری می‌خواهد، همان‌طور که عامیانه گفته می‌شود:
+ * «از هشتاد تا صد متر»، «متراژ بین صد و صد و بیست»، «هشتاد نود متری»، «صد، صد و بیست متر»، «متراژ زیر صد»،
+ * «صد متر به بالا»، «صد متر به پایین»، «کمتر از صد متر نباشه»، «حداقل صد متر، حداکثر صد و پنجاه».
+ * used: عددهایی که متراژ شدند تا قیمت حساب نشوند.
+ */
+function areaNeed(t: string, nums: SpokenNumber[], areas: SpokenNumber[]): { min?: number; max?: number; used: Set<SpokenNumber> } {
+  const used = new Set(areas);
+  // عدد بی‌واحد؛ «طبقه ده» و «سال نود» و «منطقه پنج» نه.
+  const bare = (n: SpokenNumber) =>
+    !n.money && Number.isInteger(n.value) && n.value >= 10 && n.value < 100_000 &&
+    !/^\s*(متر|خواب|اتاق|طبقه|سال|ساله|میلیون|میلیارد|تومن|تومان|هزار|نفر|واحد|تا (خواب|اتاق))/.test(after(t, n)) &&
+    !/(طبقه|سال|ساخت|مدل|منطقه|کوچه|پلاک|شماره|خیابان|بلوار|فاز)( ی)?$/.test(before(t, n));
+  // ۱. جملهٔ «متراژ …»: عددهای بی‌واحد بعدش تا ویرگول متراژند.
+  for (const n of nums) {
+    if (used.has(n) || !bare(n)) continue;
+    const m = /(?:^|\s)(متراژ|متراژش|مساحت|مساحتش|زیربنا|زیربناش)(?:\s|$)(.*)$/.exec(before(t, n, 40));
+    if (m && !/[،,.؛]|خواب|طبقه|رهن|اجاره|قیمت|بودجه|میلیون|میلیارد|تومن|سال/.test(m[2]!)) used.add(n);
+  }
+  // ۲. جفت بازه کنار یک متراژ: «هشتاد تا صد متر»، «هشتاد نود متر»، «صد، صد و بیست متری».
+  const pair = (a: SpokenNumber, b: SpokenNumber) => AREA_GAP.test(t.slice(a.end, b.start)) && a.value < b.value && b.value <= a.value * 3;
+  for (let i = 0; i + 1 < nums.length; i++) {
+    const a = nums[i]!;
+    const b = nums[i + 1]!;
+    if (!pair(a, b)) continue;
+    if (used.has(b) && !used.has(a) && bare(a)) used.add(a);
+    // «متراژ صد، صد و ده»: بعد از ویرگول فقط وقتی نزدیک است بازه حساب می‌شود.
+    else if (used.has(a) && !used.has(b) && bare(b) && (!/،/.test(t.slice(a.end, b.start)) || b.value <= a.value * 1.5)) used.add(b);
+  }
+  // ۳. واحد از متراژ قبلی: «حداقل صد متر، حداکثر صد و پنجاه»، «از صد متر تا صد و پنجاه».
+  for (let i = 1; i < nums.length; i++) {
+    const n = nums[i]!;
+    const prev = nums[i - 1]!;
+    if (used.has(n) || !used.has(prev) || !bare(n) || n.value <= prev.value) continue;
+    const gap = t.slice(prev.end, n.start);
+    if (/^\s*(متر|متری|مترمربع)?\s*(تا|الی)\s*$/.test(gap) || /^\s*(متر|متری|مترمربع)?\s*[،,]?\s*(حداکثر|حداکثرش|ماکزیمم|ماکسیمم|نهایتا|تا)\s*$/.test(gap)) used.add(n);
+  }
+  const list = nums.filter((n) => used.has(n));
+  let min: number | undefined;
+  let max: number | undefined;
+  for (let i = 0; i + 1 < list.length && min === undefined; i++) {
+    if (nums.indexOf(list[i + 1]!) === nums.indexOf(list[i]!) + 1 && pair(list[i]!, list[i + 1]!)) {
+      min = list[i]!.value;
+      max = list[i + 1]!.value;
+    }
+  }
+  if (min !== undefined) return { min, max, used };
+  const dirOf = (n: SpokenNumber): 'min' | 'max' | undefined => {
+    const b = before(t, n, 20);
+    const a = after(t, n, 30).replace(/^(متر|متری|مترمربع)\s*/, '');
+    if (/^(به بالا|به بالاتر|و بالاتر|و بیشتر|به بیشتر|به بعد|بالاتر)/.test(a)) return 'min';
+    if (/^(به پایین|به پایینتر|به پایین تر|و کمتر|و پایینتر|به کمتر)/.test(a)) return 'max';
+    // «از صد متر کمتر نباشه»، «از صد و بیست بیشتر نشه»
+    if (/^(کمتر|پایینتر|پایین تر|کوچکتر|کوچیکتر|کوچیک تر)\s*(نباشه|نشه|نباشد|نمیخواد)/.test(a)) return 'min';
+    if (/^(بیشتر|بالاتر|بزرگتر|بزرگ تر|گنده تر)\s*(نباشه|نشه|نباشد|نره|نمیخواد)/.test(a)) return 'max';
+    const d = /(حداکثر|حداکثرش|زیر|کمتر از|پایینتر از|پایین تر از|تا|نهایتا|نهایت|ماکزیمم|ماکسیمم)$/.test(b) ? 'max' : /(حداقل|بالای|بیشتر از|بیش از|بالاتر از|از)$/.test(b) ? 'min' : undefined;
+    // «کمتر از صد متر نباشه»: منفی، برعکس.
+    return d && /^(نباشه|نشه|نباشد)/.test(a) ? (d === 'min' ? 'max' : 'min') : d;
+  };
+  min = list.find((n) => dirOf(n) === 'min')?.value;
+  max = list.find((n) => dirOf(n) === 'max')?.value;
+  if (min === undefined && max === undefined) min = list[0]?.value;
+  return { min, max, used };
+}
+
+/** خواسته‌های مشتری که فیلد جدا ندارند («حتماً پارکینگ داشته باشه»، «نوساز»، «شمال شهر») در یادداشت می‌مانند. */
+function wishesOf(t: string): string[] {
+  const out: string[] = [];
+  const features = featuresOf(t);
+  if (features.length) out.push(`امکانات: ${features.join('، ')}`);
+  if (/نوساز|کلید نخورده/.test(t)) out.push('نوساز');
+  else {
+    const age = spokenNumbers(t).find((n) => !n.money && n.value < 60 && /^سال( ساخت|ه)?/.test(after(t, n)) && /(تا|زیر|حداکثر|کمتر از|نهایتا)$/.test(before(t, n)));
+    if (age) out.push(`حداکثر ${toFaDigits(age.value)} سال ساخت`);
+  }
+  const region = /(?<!\S)(شمال|جنوب|شرق|غرب|مرکز) (شهر|تهران)|(?<!\S)(بالای|پایین) شهر/.exec(t);
+  if (region) out.push(`محدوده: ${region[0]}`);
+  if (/(?<!\S)(با|از) وام|وام (داره|دارد|میگیره|می گیره|بانکی)/.test(t)) out.push('با وام');
+  if (/قابل تبدیل/.test(t)) out.push('رهن و اجاره قابل تبدیل');
+  if (/(?<!\S)معاوضه/.test(t)) out.push('معاوضه');
+  return out;
+}
+
 /** فیلدهای فرم از متن گفته‌شده. year سال شمسی جاری است (برای «ده سال ساخت» و «نوساز»). */
 export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hints: string[], year: number): VoiceDraft<F> {
   const said = norm(transcript);
@@ -531,7 +680,11 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
   // «پونصد متر تا دریا فاصله داره» متراژ نیست.
   const areas = nums.filter((n) => !n.money && !/^متر( \S+){0,3} (فاصله|بالاتر|پایین تر|پایینتر|جلوتر|عقب تر|عقبتر)|^متر تا (دریا|ساحل|خیابان|بلوار|میدان|پارک|مدرسه|ایستگاه|مترو)/.test(after(t, n, 40)) &&
     // «خیابان سی متری»، «بیست متری اول»: نام خیابان است.
-    !/(خیابان|کوچه|بلوار)$/.test(before(t, n)) && !/^متری (اول|دوم|سوم|چهارم|پنجم|ششم|هفتم|هشتم|نهم|دهم)(?=\s|$)/.test(after(t, n)) && ((/^(متر|متری|مترمربع)/.test(after(t, n)) && !/(متری|هر متر)$/.test(before(t, n))) || /(متراژ|متراژش|زیربنا|زیربناش|بنا|مساحت|مساحتش)[:،]?$/.test(before(t, n))));
+    !/(خیابان|کوچه|بلوار)$/.test(before(t, n)) && !/^متری (اول|دوم|سوم|چهارم|پنجم|ششم|هفتم|هشتم|نهم|دهم)(?=\s|$)/.test(after(t, n)) &&
+    // «دهنه چهار متر»، «دوازده متر بر»: پهنای ملک است، نه متراژ.
+    !/(?<!\S)(دهنه|دهنش|عرض|طول|ارتفاع|عمق|بر|برش)$/.test(before(t, n)) && !/^متر (دهنه|بر|عرض|طول|ارتفاع|عمق)(?=\s|$|[،,.])/.test(after(t, n)) &&
+    // «سن بنا پنج سال» سن ساختمان است.
+    ((/^(متر|متری|مترمربع)/.test(after(t, n)) && !/(متری|هر متر)$/.test(before(t, n))) || /(?<!(سن|عمر) )(متراژ|متراژش|زیربنا|زیربناش|بنا|مساحت|مساحتش)[:،]?$/.test(before(t, n))));
   const bedrooms = nums.find((n) => !n.money && n.value < 20 && /^(تا )?(اتاق( خواب)?|خواب)/.test(after(t, n)));
   // «چهارخوابه» سرهم نوشته می‌شود و عدد جدا پیدا نمی‌شود.
   const glued = /(?:^|\s)(یک|یه|دو|سه|چهار|پنج|شش|شیش)\u200c?خوابه?(?=$|[\s،,.])/.exec(t);
@@ -569,13 +722,16 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     raw.floorsTotal =
       nums.find((n) => !n.money && /^طبقه/.test(after(t, n)) && !/طبقه( ی)?$/.test(before(t, n)))?.value ??
       nums.find((n) => !n.money && /طبقه( ی)? \S+ از$/.test(before(t, n)))?.value;
+    // «طبقه آخر» یعنی بالاترین طبقهٔ همان ساختمان.
+    if (raw.floor === undefined && /طبقه( ی)? (آخر|اخر|آخره)(?=\s|$|[،,.])/.test(t) && typeof raw.floorsTotal === 'number') raw.floor = raw.floorsTotal;
 
     // «سال ۹۸ بازسازی شده» سال ساخت نیست؛ «ساخت سال ۸۵» بر «سال ۸۵» مقدم است.
     const years = nums.filter((n) => !n.money && Number.isInteger(n.value) && fullYear(n.value, year) && /(ساخت|ساختش|سال|سازه|مدل)[:،]?$/.test(before(t, n)) && !/^(سال|ساله|بازسازی|تعمیر|نوسازی|خرید|خریده|خریدم|خریدن)/.test(after(t, n)));
     // «سال نود صنعتی، مدل نود و شش»: «ساخت/مدل» از «سال» تنها مطمئن‌تر است.
     const built = years.find((n) => /(ساختش?|مدل|سازه)( سال)?[:،]?$/.test(before(t, n))) ?? years[0];
     // «قرارداد یک ساله» سن ساختمان نیست.
-    const age = nums.find((n) => n.value < 100 && /^(سال ساخت|ساله)/.test(after(t, n)) && !/(قرارداد|اجاره|مستاجر|وام|قسط|اقساط|اجاره نامه)$/.test(before(t, n)));
+    // «ده سالشه»، «سن بنا پنج سال»، «پونزده سال عمر داره»
+    const age = nums.find((n) => n.value < 100 && !n.money && (/^(سال ساخت|ساله|سالشه|سال سن|سال عمر)/.test(after(t, n)) || (/(سن|عمر)( بنا| بناش| ساختمان| ساختمون| ملک)?( هم)?[:،]?$/.test(before(t, n)) && /^سال/.test(after(t, n)))) && !/(قرارداد|اجاره|مستاجر|وام|قسط|اقساط|اجاره نامه)$/.test(before(t, n)));
     raw.yearBuilt = (built && fullYear(built.value, year)) ?? (age ? year - age.value : /نوساز|کلید نخورده/.test(t) ? year : undefined);
 
     const features = featuresOf(t);
@@ -586,40 +742,43 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
     raw.ownerBestTime = bestTimeOf(t);
     raw.ownerPhone = phone?.phone;
     // شماره‌ای که کامل شنیده نشد گم نشود؛ مشاور خودش درستش می‌کند.
+    notes.push(...extrasOf(t));
     if (phone?.raw) notes.push(`شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`);
     if (notes.length) raw.description = notes.join('، ');
     Object.assign(raw, shortPrices(t, nums, false, raw.deal !== 'rent' && raw.deal !== 'full'));
+    // «متری هشتاد، صد متر»: قیمت هر متر بی «میلیون» و متراژ بعدش آمده.
+    const perMeter = raw.total === undefined && typeof raw.area === 'number' && raw.deal !== 'rent' && raw.deal !== 'full' ? nums.find((n) => !n.money && n.value >= 1 && n.value < 1000 && slotOf(before(t, n, 30)) === 'perMeter') : undefined;
+    if (perMeter) raw.total = Math.round(perMeter.value * 1e6 * (raw.area as number));
   } else {
     raw.name = personOf(t);
     raw.phone = phone?.phone;
     // مشتری فیلد زمان تماس ندارد؛ در یادداشت می‌ماند تا گم نشود.
     const time = bestTimeOf(t);
-    raw.notes = [time && `بهترین زمان تماس: ${time}`, phone?.raw && `شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`].filter(Boolean).join('، ') || undefined;
+    raw.notes = [...wishesOf(t), time && `بهترین زمان تماس: ${time}`, phone?.raw && `شمارهٔ گفته‌شده (کامل شنیده نشد): ${toFaDigits(phone.raw)}`].filter(Boolean).join('، ') || undefined;
     const kinds = kindsOf(t);
     if (kinds.length) raw.kinds = kinds;
     const wanted = [...places, ...hoods];
     if (!wanted.length && streets[0]) wanted.push(`${streets[0].lead} ${streets[0].name}`);
     if (wanted.length) raw.neighborhoods = wanted;
 
-    const range = /(\d+(?:\.\d+)?) تا (\d+(?:\.\d+)?) متر/.exec(toEnDigits(t));
-    const lo = areas.find((n) => /(حداقل|بالای|بیشتر از|بیش از|از)$/.test(before(t, n)));
-    const hi = areas.find((n) => /(حداکثر|زیر|کمتر از|تا)$/.test(before(t, n)));
-    // «بین صد تا صد و بیست متر»: عدد اول «متر» ندارد، پس جداگانه پیدا می‌شود.
-    const loWord = nums.find((n, i) => !n.money && nums[i + 1] && hi && nums[i + 1] === hi && /^تا/.test(after(t, n)));
-    raw.areaMin = range ? Number(range[1]) : (lo?.value ?? loWord?.value ?? (hi ? undefined : areas[0]?.value));
-    raw.areaMax = range ? Number(range[2]) : hi?.value;
-    // «دو یا سه خواب»: کمترینش.
-    const orBeds = bedrooms && /(?:^|\s)(\S+) یا$/.exec(before(t, bedrooms));
+    const area = areaNeed(t, nums, areas);
+    raw.areaMin = area.min;
+    raw.areaMax = area.max;
+    // «دو یا سه خواب»، «دو سه خوابه»، «دو تا سه خواب»: کمترینش.
+    const orBeds = bedrooms && /(?:^|\s)(\S+)(?: یا| تا| الی)?$/.exec(before(t, bedrooms));
     const lowBeds = orBeds ? wordNum(orBeds[1]!) : undefined;
     // «حداکثر دو خواب» حداقل نیست.
     const maxBeds = bedrooms && /(حداکثر|نهایتا|نهایت|زیر|کمتر از)$/.test(before(t, bedrooms));
-    raw.bedroomsMin = maxBeds ? undefined : lowBeds !== undefined && bedrooms && lowBeds < bedrooms.value ? lowBeds : bedroomsValue;
-    if (/عجله ?(ای )?(نداره|ندارد|نداریم|نیست)|فقط نگاه|فعلا نگاه|سر فرصت|(?<!\S)بعدا(?!\S)/.test(t)) raw.temperature = 'cold';
-    else if (/فوری|عجله (داره|دارد)|(^|\s)جدی(ه|ست)?(?=\s|$|[،,.])|سریع/.test(t)) raw.temperature = 'hot';
-    if (/منتظر|خبرش کن|بهش خبر|خبر بدم|زنگ بزنم|تماس بگیرم/.test(t)) raw.waiting = true;
+    raw.bedroomsMin = maxBeds ? undefined : lowBeds !== undefined && lowBeds >= 1 && bedrooms && lowBeds < bedrooms.value ? lowBeds : bedroomsValue;
+    // «قراردادش ماه دیگه تموم میشه»، «باید تا آخر ماه جابجا بشه»: فوری است، حتی اگر «ماه دیگه» شبیه «بعداً» باشد.
+    const moving = /قرارداد(ش|شون)? (\S+ ){0,3}(تموم|تمام)|باید (\S+ ){0,3}(جابجا|جابه ?جا|اسباب ?کشی|تخلیه|بلند)/.test(t);
+    if (!moving && /عجله ?(ای )?(نداره|ندارد|نداریم|نیست)|فقط نگاه|فعلا نگاه|سر فرصت|(?<!\S)بعدا(?!\S)|قیمت میگیر|قیمت می گیر|استعلام|تحقیق|(سال|ماه) (دیگه|بعد|آینده)|هنوز (مطمئن|تصمیم|قطعی)|مرده?د/.test(t)) raw.temperature = 'cold';
+    else if (moving || /فوری|عجله (داره|دارد)|(^|\s)جدی(ه|ست)?(?=\s|$|[،,.])|سریع|ضروری|پول(ش)? (آماده|حاضر|نقده?)(?!\S)|نقد (داره|دارد|آماده)|(همین|این) (هفته|ماه)|تا آخر (هفته|ماه)|پیگیره|خیلی پیگیر/.test(t)) raw.temperature = 'hot';
+    if (/منتظر|خبرش کن|بهش خبر|خبر بدم|زنگ بزنم|تماس بگیرم|بهش زنگ|باهاش تماس|خبر بده|خبرم کن|در جریان|اطلاع بد|هر وقت (چیزی|فایلی|موردی)|اگه (چیزی|فایلی|موردی)/.test(t)) raw.waiting = true;
     // «قیمت» برای مشتری یعنی خرید؛ رهن و اجاره «قیمت» ندارد.
     if (!raw.deal && /قیمت|بخره|خرید/.test(t)) raw.deal = 'sale';
-    const short = shortPrices(t, nums, raw.deal !== 'rent' && raw.deal !== 'full');
+    // عددهای متراژ («متراژ زیر صد») قیمت حساب نشوند.
+    const short = shortPrices(t, nums.filter((n) => !area.used.has(n)), raw.deal !== 'rent' && raw.deal !== 'full');
     if (short.deposit) raw.budget = short.deposit;
     else if (short.total) raw.budget = short.total;
     if (short.rent) raw.rent = short.rent;

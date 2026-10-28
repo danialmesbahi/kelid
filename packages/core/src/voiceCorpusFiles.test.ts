@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { VoiceForm } from './voice';
 import { ruleDraft } from './voiceRules';
 
-// جمله‌های عامیانه (۱۱۴ + ۱۲۰ + ۱۵۰ + ۵۹ + ۵۷) و صداهای واقعی مهدی (voiceReal) با فهرست محله‌های واقعی بوشهر و تهران. «expected» زیرمجموعه است؛ null یعنی آن فیلد نباید پر شود.
+// جمله‌های عامیانه (۱۱۴ + ۱۲۰ + ۱۵۰ + ۵۹ + ۵۷ + ۱۹۴) و صداهای واقعی مهدی (voiceReal) با فهرست محله‌های واقعی بوشهر و تهران. «expected» زیرمجموعه است؛ null یعنی آن فیلد نباید پر شود.
 type Case = { form: VoiceForm; transcript: string; hints: 'bushehr' | 'tehran'; expected: Record<string, unknown> };
 type City = { h: string[]; z: [string, string[]][] };
 
@@ -13,7 +13,7 @@ const placesOf = (name: string) => {
   return [...c.h, ...c.z.map((z) => z[0])];
 };
 const places = { bushehr: placesOf('bushehr'), tehran: placesOf('tehran') };
-const cases = ['./voiceCorpus.jsonl', './voiceCorpus2.jsonl', './voiceCorpus3.jsonl', './voiceCorpus4.jsonl', './voiceCorpus5.jsonl', './voiceReal.jsonl'].flatMap((f) =>
+const cases = ['./voiceCorpus.jsonl', './voiceCorpus2.jsonl', './voiceCorpus3.jsonl', './voiceCorpus4.jsonl', './voiceCorpus5.jsonl', './voiceCorpus6.jsonl', './voiceReal.jsonl'].flatMap((f) =>
   read(f)
     .split('\n')
     .filter(Boolean)
