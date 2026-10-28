@@ -9,7 +9,7 @@ import { useSlow } from '../data';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import { useToast } from '../layout/Toasts';
 import { NewTicketDialog } from './NewTicketDialog';
-import { STATUS, ticketFailText, topicIcon, topicLabel } from './topics';
+import { AFTER_ANSWER, STATUS, ticketFailText, topicIcon, topicLabel } from './topics';
 import { setSupportUnread } from './unread';
 import './support.css';
 
@@ -60,7 +60,7 @@ function TicketRow({ t }: { t: Ticket }) {
   );
 }
 
-/** پشتیبانی: تیکت‌های همین کاربر با تیم کلید؛ در جریان‌ها بالا، حل‌شده‌ها پایین. */
+/** پشتیبانی: تیکت‌های همین کاربر با تیم کلید؛ در جریان‌ها بالا، بسته‌شده‌ها پایین. */
 export function SupportPage() {
   const { status, api, withToken } = useAuth();
   const first = useFirstVisit('support');
@@ -133,7 +133,7 @@ export function SupportPage() {
       )}
       {done.length > 0 && (
         <section className="col" style={{ gap: 10 }}>
-          <h2 className="tk-h">حل‌شده</h2>
+          <h2 className="tk-h">بسته‌شده</h2>
           <div className="card tk-list stagger">
             {done.map((t) => (
               <TicketRow key={t.id} t={t} />
@@ -152,7 +152,7 @@ export function TicketRoute() {
   return <TicketPage key={id} id={id} />;
 }
 
-/** یک تیکت: درخواست و پاسخ‌ها مثل نامه، نه چت؛ بسته‌شده یعنی حل شد و دیگر پیام نمی‌گیرد. */
+/** یک تیکت: درخواست و پاسخ‌ها مثل نامه، نه چت؛ بسته‌شده یعنی کارش تمام شد و دیگر پیام نمی‌گیرد. */
 function TicketPage({ id }: { id: string }) {
   const { status, api, withToken } = useAuth();
   const toast = useToast();
@@ -231,7 +231,7 @@ function TicketPage({ id }: { id: string }) {
       show(await withToken((t) => api.closeTicket(t, id)));
       setConfirming(false);
       setWriting(false);
-      toast('تیکت بسته شد. خوشحالیم که مشکل حل شد.');
+      toast('تیکت بسته شد.');
     } catch (err) {
       toast(ticketFailText(err instanceof ApiError ? err : null));
     }
@@ -315,8 +315,8 @@ function TicketPage({ id }: { id: string }) {
             <Icon name="check" thick />
           </span>
           <div className="col sp" style={{ gap: 2, minWidth: 200 }}>
-            <span className="b">این تیکت بسته شده و مشکلش حل شده است.</span>
-            <span className="sm mute">سؤال یا مشکل تازه‌ای دارید؟ یک تیکت تازه بزنید.</span>
+            <span className="b">این تیکت بسته شده است.</span>
+            <span className="sm mute">سؤال، مشکل یا پیشنهاد تازه‌ای دارید؟ یک تیکت تازه بزنید.</span>
           </div>
           <button type="button" className="btn btn-s" onClick={() => setCreating(true)}>
             <Icon name="plus" size="s" thick />
@@ -332,7 +332,7 @@ function TicketPage({ id }: { id: string }) {
             rows={4}
             maxLength={4000}
             autoFocus
-            placeholder="هر چه به حل مشکل کمک می‌کند بنویسید…"
+            placeholder="هر توضیحی که لازم است بنویسید…"
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);
@@ -362,7 +362,7 @@ function TicketPage({ id }: { id: string }) {
         <div className="card tk-next" role="alert">
           <div className="col sp" style={{ gap: 2, minWidth: 200 }}>
             <span className="b">تیکت بسته شود؟</span>
-            <span className="sm mute">بستن یعنی مشکل حل شده؛ بعد از آن دیگر نمی‌شود به این تیکت پیام داد.</span>
+            <span className="sm mute">بعد از بستن دیگر نمی‌شود به این تیکت پیام داد؛ برای موضوع تازه، تیکت تازه می‌زنید.</span>
           </div>
           <div className="rw" style={{ gap: 8 }}>
             <button type="button" className="btn btn-g" onClick={() => setConfirming(false)}>
@@ -379,8 +379,8 @@ function TicketPage({ id }: { id: string }) {
           <div className="col sp" style={{ gap: 2, minWidth: 200 }}>
             {t.status === 'answered' ? (
               <>
-                <span className="b">مشکل حل شد؟</span>
-                <span className="sm mute">اگر جواب کافی بود تیکت را ببندید؛ اگر نه، توضیح بیشتری بنویسید.</span>
+                <span className="b">{AFTER_ANSWER[t.topic].ask}</span>
+                <span className="sm mute">{AFTER_ANSWER[t.topic].hint}</span>
               </>
             ) : (
               <>
@@ -397,16 +397,11 @@ function TicketPage({ id }: { id: string }) {
             {t.status === 'answered' && (
               <button type="button" className="btn btn-p" onClick={() => setConfirming(true)}>
                 <Icon name="check" size="s" />
-                حل شد، ببند
+                {AFTER_ANSWER[t.topic].close}
               </button>
             )}
           </div>
         </div>
-      )}
-      {!closed && t.status === 'open' && !writing && !confirming && (
-        <button type="button" className="btn btn-g tk-close-quiet" onClick={() => setConfirming(true)}>
-          مشکل خودش حل شد؟ بستن تیکت
-        </button>
       )}
       {creating && <NewTicketDialog onClose={() => setCreating(false)} />}
     </div>

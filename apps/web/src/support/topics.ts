@@ -11,11 +11,18 @@ export const TOPICS: Array<{ value: TicketTopic; label: string; icon: IconName }
 export const topicLabel = (t: TicketTopic) => TOPICS.find((x) => x.value === t)?.label ?? '';
 export const topicIcon = (t: TicketTopic): IconName => TOPICS.find((x) => x.value === t)?.icon ?? 'msg';
 
-// بسته یعنی مشکل حل شد؛ برای کاربر «حل شد» روشن‌تر از «بسته» است.
 export const STATUS: Record<TicketStatus, { label: string; tone: 'warn' | 'ok' | '' }> = {
   open: { label: 'در انتظار پاسخ', tone: 'warn' },
   answered: { label: 'پاسخ داده شد', tone: 'ok' },
-  closed: { label: 'حل شد', tone: '' },
+  closed: { label: 'بسته شد', tone: '' },
+};
+
+// بعد از پاسخ پشتیبانی: پرسش و دکمهٔ بستن به موضوع تیکت می‌خورد؛ سؤال و پیشنهاد «مشکل» نیستند.
+export const AFTER_ANSWER: Record<TicketTopic, { ask: string; hint: string; close: string }> = {
+  problem: { ask: 'مشکل حل شد؟', hint: 'اگر مشکل برطرف شد تیکت را ببندید؛ اگر نه، توضیح بیشتری بنویسید.', close: 'حل شد، ببند' },
+  question: { ask: 'جوابتان را گرفتید؟', hint: 'اگر جواب کافی بود تیکت را ببندید؛ اگر نه، توضیح بیشتری بنویسید.', close: 'جوابم را گرفتم، ببند' },
+  billing: { ask: 'کارتان انجام شد؟', hint: 'اگر کارتان انجام شد تیکت را ببندید؛ اگر نه، توضیح بیشتری بنویسید.', close: 'انجام شد، ببند' },
+  idea: { ask: 'ممنون از پیشنهادتان', hint: 'اگر توضیح دیگری ندارید، تیکت را ببندید.', close: 'بستن تیکت' },
 };
 
 export function ticketFailText(e: ApiError | null): string {
