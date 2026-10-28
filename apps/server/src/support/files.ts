@@ -4,13 +4,13 @@ import type { Db } from '../db';
 import type { S3 } from '../storage/s3';
 import { sniffImage } from '../storage/photos';
 
-// پیوست تیکت: هر پیام تا سه فایل، هر کدام تا ۵ مگابایت. نوع فایل را سرور از خود بایت‌ها می‌فهمد، نه از نام یا حرف دستگاه.
+// پیوست تیکت: هر پیام تا سه فایل که روی هم تا ۵ مگابایت باشند. نوع فایل را سرور از خود بایت‌ها می‌فهمد، نه از نام یا حرف دستگاه.
 // مگابایت دهدهی، همان که دستگاه‌ها نشان می‌دهند.
 export const FILE_MAX = 5_000_000;
 export const FILES_MAX = 3;
 const NAME_MAX = 120;
 /** جای base64 (یک‌سوم بیشتر) و خود JSON پیام. */
-export const FILES_BODY_LIMIT = Math.ceil((FILES_MAX * FILE_MAX * 4) / 3) + 64 * 1024;
+export const FILES_BODY_LIMIT = Math.ceil((FILE_MAX * 4) / 3) + 64 * 1024;
 
 export const filesSchema = {
   type: 'array',
@@ -74,10 +74,12 @@ export function sniffFile(b: Buffer, name: string): string | null {
 /** پیوست‌های درخواست؛ رشته یعنی کد خطا. */
 export function parseFiles(input: FileIn[] | undefined): ParsedFile[] | 'bad_file' | 'too_big' {
   const out: ParsedFile[] = [];
+  let total = 0;
   for (const f of input ?? []) {
     const bytes = Buffer.from(f.data, 'base64');
     if (!bytes.length) return 'bad_file';
-    if (bytes.length > FILE_MAX) return 'too_big';
+    total += bytes.length;
+    if (total > FILE_MAX) return 'too_big';
     const name = cleanName(f.name);
     const mime = sniffFile(bytes, name);
     if (!mime) return 'bad_file';

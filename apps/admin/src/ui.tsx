@@ -74,7 +74,7 @@ export function errorText(e: unknown): string {
     case 'bad_file':
       return 'این نوع فایل پذیرفته نیست؛ فقط عکس، PDF، Word، Excel یا متن.';
     case 'too_big':
-      return 'هر پیوست حداکثر ۵ مگابایت است.';
+      return 'جمع پیوست‌های هر پیام حداکثر ۵ مگابایت است.';
     default:
       return 'کار انجام نشد؛ دوباره امتحان کنید.';
   }

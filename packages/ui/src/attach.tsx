@@ -3,7 +3,7 @@ import { toFaDigits } from '@kelid/core';
 import { Icon } from './components';
 import type { IconName } from './icons';
 
-// پیوست پیام‌های پشتیبانی؛ همان سقف سرور: هر پیام تا سه فایل، هر کدام تا ۵ مگابایت.
+// پیوست پیام‌های پشتیبانی؛ همان سقف سرور: هر پیام تا سه فایل که روی هم تا ۵ مگابایت باشند.
 // مگابایتِ دهدهی (میلیون بایت)، همان که مک و گوشی‌ها نشان می‌دهند؛ فایلی که آنجا «۵٫۲ مگابایت» است اینجا هم بزرگ است.
 export const FILE_MAX = 5_000_000;
 export const FILES_MAX = 3;
@@ -50,6 +50,7 @@ export function AttachPicker({ files, onChange, onError }: { files: File[]; onCh
       if (!EXT.has(ext)) return onError(`«${f.name}» پذیرفته نیست؛ فقط عکس، PDF، Word، Excel یا متن.`);
       if (f.size > FILE_MAX) return onError(`«${f.name}» بزرگ‌تر از ۵ مگابایت است.`);
       if (next.length >= FILES_MAX) return onError('هر پیام حداکثر ۳ پیوست دارد.');
+      if (next.reduce((n, x) => n + x.size, f.size) > FILE_MAX) return onError(`با «${f.name}» جمع پیوست‌ها از ۵ مگابایت بیشتر می‌شود.`);
       next.push(f);
     }
     onChange(next);
@@ -72,7 +73,7 @@ export function AttachPicker({ files, onChange, onError }: { files: File[]; onCh
         پیوست فایل
       </button>
       {files.length === 0 ? (
-        <span className="xs mute">تا ۳ فایل، هر کدام تا ۵ مگابایت؛ عکس، PDF، Word یا Excel</span>
+        <span className="xs mute">تا ۳ فایل، روی هم تا ۵ مگابایت؛ عکس، PDF، Word یا Excel</span>
       ) : (
         files.map((f, i) => (
           <span key={`${f.name}-${i}`} className="att-file">

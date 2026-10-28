@@ -25,6 +25,9 @@ describe('support attachments', () => {
     expect(parseFiles([{ name: 'ok.pdf', data: pdf(FILE_MAX) }])).toHaveLength(1);
     expect(parseFiles([{ name: 'big.pdf', data: pdf(FILE_MAX + 1) }])).toBe('too_big');
     expect(parseFiles([{ name: 'big.pdf', data: pdf(5_200_000) }])).toBe('too_big');
+    // سقف برای جمع پیوست‌های یک پیام است، نه هر فایل جدا
+    expect(parseFiles([{ name: 'a.pdf', data: pdf(2_500_000) }, { name: 'b.pdf', data: pdf(2_500_000) }])).toHaveLength(2);
+    expect(parseFiles([{ name: 'a.pdf', data: pdf(2_500_000) }, { name: 'b.pdf', data: pdf(2_500_001) }])).toBe('too_big');
     expect(parseFiles([{ name: 'x.exe', data: b64('MZ') }])).toBe('bad_file');
     expect(parseFiles(undefined)).toEqual([]);
   });
