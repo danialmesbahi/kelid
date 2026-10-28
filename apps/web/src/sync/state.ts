@@ -10,7 +10,6 @@ const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());
 let unwatch: (() => void) | null = null;
 const billingSubs = new Set<() => void>();
-const supportSubs = new Set<() => void>();
 const api = syncApiFromEnv();
 
 function setEngine(next: SyncEngine | null) {
@@ -20,8 +19,7 @@ function setEngine(next: SyncEngine | null) {
   if (next) {
     const a = next.onStatus(changed);
     const b = next.onBilling(() => billingSubs.forEach((f) => f()));
-    const c = next.onSupport(() => supportSubs.forEach((f) => f()));
-    unwatch = () => (a(), b(), c());
+    unwatch = () => (a(), b());
   } else unwatch = null;
   changed();
 }
@@ -47,12 +45,6 @@ export function startSync(target: SyncTarget, withToken: <T>(fn: (token: string)
 export function onLiveBilling(fn: () => void): () => void {
   billingSubs.add(fn);
   return () => void billingSubs.delete(fn);
-}
-
-/** خبر زندهٔ سرور که تیم کلید به تیکتی از این دفتر پاسخ داد. */
-export function onLiveSupport(fn: () => void): () => void {
-  supportSubs.add(fn);
-  return () => void supportSubs.delete(fn);
 }
 
 /** null یعنی همگام‌سازی روشن نیست (بدون سرور، بدون ورود، یا حافظهٔ موقت). */

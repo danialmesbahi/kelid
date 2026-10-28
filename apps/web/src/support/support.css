@@ -82,10 +82,52 @@
   flex: none;
 }
 
+.tk-row.done .tk-ic {
+  background: var(--sel);
+  color: var(--ok);
+}
+.tk-row.done .tk-subj {
+  font-weight: 600;
+  color: var(--ink2);
+}
+.tk-h {
+  margin: 6px 4px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mute);
+}
+.tk-empty-ic {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+  background: var(--pri-tint);
+  color: var(--pri-text);
+}
+
+/* یک تیکت: سربرگ، و درخواست و پاسخ‌ها مثل نامه‌های پشت هم (نه حباب چت) */
+.tk-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+}
+.tk-head .tk-ic {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--pri-tint);
+  color: var(--pri-text);
+}
+.tk-head .tag {
+  flex: none;
+}
 .tk-title {
   overflow-wrap: anywhere;
 }
-.tk-thread {
+.tk-letters {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -93,41 +135,81 @@
   flex-direction: column;
   gap: 12px;
 }
-.tk-msg {
-  max-width: min(620px, 88%);
-  align-self: flex-start;
+.tk-letter {
+  padding: 16px 20px 18px;
+}
+.tk-letter.kelid {
+  border-color: var(--sel-line);
+  background: var(--sel);
+}
+.tk-from {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  border-radius: 18px 18px 18px 6px;
-  background: var(--paper);
-  border: 1px solid var(--line);
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
-.tk-msg.kelid {
-  align-self: flex-end;
-  border-radius: 18px 18px 6px 18px;
-  background: var(--pri-tint);
-  border-color: transparent;
+.tk-letter.kelid .tk-from {
+  border-bottom-color: var(--sel-line);
 }
-.tk-msg.kelid .tk-who {
+.tk-letter.kelid .tk-from .b {
   color: var(--pri-text);
 }
-.tk-msg p {
+.tk-av {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--sunk);
+  color: var(--ink2);
+}
+.tk-av .logo img {
+  display: block;
+  border-radius: 9px;
+}
+.tk-letter p {
   margin: 0;
-  line-height: 1.95;
+  line-height: 2;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.tk-who {
-  color: var(--ink2);
-}
 
+.tk-next,
+.tk-done {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 16px 20px;
+}
+.tk-done {
+  background: var(--paper2);
+}
+.tk-done-ic {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--pri-tint);
+  color: var(--ok);
+}
 .tk-reply {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px;
+  padding: 16px 20px;
+}
+.tk-close-quiet {
+  align-self: center;
+  height: 36px;
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
 @media (max-width: 767px) {
@@ -156,7 +238,35 @@
     padding: 0 9px;
     font-size: 12.5px;
   }
-  .tk-msg {
-    max-width: 92%;
+  .tk-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px 12px;
+    padding: 14px 16px;
+  }
+  .tk-head .tk-ic {
+    align-self: start;
+  }
+  .tk-head .tag {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .tk-letter {
+    padding: 14px 16px 16px;
+  }
+  .tk-next,
+  .tk-done,
+  .tk-reply {
+    padding: 14px 16px;
+  }
+  .tk-next > .rw,
+  .tk-done > .btn {
+    width: 100%;
+  }
+  .tk-next > .rw .btn {
+    flex: 1;
+  }
+  .tk-done > .btn {
+    flex: 1;
   }
 }

@@ -8,7 +8,7 @@ import { normalizePhone } from '../auth/phone';
 import { RateLimiter } from '../auth/rateLimit';
 import { accessExpiry, deriveKey, readToken, signToken } from '../auth/tokens';
 import { securityHeaders } from '../headers';
-import { announceSupport, type LiveHub } from '../sync/live';
+import type { LiveHub } from '../sync/live';
 import { seatsUsed } from '../billing/routes';
 import { checkTotp } from './totp';
 
@@ -537,7 +537,6 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
         );
         if (!rowCount) return null;
         await db.query('insert into support_messages (office_id, id, ticket_id, admin_id, body) values ($1, $2, $3, $4, $5)', [office, randomUUID(), id, req.vendor!.id, text]);
-        await announceSupport(db, office);
         return ticketDetail(db, office, id);
       });
       if (!out) return reply.status(404).send({ error: 'not_found' });
@@ -554,7 +553,6 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
       const out = await withVendor(pool, async (db) => {
         const { rowCount } = await db.query('update support_tickets set status = $3, updated_at = now() where office_id = $1 and id = $2', [office, id, status]);
         if (!rowCount) return null;
-        await announceSupport(db, office);
         return ticketDetail(db, office, id);
       });
       if (!out) return reply.status(404).send({ error: 'not_found' });

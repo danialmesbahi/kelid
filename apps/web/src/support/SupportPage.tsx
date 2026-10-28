@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
-import { Icon, Skeleton } from '@kelid/ui';
+import { Icon, Logo, Skeleton } from '@kelid/ui';
 import { newId, toFaDigits } from '@kelid/core';
 import { useAuth } from '../auth/AuthContext';
 import { seen } from '../auth/AccountSection';
@@ -9,8 +9,8 @@ import { useSlow } from '../data';
 import { useFirstVisit } from '../layout/useFirstVisit';
 import { useToast } from '../layout/Toasts';
 import { NewTicketDialog } from './NewTicketDialog';
-import { STATUS, ticketFailText, topicLabel } from './topics';
-import { onSupportChange, setSupportUnread } from './unread';
+import { STATUS, ticketFailText, topicIcon, topicLabel } from './topics';
+import { setSupportUnread } from './unread';
 import './support.css';
 
 // آخرین دادهٔ دیده‌شده تا برگشتن به پشتیبانی فوری باشد؛ تازه‌اش پشت صحنه می‌آید.
@@ -32,7 +32,35 @@ function NeedAccount() {
   );
 }
 
-/** پشتیبانی: تیکت‌های همین کاربر با تیم کلید. */
+/** یک ردیف فهرست: موضوع، عنوان، آخرین پیام و وضعیت. */
+function TicketRow({ t }: { t: Ticket }) {
+  const cls = ['tk-row', 'hov', t.unread && 'new', t.status === 'closed' && 'done'].filter(Boolean).join(' ');
+  return (
+    <Link viewTransition to={`/support/${t.id}`} className={cls}>
+      <span className="tk-ic" aria-hidden="true">
+        <Icon name={t.status === 'closed' ? 'check' : topicIcon(t.topic)} />
+      </span>
+      <span className="col sp" style={{ gap: 3, minWidth: 0 }}>
+        <span className="rw" style={{ gap: 8, minWidth: 0 }}>
+          <span className="tk-subj">{t.subject}</span>
+          {t.unread && <span className="tag ok tk-newtag">پاسخ تازه</span>}
+        </span>
+        <span className="tk-last sm mute">
+          {t.last.from === 'support' ? 'پشتیبانی: ' : 'شما: '}
+          {t.last.body}
+        </span>
+      </span>
+      <span className="col tk-side">
+        <span className={`tag ${STATUS[t.status].tone}`}>{STATUS[t.status].label}</span>
+        <span className="xs mute">
+          {topicLabel(t.topic)} · {seen(t.updatedAt)}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+/** پشتیبانی: تیکت‌های همین کاربر با تیم کلید؛ در جریان‌ها بالا، حل‌شده‌ها پایین. */
 export function SupportPage() {
   const { status, api, withToken } = useAuth();
   const first = useFirstVisit('support');
@@ -43,21 +71,21 @@ export function SupportPage() {
 
   useEffect(() => {
     if (!api || status !== 'signedIn') return;
-    const load = () =>
-      void withToken((t) => api.tickets(t)).then(
-        (l) => {
-          listCache = l;
-          setList(l);
-          setFailed(null);
-          setSupportUnread(l.filter((x) => x.unread).length);
-        },
-        (e: unknown) => setFailed(e instanceof ApiError ? e : new ApiError('server')),
-      );
-    load();
-    return onSupportChange(load);
+    void withToken((t) => api.tickets(t)).then(
+      (l) => {
+        listCache = l;
+        setList(l);
+        setFailed(null);
+        setSupportUnread(l.filter((x) => x.unread).length);
+      },
+      (e: unknown) => setFailed(e instanceof ApiError ? e : new ApiError('server')),
+    );
   }, [api, status, withToken]);
 
   if (status !== 'signedIn') return <NeedAccount />;
+
+  const active = list?.filter((t) => t.status !== 'closed') ?? [];
+  const done = list?.filter((t) => t.status === 'closed') ?? [];
 
   return (
     <div className={first ? 'bd enter' : 'bd'} style={{ paddingTop: 26, maxWidth: 900 }}>
@@ -86,37 +114,32 @@ export function SupportPage() {
       )}
       {list && list.length === 0 && (
         <div className="card tk-empty">
-          <Icon name="msg" size="l" />
+          <span className="tk-empty-ic" aria-hidden="true">
+            <Icon name="msg" size="l" />
+          </span>
           <span className="t2">هنوز تیکتی نزده‌اید</span>
           <span className="mute sm">هر وقت سؤال یا مشکلی داشتید، یک تیکت بزنید؛ جوابش همین‌جا می‌آید.</span>
         </div>
       )}
-      {list && list.length > 0 && (
-        <div className="card tk-list stagger">
-          {list.map((t) => (
-            <Link key={t.id} viewTransition to={`/support/${t.id}`} className={t.unread ? 'tk-row hov new' : 'tk-row hov'}>
-              <span className="tk-ic" aria-hidden="true">
-                <Icon name="msg" />
-              </span>
-              <span className="col sp" style={{ gap: 3, minWidth: 0 }}>
-                <span className="rw" style={{ gap: 8, minWidth: 0 }}>
-                  <span className="tk-subj">{t.subject}</span>
-                  {t.unread && <span className="tag ok tk-newtag">پاسخ تازه</span>}
-                </span>
-                <span className="tk-last sm mute">
-                  {t.last.from === 'support' ? 'پشتیبانی: ' : 'شما: '}
-                  {t.last.body}
-                </span>
-              </span>
-              <span className="col tk-side">
-                <span className={`tag ${STATUS[t.status].tone}`}>{STATUS[t.status].label}</span>
-                <span className="xs mute">
-                  {topicLabel(t.topic)} · {seen(t.updatedAt)}
-                </span>
-              </span>
-            </Link>
-          ))}
-        </div>
+      {active.length > 0 && (
+        <section className="col" style={{ gap: 10 }}>
+          <h2 className="tk-h">در جریان</h2>
+          <div className="card tk-list stagger">
+            {active.map((t) => (
+              <TicketRow key={t.id} t={t} />
+            ))}
+          </div>
+        </section>
+      )}
+      {done.length > 0 && (
+        <section className="col" style={{ gap: 10 }}>
+          <h2 className="tk-h">حل‌شده</h2>
+          <div className="card tk-list stagger">
+            {done.map((t) => (
+              <TicketRow key={t.id} t={t} />
+            ))}
+          </div>
+        </section>
       )}
       {creating && <NewTicketDialog onClose={() => setCreating(false)} />}
     </div>
@@ -129,18 +152,20 @@ export function TicketRoute() {
   return <TicketPage key={id} id={id} />;
 }
 
-/** یک تیکت: رشتهٔ پیام‌ها، پاسخ و بستن. */
+/** یک تیکت: درخواست و پاسخ‌ها مثل نامه، نه چت؛ بسته‌شده یعنی حل شد و دیگر پیام نمی‌گیرد. */
 function TicketPage({ id }: { id: string }) {
   const { status, api, withToken } = useAuth();
   const toast = useToast();
   const [thread, setThread] = useState(() => threadCache.get(id) ?? null);
   const [failed, setFailed] = useState<ApiError | null>(null);
+  const [writing, setWriting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const slow = useSlow(!thread && !failed);
   const msgId = useRef(newId());
-  const endRef = useRef<HTMLDivElement>(null);
 
   const show = useCallback(
     (t: TicketThread) => {
@@ -153,24 +178,16 @@ function TicketPage({ id }: { id: string }) {
 
   useEffect(() => {
     if (!api || status !== 'signedIn') return;
-    const load = () =>
-      void withToken((t) => api.ticket(t, id)).then(
-        (t) => {
-          show(t);
-          setFailed(null);
-          // باز کردن تیکت پاسخش را دیده‌شده کرد؛ نشان کنار «پشتیبانی» همان لحظه درست می‌شود.
-          void withToken((tk) => api.unreadTickets(tk)).then(setSupportUnread, () => {});
-        },
-        (e: unknown) => setFailed(e instanceof ApiError ? e : new ApiError('server')),
-      );
-    load();
-    return onSupportChange(load);
+    void withToken((t) => api.ticket(t, id)).then(
+      (t) => {
+        show(t);
+        setFailed(null);
+        // باز کردن تیکت پاسخش را دیده‌شده کرد؛ نشان کنار «پشتیبانی» همان لحظه درست می‌شود.
+        void withToken((tk) => api.unreadTickets(tk)).then(setSupportUnread, () => {});
+      },
+      (e: unknown) => setFailed(e instanceof ApiError ? e : new ApiError('server')),
+    );
   }, [api, status, withToken, id, show]);
-
-  const count = thread?.messages.length ?? 0;
-  useEffect(() => {
-    if (count) endRef.current?.scrollIntoView({ block: 'end' });
-  }, [count]);
 
   if (status !== 'signedIn') return <NeedAccount />;
 
@@ -181,32 +198,44 @@ function TicketPage({ id }: { id: string }) {
       setError('چند کلمه بنویسید.');
       return;
     }
-    if (!api || sending) return;
-    setSending(true);
+    if (!api || busy) return;
+    setBusy(true);
     try {
       show(await withToken((t) => api.replyTicket(t, id, { id: msgId.current, body })));
       msgId.current = newId();
       setDraft('');
       setError('');
+      setWriting(false);
     } catch (err) {
-      setError(ticketFailText(err instanceof ApiError ? err : null));
+      const apiErr = err instanceof ApiError ? err : null;
+      setError(ticketFailText(apiErr));
+      // تیکت را جای دیگری بسته‌اند؛ همان حالت تازه دیده شود.
+      if (apiErr?.code === 'closed') void withToken((t) => api.ticket(t, id)).then(show, () => {});
     }
-    setSending(false);
+    setBusy(false);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Ctrl+Enter می‌فرستد؛ Enter تنها خط تازه است تا پیام بلند راحت نوشته شود.
+    // Ctrl+Enter می‌فرستد؛ Enter تنها خط تازه است تا توضیح بلند راحت نوشته شود.
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void send();
+    if (e.key === 'Escape' && !draft.trim()) {
+      e.stopPropagation();
+      setWriting(false);
+    }
   };
 
   const close = async () => {
-    if (!api) return;
+    if (!api || busy) return;
+    setBusy(true);
     try {
       show(await withToken((t) => api.closeTicket(t, id)));
-      toast('تیکت بسته شد. اگر باز هم پیام بدهید، دوباره باز می‌شود.');
+      setConfirming(false);
+      setWriting(false);
+      toast('تیکت بسته شد. خوشحالیم که مشکل حل شد.');
     } catch (err) {
       toast(ticketFailText(err instanceof ApiError ? err : null));
     }
+    setBusy(false);
   };
 
   const back = (
@@ -234,9 +263,8 @@ function TicketPage({ id }: { id: string }) {
         ) : (
           slow && (
             <div className="col" style={{ gap: 12 }} aria-hidden="true">
-              <Skeleton w="50%" h={34} />
-              <Skeleton h={90} r={18} />
-              <Skeleton h={70} r={18} />
+              <Skeleton h={96} r={18} />
+              <Skeleton h={120} r={18} />
             </div>
           )
         )}
@@ -245,67 +273,142 @@ function TicketPage({ id }: { id: string }) {
   }
 
   const t = thread.ticket;
+  const closed = t.status === 'closed';
   return (
     <div className="bd tk-page" style={{ paddingTop: 22, maxWidth: 900 }}>
-      <div className="rw" style={{ gap: 10, flexWrap: 'wrap' }}>
-        {back}
-        <span className="sp" />
-        {t.status !== 'closed' && (
-          <button type="button" className="btn btn-g" onClick={() => void close()}>
-            <Icon name="check" size="s" />
-            بستن تیکت
-          </button>
-        )}
-      </div>
-      <div className="col" style={{ gap: 8 }}>
-        <h1 className="t1 tk-title">{t.subject}</h1>
-        <span className="rw sm mute" style={{ gap: 8, flexWrap: 'wrap' }}>
-          <span className={`tag ${STATUS[t.status].tone}`}>{STATUS[t.status].label}</span>
-          {topicLabel(t.topic)} · {seen(t.createdAt)}
+      {back}
+      <header className="card tk-head">
+        <span className="tk-ic" aria-hidden="true">
+          <Icon name={topicIcon(t.topic)} />
         </span>
-      </div>
+        <div className="col sp" style={{ gap: 6, minWidth: 0 }}>
+          <h1 className="t2 tk-title">{t.subject}</h1>
+          <span className="xs mute">
+            {topicLabel(t.topic)} · فرستاده {seen(t.createdAt)}
+          </span>
+        </div>
+        <span className={`tag ${STATUS[t.status].tone}`}>
+          {closed && <Icon name="check" size="s" />}
+          {STATUS[t.status].label}
+        </span>
+      </header>
 
-      <ol className="tk-thread" aria-label="پیام‌ها">
-        {thread.messages.map((m) => (
-          <li key={m.id} className={m.from === 'support' ? 'tk-msg kelid' : 'tk-msg'}>
-            <span className="xs b tk-who">{m.from === 'support' ? 'پشتیبانی کلید' : 'شما'}</span>
+      <ol className="tk-letters" aria-label="درخواست و پاسخ‌ها">
+        {thread.messages.map((m, i) => (
+          <li key={m.id} className={m.from === 'support' ? 'card tk-letter kelid' : 'card tk-letter'}>
+            <div className="tk-from">
+              <span className="tk-av" aria-hidden="true">
+                {m.from === 'support' ? <Logo size={30} /> : <Icon name="user" size="s" />}
+              </span>
+              <span className="b sm">{m.from === 'support' ? 'پاسخ پشتیبانی کلید' : i === 0 ? 'درخواست شما' : 'توضیح شما'}</span>
+              <span className="sp" />
+              <span className="xs mute">{seen(m.createdAt)}</span>
+            </div>
             <p>{m.body}</p>
-            <span className="xs mute">{seen(m.createdAt)}</span>
           </li>
         ))}
       </ol>
-      <div ref={endRef} />
 
-      <form className="card tk-reply" onSubmit={(e) => void send(e)}>
-        {t.status === 'closed' && <span className="xs mute">این تیکت بسته است؛ با پیام تازه دوباره باز می‌شود.</span>}
-        <textarea
-          aria-label="پاسخ شما"
-          className="fld"
-          rows={3}
-          maxLength={4000}
-          placeholder="پاسخ یا توضیح بیشتر…"
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setError('');
-          }}
-          onKeyDown={onKeyDown}
-          style={{ lineHeight: 1.9, resize: 'vertical' }}
-        />
-        <div className="rw" style={{ gap: 10 }}>
-          {error && (
-            <span role="alert" className="tag bad">
-              {error}
-            </span>
-          )}
-          <span className="sp" />
-          {draft.length > 3800 && <span className="xs mute num">{toFaDigits(4000 - draft.length)}</span>}
-          <button type="submit" className="btn btn-p" disabled={sending}>
-            <Icon name="send" size="s" />
-            فرستادن
+      {closed ? (
+        <div className="card tk-done">
+          <span className="tk-done-ic" aria-hidden="true">
+            <Icon name="check" thick />
+          </span>
+          <div className="col sp" style={{ gap: 2, minWidth: 200 }}>
+            <span className="b">این تیکت بسته شده و مشکلش حل شده است.</span>
+            <span className="sm mute">سؤال یا مشکل تازه‌ای دارید؟ یک تیکت تازه بزنید.</span>
+          </div>
+          <button type="button" className="btn btn-s" onClick={() => setCreating(true)}>
+            <Icon name="plus" size="s" thick />
+            تیکت تازه
           </button>
         </div>
-      </form>
+      ) : writing ? (
+        <form className="card tk-reply" onSubmit={(e) => void send(e)}>
+          <span className="b sm">توضیح بیشتر</span>
+          <textarea
+            aria-label="توضیح بیشتر"
+            className="fld"
+            rows={4}
+            maxLength={4000}
+            autoFocus
+            placeholder="هر چه به حل مشکل کمک می‌کند بنویسید…"
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setError('');
+            }}
+            onKeyDown={onKeyDown}
+            style={{ lineHeight: 1.9, resize: 'vertical' }}
+          />
+          <div className="rw" style={{ gap: 10, flexWrap: 'wrap' }}>
+            {error && (
+              <span role="alert" className="tag bad">
+                {error}
+              </span>
+            )}
+            <span className="sp" />
+            {draft.length > 3800 && <span className="xs mute num">{toFaDigits(4000 - draft.length)}</span>}
+            <button type="button" className="btn btn-g" onClick={() => setWriting(false)}>
+              انصراف
+            </button>
+            <button type="submit" className="btn btn-p" disabled={busy}>
+              <Icon name="send" size="s" />
+              فرستادن
+            </button>
+          </div>
+        </form>
+      ) : confirming ? (
+        <div className="card tk-next" role="alert">
+          <div className="col sp" style={{ gap: 2, minWidth: 200 }}>
+            <span className="b">تیکت بسته شود؟</span>
+            <span className="sm mute">بستن یعنی مشکل حل شده؛ بعد از آن دیگر نمی‌شود به این تیکت پیام داد.</span>
+          </div>
+          <div className="rw" style={{ gap: 8 }}>
+            <button type="button" className="btn btn-g" onClick={() => setConfirming(false)}>
+              نه
+            </button>
+            <button type="button" className="btn btn-p" disabled={busy} onClick={() => void close()}>
+              <Icon name="check" size="s" />
+              بله، ببند
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="card tk-next">
+          <div className="col sp" style={{ gap: 2, minWidth: 200 }}>
+            {t.status === 'answered' ? (
+              <>
+                <span className="b">مشکل حل شد؟</span>
+                <span className="sm mute">اگر جواب کافی بود تیکت را ببندید؛ اگر نه، توضیح بیشتری بنویسید.</span>
+              </>
+            ) : (
+              <>
+                <span className="b">درخواستتان به تیم کلید رسید.</span>
+                <span className="sm mute">جواب همین‌جا می‌آید و کنار «پشتیبانی» نشان پاسخ تازه روشن می‌شود.</span>
+              </>
+            )}
+          </div>
+          <div className="rw" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-s" onClick={() => setWriting(true)}>
+              <Icon name="edit" size="s" />
+              توضیح بیشتر
+            </button>
+            {t.status === 'answered' && (
+              <button type="button" className="btn btn-p" onClick={() => setConfirming(true)}>
+                <Icon name="check" size="s" />
+                حل شد، ببند
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {!closed && t.status === 'open' && !writing && !confirming && (
+        <button type="button" className="btn btn-g tk-close-quiet" onClick={() => setConfirming(true)}>
+          مشکل خودش حل شد؟ بستن تیکت
+        </button>
+      )}
+      {creating && <NewTicketDialog onClose={() => setCreating(false)} />}
     </div>
   );
 }

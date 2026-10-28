@@ -108,6 +108,8 @@ export type ApiErrorCode =
   | 'no_ai' | 'ai_failed' | 'bad_audio'
   // دستگاه‌های دفتر به سقف نفرات اشتراک رسیده؛ ApiError.limit فهرست و بلیت ادامه را دارد.
   | 'device_limit'
+  // تیکتی که بسته شده (یعنی حل شده) پیام تازه نمی‌گیرد.
+  | 'closed'
   // فقط سمت برنامه: توکن مال دفتر دیگری است (کاربر دفترش را عوض کرد)؛ همگام‌سازی دفتر قبلی همان‌جا می‌ایستد.
   | 'office_changed'
   | 'offline' | 'server';
@@ -241,7 +243,7 @@ export interface VoiceFill<F extends VoiceForm = VoiceForm> {
 const CODES: readonly string[] = [
   'bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo',
   'forbidden', 'no_seat', 'member', 'last_manager', 'self', 'not_alone',
-  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit', 'no_ai', 'ai_failed', 'bad_audio',
+  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit', 'no_ai', 'ai_failed', 'bad_audio', 'closed',
 ];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
@@ -708,6 +710,7 @@ export function demoApi(): AuthApi {
       const t = list.find((x) => x.ticket.id === id);
       if (!t) throw new ApiError('not_found');
       if (!t.messages.some((x) => x.id === m.id)) {
+        if (t.ticket.status === 'closed') throw new ApiError('closed');
         const at = new Date().toISOString();
         t.messages.push({ id: m.id, body: m.body.trim(), from: 'user', createdAt: at });
         t.ticket = { ...t.ticket, status: 'open', unread: false, updatedAt: at, last: { body: m.body.trim(), from: 'user' } };
@@ -756,14 +759,6 @@ function saveDemoTickets(list: TicketThread[]) {
   } catch {
     // پیش‌نمایش بی حافظه هم کار می‌کند، فقط چیزی نمی‌ماند.
   }
-  demoTicketListeners.forEach((f) => f());
-}
-
-const demoTicketListeners = new Set<() => void>();
-/** پیش‌نمایش: «تیم کلید جواب داد» به‌جای خبر زندهٔ سرور. */
-export function onDemoTicket(fn: () => void): () => void {
-  demoTicketListeners.add(fn);
-  return () => void demoTicketListeners.delete(fn);
 }
 
 function demoAnswerLater(id: string) {

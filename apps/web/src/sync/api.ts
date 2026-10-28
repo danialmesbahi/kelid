@@ -30,8 +30,6 @@ export interface LiveEvents {
   change(): void;
   /** اشتراک دفتر عوض شد (تمدید، تعلیق، پرداخت روی دستگاه دیگر): مجوز تازه بگیر. */
   billing?(): void;
-  /** تیم کلید به تیکتی از این دفتر پاسخ داد. */
-  support?(): void;
 }
 
 // سرور هر ۲۵ ثانیه یک خط خالی می‌فرستد؛ سکوت طولانی‌تر یعنی اتصال بی‌صدا مرده (وای‌فای عوض شد، پراکسی بست).
@@ -105,7 +103,6 @@ export function httpSyncApi(base: string): SyncApi {
             for (let i = buf.indexOf('\n\n'); i >= 0; i = buf.indexOf('\n\n')) {
               const block = buf.slice(0, i);
               if (/^event: billing$/m.test(block)) on.billing?.();
-              else if (/^event: support$/m.test(block)) on.support?.();
               else if (/^data:/m.test(block)) on.change();
               buf = buf.slice(i + 2);
             }

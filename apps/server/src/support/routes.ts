@@ -159,19 +159,21 @@ export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret }: {
     const text = b.body.trim();
     if (!text) return reply.status(400).send({ error: 'empty' });
     const out = await withOffice(pool, off, async (db) => {
-      const own = await db.query('select 1 from support_tickets where id = $1 and user_id = $2 for update', [id, sub]);
-      if (!own.rowCount) return null;
+      const own = await db.query<{ status: string }>('select status from support_tickets where id = $1 and user_id = $2 for update', [id, sub]);
+      if (!own.rows[0]) return null;
       const dup = await db.query('select 1 from support_messages where id = $1', [b.id]);
       if (!dup.rowCount) {
+        // بسته یعنی مشکل حل شد؛ کاربر دوباره بازش نمی‌کند و برای موضوع تازه تیکت تازه می‌زند.
+        if (own.rows[0].status === 'closed') return 'closed' as const;
         const wait = messagesByUser.take(sub);
         if (wait) return wait;
         await db.query('insert into support_messages (id, ticket_id, user_id, body) values ($1, $2, $3, $4)', [b.id, id, sub, text]);
-        // پیام تازهٔ کاربر تیکت بسته را هم دوباره باز می‌کند تا در صف پشتیبانی دیده شود.
         await db.query("update support_tickets set status = 'open', unread = false, updated_at = now() where id = $1", [id]);
       }
       return detail(db, sub, id);
     });
     if (typeof out === 'number') return limited(reply, out);
+    if (out === 'closed') return reply.status(409).send({ error: 'closed' });
     if (!out) return reply.status(404).send({ error: 'not_found' });
     return out;
   });

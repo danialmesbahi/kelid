@@ -1293,13 +1293,19 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(seen.messages.map((m: { from: string }) => m.from)).toEqual(['user', 'support']);
       expect((await get(a, '/support/unread', s1.accessToken)).json()).toEqual({ unread: 0 });
 
-      // بستن، و پیام تازهٔ کاربر دوباره بازش می‌کند
-      expect((await post(a, `/support/tickets/${tid}/close`, {}, s1.accessToken)).json().ticket.status).toBe('closed');
+      // توضیح بیشتر کاربر تیکت را به صف باز برمی‌گرداند؛ همان پیام دوباره، تکراری نمی‌شود
       const mid = randomUUID();
       const again = await post(a, `/support/tickets/${tid}/messages`, { id: mid, body: 'یک سؤال دیگر' }, s1.accessToken);
       expect(again.json()).toMatchObject({ ticket: { status: 'open', last: { from: 'user' } } });
       expect((await post(a, `/support/tickets/${tid}/messages`, { id: mid, body: 'یک سؤال دیگر' }, s1.accessToken)).json().messages).toHaveLength(3);
       expect((await post(a, `/support/tickets/${tid}/messages`, { id: randomUUID(), body: 'x' }, s2.accessToken)).statusCode).toBe(404);
+
+      // بسته یعنی حل شد: کاربر دیگر پیامی نمی‌فرستد و تیکت باز نمی‌شود
+      expect((await post(a, `/support/tickets/${tid}/close`, {}, s1.accessToken)).json().ticket.status).toBe('closed');
+      const late = await post(a, `/support/tickets/${tid}/messages`, { id: randomUUID(), body: 'باز کن' }, s1.accessToken);
+      expect(late.statusCode).toBe(409);
+      expect(late.json()).toEqual({ error: 'closed' });
+      expect((await post(a, `/support/tickets/${tid}/messages`, { id: mid, body: 'یک سؤال دیگر' }, s1.accessToken)).json().ticket.status).toBe('closed');
       expect((await post(a, `/admin/tickets/${s1.office.id}/${tid}/status`, { status: 'closed' }, token)).json().ticket.status).toBe('closed');
       await a.close();
     });
