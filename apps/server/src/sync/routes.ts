@@ -1,3 +1,4 @@
+import cluster from 'node:cluster';
 import type { FastifyInstance } from 'fastify';
 import { applyServerChange, decodeHlc, Hlc, SYNC_KINDS, type EntityState, type SyncKind } from '@kelid/core/sync';
 import { authGuard, type AuthOptions } from '../auth/routes';
@@ -112,7 +113,8 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, hub, p
   const requireAuth = authGuard(pool, jwtSecret);
   // بعد از پایان اشتراک فقط خواندن: تغییرهای دستگاه در صفش می‌ماند تا تمدید، چیزی گم نمی‌شود.
   const writable = [requireAuth, requireActive(pool)];
-  const serverClock = new Hlc('srv');
+  // هر پروسهٔ cluster گره جدای خودش را دارد تا دو زمان سرور هیچ‌وقت یکی نشوند.
+  const serverClock = new Hlc(cluster.worker ? `srv${cluster.worker.id.toString(36)}` : 'srv');
 
   app.post('/sync/push', { preHandler: writable, bodyLimit: 8 * 1024 * 1024, schema: pushSchema }, async (req) => {
     const changes = (req.body as { changes: Change[] }).changes;

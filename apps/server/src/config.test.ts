@@ -12,6 +12,7 @@ describe('loadConfig', () => {
     expect(loadConfig(base)).toEqual({
       port: 3000,
       host: '127.0.0.1',
+      workers: 1,
       databaseUrl: url,
       migrationDatabaseUrl: url,
       logLevel: 'info',
@@ -52,6 +53,15 @@ describe('loadConfig', () => {
       stt: { provider: 'avanegar', token: 't', url: 'https://partai.gw.isahab.ir/avanegar/v2/avanegar/request' },
     });
     expect(() => loadConfig({ ...base, AI_PROVIDER: 'gemini', AI_API_KEY: 'k', STT_PROVIDER: 'avanegar', AVANEGAR_TOKEN: 't' })).toThrow(ConfigError);
+  });
+
+  it('runs one process per core in production unless told otherwise', () => {
+    const prod = { ...base, ...prodBilling, NODE_ENV: 'production', SMS_PROVIDER: 'kavenegar', KAVENEGAR_API_KEY: 'k', KAVENEGAR_TEMPLATE: 't' };
+    expect(loadConfig(prod).workers).toBeGreaterThanOrEqual(1);
+    expect(loadConfig(prod).workers).toBeLessThanOrEqual(8);
+    expect(loadConfig({ ...prod, WEB_CONCURRENCY: '3' }).workers).toBe(3);
+    expect(() => loadConfig({ ...base, WEB_CONCURRENCY: '0' })).toThrow(/WEB_CONCURRENCY/);
+    expect(() => loadConfig({ ...base, WEB_CONCURRENCY: 'many' })).toThrow(/WEB_CONCURRENCY/);
   });
 
   it('uses a separate migration role when given', () => {

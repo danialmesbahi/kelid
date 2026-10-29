@@ -1,5 +1,6 @@
+import cluster from 'node:cluster';
 import { buildApp } from './app';
-import { ConfigError, loadConfig } from './config';
+import { ConfigError, loadConfig, type Config } from './config';
 import { assertSafeRole, createPool } from './db';
 import { migrate } from './migrations';
 import { ConsoleSms, KavenegarSms } from './auth/sms';
@@ -9,10 +10,44 @@ import { describeAi, voiceAi } from './ai/voice';
 
 async function main() {
   const config = loadConfig();
+  if (cluster.isWorker) return serve(config, 0);
 
+  // migration فقط یک بار و پیش از بالا آمدن هر پروسه‌ای.
   const owner = createPool(config.migrationDatabaseUrl);
   const applied = await migrate(owner).finally(() => owner.end());
+  if (config.workers > 1) return supervise(config.workers, applied);
+  return serve(config, applied);
+}
 
+/**
+ * چند پروسه روی یک پورت؛ سیستم‌عامل اتصال‌ها را بینشان پخش می‌کند. هر چه بین دستگاه‌ها مشترک است در Postgres است
+ * (اتصال زنده با LISTEN/NOTIFY، سقف هر شماره، قفل همگام‌سازی)؛ فقط سقف‌های IP در حافظهٔ هر پروسه‌اند.
+ */
+function supervise(workers: number, applied: number) {
+  if (applied) console.log(`${applied} migration(s) applied`);
+  let stopping = false;
+  let up = 0;
+  const fork = () => cluster.fork().once('listening', () => up++ === 0 && console.log(`kelid server: ${workers} processes`));
+  cluster.on('exit', (w, code, signal) => {
+    if (stopping) {
+      if (!Object.keys(cluster.workers ?? {}).length) process.exit(0);
+      return;
+    }
+    // پروسه‌ای که حتی یک بار بالا نیامد (تنظیمات، دیتابیس) دوباره هم نمی‌آید؛ پیامش را خودش چاپ کرده است.
+    if (!up) process.exit(1);
+    console.error(`server process ${w.process.pid} exited (${signal ?? code}); starting another`);
+    setTimeout(fork, 1_000);
+  });
+  for (let i = 0; i < workers; i++) fork();
+  const stop = () => {
+    stopping = true;
+    for (const w of Object.values(cluster.workers ?? {})) w?.process.kill('SIGTERM');
+  };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
+}
+
+async function serve(config: Config, applied: number) {
   const pool = createPool(config.databaseUrl);
   const { ownsTables } = await assertSafeRole(pool);
 
