@@ -17,6 +17,22 @@ export function createPool(url: string): Pool {
   });
 }
 
+/** ثانیه‌هایی که به برنامه گفته می‌شود وقتی سرور شلوغ است صبر کند. */
+export const BUSY_RETRY_AFTER = 5;
+
+/** کار پذیرفته نشد چون سرور زیر بار است؛ app.ts آن را 503 «busy» می‌کند، نه خطای داخلی. */
+export class BusyError extends Error {
+  readonly busy = true;
+  constructor() {
+    super('server busy');
+  }
+}
+
+/** شلوغی: نوبت رمز پر، یا هیچ اتصال دیتابیسی در connectionTimeoutMillis آزاد نشد (پیام خود pg-pool). */
+export function isBusy(e: unknown): boolean {
+  return e instanceof BusyError || (e instanceof Error && e.message === 'timeout exceeded when trying to connect');
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
