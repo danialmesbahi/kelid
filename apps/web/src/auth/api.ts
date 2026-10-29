@@ -108,6 +108,8 @@ export type ApiErrorCode =
   | 'no_ai' | 'ai_failed' | 'bad_audio'
   // دستگاه‌های دفتر به سقف نفرات اشتراک رسیده؛ ApiError.limit فهرست و بلیت ادامه را دارد.
   | 'device_limit'
+  // تیکتی که بسته شده پیام تازه نمی‌گیرد؛ پیوستی که نوعش پذیرفته نیست یا از سقف حجم بزرگ‌تر است.
+  | 'closed' | 'bad_file' | 'too_big' | 'quota'
   // فقط سمت برنامه: توکن مال دفتر دیگری است (کاربر دفترش را عوض کرد)؛ همگام‌سازی دفتر قبلی همان‌جا می‌ایستد.
   | 'office_changed'
   | 'offline' | 'server';
@@ -152,11 +154,26 @@ export interface Ticket {
   last: { body: string; from: 'user' | 'support' };
 }
 
+/** پیوست یک پیام؛ بایت‌ها جدا و فقط وقتی کسی بازش کرد می‌آیند. */
+export interface TicketFile {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/** پیوستی که دستگاه می‌فرستد؛ data = بایت‌ها به base64. نوع را خود سرور از بایت‌ها می‌فهمد. */
+export interface NewTicketFile {
+  name: string;
+  data: string;
+}
+
 export interface TicketMessage {
   id: string;
   body: string;
   from: 'user' | 'support';
   createdAt: string;
+  files: TicketFile[];
 }
 
 export interface TicketThread {
@@ -172,6 +189,7 @@ export interface NewTicket {
   page: string;
   appVersion: string;
   platform: string;
+  files?: NewTicketFile[];
 }
 
 export type VerifyResult = { session: Session } | { signupToken: string; invite: InviteInfo | null };
@@ -206,8 +224,10 @@ export interface AuthApi {
   unreadTickets(accessToken: string): Promise<number>;
   /** شناسه را دستگاه می‌سازد تا دوباره فرستادن تیکت تکراری نسازد. */
   openTicket(accessToken: string, t: NewTicket): Promise<TicketThread>;
-  replyTicket(accessToken: string, id: string, m: { id: string; body: string }): Promise<TicketThread>;
+  replyTicket(accessToken: string, id: string, m: { id: string; body: string; files?: NewTicketFile[] }): Promise<TicketThread>;
   closeTicket(accessToken: string, id: string): Promise<TicketThread>;
+  /** بایت‌های یک پیوست، برای ذخیره روی دستگاه. */
+  ticketFile(accessToken: string, ticketId: string, fileId: string): Promise<Blob>;
   /** خطاهای برنامه روی این دستگاه (تا ۱۰ تا در هر درخواست). */
   reportErrors(accessToken: string, errors: Array<{ message: string; stack: string; page: string; count: number; appVersion: string; platform: string }>): Promise<void>;
   /** شمارهٔ دعوت‌شده بعد از کد درست: نام و رمز، و عضو دفتر می‌شود. */
@@ -241,7 +261,7 @@ export interface VoiceFill<F extends VoiceForm = VoiceForm> {
 const CODES: readonly string[] = [
   'bad_phone', 'bad_code', 'bad_name', 'bad_password', 'wrong', 'expired', 'too_many', 'sms_failed', 'unauthorized', 'not_found', 'bad_photo',
   'forbidden', 'no_seat', 'member', 'last_manager', 'self', 'not_alone',
-  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit', 'no_ai', 'ai_failed', 'bad_audio',
+  'subscription', 'too_small', 'no_gateway', 'gateway', 'device_limit', 'no_ai', 'ai_failed', 'bad_audio', 'closed', 'bad_file', 'too_big', 'quota',
 ];
 
 /** یک درخواست به سرور کلید؛ قطع اینترنت ApiError('offline') و 401 ApiError('unauthorized') می‌شود. */
@@ -293,9 +313,26 @@ export function httpApi(base: string): AuthApi {
     tickets: async (token) => (await call<{ tickets: Ticket[] }>('GET', '/support/tickets', undefined, token)).tickets,
     ticket: (token, id) => call('GET', `/support/tickets/${encodeURIComponent(id)}`, undefined, token),
     unreadTickets: async (token) => (await call<{ unread: number }>('GET', '/support/unread', undefined, token)).unread,
-    openTicket: (token, t) => call('POST', '/support/tickets', t, token),
-    replyTicket: (token, id, m) => call('POST', `/support/tickets/${encodeURIComponent(id)}/messages`, m, token),
+    // پیوست روی اینترنت کند زمان می‌برد؛ مهلتش بیشتر است.
+    openTicket: (token, t) => request(root, 'POST', '/support/tickets', t, token, t.files?.length ? 180_000 : 12_000),
+    replyTicket: (token, id, m) => request(root, 'POST', `/support/tickets/${encodeURIComponent(id)}/messages`, m, token, m.files?.length ? 180_000 : 12_000),
     closeTicket: (token, id) => call('POST', `/support/tickets/${encodeURIComponent(id)}/close`, {}, token),
+    ticketFile: async (token, id, file) => {
+      let res: Response;
+      try {
+        res = await fetch(`${root}/support/tickets/${encodeURIComponent(id)}/files/${encodeURIComponent(file)}`, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(180_000),
+          credentials: 'omit',
+          cache: 'no-store',
+        });
+      } catch {
+        throw new ApiError('offline');
+      }
+      if (res.status === 401) throw new ApiError('unauthorized');
+      if (!res.ok) throw new ApiError(res.status === 404 ? 'not_found' : 'server');
+      return res.blob();
+    },
     join: (signupToken, name, password, deviceName) => call('POST', '/auth/join', { signupToken, name, password, deviceName }),
     acceptInvite: (token) => call('POST', '/auth/invite/accept', {}, token),
     declineInvite: (token) => call('POST', '/auth/invite/decline', {}, token),
@@ -696,7 +733,7 @@ export function demoApi(): AuthApi {
       const at = new Date().toISOString();
       const t: TicketThread = {
         ticket: { id: n.id, topic: n.topic, subject: n.subject.trim(), status: 'open', unread: false, createdAt: at, updatedAt: at, last: { body: n.body.trim(), from: 'user' } },
-        messages: [{ id: n.id, body: n.body.trim(), from: 'user', createdAt: at }],
+        messages: [{ id: n.id, body: n.body.trim(), from: 'user', createdAt: at, files: demoFiles(n.files) }],
       };
       saveDemoTickets([t, ...list]);
       demoAnswerLater(n.id);
@@ -708,8 +745,9 @@ export function demoApi(): AuthApi {
       const t = list.find((x) => x.ticket.id === id);
       if (!t) throw new ApiError('not_found');
       if (!t.messages.some((x) => x.id === m.id)) {
+        if (t.ticket.status === 'closed') throw new ApiError('closed');
         const at = new Date().toISOString();
-        t.messages.push({ id: m.id, body: m.body.trim(), from: 'user', createdAt: at });
+        t.messages.push({ id: m.id, body: m.body.trim(), from: 'user', createdAt: at, files: demoFiles(m.files) });
         t.ticket = { ...t.ticket, status: 'open', unread: false, updatedAt: at, last: { body: m.body.trim(), from: 'user' } };
         saveDemoTickets(list);
         demoAnswerLater(id);
@@ -725,6 +763,12 @@ export function demoApi(): AuthApi {
       saveDemoTickets(list);
       return structuredClone(t);
     },
+    async ticketFile(_t, _id, file) {
+      await wait(200);
+      const data = demoFileData.get(file);
+      if (!data) throw new ApiError('not_found');
+      return new Blob([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))]);
+    },
   };
 }
 
@@ -733,7 +777,8 @@ const DEMO_TICKETS = 'kelid.demo.tickets';
 function demoTickets(): TicketThread[] {
   try {
     const v = JSON.parse(localStorage.getItem(DEMO_TICKETS) ?? 'null') as TicketThread[] | null;
-    if (Array.isArray(v)) return v;
+    // تیکت‌های پیش‌نمایشِ پیش از پیوست، فهرست فایل ندارند.
+    if (Array.isArray(v)) return v.map((t) => ({ ...t, messages: t.messages.map((m) => ({ ...m, files: (m as Partial<TicketMessage>).files ?? [] })) }));
   } catch {
     // حافظهٔ مرورگر در دسترس نیست؛ همان نمونه.
   }
@@ -743,11 +788,23 @@ function demoTickets(): TicketThread[] {
     {
       ticket: { id: 'demo-ticket-1', topic: 'question', subject: 'چاپ برگهٔ فایل برای مشتری', status: 'answered', unread: true, createdAt: at(26), updatedAt: at(3), last: { body: 'سلام، در صفحهٔ هر فایل دکمهٔ «چاپ» بالای صفحه است.', from: 'support' } },
       messages: [
-        { id: 'demo-ticket-1', body: 'سلام، چطور برگهٔ یک فایل را برای مشتری چاپ کنم؟', from: 'user', createdAt: at(26) },
-        { id: 'demo-ticket-1-a', body: 'سلام، در صفحهٔ هر فایل دکمهٔ «چاپ» بالای صفحه است. اگر عکس‌ها را هم بخواهید، گزینهٔ «با عکس» را بزنید.', from: 'support', createdAt: at(3) },
+        { id: 'demo-ticket-1', body: 'سلام، چطور برگهٔ یک فایل را برای مشتری چاپ کنم؟', from: 'user', createdAt: at(26), files: [] },
+        { id: 'demo-ticket-1-a', body: 'سلام، در صفحهٔ هر فایل دکمهٔ «چاپ» بالای صفحه است. اگر عکس‌ها را هم بخواهید، گزینهٔ «با عکس» را بزنید.', from: 'support', createdAt: at(3), files: [] },
       ],
     },
   ];
+}
+
+// بایت پیوست‌های پیش‌نمایش فقط تا بستن صفحه می‌مانند؛ حافظهٔ مرورگر برای فایل جا ندارد.
+const demoFileData = new Map<string, string>();
+function demoFiles(files: NewTicketFile[] | undefined): TicketFile[] {
+  return (files ?? []).map((f) => {
+    const id = crypto.randomUUID();
+    demoFileData.set(id, f.data);
+    const ext = f.name.toLowerCase().split('.').pop() ?? '';
+    const mime = ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', pdf: 'application/pdf', txt: 'text/plain' } as Record<string, string>)[ext] ?? 'application/octet-stream';
+    return { id, name: f.name, mime, size: Math.floor((f.data.length * 3) / 4) };
+  });
 }
 
 function saveDemoTickets(list: TicketThread[]) {
@@ -756,14 +813,6 @@ function saveDemoTickets(list: TicketThread[]) {
   } catch {
     // پیش‌نمایش بی حافظه هم کار می‌کند، فقط چیزی نمی‌ماند.
   }
-  demoTicketListeners.forEach((f) => f());
-}
-
-const demoTicketListeners = new Set<() => void>();
-/** پیش‌نمایش: «تیم کلید جواب داد» به‌جای خبر زندهٔ سرور. */
-export function onDemoTicket(fn: () => void): () => void {
-  demoTicketListeners.add(fn);
-  return () => void demoTicketListeners.delete(fn);
 }
 
 function demoAnswerLater(id: string) {
@@ -773,7 +822,7 @@ function demoAnswerLater(id: string) {
     if (!t || t.ticket.status !== 'open') return;
     const at = new Date().toISOString();
     const body = 'سلام، پیامتان رسید. همکاران ما بررسی می‌کنند و همین‌جا جواب می‌دهند.';
-    t.messages.push({ id: `${id}-${t.messages.length}`, body, from: 'support', createdAt: at });
+    t.messages.push({ id: `${id}-${t.messages.length}`, body, from: 'support', createdAt: at, files: [] });
     t.ticket = { ...t.ticket, status: 'answered', unread: true, updatedAt: at, last: { body, from: 'support' } };
     saveDemoTickets(list);
   }, 6_000);

@@ -1,7 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { onDemoTicket } from '../auth/api';
-import { onLiveSupport } from '../sync/state';
 
 // تعداد تیکت‌هایی که پاسخ دیده‌نشده دارند؛ بیرون از React تا نوار کناری و برگهٔ «بیشتر» یکی را بخوانند.
 let unread = 0;
@@ -26,14 +24,7 @@ export function useSupportUnread(): number {
   );
 }
 
-/** «چیزی در پشتیبانی عوض شد»: خبر زندهٔ سرور، یا پاسخ خیالی در پیش‌نمایش. */
-export function onSupportChange(fn: () => void): () => void {
-  const a = onLiveSupport(fn);
-  const b = onDemoTicket(fn);
-  return () => (a(), b());
-}
-
-/** نشان پشتیبانی را تازه نگه می‌دارد: با باز شدن برنامه، برگشتن به آن، وصل شدن اینترنت و هر پاسخ تازه. */
+/** نشان پشتیبانی را تازه نگه می‌دارد: با باز شدن برنامه، برگشتن به آن و وصل شدن اینترنت (تیکت چت زنده نیست). */
 export function useSupportUnreadSync() {
   const { status, api, withToken } = useAuth();
   const on = status === 'signedIn' && !!api;
@@ -45,11 +36,9 @@ export function useSupportUnreadSync() {
     const load = () => void withToken((t) => api.unreadTickets(t)).then(setSupportUnread, () => {});
     const onVisible = () => document.visibilityState === 'visible' && load();
     load();
-    const off = onSupportChange(load);
     addEventListener('online', load);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      off();
       removeEventListener('online', load);
       document.removeEventListener('visibilitychange', onVisible);
     };

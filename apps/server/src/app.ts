@@ -10,6 +10,7 @@ import { supportRoutes } from './support/routes';
 import type { Queryable } from './db';
 import { PhotoBlobs } from './storage/photos';
 import { S3, type S3Config } from './storage/s3';
+import { SupportFiles } from './support/files';
 import { aiRoutes } from './ai/routes';
 import type { VoiceAi } from './ai/voice';
 
@@ -94,10 +95,11 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
     app.addHook('preClose', async () => hub.close());
     void app.register(authRoutes, { ...auth, licenseKey: billing?.licenseKey });
     if (billing) void app.register(billingRoutes, { appOrigins: corsOrigins, ...billing, pool: auth.pool, jwtSecret: auth.jwtSecret });
-    void app.register(adminRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, hub });
+    const supportFiles = new SupportFiles(s3 ? new S3(s3) : null);
+    void app.register(adminRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, hub, files: supportFiles });
     void app.register(betaRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret });
     void app.register(aiRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, voice });
-    void app.register(supportRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret });
+    void app.register(supportRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, files: supportFiles });
     void app.register(syncRoutes, { ...auth, hub, photos: new PhotoBlobs(s3 ? new S3(s3) : null) });
   }
 

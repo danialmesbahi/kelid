@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import { withOffice, type Db, type Pool } from '../db';
 import { authGuard } from '../auth/routes';
 import { RateLimiter } from '../auth/rateLimit';
+import { FILES_BODY_LIMIT, filesSchema, parseFiles, type FileIn, type FileMeta, type SupportFiles } from './files';
 
 // پشتیبانی تیکتی از سمت دفتر: هر کس فقط تیکت‌های خودش را می‌بیند. با اشتراک تمام‌شده هم کار می‌کند
 // (همان وقت است که کاربر بیشتر به پشتیبانی نیاز دارد) و همه‌چیز پشت RLS دفتر است.
@@ -26,6 +27,7 @@ const newTicketSchema = {
       page: { type: 'string', maxLength: 200 },
       appVersion: { type: 'string', maxLength: 40 },
       platform: { type: 'string', enum: ['', 'web', 'pwa', 'desktop'] },
+      files: filesSchema,
     },
   },
 } as const;
@@ -36,7 +38,7 @@ const messageSchema = {
     type: 'object',
     additionalProperties: false,
     required: ['id', 'body'],
-    properties: { id: { type: 'string', pattern: UUID_PATTERN }, body: { type: 'string', minLength: 1, maxLength: BODY_MAX } },
+    properties: { id: { type: 'string', pattern: UUID_PATTERN }, body: { type: 'string', minLength: 1, maxLength: BODY_MAX }, files: filesSchema },
   },
 } as const;
 
@@ -70,25 +72,26 @@ export const ticketOut = (r: TicketRow) => ({
   last: { body: r.last_body.slice(0, 160), from: r.last_from },
 });
 
-export const messageOut = (r: MessageRow) => ({ id: r.id, body: r.body, from: r.from, createdAt: r.created_at.toISOString() });
+export const messageOut = (r: MessageRow, files: FileMeta[] = []) => ({ id: r.id, body: r.body, from: r.from, createdAt: r.created_at.toISOString(), files });
 
 // آخرین پیام هر تیکت برای پیش‌نمایش در فهرست.
 const LAST = `(select m.body from support_messages m where m.office_id = t.office_id and m.ticket_id = t.id order by m.created_at desc limit 1) as last_body,
   (select case when m.admin_id is null then 'user' else 'support' end from support_messages m
     where m.office_id = t.office_id and m.ticket_id = t.id order by m.created_at desc limit 1) as last_from`;
 
-async function detail(db: Db, user: string, id: string) {
-  const t = await db.query<TicketRow>(`select t.*, ${LAST} from support_tickets t where t.id = $1 and t.user_id = $2`, [id, user]);
+async function detail(db: Db, files: SupportFiles, user: string, id: string) {
+  const t = await db.query<TicketRow & { office_id: string }>(`select t.*, ${LAST} from support_tickets t where t.id = $1 and t.user_id = $2`, [id, user]);
   if (!t.rows[0]) return null;
   const m = await db.query<MessageRow>(
     `select id, body, case when admin_id is null then 'user' else 'support' end as "from", created_at
        from support_messages where ticket_id = $1 order by created_at, id`,
     [id],
   );
-  return { ticket: ticketOut(t.rows[0]), messages: m.rows.map(messageOut) };
+  const attached = await files.ofTicket(db, t.rows[0].office_id, id);
+  return { ticket: ticketOut(t.rows[0]), messages: m.rows.map((r) => messageOut(r, attached.get(r.id))) };
 }
 
-export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret }: { pool: Pool; jwtSecret: string }) {
+export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret, files }: { pool: Pool; jwtSecret: string; files: SupportFiles }) {
   const requireAuth = authGuard(pool, jwtSecret);
   const ticketsByUser = new RateLimiter(10, 60 * 60_000);
   const messagesByUser = new RateLimiter(40, 60 * 60_000);
@@ -112,16 +115,22 @@ export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret }: {
     return { unread: n.rows[0]!.n };
   });
 
-  app.post('/support/tickets', { preHandler: requireAuth, schema: newTicketSchema }, async (req, reply) => {
+  app.post('/support/tickets', { preHandler: requireAuth, bodyLimit: FILES_BODY_LIMIT, schema: newTicketSchema }, async (req, reply) => {
     const { off, sub } = req.auth!;
-    const b = req.body as { id: string; topic: string; subject: string; body: string; page?: string; appVersion?: string; platform?: string };
+    const b = req.body as { id: string; topic: string; subject: string; body: string; page?: string; appVersion?: string; platform?: string; files?: FileIn[] };
     const subject = b.subject.trim().replace(/\s+/g, ' ');
     const text = b.body.trim();
     if (!subject || !text) return reply.status(400).send({ error: 'empty' });
+    const parsed = parseFiles(b.files);
+    if (typeof parsed === 'string') return reply.status(400).send({ error: parsed });
+    // شناسه را دستگاه می‌سازد؛ پاسخِ گم‌شده و دوباره فرستادن، تیکت تکراری نمی‌سازد (و از سهمیه هم کم نمی‌کند).
+    const had = await withOffice(pool, off, async (db) => (await detail(db, files, sub, b.id)) ?? ((await files.overDaily(db, sub, parsed)) ? 'quota' : null));
+    if (had === 'quota') return reply.status(429).send({ error: 'quota' });
+    if (had) return reply.status(201).send(had);
+    const uploaded = await files.upload(off, parsed);
     const out = await withOffice(pool, off, async (db) => {
-      // شناسه را دستگاه می‌سازد؛ پاسخِ گم‌شده و دوباره فرستادن، تیکت تکراری نمی‌سازد (و از سهمیه هم کم نمی‌کند).
-      const had = await detail(db, sub, b.id);
-      if (had) return had;
+      const again = await detail(db, files, sub, b.id);
+      if (again) return again;
       const wait = ticketsByUser.take(sub);
       if (wait) return wait;
       await db.query(`insert into support_tickets (id, user_id, topic, subject, page, app_version, platform) values ($1, $2, $3, $4, $5, $6, $7)`, [
@@ -134,7 +143,8 @@ export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret }: {
         b.platform ?? '',
       ]);
       await db.query('insert into support_messages (id, ticket_id, user_id, body) values ($1, $1, $2, $3)', [b.id, sub, text]);
-      return detail(db, sub, b.id);
+      await files.insert(db, off, b.id, b.id, uploaded);
+      return detail(db, files, sub, b.id);
     });
     if (typeof out === 'number') return limited(reply, out);
     return reply.status(201).send(out);
@@ -146,35 +156,66 @@ export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret }: {
     const out = await withOffice(pool, off, async (db) => {
       // باز کردن تیکت یعنی پاسخ دیده شد.
       await db.query('update support_tickets set unread = false where id = $1 and user_id = $2 and unread', [id, sub]);
-      return detail(db, sub, id);
+      return detail(db, files, sub, id);
     });
     if (!out) return reply.status(404).send({ error: 'not_found' });
     return out;
   });
 
-  app.post('/support/tickets/:id/messages', { preHandler: requireAuth, schema: messageSchema }, async (req, reply) => {
+  app.post('/support/tickets/:id/messages', { preHandler: requireAuth, bodyLimit: FILES_BODY_LIMIT, schema: messageSchema }, async (req, reply) => {
     const { off, sub } = req.auth!;
     const { id } = req.params as { id: string };
-    const b = req.body as { id: string; body: string };
+    const b = req.body as { id: string; body: string; files?: FileIn[] };
     const text = b.body.trim();
     if (!text) return reply.status(400).send({ error: 'empty' });
+    const parsed = parseFiles(b.files);
+    if (typeof parsed === 'string') return reply.status(400).send({ error: parsed });
+    // پیامی که پیش‌تر رسیده یا تیکتی که مال او نیست، فایلی بالا نمی‌برد.
+    const known = await withOffice(pool, off, (db) =>
+      db.query(
+        "select 1 from support_tickets t where t.id = $1 and t.user_id = $2 and t.status <> 'closed' and not exists (select 1 from support_messages m where m.id = $3)",
+        [id, sub, b.id],
+      ),
+    );
+    if (known.rowCount && (await withOffice(pool, off, (db) => files.overDaily(db, sub, parsed)))) return reply.status(429).send({ error: 'quota' });
+    const uploaded = known.rowCount ? await files.upload(off, parsed) : [];
     const out = await withOffice(pool, off, async (db) => {
-      const own = await db.query('select 1 from support_tickets where id = $1 and user_id = $2 for update', [id, sub]);
-      if (!own.rowCount) return null;
+      const own = await db.query<{ status: string }>('select status from support_tickets where id = $1 and user_id = $2 for update', [id, sub]);
+      if (!own.rows[0]) return null;
       const dup = await db.query('select 1 from support_messages where id = $1', [b.id]);
       if (!dup.rowCount) {
+        // بسته یعنی مشکل حل شد؛ کاربر دوباره بازش نمی‌کند و برای موضوع تازه تیکت تازه می‌زند.
+        if (own.rows[0].status === 'closed') return 'closed' as const;
         const wait = messagesByUser.take(sub);
         if (wait) return wait;
         await db.query('insert into support_messages (id, ticket_id, user_id, body) values ($1, $2, $3, $4)', [b.id, id, sub, text]);
-        // پیام تازهٔ کاربر تیکت بسته را هم دوباره باز می‌کند تا در صف پشتیبانی دیده شود.
+        await files.insert(db, off, id, b.id, uploaded);
         await db.query("update support_tickets set status = 'open', unread = false, updated_at = now() where id = $1", [id]);
       }
-      return detail(db, sub, id);
+      return detail(db, files, sub, id);
     });
     if (typeof out === 'number') return limited(reply, out);
+    if (out === 'closed') return reply.status(409).send({ error: 'closed' });
     if (!out) return reply.status(404).send({ error: 'not_found' });
     return out;
   });
+
+  app.get(
+    '/support/tickets/:id/files/:file',
+    {
+      preHandler: requireAuth,
+      schema: { params: { type: 'object', required: ['id', 'file'], properties: { id: { type: 'string', pattern: UUID_PATTERN }, file: { type: 'string', pattern: UUID_PATTERN } } } },
+    },
+    async (req, reply) => {
+      const { off, sub } = req.auth!;
+      const { id, file } = req.params as { id: string; file: string };
+      const f = await withOffice(pool, off, async (db) => {
+        const own = await db.query('select 1 from support_tickets where id = $1 and user_id = $2', [id, sub]);
+        return own.rowCount ? files.find(db, off, id, file) : null;
+      });
+      return files.send(reply, f);
+    },
+  );
 
   app.post('/support/tickets/:id/close', { preHandler: requireAuth, schema: idParams }, async (req, reply) => {
     const { off, sub } = req.auth!;
@@ -184,7 +225,7 @@ export async function supportRoutes(app: FastifyInstance, { pool, jwtSecret }: {
         id,
         sub,
       ]);
-      return detail(db, sub, id);
+      return detail(db, files, sub, id);
     });
     if (!out) return reply.status(404).send({ error: 'not_found' });
     return out;

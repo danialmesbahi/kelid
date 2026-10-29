@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
-import { Icon, Segmented } from '@kelid/ui';
+import { AttachPicker, Icon, readFiles, Segmented } from '@kelid/ui';
 import { newId, toFaDigits } from '@kelid/core';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError, type TicketThread, type TicketTopic } from '../auth/api';
 import { APP_VERSION, currentPage, platform } from '../beta/beta';
 import { TOPICS, ticketFailText } from './topics';
+import { shrinkImage } from './Attach';
 
 const HINT: Record<TicketTopic, string> = {
   problem: 'بنویسید چه کار می‌کردید و چه شد؛ مثلاً «فایل را ذخیره زدم ولی در فهرست نیامد».',
@@ -33,6 +34,7 @@ export function NewTicketDialog({
   const [topic, setTopic] = useState<TicketTopic>(initial);
   const [subject, setSubject] = useState(s0);
   const [body, setBody] = useState(text);
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   // شناسه یک بار ساخته می‌شود تا «دوباره فرستادن» بعد از قطعی، تیکت دوم نسازد.
@@ -56,7 +58,7 @@ export function NewTicketDialog({
       return;
     }
     if (e.key !== 'Tab' || !dialogRef.current) return;
-    const items = [...dialogRef.current.querySelectorAll<HTMLElement>('button, input, textarea')].filter((el) => !el.hasAttribute('disabled'));
+    const items = [...dialogRef.current.querySelectorAll<HTMLElement>('button, input, textarea')].filter((el) => !el.hasAttribute('disabled') && !el.hidden);
     const first = items[0];
     const last = items.at(-1);
     if (e.shiftKey && document.activeElement === first) {
@@ -83,6 +85,7 @@ export function NewTicketDialog({
     if (!api || busy) return;
     setBusy(true);
     try {
+      const attached = await readFiles(files);
       const t: TicketThread = await withToken((tk) =>
         api.openTicket(tk, {
           id: id.current,
@@ -92,6 +95,7 @@ export function NewTicketDialog({
           page: currentPage(),
           appVersion: APP_VERSION,
           platform: platform(),
+          files: attached,
         }),
       );
       onClose();
@@ -163,6 +167,15 @@ export function NewTicketDialog({
                 style={{ lineHeight: 1.9, resize: 'vertical' }}
               />
             </label>
+            <AttachPicker
+              files={files}
+              onChange={(f) => {
+                setFiles(f);
+                setError('');
+              }}
+              onError={setError}
+              shrink={shrinkImage}
+            />
             <span id="tk-note" className="xs mute rw" style={{ gap: 8 }}>
               <span className="sp">جواب همین‌جا در بخش «پشتیبانی» می‌آید و کنارش نشان می‌خورد.</span>
               {body.length > MAX - 200 && <span className="num">{toFaDigits(MAX - body.length)}</span>}

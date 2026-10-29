@@ -8,7 +8,8 @@ import { normalizePhone } from '../auth/phone';
 import { RateLimiter } from '../auth/rateLimit';
 import { accessExpiry, deriveKey, readToken, signToken } from '../auth/tokens';
 import { securityHeaders } from '../headers';
-import { announceSupport, type LiveHub } from '../sync/live';
+import type { LiveHub } from '../sync/live';
+import { FILES_BODY_LIMIT, filesSchema, parseFiles, type FileIn, type SupportFiles } from '../support/files';
 import { seatsUsed } from '../billing/routes';
 import { checkTotp } from './totp';
 
@@ -36,6 +37,7 @@ export interface AdminOptions {
   pool: Pool;
   jwtSecret: string;
   hub: LiveHub;
+  files: SupportFiles;
 }
 
 // هر ۲۵ ثانیه یک خط خالی تا پراکسی‌ها اتصال را نبندند؛ همان لحظه غیرفعال بودن حساب هم دوباره بررسی می‌شود.
@@ -54,7 +56,7 @@ const UUID_PATTERN = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{
 const idParams = { params: { type: 'object', required: ['id'], properties: { id: { type: 'string', pattern: UUID_PATTERN } } } } as const;
 const body = (props: Record<string, object>, required: string[]) => ({ type: 'object', additionalProperties: false, required, properties: props }) as const;
 
-export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }: AdminOptions) {
+export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub, files }: AdminOptions) {
   const key = deriveKey(jwtSecret, 'vendor');
   const loginByIp = new RateLimiter(10, 10 * 60_000);
 
@@ -487,6 +489,7 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
         where m.office_id = $1 and m.ticket_id = $2 order by m.created_at, m.id`,
       [office, id],
     );
+    const attached = await files.ofTicket(db, office, id);
     return {
       ticket: adminTicketOut(t.rows[0]),
       messages: m.rows.map((r) => ({
@@ -495,6 +498,7 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
         from: r.admin_name === null ? 'user' : 'support',
         author: r.admin_name ?? r.user_name ?? '',
         createdAt: r.created_at.toISOString(),
+        files: attached.get(r.id) ?? [],
       })),
     };
   };
@@ -525,23 +529,44 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
 
   app.post(
     '/admin/tickets/:office/:id/messages',
-    { preHandler: requireVendor, schema: { params: ticketParams, body: body({ body: { type: 'string', minLength: 1, maxLength: 4000 } }, ['body']) } },
+    {
+      preHandler: requireVendor,
+      bodyLimit: FILES_BODY_LIMIT,
+      schema: { params: ticketParams, body: body({ body: { type: 'string', minLength: 1, maxLength: 4000 }, files: filesSchema }, ['body']) },
+    },
     async (req, reply) => {
       const { office, id } = req.params as { office: string; id: string };
-      const text = (req.body as { body: string }).body.trim();
+      const b = req.body as { body: string; files?: FileIn[] };
+      const text = b.body.trim();
       if (!text) return reply.status(400).send({ error: 'empty' });
+      const parsed = parseFiles(b.files);
+      if (typeof parsed === 'string') return reply.status(400).send({ error: parsed });
+      const exists = await withVendor(pool, (db) => db.query('select 1 from support_tickets where office_id = $1 and id = $2', [office, id]));
+      if (!exists.rowCount) return reply.status(404).send({ error: 'not_found' });
+      const uploaded = await files.upload(office, parsed);
       const out = await withVendor(pool, async (db) => {
         const { rowCount } = await db.query(
           "update support_tickets set status = 'answered', unread = true, updated_at = now() where office_id = $1 and id = $2",
           [office, id],
         );
         if (!rowCount) return null;
-        await db.query('insert into support_messages (office_id, id, ticket_id, admin_id, body) values ($1, $2, $3, $4, $5)', [office, randomUUID(), id, req.vendor!.id, text]);
-        await announceSupport(db, office);
+        const mid = randomUUID();
+        await db.query('insert into support_messages (office_id, id, ticket_id, admin_id, body) values ($1, $2, $3, $4, $5)', [office, mid, id, req.vendor!.id, text]);
+        await files.insert(db, office, id, mid, uploaded);
         return ticketDetail(db, office, id);
       });
       if (!out) return reply.status(404).send({ error: 'not_found' });
       return out;
+    },
+  );
+
+  app.get(
+    '/admin/tickets/:office/:id/files/:file',
+    { preHandler: requireVendor, schema: { params: { ...ticketParams, required: ['office', 'id', 'file'], properties: { ...ticketParams.properties, file: { type: 'string', pattern: UUID_PATTERN } } } } },
+    async (req, reply) => {
+      const { office, id, file } = req.params as { office: string; id: string; file: string };
+      const f = await withVendor(pool, (db) => files.find(db, office, id, file));
+      return files.send(reply, f);
     },
   );
 
@@ -554,7 +579,6 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub }
       const out = await withVendor(pool, async (db) => {
         const { rowCount } = await db.query('update support_tickets set status = $3, updated_at = now() where office_id = $1 and id = $2', [office, id, status]);
         if (!rowCount) return null;
-        await announceSupport(db, office);
         return ticketDetail(db, office, id);
       });
       if (!out) return reply.status(404).send({ error: 'not_found' });

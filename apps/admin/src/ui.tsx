@@ -71,6 +71,10 @@ export function errorText(e: unknown): string {
       return 'وضعیت دفتر همین حالا عوض شده است؛ صفحه به‌روز شد.';
     case 'too_many':
       return 'چند بار پشت هم امتحان شد؛ کمی بعد دوباره بزنید.';
+    case 'bad_file':
+      return 'این نوع فایل پذیرفته نیست؛ فقط عکس، PDF، Word، Excel یا متن.';
+    case 'too_big':
+      return 'جمع پیوست‌های هر پیام حداکثر ۵ مگابایت است.';
     default:
       return 'کار انجام نشد؛ دوباره امتحان کنید.';
   }
