@@ -184,6 +184,23 @@ describe('sync between two offline devices', () => {
     expect(bestMatches([{ ...listing(3), id: 'l1', plaque: 1, createdAt: '', updatedAt: '' }], c.need)).toHaveLength(1);
   });
 
+  it('skips a remote client need without kinds or neighborhoods instead of stopping the sync', async () => {
+    const b = await device();
+    const good = { deal: 'rent', kinds: ['apartment'], neighborhoods: [] };
+    await b.applyRemote(
+      [
+        { kind: 'client', id: 'bad', fields: { name: 'ناقص', phone: '', need: { deal: 'rent', budgetMax: 5 }, createdAt: '2026-01-01T00:00:00Z' } },
+        { kind: 'client', id: 'ok', fields: { name: 'سالم', phone: '', need: good, createdAt: '2026-01-01T00:00:00Z' } },
+      ],
+      '1',
+      null,
+    );
+    expect((await b.listClients()).map((c) => c.id)).toEqual(['ok']);
+    // مشتری‌ای که از قبل هست نیاز سالمش را نگه می‌دارد
+    await b.applyRemote([{ kind: 'client', id: 'ok', fields: { need: { deal: 'sale' } } }], '2', null);
+    expect((await b.getClient('ok'))!.need).toEqual(good);
+  });
+
   it('never sends sample data, and skips malformed remote fields', async () => {
     const server = new FakeServer();
     const d = mkdtempSync(join(tmpdir(), 'kelid-sync-'));

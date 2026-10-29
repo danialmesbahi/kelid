@@ -11,8 +11,13 @@ const optNum: Check = (v) => v === null || num(v);
 const bool: Check = (v) => typeof v === 'boolean';
 const oneOf = (...xs: string[]): Check => (v) => typeof v === 'string' && xs.includes(v);
 const strList: Check = (v) => Array.isArray(v) && v.length <= 200 && v.every(str);
-const obj = (shape: Record<string, Check>): Check => (v) =>
-  typeof v === 'object' && v !== null && !Array.isArray(v) && Object.entries(v).every(([k, x]) => shape[k]?.(x) ?? false);
+// required: کلیدهایی که صفحه‌ها بی‌آن‌ها از کار می‌افتند؛ نبودشان یعنی کل فیلد نامعتبر است.
+const obj = (shape: Record<string, Check>, required: string[] = []): Check => (v) =>
+  typeof v === 'object' &&
+  v !== null &&
+  !Array.isArray(v) &&
+  required.every((k) => k in v) &&
+  Object.entries(v).every(([k, x]) => shape[k]?.(x) ?? false);
 const deal = oneOf('sale', 'rent', 'full');
 const propertyKind = oneOf('apartment', 'villa', 'shop', 'office', 'land');
 
@@ -43,6 +48,7 @@ const SPECS: Record<SyncKind, Record<string, Check>> = {
   client: {
     name: str,
     phone: str,
+    // نیاز بی نوع ملک یا محله صفحه‌ها و ذخیره را از کار می‌انداخت و همگام‌سازی کل دفتر را روی هر دستگاه متوقف می‌کرد.
     need: obj({
       deal,
       kinds: (v) => Array.isArray(v) && v.every(propertyKind),
@@ -52,7 +58,7 @@ const SPECS: Record<SyncKind, Record<string, Check>> = {
       bedroomsMin: optNum,
       budgetMax: optNum,
       rentMax: optNum,
-    }),
+    }, ['deal', 'kinds', 'neighborhoods']),
     temperature: oneOf('hot', 'warm', 'cold'),
     waitingForNews: bool,
     lastContactAt: str,
