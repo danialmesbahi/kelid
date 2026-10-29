@@ -248,26 +248,33 @@ export async function syncRoutes(app: FastifyInstance, { pool, jwtSecret, hub, p
     return reply.header('content-type', ref.mime).send(bytes);
   });
 
-  app.get('/sync/pull', { preHandler: requireAuth, schema: pullSchema }, async (req) => {
+  app.get('/sync/pull', { preHandler: requireAuth, schema: pullSchema }, async (req, reply) => {
     const q = req.query as { cursor?: string; limit?: number };
     const limit = q.limit ?? PULL_MAX;
+    // fields همان متن JSON دیتابیس است و دست‌نخورده در پاسخ می‌نشیند؛ parse و دوباره stringify کردن هزاران فایل
+    // پرهزینه‌ترین کار سرور زیر بار بود. بزرگ‌ترین زمان هر ردیف هم در خود دیتابیس حساب می‌شود.
     const rows = await withOffice(pool, req.auth!.off, async (db) => {
-      const r = await db.query<{ kind: SyncKind; id: string; fields: Record<string, unknown>; clocks: Record<string, string>; version: string }>(
-        'select kind, id, fields, clocks, version from entities where version > $1 order by version limit $2',
+      const r = await db.query<{ kind: SyncKind; id: string; fields: string; hlc: string | null; version: string }>(
+        `select kind, id, fields::text as fields, (select max(value) from jsonb_each_text(clocks)) as hlc, version
+           from entities where version > $1 order by version limit $2`,
         [q.cursor ?? '0', limit],
       );
       return r.rows;
     });
     let hlc: string | null = null;
-    for (const r of rows) for (const h of Object.values(r.clocks)) if (!hlc || h > hlc) hlc = h;
+    for (const r of rows) if (r.hlc && (!hlc || r.hlc > hlc)) hlc = r.hlc;
     const phones = req.member!.ownerPhones;
-    return {
-      entities: rows.map((r) => ({ kind: r.kind, id: r.id, fields: phones || r.kind !== 'listing' ? r.fields : hideOwnerPhone(r.fields) })),
+    const entities = rows.map((r) => {
+      const fields = phones || r.kind !== 'listing' ? r.fields : JSON.stringify(hideOwnerPhone(JSON.parse(r.fields) as Record<string, unknown>));
+      return `{"kind":${JSON.stringify(r.kind)},"id":${JSON.stringify(r.id)},"fields":${fields}}`;
+    });
+    const tail = JSON.stringify({
       // دستگاه از این می‌فهمد اجازه‌اش عوض شده: گرفته شد ⇒ شماره‌های محلی پاک، داده شد ⇒ دریافت دوباره از اول.
       ownerPhones: phones,
       cursor: rows.at(-1)?.version ?? q.cursor ?? '0',
       more: rows.length === limit,
       hlc,
-    };
+    });
+    return reply.type('application/json; charset=utf-8').send(`{"entities":[${entities.join(',')}],${tail.slice(1)}`);
   });
 }

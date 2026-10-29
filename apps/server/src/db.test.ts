@@ -587,6 +587,8 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(r.entities).toHaveLength(1);
       expect(r.entities[0].fields).toMatchObject({ area: 120, neighborhood: 'ونک', plaque: 7 });
       expect(r.more).toBe(false);
+      // بزرگ‌ترین زمان دیده‌شده تا ساعت دستگاه از آن عقب نیفتد
+      expect(r.hlc).toBe(hlc(t0 + 10, 0, 'b'));
       // بعد از نشانگر، چیزی تازه نیست
       expect((await pull(a, s.accessToken, r.cursor)).json().entities).toEqual([]);
       await a.close();
