@@ -1,3 +1,4 @@
+import { availableParallelism } from 'node:os';
 import type { S3Config } from './storage/s3';
 import { DEV_LICENSE_SEED } from './billing/license';
 import type { AiConfig } from './ai/voice';
@@ -6,6 +7,8 @@ import type { AiConfig } from './ai/voice';
 export interface Config {
   port: number;
   host: string;
+  /** چند پروسهٔ سرور روی همین پورت (هر کدام یک هستهٔ پردازنده)؛ ۱ = بدون cluster. */
+  workers: number;
   /** اتصال روزمرهٔ سرور؛ باید نقشی بدون superuser و BYPASSRLS باشد. */
   databaseUrl: string;
   /** اتصال صاحب جدول‌ها برای migration؛ اگر نباشد همان databaseUrl. */
@@ -62,6 +65,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (jwtSecret.length < 32) problems.push('JWT_SECRET باید دست‌کم ۳۲ نویسه باشد (مثلاً openssl rand -base64 48)');
 
   const production = env.NODE_ENV === 'production';
+  // Node فقط یک هسته را به کار می‌گیرد؛ در تست بار ۱۰ هزار کاربره همان یک هسته گلوگاه بود. production پیش‌فرض همهٔ هسته‌ها (حداکثر ۸).
+  const workers = Number(env.WEB_CONCURRENCY ?? (production ? Math.min(8, availableParallelism()) : 1));
+  if (!Number.isInteger(workers) || workers < 1 || workers > 64) problems.push('WEB_CONCURRENCY باید عددی بین 1 و 64 باشد');
   const provider = env.SMS_PROVIDER ?? (production ? '' : 'console');
   let sms: Config['sms'] = { provider: 'console' };
   if (provider === 'kavenegar') {
@@ -137,7 +143,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   } else if (stt !== 'ai') problems.push('STT_PROVIDER باید ai یا avanegar باشد');
 
   if (problems.length) throw new ConfigError(`تنظیمات سرور ناقص است:\n- ${problems.join('\n- ')}`);
-  return { port, host: env.HOST || '127.0.0.1', databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3, billing: { licenseSeed, gateway, publicUrl }, ai };
+  return { port, host: env.HOST || '127.0.0.1', workers, databaseUrl, migrationDatabaseUrl, logLevel, trustProxy: trust === 'true', jwtSecret, sms, corsOrigins, s3, billing: { licenseSeed, gateway, publicUrl }, ai };
 }
 
 function isWebUrl(url: string, httpsOnly: boolean): boolean {
