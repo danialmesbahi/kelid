@@ -30,7 +30,7 @@ NODE_ENV=production node --enable-source-maps apps/server/dist/main.js   # با 
 `CORS_ORIGINS=https://app.kelid.ir,https://admin.kelid.ir,null` (`null` = برنامهٔ ویندوز)، `TRUST_PROXY=true` پشت nginx، و در صورت داشتن S3 هر چهار `S3_*`.
 
 سرور در production به‌طور پیش‌فرض روی هر هستهٔ پردازنده یک پروسه بالا می‌آورد (حداکثر ۸)؛ `WEB_CONCURRENCY` عددش را عوض می‌کند.
-هر پروسه تا ۱۱ اتصال دیتابیس باز می‌کند، پس `max_connections` در Postgres باید از `۱۱ × WEB_CONCURRENCY` به‌اضافهٔ چند اتصال برای خودتان بیشتر باشد (پیش‌فرض ۱۰۰ تا ۸ پروسه کافی است).
+هر پروسه تا ۱۰ اتصال دیتابیس باز می‌کند، پس `max_connections` در Postgres باید از `۱۰ × WEB_CONCURRENCY` به‌اضافهٔ چند اتصال برای خودتان بیشتر باشد (پیش‌فرض ۱۰۰ تا ۸ پروسه کافی است).
 pm2 را در حالت fork بگذارید، نه cluster؛ خود سرور پروسه‌هایش را می‌سازد.
 
 حساب پنل فروشنده فقط از خط فرمان سرور ساخته می‌شود: `npm run admin -w @kelid/server -- add --phone 09xxxxxxxxx --name "…"` (رمز و کد TOTP یک بار چاپ می‌شود).
