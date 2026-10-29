@@ -7,7 +7,7 @@ import { billingRoutes, type BillingOptions } from './billing/routes';
 import { adminRoutes } from './admin/routes';
 import { betaRoutes } from './beta/routes';
 import { supportRoutes } from './support/routes';
-import type { Queryable } from './db';
+import { BUSY_RETRY_AFTER, isBusy, type Queryable } from './db';
 import { PhotoBlobs } from './storage/photos';
 import { S3, type S3Config } from './storage/s3';
 import { SupportFiles } from './support/files';
@@ -67,6 +67,12 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
   }
 
   app.setErrorHandler((err: { statusCode?: number; message: string }, req, reply) => {
+    // سرور شلوغ است (همهٔ اتصال‌های دیتابیس یا نوبت‌های رمز پر): «چند ثانیه بعد» به جای خطای داخلی،
+    // تا برنامه مثل هر قطعی کوتاهی دوباره امتحان کند و کسی پیام خطای ترسناک نبیند.
+    if (isBusy(err)) {
+      req.log.warn({ err }, 'server busy');
+      return reply.status(503).header('retry-after', String(BUSY_RETRY_AFTER)).send({ error: 'busy', retryAfter: BUSY_RETRY_AFTER });
+    }
     const status = err.statusCode && err.statusCode >= 400 ? err.statusCode : 500;
     if (status >= 500) {
       req.log.error(err);

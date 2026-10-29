@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from './app';
-import type { Queryable } from './db';
+import { BusyError, type Queryable } from './db';
 
 const okDb = { query: async () => ({ rows: [] }) } as unknown as Queryable;
 const downDb = { query: async () => Promise.reject(new Error('connect ECONNREFUSED')) } as unknown as Queryable;
@@ -23,6 +23,23 @@ describe('server app', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(503);
     expect(res.body).not.toContain('ECONNREFUSED');
+    await app.close();
+  });
+
+  it('answers busy with a retry time when the server is overloaded', async () => {
+    const app = buildApp({ db: okDb, logLevel: 'silent' });
+    app.get('/pool', async () => {
+      throw new Error('timeout exceeded when trying to connect');
+    });
+    app.get('/scrypt', async () => {
+      throw new BusyError();
+    });
+    for (const url of ['/pool', '/scrypt']) {
+      const res = await app.inject({ method: 'GET', url });
+      expect(res.statusCode).toBe(503);
+      expect(res.headers['retry-after']).toBe('5');
+      expect(res.json()).toEqual({ error: 'busy', retryAfter: 5 });
+    }
     await app.close();
   });
 

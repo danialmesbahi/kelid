@@ -23,6 +23,10 @@ const LIVE_MS = 120;
 const PERIODIC_MS = 60_000;
 const RETRY_MS = [5_000, 15_000, 60_000, 180_000];
 const LIVE_RETRY_MS = [1_000, 3_000, 10_000, 30_000];
+// سرور که دوباره راه افتاد، هزاران دستگاه با هم برمی‌گشتند و همان لحظه دوباره زیر بارش می‌بردند (تست بار ۱۰ هزار کاربره).
+// پس برگشت بعد از اتصالی که مدتی باز بود در چند ثانیه پخش می‌شود، و هر فاصلهٔ تلاش دوباره کمی کم و زیاد.
+const RECONNECT_SPREAD_MS = 10_000;
+const jitter = (ms: number) => Math.round(ms * (0.5 + Math.random()));
 
 /**
  * همگام‌سازی پشت صحنه: اول صف تغییرهای این دستگاه فرستاده می‌شود، بعد تغییرهای بقیه گرفته می‌شود.
@@ -137,7 +141,7 @@ export class SyncEngine {
         if (e instanceof ApiError && (e.code === 'unauthorized' || e.code === 'not_found')) return;
         fails++;
       }
-      if (fails) await this.until('online', LIVE_RETRY_MS[Math.min(fails - 1, LIVE_RETRY_MS.length - 1)]!);
+      await this.until('online', fails ? jitter(LIVE_RETRY_MS[Math.min(fails - 1, LIVE_RETRY_MS.length - 1)]!) : Math.random() * RECONNECT_SPREAD_MS);
     }
   }
 
@@ -223,7 +227,7 @@ export class SyncEngine {
       this.set({ phase: offline ? 'offline' : 'error', pending: (await this.store.syncInfo()).pending });
       if (e instanceof ApiError && e.code === 'unauthorized') return; // صفحهٔ ورود برمی‌گردد
       if (e instanceof ApiError && e.code === 'office_changed') return this.set({ phase: 'blocked' });
-      this.schedule(RETRY_MS[Math.min(this.retry++, RETRY_MS.length - 1)]!);
+      this.schedule(jitter(RETRY_MS[Math.min(this.retry++, RETRY_MS.length - 1)]!));
     }
   }
 
