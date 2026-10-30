@@ -273,7 +273,9 @@ const HERO_WIDTHS = [768, 1152, 1536];
 
 /** میزی تنها روی تپه‌ای بالای تهرانِ مه‌گرفته در سپیده‌دم: «دفترتان هر جا باشید همراهتان است». نیمهٔ بالایش آسمان خالی است تا نوشته‌ها خوانا بمانند. */
 export function heroArt(): string {
-  return `<div class="hero-art" aria-hidden="true">${art('hero', HERO_WIDTHS, '100vw', '', [1536, 1024], 'fetchpriority="high"')}</div>`;
+  // دو لایه از همان یک فایل (بی بار اضافه): پشتی کل منظره، جلویی فقط تپه و میز؛ با اسکرول با دو سرعت حرکت می‌کنند و عمق می‌سازند.
+  const layer = (cls: string) => art('hero', HERO_WIDTHS, '100vw', '', [1536, 1024], 'fetchpriority="high"').replace('<picture>', `<picture class="${cls}">`);
+  return `<div class="hero-art" aria-hidden="true">${layer('hl-back')}${layer('hl-front')}</div>`;
 }
 
 /** پیش‌بارگذاری تصویر سرصفحه در head تا مرورگر پیش از خواندن CSS سراغش برود. */

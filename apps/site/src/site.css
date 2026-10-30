@@ -124,8 +124,11 @@ h2 .mute { font-weight: 700; }
 /* ── سرصفحه ── */
 /* سرصفحه به سبک Mercury: یک تصویر سینمایی تمام‌عرض که نیمهٔ بالایش آسمان خالی است؛ عنوان کوتاه و دکمه‌ها روی آسمان، خود برنامه زیرش. */
 .hero { --hero-h: min(100svh, 920px); position: relative; isolation: isolate; overflow-x: clip; color: var(--ink); }
-.hero-art { position: absolute; inset: 0 0 auto; height: var(--hero-h); z-index: -1; overflow: hidden; background: #DCE6E4; }
-.hero-art img { width: 100%; height: 100%; object-fit: cover; object-position: 60% 50%; animation: kl-hero 2.8s var(--ease-expo) both; }
+.hero-art { position: absolute; inset: 0 0 auto; height: var(--hero-h); z-index: -1; overflow: hidden; background: #DCE6E4; animation: kl-hero 2.8s var(--ease-expo) both; }
+.hero-art picture { position: absolute; inset: 0; }
+.hero-art img { width: 100%; height: 100%; object-fit: cover; object-position: 60% 50%; will-change: transform; }
+/* لایهٔ جلو فقط از مه به پایین دیده می‌شود؛ مرز نرمش درست در مه است تا درز پیدا نباشد */
+.hl-front { -webkit-mask-image: linear-gradient(transparent 60%, #000 76%); mask-image: linear-gradient(transparent 60%, #000 76%); }
 /* بالای آسمان کمی روشن‌تر برای خوانایی متن تیره؛ پایین تصویر در رنگ صفحه محو می‌شود */
 .hero-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(246, 247, 244, .55) 0%, rgba(246, 247, 244, .18) 34%, transparent 52%, transparent 86%, var(--bg) 100%); }
 @keyframes kl-hero { from { transform: scale(1.05); } }
@@ -133,7 +136,7 @@ h2 .mute { font-weight: 700; }
 /* گوشی: تصویر بلندتر و از پایین چیده می‌شود تا میز زیر دکمه‌ها دیده شود */
 @media (max-width: 760px) { .hero { --hero-h: 960px; } .hero-art img { object-position: 55% 100%; } }
 .hero-in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; }
-@media (prefers-reduced-motion: reduce) { .hero-art img { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .hero-art { animation: none; } }
 .hero h1 { display: flex; flex-direction: column; gap: 14px; font-weight: 800; animation: kl-up 1s var(--ease-expo) .1s both; }
 .h1-k { align-self: center; display: inline-flex; align-items: center; gap: 8px; font-size: clamp(15px, 1.4vw, 17px); font-weight: 700; color: var(--pri-text); }
 .h1-k::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--pri); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pri) 16%, transparent); }
@@ -449,6 +452,30 @@ h2 .mute { font-weight: 700; }
     animation: kl-reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 40%;
   }
   @keyframes kl-reveal { from { opacity: 0; translate: 0 36px; } }
+}
+
+/* پارالاکس با اسکرول، فقط با CSS و روی GPU (transform و opacity)؛ بی جاوااسکریپت، پس روان و سبک.
+   لایه‌ها با سرعت‌های متفاوت حرکت می‌کنند؛ مرورگری که نمی‌تواند یا کاربری که حرکت کم می‌خواهد، صفحهٔ ثابت می‌بیند. */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hl-back img { animation: kl-px-back linear both; animation-timeline: scroll(root); animation-range: 0 100vh; }
+    .hl-front img { animation: kl-px-front linear both; animation-timeline: scroll(root); animation-range: 0 100vh; }
+    @keyframes kl-px-back { to { transform: translateY(20%) scale(1.06); } }
+    @keyframes kl-px-front { to { transform: translateY(5%) scale(1.02); } }
+    .hero-in { animation: kl-px-text linear both; animation-timeline: scroll(root); animation-range: 0 75vh; }
+    @keyframes kl-px-text { to { transform: translateY(-90px); opacity: 0; } }
+    /* پنجرهٔ برنامه کج از راه می‌رسد و با اسکرول صاف می‌نشیند */
+    .stage { perspective: 1800px; }
+    .win, .hero-phone .iph { transform-origin: 50% 0; animation: kl-px-tilt linear both; animation-timeline: view(); animation-range: entry 0% cover 38%; }
+    @keyframes kl-px-tilt { from { transform: rotateX(16deg) scale(.94); } }
+    /* شهرها پله‌پله بالا می‌آیند */
+    .cities li { animation: kl-px-rise linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; }
+    .cities li:nth-child(even) { animation-range: entry 8% entry 78%; }
+    @keyframes kl-px-rise { from { opacity: 0; transform: translateY(46px) scale(.95); } }
+    /* عکس‌های درون قاب آرام‌تر از صفحه حرکت می‌کنند */
+    .off-art img, .final-art img, .faq-art img { animation: kl-px-pan linear both; animation-timeline: view(); }
+    @keyframes kl-px-pan { from { transform: translateY(-6%) scale(1.14); } to { transform: translateY(6%) scale(1.14); } }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
