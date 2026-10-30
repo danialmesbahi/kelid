@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Cover, Icon, Plaque, Segmented } from '@kelid/ui';
+import { Art, Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { bedroomsLabel, listingPlace, dealLabel, floorLabel, headlinePrice, listingTitle, secondaryPrice, toFaDigits, bestMatches, type DealType, type Listing } from '@kelid/core';
 import { useQuery } from '../data';
 import { filesQuery } from '../queries';
@@ -87,6 +87,7 @@ export function FilesPage() {
           {/* دفتر خالی راه ثبت اولین فایل را می‌خواهد؛ فیلتر بی‌نتیجه فقط راه برگشت به همه را. */}
           {list.length === 0 && data.all.length === 0 && (
             <div className="col" style={{ padding: '64px 16px', textAlign: 'center', gap: 6, alignItems: 'center' }}>
+              <Art name="empty-files" sizes="200px" className="empty-art" />
               <span className="t2">هنوز فایلی ثبت نشده</span>
               <span className="mute sm">هر ملکی که برای فروش، اجاره یا رهن کامل می‌گیرید اینجا ثبت کنید تا پلاک خودش را بگیرد.</span>
               <Link viewTransition className="btn btn-p" to="/add" style={{ marginTop: 10 }}>ثبت اولین فایل</Link>

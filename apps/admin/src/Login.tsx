@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Icon, Logo } from '@kelid/ui';
+import { Art, Icon, Logo, cityOfDay } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { api, ApiError, DEMO } from './api';
 import { useAuth } from './auth';
@@ -45,6 +45,7 @@ export function Login() {
 
   return (
     <div className="ad-login">
+      <Art name={`city-${cityOfDay()}`} sizes="50vw" className="ad-login-art" />
       <form className="card ad-login-card enter" onSubmit={submit} noValidate aria-labelledby="ad-login-title">
         <div className="rw" style={{ gap: 12 }}>
           <Logo size={44} />

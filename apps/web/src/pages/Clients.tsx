@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { CheckBox, Cover, Icon, Plaque, Segmented } from '@kelid/ui';
+import { Art, CheckBox, Cover, Icon, Plaque, Segmented } from '@kelid/ui';
 import { bestMatches, dealLabel, describeMatch, formatToman, listingTitle, toFaDigits, type Client } from '@kelid/core';
 import { useQuery, useStore } from '../data';
 import { clientsQuery } from '../queries';
@@ -86,6 +86,7 @@ export function ClientsPage() {
 
       {data.clients.length === 0 && (
         <div className="col" style={{ padding: '64px 16px', textAlign: 'center', gap: 6, alignItems: 'center' }}>
+          <Art name="empty-clients" sizes="200px" className="empty-art" />
           <span className="t2">هنوز مشتری‌ای ثبت نشده</span>
           <span className="mute sm">نیاز هر خریدار یا مستأجر را ثبت کنید تا فایل‌های مناسب خودشان پیدا شوند.</span>
           <Link viewTransition className="btn btn-p" to="/clients/new" style={{ marginTop: 10 }}>ثبت اولین مشتری</Link>

@@ -280,3 +280,25 @@ export function iphone(): string {
 </div></div>
 </div>`;
 }
+
+/** تصویر واکنش‌گرا: AVIF و WebP در سه پهنا، تنبل، با اندازهٔ ثابت تا صفحه موقع بار شدن نپرد. */
+function art(name: string, widths: number[], sizes: string, alt = ''): string {
+  const set = (ext: string) => widths.map((w) => `/art/${name}-${w}.${ext} ${w}w`).join(', ');
+  return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><img src="/art/${name}-${widths[0]}.webp" srcset="${set('webp')}" sizes="${sizes}" width="1200" height="800" alt="${alt}" loading="lazy" decoding="async"></picture>`;
+}
+
+const CITY_NAMES: Array<[string, string]> = [
+  ['tehran', 'تهران'], ['isfahan', 'اصفهان'], ['shiraz', 'شیراز'], ['tabriz', 'تبریز'],
+  ['yazd', 'یزد'], ['rasht', 'رشت'], ['mashhad', 'مشهد'], ['bushehr', 'بوشهر'],
+];
+
+/** نوار شهرها: روی گوشی ورق‌خوردنی، روی صفحهٔ پهن شبکه‌ای چهارتایی. */
+export function cities(): string {
+  const sizes = '(min-width: 1100px) 300px, (min-width: 700px) 45vw, 78vw';
+  return `<ul class="cities">${CITY_NAMES.map(([k, fa]) => `<li>${art(`city-${k}`, [480, 800, 1200], sizes, `شهر ${fa}`)}<span>${fa}</span></li>`).join('')}</ul>`;
+}
+
+/** دفتری که شب هم چراغش روشن است؛ پس‌زمینهٔ بخش «اینترنت قطع شد؟». */
+export function nightArt(): string {
+  return `<div class="night-art" aria-hidden="true">${art('night', [800, 1200, 1600], '100vw')}</div>`;
+}

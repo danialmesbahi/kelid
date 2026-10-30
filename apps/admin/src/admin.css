@@ -137,6 +137,26 @@
   padding: 24px 16px;
   background: var(--bg);
 }
+/* تصویر شهر فقط روی صفحهٔ پهن؛ روی گوشی display:none است و تصویرِ lazy اصلاً بار نمی‌شود */
+.ad-login-art {
+  display: none;
+}
+@media (min-width: 900px) {
+  .ad-login {
+    grid-template-columns: 1fr 1fr;
+    padding: 0;
+  }
+  .ad-login-art {
+    display: block;
+    width: 100%;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+  }
+  .ad-login-card {
+    margin: 24px;
+  }
+}
 .ad-login-card {
   width: min(420px, 100%);
   padding: 30px 28px;

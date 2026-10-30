@@ -193,6 +193,18 @@ h2 .mute { font-weight: 700; }
 .sec-hd { display: flex; flex-direction: column; gap: 14px; max-width: 780px; }
 .sec-hd .eb { margin: 0; }
 .sec-hd.center { align-items: center; text-align: center; margin-inline: auto; }
+/* شهرها: روی صفحهٔ پهن شبکهٔ چهارتایی، روی گوشی ورق‌زدنی با scroll-snap و بی جاوااسکریپت */
+.cities { list-style: none; margin: 40px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.cities li { position: relative; overflow: hidden; border-radius: 18px; aspect-ratio: 3 / 2; background: var(--sunk); }
+.cities img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2, .7, .2, 1); }
+.cities li:hover img { transform: scale(1.04); }
+.cities span { position: absolute; inset: auto 0 0; padding: 28px 16px 12px; font-weight: 700; color: #fff; background: linear-gradient(transparent, rgba(0, 0, 0, .55)); }
+@media (max-width: 920px) { .cities { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px) {
+  .cities { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  .cities li { flex: 0 0 78%; scroll-snap-align: center; }
+}
+@media (prefers-reduced-motion: reduce) { .cities img { transition: none; } }
 
 /* ── یک روز با کلید: چهار قدم واقعی، پس شماره دارند ── */
 .flow .steps { list-style: none; display: flex; flex-direction: column; gap: clamp(56px, 8vw, 110px); margin: 64px 0 0; padding: 0; }
@@ -260,6 +272,10 @@ h2 .mute { font-weight: 700; }
 .night { position: relative; margin-top: clamp(72px, 10vw, 128px); padding-block: clamp(64px, 9vw, 112px); background: var(--deep); color: var(--deep-ink); overflow: hidden; }
 .night::before { content: ""; position: absolute; inset: -40% -10% auto auto; width: 70%; height: 140%; background: radial-gradient(closest-side, color-mix(in srgb, var(--pri) 55%, transparent), transparent); opacity: .7; pointer-events: none; }
 .night-in { position: relative; display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; }
+/* تصویر شب زیر لایهٔ سبز: حس دارد ولی متن را نمی‌پوشاند */
+.night-art { position: absolute; inset: 0; pointer-events: none; }
+.night-art img { width: 100%; height: 100%; object-fit: cover; object-position: 30% 60%; opacity: .55; }
+.night-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(270deg, var(--deep) 30%, color-mix(in srgb, var(--deep) 55%, transparent)); }
 .night .eb { color: #F6CF7C; }
 .night .eb::before { background: #F6CF7C; }
 .night h2 span { color: var(--deep-mute); }
