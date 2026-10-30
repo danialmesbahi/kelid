@@ -137,24 +137,51 @@
   padding: 24px 16px;
   background: var(--bg);
 }
-/* تصویر شهر فقط روی صفحهٔ پهن؛ روی گوشی display:none است و تصویرِ lazy اصلاً بار نمی‌شود */
+/* تصویر شهرِ روز تمام‌صفحه؛ لایهٔ رنگ پس‌زمینه از سمت فرم پررنگ است تا متن همیشه خوانا بماند */
+.ad-login {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
 .ad-login-art {
-  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+.ad-login::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.ad-login-city {
+  position: absolute;
+  inset: auto auto 22px 26px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .5);
+  opacity: .85;
+}
+.ad-login .ad-login-card {
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border-color: color-mix(in srgb, var(--line) 60%, transparent);
 }
 @media (min-width: 900px) {
   .ad-login {
-    grid-template-columns: 1fr 1fr;
-    padding: 0;
+    justify-items: start;
+    padding-inline: clamp(40px, 8vw, 140px);
   }
-  .ad-login-art {
-    display: block;
-    width: 100%;
-    height: 100dvh;
-    position: sticky;
-    top: 0;
+  .ad-login::before {
+    background: linear-gradient(270deg, color-mix(in srgb, var(--bg) 88%, transparent) 0%, color-mix(in srgb, var(--bg) 55%, transparent) 38%, transparent 72%);
   }
-  .ad-login-card {
-    margin: 24px;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ad-login .ad-login-card {
+    background: var(--paper);
+    backdrop-filter: none;
   }
 }
 .ad-login-card {

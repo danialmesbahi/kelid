@@ -4,6 +4,7 @@ const files = import.meta.glob<string>('./art/*.{avif,webp}', { eager: true, que
 
 export const CITIES = ['tehran', 'isfahan', 'shiraz', 'tabriz', 'yazd', 'rasht', 'mashhad', 'bushehr'] as const;
 export type City = (typeof CITIES)[number];
+export const CITY_FA: Record<City, string> = { tehran: 'تهران', isfahan: 'اصفهان', shiraz: 'شیراز', tabriz: 'تبریز', yazd: 'یزد', rasht: 'رشت', mashhad: 'مشهد', bushehr: 'بوشهر' };
 export type ArtName = 'empty-files' | 'empty-clients' | `city-${City}`;
 
 /** هر روز یک شهر؛ همه روی یک دستگاه یک تصویر می‌بینند و کش به کار می‌آید. */

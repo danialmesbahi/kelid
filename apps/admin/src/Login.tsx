@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Art, Icon, Logo, cityOfDay } from '@kelid/ui';
+import { Art, CITY_FA, Icon, Logo, cityOfDay } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { api, ApiError, DEMO } from './api';
 import { useAuth } from './auth';
@@ -43,9 +43,14 @@ export function Login() {
     }
   };
 
+  const city = cityOfDay();
+
   return (
     <div className="ad-login">
-      <Art name={`city-${cityOfDay()}`} sizes="50vw" className="ad-login-art" />
+      <Art name={`city-${city}`} sizes="100vw" className="ad-login-art" />
+      <span className="ad-login-city" aria-hidden="true">
+        {CITY_FA[city]}
+      </span>
       <form className="card ad-login-card enter" onSubmit={submit} noValidate aria-labelledby="ad-login-title">
         <div className="rw" style={{ gap: 12 }}>
           <Logo size={44} />
