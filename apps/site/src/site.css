@@ -59,8 +59,8 @@ h2 .mute { font-weight: 700; }
 .btn-ghost { background: rgba(255, 255, 255, .08); color: var(--night-ink) !important; border-color: rgba(255, 255, 255, .22); }
 .btn-ghost:hover { background: rgba(255, 255, 255, .16); }
 /* روی تصویر شب بخش آخر، دکمهٔ دوم باید زمینهٔ تیره و مرز روشن داشته باشد تا دیده شود */
-.final .btn-ghost { background: rgba(8, 22, 18, .6); border-color: rgba(255, 255, 255, .55); color: #fff !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-.final .btn-ghost:hover { background: rgba(8, 22, 18, .78); }
+.final .btn-ghost, .hero .btn-ghost { background: rgba(8, 22, 18, .6); border-color: rgba(255, 255, 255, .55); color: #fff !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.final .btn-ghost:hover, .hero .btn-ghost:hover { background: rgba(8, 22, 18, .78); }
 .os-logo { width: 20px; height: 20px; fill: currentColor; flex: none; }
 /* دکمهٔ اصلی دانلود همان سیستم‌عامل بیننده است (data-os را اسکریپت کوچک سرصفحه می‌گذارد)؛ بی آن ویندوز، و روی صفحهٔ لمسی اندروید. */
 .os-mac, .os-ios, .os-and { display: none !important; }
@@ -103,6 +103,12 @@ h2 .mute { font-weight: 700; }
 .hero { position: relative; isolation: isolate; overflow-x: clip; color: var(--night-ink); padding-top: calc(var(--hdr) + 80px); }
 /* شب تا نیمهٔ پنجرهٔ برنامه ادامه دارد؛ نیمهٔ پایین روی زمینهٔ صفحه می‌نشیند. */
 .hero > .sky { bottom: clamp(140px, 22vw, 300px); }
+/* عکس تهران شب روی آسمان برداری می‌نشیند؛ تا عکس برسد همان شب برداری دیده می‌شود */
+.hero > .hero-art { z-index: 1; background: none; animation: kl-fadein 1.2s ease both; }
+.hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; animation: kl-hero 2.6s var(--ease-expo) both; }
+.hero-art::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(4, 16, 12, .74) 0%, rgba(4, 16, 12, .5) 45%, rgba(4, 16, 12, .22) 72%, rgba(4, 16, 12, .55) 100%); }
+@keyframes kl-hero { from { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .hero > .hero-art, .hero-art img { animation: none; } }
 .hero-in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; }
 .chip { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 99px; font-size: 14px; color: var(--night-mute); background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); animation: kl-up .9s var(--ease-expo) .1s both; }
 .chip .ic { color: var(--lit); }

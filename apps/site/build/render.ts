@@ -282,9 +282,26 @@ export function iphone(): string {
 }
 
 /** تصویر واکنش‌گرا: AVIF و WebP در سه پهنا، تنبل، با اندازهٔ ثابت تا صفحه موقع بار شدن نپرد. */
-function art(name: string, widths: number[], sizes: string, alt = '', size: [number, number] = [1200, 800]): string {
+function art(name: string, widths: number[], sizes: string, alt = '', size: [number, number] = [1200, 800], extra = 'loading="lazy"'): string {
   const set = (ext: string) => widths.map((w) => `/art/${name}-${w}.${ext} ${w}w`).join(', ');
-  return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><img src="/art/${name}-${widths[0]}.webp" srcset="${set('webp')}" sizes="${sizes}" width="${size[0]}" height="${size[1]}" alt="${alt}" loading="lazy" decoding="async"></picture>`;
+  return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><img src="/art/${name}-${widths[0]}.webp" srcset="${set('webp')}" sizes="${sizes}" width="${size[0]}" height="${size[1]}" alt="${alt}" ${extra} decoding="async"></picture>`;
+}
+
+const HERO_WIDTHS = [768, 1152, 1536];
+
+/** تهران شب از تراس یک آپارتمان؛ اولین چیزی که دیده می‌شود، پس زودتر از همه و با اولویت بالا بار می‌شود. */
+export function heroArt(): string {
+  return `<div class="sky hero-art" aria-hidden="true">${art('hero', HERO_WIDTHS, '100vw', '', [1536, 1024], 'fetchpriority="high"')}</div>`;
+}
+
+/** پیش‌بارگذاری تصویر سرصفحه در head تا مرورگر پیش از خواندن CSS سراغش برود. */
+export function heroPreload(): string {
+  return `<link rel="preload" as="image" type="image/avif" imagesrcset="${HERO_WIDTHS.map((w) => `/art/hero-${w}.avif ${w}w`).join(', ')}" imagesizes="100vw" fetchpriority="high">`;
+}
+
+/** عکس فایل در پیش‌نمایش برنامه به جای تصویر جایگزین. */
+export function listingPhoto(name: string): string {
+  return art(`listing-${name}`, [320, 640], '(min-width: 1100px) 240px, 40vw', '', [640, 427]).replace('<img ', '<img class="photo" ');
 }
 
 const CITY_NAMES: Array<[string, string]> = [
