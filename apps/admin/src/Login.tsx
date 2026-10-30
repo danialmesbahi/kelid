@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Art, CITY_FA, Icon, Logo, cityOfDay } from '@kelid/ui';
+import { Art, CITY_FA, Icon, Logo } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { api, ApiError, DEMO } from './api';
 import { useAuth } from './auth';
@@ -43,7 +43,8 @@ export function Login() {
     }
   };
 
-  const city = cityOfDay();
+  // تصویر پیش‌فرض ورود ادمین تهران است (خواستهٔ مهدی)
+  const city = 'tehran' as const;
 
   return (
     <div className="ad-login">

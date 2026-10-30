@@ -7,11 +7,6 @@ export type City = (typeof CITIES)[number];
 export const CITY_FA: Record<City, string> = { tehran: 'تهران', isfahan: 'اصفهان', shiraz: 'شیراز', tabriz: 'تبریز', yazd: 'یزد', rasht: 'رشت', mashhad: 'مشهد', bushehr: 'بوشهر' };
 export type ArtName = 'empty-files' | 'empty-clients' | `city-${City}`;
 
-/** هر روز یک شهر؛ همه روی یک دستگاه یک تصویر می‌بینند و کش به کار می‌آید. */
-export function cityOfDay(): City {
-  return CITIES[Math.floor(Date.now() / 864e5) % CITIES.length] ?? 'tehran';
-}
-
 const WIDTHS: Record<'empty' | 'city', [number, number]> = { empty: [320, 640], city: [640, 1024] };
 
 function set(name: ArtName, ext: 'avif' | 'webp', widths: number[]) {
