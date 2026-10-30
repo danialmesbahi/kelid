@@ -282,9 +282,9 @@ export function iphone(): string {
 }
 
 /** تصویر واکنش‌گرا: AVIF و WebP در سه پهنا، تنبل، با اندازهٔ ثابت تا صفحه موقع بار شدن نپرد. */
-function art(name: string, widths: number[], sizes: string, alt = ''): string {
+function art(name: string, widths: number[], sizes: string, alt = '', size: [number, number] = [1200, 800]): string {
   const set = (ext: string) => widths.map((w) => `/art/${name}-${w}.${ext} ${w}w`).join(', ');
-  return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><img src="/art/${name}-${widths[0]}.webp" srcset="${set('webp')}" sizes="${sizes}" width="1200" height="800" alt="${alt}" loading="lazy" decoding="async"></picture>`;
+  return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><img src="/art/${name}-${widths[0]}.webp" srcset="${set('webp')}" sizes="${sizes}" width="${size[0]}" height="${size[1]}" alt="${alt}" loading="lazy" decoding="async"></picture>`;
 }
 
 const CITY_NAMES: Array<[string, string]> = [
@@ -292,13 +292,24 @@ const CITY_NAMES: Array<[string, string]> = [
   ['yazd', 'یزد'], ['rasht', 'رشت'], ['mashhad', 'مشهد'], ['bushehr', 'بوشهر'],
 ];
 
-/** نوار شهرها: روی گوشی ورق‌خوردنی، روی صفحهٔ پهن شبکه‌ای چهارتایی. */
+/** شهرها به شکل موزاییک: تهران بزرگ، بوشهر پهن، بقیه کوچک؛ روی گوشی ورق‌خوردنی. */
 export function cities(): string {
-  const sizes = '(min-width: 1100px) 300px, (min-width: 700px) 45vw, 78vw';
-  return `<ul class="cities">${CITY_NAMES.map(([k, fa]) => `<li>${art(`city-${k}`, [480, 800, 1200], sizes, `شهر ${fa}`)}<span>${fa}</span></li>`).join('')}</ul>`;
+  const big = '(min-width: 1100px) 600px, (min-width: 700px) 90vw, 82vw';
+  const small = '(min-width: 1100px) 300px, (min-width: 700px) 45vw, 82vw';
+  return `<ul class="cities">${CITY_NAMES.map(([k, fa], i) => `<li class="c-${k}">${art(`city-${k}`, [480, 800, 1200], i === 0 || k === 'bushehr' ? big : small, `شهر ${fa}`)}<span>${fa}</span></li>`).join('')}</ul>`;
 }
 
-/** دفتری که شب هم چراغش روشن است؛ پس‌زمینهٔ بخش «اینترنت قطع شد؟». */
-export function nightArt(): string {
-  return `<div class="night-art" aria-hidden="true">${art('night', [800, 1200, 1600], '100vw')}</div>`;
+/** خیابان بارانی رشت و پنجرهٔ روشن دفتر؛ پس‌زمینهٔ بخش «اینترنت قطع شد؟». */
+export function offlineArt(): string {
+  return `<div class="night-art" aria-hidden="true">${art('city-rasht', [480, 800, 1200], '100vw')}</div>`;
+}
+
+/** دفتری که شب چراغش روشن است، زیر جملهٔ «امشب که چراغ دفتر را خاموش می‌کنید». */
+export function finalArt(): string {
+  return `<div class="final-art" aria-hidden="true">${art('night', [800, 1200, 1600], '100vw')}</div>`;
+}
+
+/** در باز و استکان چای کنار پرسش‌ها: یعنی بپرسید، دفتر باز است. */
+export function faqArt(): string {
+  return `<div class="faq-art">${art('welcome', [400, 800], '(min-width: 920px) 380px, 90vw', '', [800, 800])}</div>`;
 }

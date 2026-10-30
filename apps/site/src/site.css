@@ -194,15 +194,18 @@ h2 .mute { font-weight: 700; }
 .sec-hd .eb { margin: 0; }
 .sec-hd.center { align-items: center; text-align: center; margin-inline: auto; }
 /* شهرها: روی صفحهٔ پهن شبکهٔ چهارتایی، روی گوشی ورق‌زدنی با scroll-snap و بی جاوااسکریپت */
-.cities { list-style: none; margin: 40px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.cities li { position: relative; overflow: hidden; border-radius: 18px; aspect-ratio: 3 / 2; background: var(--sunk); }
+.cities { list-style: none; margin: 40px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: clamp(150px, 15vw, 210px); grid-auto-flow: dense; gap: 16px; }
+.cities li { position: relative; overflow: hidden; border-radius: 18px; background: var(--sunk); }
+.cities .c-tehran { grid-column: span 2; grid-row: span 2; }
+.cities .c-bushehr { grid-column: span 2; }
+.cities .c-tehran span { font-size: 1.35em; padding: 40px 22px 18px; }
 .cities img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2, .7, .2, 1); }
 .cities li:hover img { transform: scale(1.04); }
 .cities span { position: absolute; inset: auto 0 0; padding: 28px 16px 12px; font-weight: 700; color: #fff; background: linear-gradient(transparent, rgba(0, 0, 0, .55)); }
-@media (max-width: 920px) { .cities { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 920px) { .cities { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 26vw; } }
 @media (max-width: 700px) {
   .cities { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
-  .cities li { flex: 0 0 78%; scroll-snap-align: center; }
+  .cities li { flex: 0 0 82%; aspect-ratio: 3 / 2; scroll-snap-align: center; }
 }
 @media (prefers-reduced-motion: reduce) { .cities img { transition: none; } }
 
@@ -274,8 +277,9 @@ h2 .mute { font-weight: 700; }
 .night-in { position: relative; display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; }
 /* تصویر شب زیر لایهٔ سبز: حس دارد ولی متن را نمی‌پوشاند */
 .night-art { position: absolute; inset: 0; pointer-events: none; }
-.night-art img { width: 100%; height: 100%; object-fit: cover; object-position: 30% 60%; opacity: .55; }
-.night-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(270deg, var(--deep) 30%, color-mix(in srgb, var(--deep) 55%, transparent)); }
+.night-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; }
+.night-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(270deg, var(--deep) 22%, color-mix(in srgb, var(--deep) 72%, transparent) 52%, color-mix(in srgb, var(--deep) 15%, transparent)); }
+@media (max-width: 920px) { .night-art::after { background: color-mix(in srgb, var(--deep) 80%, transparent); } }
 .night .eb { color: #F6CF7C; }
 .night .eb::before { background: #F6CF7C; }
 .night h2 span { color: var(--deep-mute); }
@@ -485,6 +489,14 @@ h2 .mute { font-weight: 700; }
 
 /* ── پایان ── */
 .final { position: relative; isolation: isolate; margin-top: clamp(72px, 10vw, 128px); padding-block: clamp(72px, 9vw, 120px) clamp(220px, 24vw, 300px); color: var(--night-ink); text-align: center; overflow: hidden; }
+/* دفتر شب‌هنگام در پایین بخش آخر؛ بالایش در آسمان شب محو می‌شود */
+.final { padding-bottom: clamp(300px, 36vw, 520px); }
+.final-art { position: absolute; inset: auto 0 0; height: 78%; z-index: 1; pointer-events: none; }
+.final-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 72%; -webkit-mask-image: linear-gradient(transparent, #000 42%); mask-image: linear-gradient(transparent, #000 42%); }
+/* در باز و چای کنار پرسش‌ها */
+.faq-art { margin-top: 28px; max-width: 380px; aspect-ratio: 1; border-radius: 22px; overflow: hidden; background: var(--sunk); }
+.faq-art img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 920px) { .faq-art { display: none; } }
 .final-in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 30px; }
 .final .mark { width: 104px; height: 104px; filter: drop-shadow(0 30px 50px rgba(246, 207, 124, .3)) drop-shadow(0 0 1px rgba(255, 255, 255, .3)); }
 .final h2 { max-width: 760px; }
