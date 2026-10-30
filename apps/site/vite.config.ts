@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { appDesktop, brand, cities, faYear, faqArt, faqHtml, finalArt, halfGift, heroArt, heroPreload, icon, iphone, jsonLd, listingPhoto, mark, menuIcon, offlineArt, plans, skyline, trialDays, yearGift, type SiteConfig } from './build/render';
+import { appDesktop, appShot, brand, cities, faYear, faqArt, faqHtml, finalArt, halfGift, heroArt, heroPreload, icon, iphone, jsonLd, listingPhoto, mark, menuIcon, offlineArt, plans, skyline, trialDays, yearGift, type SiteConfig } from './build/render';
 
 // همان تصویر جایگزین عکس فایل در برنامه (Cover در packages/ui)
 const COVER = '<i class="y t2"></i><i class="y t1"></i><i class="y gd"></i><i class="x fl"></i><i class="x w"></i><i class="x lt"></i><i class="x so"></i>';
@@ -47,6 +47,7 @@ function site(cfg: SiteConfig): Plugin {
         })
         .replace(/\{\{icon:(\w+)(?: ([\w ]+))?\}\}/g, (_, n: string, c?: string) => icon(n, c))
         .replace(/\{\{brand:(\w+)\}\}/g, (_, n: string) => brand(n))
+        .replace(/\{\{shot:([\w-]+)\}\}/g, (_, n: string) => appShot(n))
         .replace(/\{\{mark:(\w+)\}\}/g, (_, id: string) => mark(id))
         .replace(/\{\{(\w+)\}\}/g, (_, k: string) => {
           const v = vars[k];

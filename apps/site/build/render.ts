@@ -286,6 +286,11 @@ export function appDesktop(): string {
   return `<picture class="win-shot"><img src="/art/app-desktop-1280.webp" srcset="/art/app-desktop-1280.webp 1280w, /art/app-desktop-2560.webp 2560w" sizes="(min-width: 1280px) 1200px, 94vw" width="1280" height="800" alt="" decoding="async"></picture>`;
 }
 
+/** عکس واقعی یک صفحهٔ برنامه در اندازهٔ گوشی، برای کارت‌های «چهار قدم». */
+export function appShot(name: string): string {
+  return `<img class="step-shot" src="/art/${name}-860.webp" width="860" height="1120" alt="" loading="lazy" decoding="async">`;
+}
+
 /** عکس فایل در پیش‌نمایش برنامه به جای تصویر جایگزین. */
 export function listingPhoto(name: string): string {
   return art(`listing-${name}`, [320, 640], '(min-width: 1100px) 240px, 40vw', '', [640, 427]).replace('<img ', '<img class="photo" ');

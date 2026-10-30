@@ -153,6 +153,7 @@ h2 .mute { font-weight: 700; }
 
 /* عکس واقعی برنامه در قاب پنجره و آیفون (npm run shots) */
 .win-shot img { display: block; width: 100%; height: auto; }
+.step-shot { display: block; width: 100%; height: auto; border-radius: 25px; }
 .ios-shot { position: absolute; inset: 5.9em 0 0; }
 .ios-shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .win {
@@ -162,11 +163,6 @@ h2 .mute { font-weight: 700; }
 .win-bar { display: flex; align-items: center; gap: .45em; height: 2.4em; padding-inline: 1em; background: var(--sunk); border-bottom: 1px solid var(--line); font-size: .85em; color: var(--mute); }
 .win-bar i { width: .8em; height: .8em; border-radius: 50%; background: var(--line2); }
 .win-bar span { margin-inline: auto; padding-inline-end: 3em; }
-.m-seg { display: flex; gap: .15em; padding: .2em; border-radius: .75em; background: var(--sunk); font-size: .8em; white-space: nowrap; }
-.m-seg span { display: inline-flex; align-items: center; gap: .4em; height: 2.4em; padding-inline: .8em; border-radius: .55em; color: var(--ink2); }
-.m-seg .on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--line); }
-.m-seg i { width: .8em; height: .8em; border-radius: .2em; }
-.sw-s { background: var(--sale); } .sw-r { background: var(--rent); } .sw-f { background: var(--full); }
 
 .hero-phone { display: none; }
 .plats { margin-top: 22px; font-size: 14px; color: var(--mute); animation: kl-up 1s var(--ease-expo) .5s both; }
@@ -205,50 +201,14 @@ h2 .mute { font-weight: 700; }
 .step-tx > p { color: var(--ink2); line-height: 1.95; font-size: 16.5px; }
 .ticks { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; padding: 0; }
 .ticks li { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 99px; background: var(--pri-tint); color: var(--pri-text); font-size: 14px; font-weight: 600; }
-.step-v { position: relative; padding: 26px; border-radius: 26px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--sh-lg); }
+.step-v { position: relative; padding: 0; border-radius: 26px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--sh-lg); }
 .step-v::before { content: ""; position: absolute; inset: -40px; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--pri) 13%, transparent), transparent); }
 
-.vf-hd { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.vf-hd b { font-size: 18px; }
-.step-v .m-seg { font-size: 13px; }
-.vf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.vf-grid span { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--paper2); border: 1px solid var(--line); font-weight: 600; }
-.vf-grid small { color: var(--mute); font-weight: 400; font-size: 12.5px; }
-.vf-ft { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line2); }
-.vf-ok { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); font-weight: 700; }
 
-.vc-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--pri-text); font-weight: 700; }
-.vc-row { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 16px; }
-.vc-row + .vc-row { margin-top: 4px; }
-.vc-row:nth-child(2) { background: var(--sel); box-shadow: inset 0 0 0 1px var(--sel-line); }
-.vc-row > span:nth-child(2) { flex: 1; min-width: 0; }
-.vc-row b, .vc-row small { display: block; }
-.vc-row small { color: var(--mute); font-size: 13.5px; }
-.vc-row > .ic { color: var(--pri-text); }
 .ring { --p: 0; --rb: var(--paper); flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(closest-side, var(--rb) 76%, transparent 78%), conic-gradient(var(--pri) calc(var(--p) * 1%), var(--sunk) 0); }
-.vc-row:nth-child(2) .ring { --rb: var(--sel); }
 .ring b { font-size: 14px; color: var(--pri-text); }
 
-.vd-hd { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
-.vd-hd b { font-size: 18px; }
-.vd-hd small { color: var(--mute); }
-.ev { --c: var(--sale); display: flex; align-items: center; gap: 14px; margin-bottom: 8px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--c) 10%, var(--paper)); border-inline-start: 4px solid var(--c); font-size: 14.5px; }
-.ev.am { --c: var(--rent); }
-.ev.bl { --c: var(--full); }
-.ev small { min-width: 40px; color: var(--mute); font-feature-settings: "tnum"; }
-.toast { position: absolute; left: -18px; bottom: -22px; display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 600; box-shadow: var(--sh-lg); rotate: -2deg; }
 
-.v-deal { padding-top: 30px; }
-.vdl-t { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-.vdl-t b, .vdl-t small { display: block; }
-.vdl-t small { color: var(--mute); }
-.v-deal dl { display: flex; flex-direction: column; margin: 0; border: 1px solid var(--line); border-radius: 14px; }
-.v-deal dl div { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; }
-.v-deal dl div + div { border-top: 1px solid var(--line); }
-.v-deal dt { color: var(--mute); }
-.v-deal dd { margin: 0; font-weight: 700; }
-.v-deal dd.ok { color: var(--ok); }
-.stamp { position: absolute; top: 18px; left: 18px; padding: 4px 14px; border: 2.5px solid var(--ok); border-radius: 10px; color: var(--ok); font-size: 16px; font-weight: 800; rotate: -12deg; }
 
 /* ── امکانات بیشتر: یک شبکهٔ آرام، نه کارت روی کارت ── */
 .more { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 44px 0 0; padding: 0; background: var(--line); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
@@ -315,7 +275,6 @@ h2 .mute { font-weight: 700; }
   box-shadow: inset 0 0 0 .07em rgba(255, 255, 255, .7), inset 0 .12em .25em rgba(255, 255, 255, .55), 0 0 0 .05em rgba(0, 0, 0, .06), 0 .8em 2em -.8em rgba(0, 0, 0, .3);
 }
 @media (prefers-color-scheme: dark) {
-  .glass { box-shadow: inset 0 0 0 .07em rgba(255, 255, 255, .16), inset 0 .12em .25em rgba(255, 255, 255, .08), 0 .8em 2em -.8em rgba(0, 0, 0, .7); }
 }
 /* خود برنامه، صفحهٔ فایل‌ها روی گوشی با الگوهای iOS: عنوان بزرگ، جستجوی کپسولی، فهرست گروه‌بندی‌شده */
 /* نوار زبانهٔ شناور شیشه‌ای و دکمهٔ جدای «+» مثل iOS 26/27 */
@@ -532,8 +491,6 @@ h2 .mute { font-weight: 700; }
   .hero-phone { display: block; }
   .hero-phone .iph { font-size: 9px; }
   .step-v { padding: 20px 16px; }
-  .vf-grid { grid-template-columns: 1fr; }
-  .toast { left: 8px; bottom: -20px; }
   .more { grid-template-columns: 1fr; }
   .more li { padding: 22px 20px; }
   .plat { grid-template-columns: 1fr; }

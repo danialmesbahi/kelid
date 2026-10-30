@@ -13,6 +13,11 @@ const out = fileURLToPath(new URL('../public/art/', import.meta.url));
 const SHOTS = [
   { name: 'app-desktop', width: 1280, height: 800, scale: 2, tab: 'فایل‌ها', widths: [1280, 2560] },
   { name: 'app-phone', width: 390, height: 797, scale: 2, tab: 'فایل‌ها', widths: [780] },
+  // کارت‌های «چهار قدم»: هر قدم همان صفحهٔ برنامه در اندازهٔ گوشی
+  { name: 'step-add', width: 430, height: 560, scale: 2, clicks: ['ثبت فایل جدید'], widths: [860] },
+  { name: 'step-clients', width: 430, height: 560, scale: 2, tab: 'مشتری‌ها', widths: [860] },
+  { name: 'step-calendar', width: 430, height: 560, scale: 2, tab: 'تقویم', widths: [860] },
+  { name: 'step-deals', width: 430, height: 560, scale: 2, clicks: ['بیشتر', 'قراردادها'], widths: [860] },
 ];
 
 const browser = await chromium.launch({ channel: 'chrome' });
@@ -23,7 +28,12 @@ for (const s of SHOTS) {
   // اولین بار: آشنایی را رد می‌کنیم تا دادهٔ نمونه بماند.
   const later = page.getByText('بعداً').first();
   if (await later.count()) await later.click();
-  await page.getByRole('link', { name: s.tab }).first().click();
+  if (s.tab) await page.getByRole('link', { name: s.tab }).first().click();
+  // صفحه‌هایی که در نوار پایین گوشی نیستند: با همان دکمه‌هایی که کاربر می‌زند («ثبت فایل جدید»، «بیشتر»).
+  for (const name of s.clicks ?? []) {
+    await page.getByRole('link', { name }).or(page.getByRole('button', { name })).first().click();
+    await page.waitForTimeout(500);
+  }
   await page.waitForTimeout(1500);
   const png = (await page.screenshot()).toString('base64');
   for (const w of s.widths) {
