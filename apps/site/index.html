@@ -51,15 +51,21 @@
   </div>
 </header>
 <div class="menu" id="menu" popover>
+  <div class="menu-top">
+    <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول">{{mark:m}}<b>کلید</b></a>
+    <button class="menu-x" type="button" popovertarget="menu" popovertargetaction="hide" aria-label="بستن منو">{{icon:x}}</button>
+  </div>
   <nav aria-label="منوی گوشی">
-    <a href="#how">چطور کار می‌کند</a>
-    <a href="#features">امکانات</a>
-    <a href="#download">دانلود</a>
-    <a href="#pricing">قیمت</a>
-    <a href="#faq">پرسش‌ها</a>
+    <a href="#how"><span>چطور کار می‌کند</span>{{icon:chl}}</a>
+    <a href="#features"><span>امکانات</span>{{icon:chl}}</a>
+    <a href="#download"><span>دانلود</span>{{icon:chl}}</a>
+    <a href="#pricing"><span>قیمت</span>{{icon:chl}}</a>
+    <a href="#faq"><span>پرسش‌ها</span>{{icon:chl}}</a>
   </nav>
-  <a class="btn btn-lg btn-gold btn-w" href="#download">{{icon:download}}دانلود رایگان</a>
-  <button class="menu-x" type="button" popovertarget="menu" popovertargetaction="hide" aria-label="بستن منو">{{icon:x}}</button>
+  <div class="menu-ft">
+    <a class="btn btn-lg btn-w menu-cta" href="#download">{{icon:download}}دانلود رایگان</a>
+    <p>{{trial}} روز رایگان · بدون کارت بانکی</p>
+  </div>
 </div>
 
 <main id="main">

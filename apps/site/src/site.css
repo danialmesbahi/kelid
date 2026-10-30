@@ -43,15 +43,35 @@ h2 .mute { font-weight: 700; }
 .hdr-end { justify-self: end; display: flex; align-items: center; gap: 8px; }
 .hdr-cta { height: 44px; background: var(--pri); color: var(--pri-ink) !important; box-shadow: 0 8px 22px -12px color-mix(in srgb, var(--pri) 90%, transparent); }
 .hdr-cta:hover { filter: brightness(1.05); }
-.hdr-menu { display: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 0; background: var(--sunk); color: var(--ink); }
-/* منوی گوشی: popover بومی؛ بیرونش را بزنید یا Esc، بسته می‌شود. */
-.menu { inset: 10px 10px auto; width: auto; margin: 0; padding: 72px 20px 20px; border: 0; border-radius: 24px; background: #06140F; color: var(--night-ink); box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 255, 255, .1); }
-.menu:popover-open { display: flex; flex-direction: column; gap: 18px; animation: kl-menu .35s var(--ease-expo); }
-@keyframes kl-menu { from { opacity: 0; translate: 0 -12px; } }
-.menu::backdrop { background: rgba(0, 0, 0, .45); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
-.menu nav { display: flex; flex-direction: column; }
-.menu nav a { padding: 14px 6px; font-size: 19px; font-weight: 600; border-bottom: 1px solid rgba(255, 255, 255, .08); }
-.menu-x { position: absolute; top: 14px; left: 14px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 0; background: rgba(255, 255, 255, .1); color: var(--night-ink); }
+.hdr-menu { display: none; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); background: color-mix(in srgb, var(--paper) 70%, transparent); color: var(--ink); }
+/* منوی گوشی و تبلت: popover بومی (بیرونش را بزنید یا Esc، بسته می‌شود).
+   روی گوشی برگهٔ تمام‌صفحهٔ روشن، روی تبلت کشوی شیشه‌ای از راست؛ پیوندها درشت و شماره‌دار، با ورود پله‌پله. */
+.menu { position: fixed; inset: 0; width: auto; height: auto; max-height: none; margin: 0; padding: 0 max(20px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); border: 0; background: var(--paper); color: var(--ink); overflow-y: auto; }
+.menu::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(80% 50% at 100% 0%, color-mix(in srgb, var(--pri) 10%, transparent), transparent 70%), radial-gradient(60% 40% at 0% 100%, color-mix(in srgb, var(--lit) 16%, transparent), transparent 70%); }
+.menu:popover-open { display: flex; flex-direction: column; animation: kl-menu .45s var(--ease-expo); }
+@keyframes kl-menu { from { opacity: 0; translate: 0 -16px; } }
+.menu::backdrop { background: color-mix(in srgb, var(--ink) 30%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.menu-top { display: flex; align-items: center; justify-content: space-between; height: var(--hdr); flex: none; }
+.menu-x { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); background: var(--paper); color: var(--ink); transition: background-color var(--t-fast), rotate .4s var(--ease-expo); }
+.menu-x:hover { background: var(--sunk); rotate: 90deg; }
+.menu nav { display: flex; flex-direction: column; margin-top: clamp(12px, 4vh, 40px); counter-reset: mn; }
+.menu nav a { display: flex; align-items: center; gap: 16px; padding: 18px 4px; font-size: clamp(24px, 6.4vw, 30px); font-weight: 800; letter-spacing: -.01em; border-bottom: 1px solid var(--line); color: var(--ink); animation: kl-up .6s var(--ease-expo) both; }
+.menu nav a::before { counter-increment: mn; content: "۰" counter(mn, persian); min-width: 2.2ch; font-size: 13px; font-weight: 700; color: var(--rent); letter-spacing: .04em; }
+.menu nav a span { flex: 1; }
+.menu nav a .ic { width: 22px; height: 22px; color: var(--mute); transition: translate .3s var(--ease-expo), color var(--t-fast); }
+.menu nav a:hover .ic, .menu nav a:focus-visible .ic { translate: -6px 0; color: var(--pri-text); }
+.menu nav a:nth-child(1) { animation-delay: .05s; } .menu nav a:nth-child(2) { animation-delay: .1s; } .menu nav a:nth-child(3) { animation-delay: .15s; }
+.menu nav a:nth-child(4) { animation-delay: .2s; } .menu nav a:nth-child(5) { animation-delay: .25s; }
+.menu-ft { margin-top: auto; padding-top: 28px; display: flex; flex-direction: column; gap: 12px; text-align: center; animation: kl-up .6s var(--ease-expo) .3s both; }
+.menu-cta { background: var(--pri); color: var(--pri-ink) !important; box-shadow: 0 18px 36px -18px var(--pri); }
+.menu-ft p { margin: 0; font-size: 14px; color: var(--mute); }
+/* تبلت: کشوی کناری با گوشه‌های گرد، صفحه پشتش محو */
+@media (min-width: 600px) {
+  .menu { inset: 12px 12px 12px auto; width: min(440px, calc(100vw - 24px)); border-radius: 28px; padding-inline: 28px; padding-bottom: 28px; box-shadow: 0 40px 80px -24px rgba(0, 0, 0, .35), 0 0 0 1px var(--line); }
+  .menu::before { position: absolute; border-radius: inherit; }
+  @keyframes kl-menu { from { opacity: 0; translate: 40px 0; } }
+}
+@media (prefers-reduced-motion: reduce) { .menu:popover-open, .menu nav a, .menu-ft { animation: none; } }
 
 /* ── دکمه‌های روی شب ── */
 .btn-gold { background: linear-gradient(180deg, #F8D98F, #EDBD5B); color: #1A1A14 !important; box-shadow: 0 1px 0 rgba(255, 255, 255, .5) inset, 0 14px 32px -14px rgba(246, 207, 124, .9); }

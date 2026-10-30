@@ -237,7 +237,8 @@ export function mark(id: string): string {
   return `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kg-${id}" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#17654F"/><stop offset=".55" stop-color="#0E4D3F"/><stop offset="1" stop-color="#0A3A30"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#kg-${id})"/><path fill="#fff" fill-rule="evenodd" d="M32 8.42L35.98 12.4L41.6 12.4L41.6 18.02L45.58 22L41.6 25.98L41.6 31.6L35.98 31.6L32 35.58L28.02 31.6L22.4 31.6L22.4 25.98L18.42 22L22.4 18.02L22.4 12.4L28.02 12.4ZM26.4 22a5.6 5.6 0 1 0 11.2 0a5.6 5.6 0 1 0-11.2 0Z"/><circle cx="32" cy="22" r="2.9" fill="#C9A86F"/><path fill="#fff" d="M29 31.5H35V43.4H41.6V47.6H35V49.2H39.8V53.4H31.6A2.6 2.6 0 0 1 29 50.8Z"/></svg>`;
 }
 
-export const menuIcon = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>';
+/** دو خط نامساوی به‌جای همبرگر سه‌خطی معمول؛ آرام‌تر و خاص‌تر. */
+export const menuIcon = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h14M9 15h10"></path></svg>';
 
 /** آیفون ۱۷/۱۸ پرومکس با iOS 27: نوار وضعیت دو طرف Dynamic Island، نوار زبانه‌ی شیشه‌ای شناور، فهرست گروه‌بندی‌شده. رنگ بدنه سخت‌افزار است و با پوسته عوض نمی‌شود. */
 export function iphone(): string {
