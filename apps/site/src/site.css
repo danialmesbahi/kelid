@@ -106,12 +106,10 @@ h2 .mute { font-weight: 700; }
 /* عکس تهران شب روی آسمان برداری می‌نشیند؛ تا عکس برسد همان شب برداری دیده می‌شود */
 .hero > .hero-art { z-index: 1; background: none; animation: kl-fadein 1.2s ease both; }
 .hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; animation: kl-hero 2.6s var(--ease-expo) both; }
-.hero-art::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(4, 16, 12, .74) 0%, rgba(4, 16, 12, .5) 45%, rgba(4, 16, 12, .22) 72%, rgba(4, 16, 12, .55) 100%); }
+.hero-art::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(4, 16, 12, .9) 0%, rgba(4, 16, 12, .82) 38%, rgba(4, 16, 12, .45) 62%, rgba(4, 16, 12, .2) 80%, rgba(4, 16, 12, .55) 100%); }
 @keyframes kl-hero { from { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .hero > .hero-art, .hero-art img { animation: none; } }
 .hero-in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.chip { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 99px; font-size: 14px; color: var(--night-mute); background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); animation: kl-up .9s var(--ease-expo) .1s both; }
-.chip .ic { color: var(--lit); }
 .hero h1 { margin-top: 26px; display: flex; flex-direction: column; gap: 10px; font-weight: 800; animation: kl-up 1s var(--ease-expo) .2s both; }
 .h1-k { font-size: clamp(17px, 1.8vw, 21px); font-weight: 600; color: var(--lit); letter-spacing: .01em; }
 .h1-d { font-size: clamp(38px, 6.6vw, 80px); line-height: 1.2; letter-spacing: -.02em; text-wrap: balance; }
@@ -123,22 +121,6 @@ h2 .mute { font-weight: 700; }
 /* صحنهٔ برنامه: پنجرهٔ دسکتاپ با کارت‌های شناور */
 .stage { position: relative; z-index: 3; margin-top: 64px; container-type: inline-size; animation: kl-stage 1.3s var(--ease-expo) .55s both; }
 @keyframes kl-stage { from { opacity: 0; translate: 0 80px; scale: .96; } }
-.float {
-  position: absolute; z-index: 4; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center;
-  padding: 11px 15px; border-radius: 16px; background: var(--paper); color: var(--ink); text-align: start;
-  box-shadow: 0 0 0 1px var(--line), 0 26px 50px -24px rgba(0, 0, 0, .55);
-  animation: kl-pop .9s var(--ease-spring) both;
-}
-.float > :first-child { grid-row: span 2; }
-.float b { font-size: 14px; white-space: nowrap; }
-.float small { font-size: 12.5px; color: var(--mute); white-space: nowrap; }
-.float small.ok { color: var(--pri-text); font-weight: 700; }
-.float .av { width: 38px; height: 38px; background: var(--pri-tint); color: var(--pri-text); }
-.float > .ic { width: 38px; height: 38px; padding: 8px; border-radius: 11px; background: var(--warn-tint); color: var(--warn); }
-.float.f3 > .ic { background: var(--pri-tint); color: var(--pri-text); }
-.float.f1 { top: 30%; right: -2%; rotate: 2deg; animation-delay: 1.5s; }
-.float.f2 { top: 64%; left: -3%; rotate: -3deg; animation-delay: 1.7s; }
-.float.f3 { top: -4%; left: 6%; rotate: -2deg; animation-delay: 1.9s; }
 @keyframes kl-pop { from { opacity: 0; translate: 0 24px; scale: .85; } }
 
 .win {
@@ -565,8 +547,6 @@ h2 .mute { font-weight: 700; }
   .night-in, .faq { grid-template-columns: 1fr; gap: 36px; }
   .dlx { grid-template-columns: 1fr; }
   .dlx-art { order: 2; }
-  .float.f1 { right: 0; }
-  .float.f2 { left: 0; }
 }
 @media (max-width: 920px) {
   .plans { grid-template-columns: 1fr; max-width: 520px; gap: 28px; }
@@ -584,15 +564,12 @@ h2 .mute { font-weight: 700; }
   .hero { padding-top: calc(var(--hdr) + 40px); }
   .hero > .sky { bottom: 190px; }
   .moon { top: calc(var(--hdr) + 34px); left: 14px; width: 34px; height: 34px; }
-  .chip { font-size: 13px; height: 32px; padding: 0 12px; }
   .cta { flex-direction: column; align-self: stretch; }
   .cta .btn { width: 100%; }
   .stage { margin-top: 44px; display: flex; justify-content: center; }
   .win { display: none; }
   .hero-phone { display: block; }
   .hero-phone .iph { font-size: 9px; }
-  /* روی گوشی جایی بیرون از آیفون نیست؛ کارت‌ها صفحهٔ آن را نمی‌پوشانند */
-  .stage .float { display: none; }
   .step-v { padding: 20px 16px; }
   .vf-grid { grid-template-columns: 1fr; }
   .toast { left: 8px; bottom: -20px; }
