@@ -242,18 +242,6 @@ export const menuIcon = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
 
 /** آیفون ۱۷/۱۸ پرومکس با iOS 27: نوار وضعیت دو طرف Dynamic Island، نوار زبانه‌ی شیشه‌ای شناور، فهرست گروه‌بندی‌شده. رنگ بدنه سخت‌افزار است و با پوسته عوض نمی‌شود. */
 export function iphone(): string {
-  const rows: [string, string, string, string, string, string][] = [
-    ['', '۰۵۲', 'آپارتمان ۱۰۵ متری', 'ونک، ملاصدرا', '۲۴ میلیارد', 'متری ۲۲۸ میلیون'],
-    ['', '۰۵۱', 'آپارتمان ۹۵ متری', 'یوسف‌آباد', '۱۹ میلیارد', 'متری ۲۰۰ میلیون'],
-    ['r', '۰۵۰', 'آپارتمان ۸۰ متری', 'پونک، حصارک', 'ودیعه ۹۰۰ م', 'اجاره ۲۰ میلیون'],
-    ['', '۰۲۷', 'آپارتمان ۱۲۰ متری', 'سعادت‌آباد', '۲۸ میلیارد', 'متری ۲۳۳ میلیون'],
-    ['f', '۰۴۲', 'آپارتمان ۷۰ متری', 'تهرانپارس', 'رهن ۲٫۲ میلیارد', 'بدون اجاره'],
-    ['r', '۰۳۱', 'آپارتمان ۸۵ متری', 'پونک', 'ودیعه ۸۰۰ م', 'اجاره ۲۲ میلیون'],
-    ['', '۰۲۹', 'ویلایی ۲۴۰ متری', 'شهران', '۳۱ میلیارد', 'متری ۱۲۹ میلیون'],
-    ['r', '۰۲۲', 'آپارتمان ۶۵ متری', 'جنت‌آباد', 'ودیعه ۵۰۰ م', 'اجاره ۱۸ میلیون'],
-    ['', '۰۱۸', 'آپارتمان ۱۴۰ متری', 'زعفرانیه', '۵۲ میلیارد', 'متری ۳۷۱ میلیون'],
-    ['f', '۰۱۵', 'آپارتمان ۹۰ متری', 'نارمک', 'رهن ۳ میلیارد', 'بدون اجاره'],
-  ];
   // آنتن، وای‌فای و باتری با همان اندازه‌های نوار وضعیت iOS (نقطه)
   const signal = `<svg viewBox="0 0 17 11">${[3.6, 5.8, 8.2, 11].map((h, i) => `<rect x="${i * 4.6}" y="${11 - h}" width="3" height="${h}" rx="1"/>`).join('')}</svg>`;
   const sector = (r0: number, r1: number): string => {
@@ -269,14 +257,7 @@ export function iphone(): string {
 <div class="iph-scr"><div class="ios">
 <div class="ios-bar" dir="ltr"><b>9:41</b><i></i><span>${signal}${wifi}${battery}</span></div>
 <span class="ios-island"></span>
-<div class="ka">
-<div class="ka-nav"><span class="plq s">کلید</span><span class="glass ka-btns">${icon('set')}${icon('more')}</span></div>
-<div class="ka-hd"><b>فایل‌ها</b><small>۱۲۸ فایل · ۳ تای تازه امروز</small></div>
-<div class="ka-search">${icon('search')}<span>جستجو در فایل‌ها، مشتری‌ها</span>${icon('mic')}</div>
-<div class="ka-seg"><span class="on">همه</span><span><i class="sw-s"></i>فروش</span><span><i class="sw-r"></i>رهن و اجاره</span></div>
-<div class="ka-list">${rows.map(([c, n, t, pl, pr, sub]) => `<div class="ka-row"><span class="plq s${c ? ` ${c}` : ''}">${n}</span><span class="ka-t"><b>${t}</b><small>${pl}</small></span><span class="ka-p"><b>${pr}</b><small>${sub}</small></span>${icon('chl', 'chev')}</div>`).join('')}</div>
-</div>
-<div class="ka-tabs"><div class="glass ka-tab"><span>${icon('today')}امروز</span><span class="on">${icon('files')}فایل‌ها</span><span>${icon('users')}مشتری‌ها</span><span>${icon('set')}تنظیمات</span></div><span class="glass ka-add">${icon('plus')}</span></div>
+<picture class="ios-shot"><img src="/art/app-phone-780.webp" width="780" height="1594" alt="" loading="lazy" decoding="async"></picture>
 <span class="ios-home"></span>
 </div></div>
 </div>`;
@@ -298,6 +279,11 @@ export function heroArt(): string {
 /** پیش‌بارگذاری تصویر سرصفحه در head تا مرورگر پیش از خواندن CSS سراغش برود. */
 export function heroPreload(): string {
   return `<link rel="preload" as="image" type="image/avif" imagesrcset="${HERO_WIDTHS.map((w) => `/art/hero-${w}.avif ${w}w`).join(', ')}" imagesizes="100vw" fetchpriority="high">`;
+}
+
+/** عکس واقعی برنامه (npm run shots) در قاب پنجرهٔ دسکتاپ؛ پیش‌نمایش همیشه همان طراحی امروز برنامه است. */
+export function appDesktop(): string {
+  return `<picture class="win-shot"><img src="/art/app-desktop-1280.webp" srcset="/art/app-desktop-1280.webp 1280w, /art/app-desktop-2560.webp 2560w" sizes="(min-width: 1280px) 1200px, 94vw" width="1280" height="800" alt="" decoding="async"></picture>`;
 }
 
 /** عکس فایل در پیش‌نمایش برنامه به جای تصویر جایگزین. */

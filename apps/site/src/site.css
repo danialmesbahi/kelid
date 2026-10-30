@@ -151,6 +151,10 @@ h2 .mute { font-weight: 700; }
 @keyframes kl-stage { from { opacity: 0; translate: 0 80px; scale: .96; } }
 @keyframes kl-pop { from { opacity: 0; translate: 0 24px; scale: .85; } }
 
+/* عکس واقعی برنامه در قاب پنجره و آیفون (npm run shots) */
+.win-shot img { display: block; width: 100%; height: auto; }
+.ios-shot { position: absolute; inset: 5.9em 0 0; }
+.ios-shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .win {
   font-size: min(16px, 1.43cqw); border-radius: 1.1em; overflow: hidden; background: var(--bg);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .1), 0 0 0 .5em rgba(255, 255, 255, .05), 0 60px 120px -40px rgba(0, 0, 0, .7), 0 30px 60px -30px rgba(0, 0, 0, .5);
@@ -158,51 +162,11 @@ h2 .mute { font-weight: 700; }
 .win-bar { display: flex; align-items: center; gap: .45em; height: 2.4em; padding-inline: 1em; background: var(--sunk); border-bottom: 1px solid var(--line); font-size: .85em; color: var(--mute); }
 .win-bar i { width: .8em; height: .8em; border-radius: 50%; background: var(--line2); }
 .win-bar span { margin-inline: auto; padding-inline-end: 3em; }
-.win-body { display: grid; grid-template-columns: 13em 1fr 19em; height: 37em; color: var(--ink); text-align: start; }
-.m-side { display: flex; flex-direction: column; gap: .3em; padding: 1.1em .8em; font-size: .9em; }
-.m-brand { display: flex; align-items: center; gap: .6em; padding: 0 .4em .8em; }
-.m-brand small, .m-brand b { display: block; line-height: 1.4; }
-.m-brand small { font-size: .78em; color: var(--mute); }
-.m-nav { display: flex; align-items: center; gap: .7em; height: 2.6em; padding-inline: .8em; border-radius: .7em; color: var(--ink2); }
-.m-nav small { margin-inline-start: auto; font-size: .8em; color: var(--faint); }
-.m-nav.on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--line), var(--sh); }
-.m-sync { margin-top: auto; display: flex; align-items: center; gap: .5em; padding: .8em; border-radius: .8em; background: var(--paper); box-shadow: 0 0 0 1px var(--line); font-size: .85em; color: var(--mute); }
-.m-sync i { width: .55em; height: .55em; border-radius: 50%; background: var(--ok); }
-.m-main { display: flex; flex-direction: column; min-width: 0; margin: .5em 0 .5em; background: var(--paper); border: 1px solid var(--line); border-radius: 1.2em 0 0 1.2em; border-left: 0; }
-.m-top { display: flex; align-items: center; gap: .8em; padding: .8em 1.2em; border-bottom: 1px solid var(--line); }
-.m-search { flex: 1; display: flex; align-items: center; gap: .6em; height: 2.6em; padding-inline: .9em; border-radius: .75em; background: var(--sunk); color: var(--mute); font-size: .88em; white-space: nowrap; overflow: hidden; }
-.m-search kbd { margin-inline-start: auto; padding: .1em .45em; border-radius: .35em; border: 1px solid var(--line2); background: var(--paper); font: inherit; font-size: .8em; direction: ltr; }
-.m-new { display: inline-flex; align-items: center; gap: .4em; height: 2.6em; padding-inline: 1em; border-radius: .75em; background: var(--pri); color: var(--pri-ink); font-size: .88em; font-weight: 600; white-space: nowrap; }
-.m-hd { display: flex; align-items: center; justify-content: space-between; gap: 1em; padding: 1.1em 1.2em .6em; }
-.m-hd > b { font-size: 1.5em; }
 .m-seg { display: flex; gap: .15em; padding: .2em; border-radius: .75em; background: var(--sunk); font-size: .8em; white-space: nowrap; }
 .m-seg span { display: inline-flex; align-items: center; gap: .4em; height: 2.4em; padding-inline: .8em; border-radius: .55em; color: var(--ink2); }
 .m-seg .on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--line); }
 .m-seg i { width: .8em; height: .8em; border-radius: .2em; }
 .sw-s { background: var(--sale); } .sw-r { background: var(--rent); } .sw-f { background: var(--full); }
-.m-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9em; padding: .6em 1.2em 1.2em; }
-.m-card { display: flex; flex-direction: column; gap: .15em; padding-bottom: .8em; border-radius: 1em; border: 1px solid var(--line); background: var(--paper); overflow: hidden; font-size: .82em; }
-.m-card > :not(.m-ph) { padding-inline: .9em; }
-.m-card > small { color: var(--mute); display: flex; align-items: center; gap: .3em; }
-.m-card > small .ic { width: 1.1em; height: 1.1em; }
-.m-card.sel { box-shadow: 0 0 0 2px var(--pri); border-color: transparent; }
-.m-ph { display: block; height: 8.5em; margin-bottom: .6em; }
-.m-ph .plq { position: absolute; top: .6em; right: .6em; font-size: .9em; }
-.m-ph.tall { height: 10.5em; border-radius: .9em; margin: 0; }
-.m-price { display: flex; align-items: baseline; justify-content: space-between; margin-top: .5em; padding-top: .6em; border-top: 1px solid var(--line); }
-.m-price b { font-size: 1.15em; }
-.m-price small { color: var(--mute); font-size: .85em; }
-.m-panel { display: flex; flex-direction: column; gap: .8em; padding: 1.2em; margin: .5em 0 .5em .5em; background: var(--paper); border: 1px solid var(--line); border-right: 0; border-radius: 0 1.2em 1.2em 0; font-size: .9em; }
-.m-ttl { display: flex; align-items: center; justify-content: space-between; gap: .6em; }
-.m-ttl small, .m-ttl b { display: block; }
-.m-ttl small { color: var(--mute); font-size: .85em; }
-.m-big { font-size: 1.6em; font-weight: 300; }
-.m-stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: .8em; }
-.m-stats span { padding: .5em .7em; font-weight: 700; }
-.m-stats span + span { border-right: 1px solid var(--line); }
-.m-stats small { display: block; font-weight: 400; font-size: .8em; color: var(--mute); }
-.m-match { display: flex; align-items: center; gap: .5em; padding: .8em; border-radius: .8em; background: var(--pri-tint); color: var(--pri-text); font-weight: 700; font-size: .9em; }
-.m-show { display: flex; align-items: center; justify-content: center; gap: .5em; height: 2.9em; margin-top: auto; border-radius: .8em; background: var(--pri); color: var(--pri-ink); font-weight: 700; }
 
 .hero-phone { display: none; }
 .plats { margin-top: 22px; font-size: 14px; color: var(--mute); animation: kl-up 1s var(--ease-expo) .5s both; }
@@ -354,40 +318,7 @@ h2 .mute { font-weight: 700; }
   .glass { box-shadow: inset 0 0 0 .07em rgba(255, 255, 255, .16), inset 0 .12em .25em rgba(255, 255, 255, .08), 0 .8em 2em -.8em rgba(0, 0, 0, .7); }
 }
 /* خود برنامه، صفحهٔ فایل‌ها روی گوشی با الگوهای iOS: عنوان بزرگ، جستجوی کپسولی، فهرست گروه‌بندی‌شده */
-.ka { position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 6.2em; overflow: hidden; }
-.ka .plq { height: 1.75em; min-width: 3em; padding: 0 .4em; border-radius: .36em; font-size: 1.4em; box-shadow: inset 0 0 0 .13em var(--pc), inset 0 0 0 .24em rgba(255, 255, 255, .9); }
-.ka-nav { display: flex; align-items: center; justify-content: space-between; height: 4.4em; padding: 0 1.6em; }
-.ka-nav .plq { font-size: 1.7em; }
-.ka-btns { display: flex; align-items: center; height: 4.4em; padding: 0 .7em; border-radius: 2.2em; }
-.ka-btns .ic { margin: 0 .4em; }
-.ka-hd { padding: .6em 1.6em 0; }
-.ka-hd b { display: block; font-size: 3.4em; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; }
-.ka-hd small { display: block; font-size: 1.5em; color: var(--mute); }
-.ka-search { display: flex; align-items: center; gap: .7em; height: 4.2em; margin: 1.2em 1.6em 0; padding: 0 1.3em; border-radius: 2.1em; background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--mute); }
-.ka-search span { flex: 1; min-width: 0; font-size: 1.7em; white-space: nowrap; overflow: hidden; }
-.ka-search .ic { width: 1.9em; height: 1.9em; }
-.ka-seg { display: grid; grid-template-columns: 1fr 1fr 1.3fr; height: 3.6em; margin: 1.2em 1.6em 0; padding: .25em; border-radius: 1.8em; background: color-mix(in srgb, var(--ink) 7%, transparent); }
-.ka-seg span { display: flex; align-items: center; justify-content: center; gap: .45em; border-radius: 1.6em; font-size: 1.4em; color: var(--ink2); white-space: nowrap; }
-.ka-seg .on { background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: 0 .15em .5em rgba(0, 0, 0, .14), 0 0 0 .04em rgba(0, 0, 0, .04); }
-.ka-seg i { width: .6em; height: .6em; border-radius: .15em; }
-.ka-list { flex: none; margin: 1.6em 1.6em 0; border-radius: 2.6em; background: var(--paper); overflow: hidden; }
-.ka-row { position: relative; display: flex; align-items: center; gap: 1.2em; height: 6.6em; padding-inline: 1.6em 1.1em; }
-.ka-row + .ka-row::before { content: ""; position: absolute; top: 0; inset-inline: 7.5em 0; height: 1px; background: var(--line); }
-.ka-t { flex: 1; min-width: 0; }
-.ka-t b, .ka-t small, .ka-p b, .ka-p small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.45; }
-.ka-t b { font-size: 1.6em; font-weight: 700; }
-.ka-p { text-align: left; }
-.ka-p b { font-size: 1.5em; font-weight: 700; }
-.ka-t small, .ka-p small { font-size: 1.25em; color: var(--mute); }
-.ka .chev { flex: none; width: 1.5em; height: 1.5em; color: var(--faint); opacity: .6; }
 /* نوار زبانهٔ شناور شیشه‌ای و دکمهٔ جدای «+» مثل iOS 26/27 */
-.ka-tabs { position: absolute; z-index: 2; inset-inline: 2.1em; bottom: 2.1em; display: flex; gap: 1em; }
-.ka-tab { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); height: 6.2em; padding: .45em; border-radius: 3.1em; }
-.ka-tab span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15em; border-radius: 2.7em; font-size: 1em; font-weight: 600; color: var(--ink); white-space: nowrap; }
-.ka-tab .ic { width: 2.5em; height: 2.5em; }
-.ka-tab .on { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--pri-text); }
-.ka-add { flex: none; display: grid; place-items: center; width: 6.2em; height: 6.2em; border-radius: 50%; color: var(--pri-text); }
-.ka-add .ic { width: 2.8em; height: 2.8em; stroke-width: 2.4; }
 
 /* ── دانلود ── */
 .dlx { display: grid; grid-template-columns: auto 1fr; gap: clamp(40px, 7vw, 100px); align-items: center; isolation: isolate; }
