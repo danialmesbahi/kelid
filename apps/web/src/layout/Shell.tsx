@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
-import { Icon, Kbd, Logo, type IconName } from '@kelid/ui';
+import { Icon, Kbd, Logo, iconPaths, type IconName } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { prefetchQuery, useQuery, useStorageInfo, useStore } from '../data';
 import { syncText, toneColor, useSyncStatus } from '../sync/state';
@@ -129,7 +129,7 @@ export function Shell() {
           <span className="nav-indicator" aria-hidden="true" style={{ transform: `translateY(${Math.max(idx, 0) * ROW}px)`, opacity: idx < 0 ? 0 : 1 }} />
           {NAV.map((n) => (
             <Link key={n.to} to={n.to} className={n.to === tab ? 'nav on' : 'nav'} aria-current={n.to === tab ? 'page' : undefined}>
-              <Icon name={n.icon} />
+              <Icon name={n.to === tab ? active(n.icon) : n.icon} />
               {n.label}
               {n.to === '/files' && counts && <span className="cnt num">{toFaDigits(counts.files)}</span>}
               {n.to === '/clients' && counts && <span className="cnt num">{toFaDigits(counts.clients)}</span>}
@@ -197,10 +197,16 @@ export function Shell() {
   );
 }
 
+/** گزینهٔ فعال منو نسخهٔ توپُر آیکونش را نشان می‌دهد، اگر داشته باشد. */
+function active(icon: IconName): IconName {
+  const filled = `${icon}On`;
+  return filled in iconPaths ? (filled as IconName) : icon;
+}
+
 function TabLink({ to, icon, label, on }: { to: string; icon: IconName; label: string; on: boolean }) {
   return (
     <Link to={to} className={on ? 'tab on' : 'tab'} aria-current={on ? 'page' : undefined}>
-      <Icon name={icon} />
+      <Icon name={on ? active(icon) : icon} />
       {label}
     </Link>
   );
