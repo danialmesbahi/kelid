@@ -288,9 +288,16 @@ function art(name: string, widths: number[], sizes: string, alt = '', size: [num
   return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><img src="/art/${name}-${widths[0]}.webp" srcset="${set('webp')}" sizes="${sizes}" width="${size[0]}" height="${size[1]}" alt="${alt}" ${extra} decoding="async"></picture>`;
 }
 
-/** تهرانِ صبح، آرام و روشن؛ فقط پشت پیش‌نمایش برنامه می‌نشیند تا نوشته‌های بالا روی زمینهٔ ساده بمانند. */
-export function stageArt(): string {
-  return `<div class="stage-art" aria-hidden="true">${art('morning', [768, 1152, 1536], '(min-width: 1280px) 1240px, 100vw', '', [1536, 1024])}</div>`;
+const HERO_WIDTHS = [768, 1152, 1536];
+
+/** میزی تنها روی تپه‌ای بالای تهرانِ مه‌گرفته در سپیده‌دم: «دفترتان هر جا باشید همراهتان است». نیمهٔ بالایش آسمان خالی است تا نوشته‌ها خوانا بمانند. */
+export function heroArt(): string {
+  return `<div class="hero-art" aria-hidden="true">${art('hero', HERO_WIDTHS, '100vw', '', [1536, 1024], 'fetchpriority="high"')}</div>`;
+}
+
+/** پیش‌بارگذاری تصویر سرصفحه در head تا مرورگر پیش از خواندن CSS سراغش برود. */
+export function heroPreload(): string {
+  return `<link rel="preload" as="image" type="image/avif" imagesrcset="${HERO_WIDTHS.map((w) => `/art/hero-${w}.avif ${w}w`).join(', ')}" imagesizes="100vw" fetchpriority="high">`;
 }
 
 /** عکس فایل در پیش‌نمایش برنامه به جای تصویر جایگزین. */
