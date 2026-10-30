@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { brand, cities, faYear, faqArt, faqHtml, finalArt, halfGift, icon, iphone, jsonLd, listingPhoto, mark, menuIcon, offlineArt, plans, skyline, trialDays, yearGift, type SiteConfig } from './build/render';
+import { brand, cities, faYear, faqArt, faqHtml, finalArt, halfGift, icon, iphone, jsonLd, listingPhoto, mark, menuIcon, offlineArt, plans, skyline, stageArt, trialDays, yearGift, type SiteConfig } from './build/render';
 
 // همان تصویر جایگزین عکس فایل در برنامه (Cover در packages/ui)
 const COVER = '<i class="y t2"></i><i class="y t1"></i><i class="y gd"></i><i class="x fl"></i><i class="x w"></i><i class="x lt"></i><i class="x so"></i>';
@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
 });
 
 function site(cfg: SiteConfig): Plugin {
-  const parts: Record<string, () => string> = { skyline, iphone, cities, offline: offlineArt, final: finalArt, faqart: faqArt, plans, faq: faqHtml, jsonld: () => jsonLd(cfg) };
+  const parts: Record<string, () => string> = { skyline, stageart: stageArt, iphone, cities, offline: offlineArt, final: finalArt, faqart: faqArt, plans, faq: faqHtml, jsonld: () => jsonLd(cfg) };
   const vars: Record<string, string> = { cover: COVER, pvanak: listingPhoto('vanak'), ppounak: listingPhoto('pounak'), pyousefabad: listingPhoto('yousefabad'), pliving: listingPhoto('living'), site: cfg.site, app: cfg.app, windows: cfg.windows, mac: cfg.mac, menu: menuIcon, trial: trialDays, gift: yearGift, gift6: halfGift, year: faYear() };
   return {
     name: 'kelid-site',

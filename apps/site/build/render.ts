@@ -288,6 +288,11 @@ function art(name: string, widths: number[], sizes: string, alt = '', size: [num
   return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><img src="/art/${name}-${widths[0]}.webp" srcset="${set('webp')}" sizes="${sizes}" width="${size[0]}" height="${size[1]}" alt="${alt}" ${extra} decoding="async"></picture>`;
 }
 
+/** تهرانِ صبح، آرام و روشن؛ فقط پشت پیش‌نمایش برنامه می‌نشیند تا نوشته‌های بالا روی زمینهٔ ساده بمانند. */
+export function stageArt(): string {
+  return `<div class="stage-art" aria-hidden="true">${art('morning', [768, 1152, 1536], '(min-width: 1280px) 1240px, 100vw', '', [1536, 1024])}</div>`;
+}
+
 /** عکس فایل در پیش‌نمایش برنامه به جای تصویر جایگزین. */
 export function listingPhoto(name: string): string {
   return art(`listing-${name}`, [320, 640], '(min-width: 1100px) 240px, 40vw', '', [640, 427]).replace('<img ', '<img class="photo" ');
