@@ -299,9 +299,9 @@ export function cities(): string {
   return `<ul class="cities">${CITY_NAMES.map(([k, fa], i) => `<li class="c-${k}">${art(`city-${k}`, [480, 800, 1200], i === 0 || k === 'bushehr' ? big : small, `شهر ${fa}`)}<span>${fa}</span></li>`).join('')}</ul>`;
 }
 
-/** خیابان بارانی رشت و پنجرهٔ روشن دفتر؛ پس‌زمینهٔ بخش «اینترنت قطع شد؟». */
+/** خیابان بارانی رشت با پنجره‌های روشن، در قاب کنار متن بخش «اینترنت قطع شد؟»؛ متن روی تصویر نمی‌رود تا خوانا بماند. */
 export function offlineArt(): string {
-  return `<div class="night-art" aria-hidden="true">${art('city-rasht', [480, 800, 1200], '100vw')}</div>`;
+  return `<figure class="off-art" aria-hidden="true">${art('city-rasht', [480, 800, 1200], '(min-width: 920px) 560px, 92vw')}<span class="off-badge">${icon('cloud')}<span><b>اینترنت قطع است</b><small>همه‌چیز روی همین دستگاه ذخیره شد</small></span></span></figure>`;
 }
 
 /** دفتری که شب چراغش روشن است، زیر جملهٔ «امشب که چراغ دفتر را خاموش می‌کنید». */

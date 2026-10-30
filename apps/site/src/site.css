@@ -58,6 +58,9 @@ h2 .mute { font-weight: 700; }
 .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, .5) inset, 0 20px 40px -14px rgba(246, 207, 124, 1); }
 .btn-ghost { background: rgba(255, 255, 255, .08); color: var(--night-ink) !important; border-color: rgba(255, 255, 255, .22); }
 .btn-ghost:hover { background: rgba(255, 255, 255, .16); }
+/* روی تصویر شب بخش آخر، دکمهٔ دوم باید زمینهٔ تیره و مرز روشن داشته باشد تا دیده شود */
+.final .btn-ghost { background: rgba(8, 22, 18, .6); border-color: rgba(255, 255, 255, .55); color: #fff !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.final .btn-ghost:hover { background: rgba(8, 22, 18, .78); }
 .os-logo { width: 20px; height: 20px; fill: currentColor; flex: none; }
 /* دکمهٔ اصلی دانلود همان سیستم‌عامل بیننده است (data-os را اسکریپت کوچک سرصفحه می‌گذارد)؛ بی آن ویندوز، و روی صفحهٔ لمسی اندروید. */
 .os-mac, .os-ios, .os-and { display: none !important; }
@@ -275,11 +278,17 @@ h2 .mute { font-weight: 700; }
 .night { position: relative; margin-top: clamp(72px, 10vw, 128px); padding-block: clamp(64px, 9vw, 112px); background: var(--deep); color: var(--deep-ink); overflow: hidden; }
 .night::before { content: ""; position: absolute; inset: -40% -10% auto auto; width: 70%; height: 140%; background: radial-gradient(closest-side, color-mix(in srgb, var(--pri) 55%, transparent), transparent); opacity: .7; pointer-events: none; }
 .night-in { position: relative; display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; }
-/* تصویر شب زیر لایهٔ سبز: حس دارد ولی متن را نمی‌پوشاند */
-.night-art { position: absolute; inset: 0; pointer-events: none; }
-.night-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; }
-.night-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(270deg, var(--deep) 22%, color-mix(in srgb, var(--deep) 72%, transparent) 52%, color-mix(in srgb, var(--deep) 15%, transparent)); }
-@media (max-width: 920px) { .night-art::after { background: color-mix(in srgb, var(--deep) 80%, transparent); } }
+/* تصویر رشت بارانی در قاب کنار متن؛ متن روی زمینهٔ سادهٔ سبز می‌ماند تا خوانا باشد */
+.off-art { position: relative; margin: 0; aspect-ratio: 4 / 5; border-radius: 28px; overflow: hidden; box-shadow: 0 40px 80px rgba(0, 0, 0, .35), inset 0 0 0 1px var(--deep-line); }
+.off-art img { width: 100%; height: 100%; object-fit: cover; object-position: 40% 50%; }
+.off-badge { position: absolute; inset: auto 18px 18px; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; background: rgba(8, 22, 18, .72); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); color: #fff; }
+.off-badge .ic { color: #F6CF7C; flex: none; }
+.off-badge span { display: flex; flex-direction: column; gap: 2px; }
+.off-badge b { font-size: 15px; }
+.off-badge small { font-size: 13px; opacity: .8; }
+.night .pts { margin-top: 32px; gap: 10px; }
+.night .pts li { padding: 16px 18px; }
+@media (max-width: 920px) { .off-art { aspect-ratio: 4 / 3; } }
 .night .eb { color: #F6CF7C; }
 .night .eb::before { background: #F6CF7C; }
 .night h2 span { color: var(--deep-mute); }
