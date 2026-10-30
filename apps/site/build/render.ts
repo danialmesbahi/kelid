@@ -303,10 +303,10 @@ const CITY_NAMES: Array<[string, string]> = [
   ['yazd', 'یزد'], ['rasht', 'رشت'], ['mashhad', 'مشهد'], ['bushehr', 'بوشهر'],
 ];
 
-/** شهرها به شکل موزاییک: تهران بزرگ، بوشهر پهن، بقیه کوچک؛ روی گوشی ورق‌خوردنی. */
+/** شهرها به شکل موزاییک: تهران بزرگ، بوشهر پهن، بقیه کوچک؛ روی گوشی هم همین شبکه در دو ستون. */
 export function cities(): string {
-  const big = '(min-width: 1100px) 600px, (min-width: 700px) 90vw, 82vw';
-  const small = '(min-width: 1100px) 300px, (min-width: 700px) 45vw, 82vw';
+  const big = '(min-width: 1100px) 600px, 92vw';
+  const small = '(min-width: 1100px) 300px, 46vw';
   return `<ul class="cities">${CITY_NAMES.map(([k, fa], i) => `<li class="c-${k}">${art(`city-${k}`, [480, 800, 1200], i === 0 || k === 'bushehr' ? big : small, `شهر ${fa}`)}<span>${fa}</span></li>`).join('')}</ul>`;
 }
 

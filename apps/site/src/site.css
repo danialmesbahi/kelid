@@ -222,9 +222,12 @@ h2 .mute { font-weight: 700; }
 .cities li:hover img { transform: scale(1.04); }
 .cities span { position: absolute; inset: auto 0 0; padding: 28px 16px 12px; font-weight: 700; color: #fff; background: linear-gradient(transparent, rgba(0, 0, 0, .55)); }
 @media (max-width: 920px) { .cities { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 26vw; } }
+/* گوشی: شبکهٔ دوستونه به‌جای ورق‌زدن؛ تهران و بوشهر تمام‌عرض، بقیه کاشی‌های کوچک */
 @media (max-width: 700px) {
-  .cities { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
-  .cities li { flex: 0 0 82%; aspect-ratio: 3 / 2; scroll-snap-align: center; }
+  .cities { gap: 10px; grid-auto-rows: 31vw; margin-top: 28px; }
+  .cities li { border-radius: 16px; }
+  .cities span { padding: 22px 12px 10px; font-size: 14px; }
+  .cities .c-tehran span { font-size: 17px; padding: 30px 16px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .cities img { transition: none; } }
 
