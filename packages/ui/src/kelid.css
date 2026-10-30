@@ -76,6 +76,7 @@ body{margin:0}
 .ic.s{width:16px;height:16px}
 .ic.l{width:24px;height:24px}
 .ic.th{stroke-width:2.2}
+.ic.th>g{stroke-width:1.9}
 
 /* دکمه */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:12px;border:1px solid transparent;font-weight:600;font-size:15px;white-space:nowrap;transition:background .15s,border-color .15s,filter .15s}
