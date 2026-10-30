@@ -1,7 +1,10 @@
 // تکه‌های HTML که موقع ساخت تولید می‌شوند تا صفحه بی هیچ جاوااسکریپتی کامل به مرورگر و گوگل برسد.
-import { iconPaths, type IconName } from '../../../packages/ui/src/icons';
-import { PLANS, TRIAL_DAYS, perMonthOf, priceOf, termOf, type Period } from '../../../packages/core/src/plans';
+import { bestTerm, perMonthOf, TRIAL_DAYS, type Catalog } from '../../../packages/core/src/plans';
 import { toFaDigits } from '../../../packages/core/src/persian';
+import { icon } from './icon';
+import { catalogStamp, pricingHtml } from './pricing';
+
+export { icon };
 
 export interface SiteConfig {
   /** نشانی خود سایت؛ canonical و نقشهٔ سایت با آن ساخته می‌شوند. */
@@ -12,12 +15,8 @@ export interface SiteConfig {
   windows: string;
   /** نصب‌کنندهٔ مک (dmg). */
   mac: string;
-}
-
-export function icon(name: string, cls = ''): string {
-  const paths = (iconPaths as Record<string, string>)[name as IconName];
-  if (!paths) throw new Error(`unknown icon: ${name}`);
-  return `<svg class="ic${cls ? ` ${cls}` : ''}" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+  /** سرور کلید؛ فهرست پلن‌ها و قیمت‌ها از GET /plans آن می‌آید. خالی = فقط فهرست زمان ساخت. */
+  api: string;
 }
 
 // همان مولد تصادفی صحنهٔ آشنایی برنامه؛ با دانهٔ ثابت تا هر ساخت همان شهر را بکشد.
@@ -85,57 +84,14 @@ export function skyline(): string {
 </div>`;
 }
 
-// قیمت‌ها به میلیون تومان، همان‌طور که در بازار گفته می‌شود (۳٫۶۵ میلیون)
-const mil = (n: number) => toFaDigits(String(Math.round(n / 10_000) / 100)).replace('.', '٫');
-
-const kTooman = (n: number) => `${toFaDigits(Math.round(n / 1000))} هزار تومان`;
-
-/** آنچه هر پلن به دفتر می‌دهد؛ همهٔ پلن‌ها همهٔ امکانات را دارند و فرق فقط در همکاران است. */
-const PLAN_FEATS: Record<string, string[]> = {
-  solo: ['فایل، مشتری، بازدید و قرارداد در یک‌جا', 'پیدا کردن خودکار فایل جور برای هر مشتری', 'کار کامل بدون اینترنت', 'روی ویندوز، مک و گوشی با هم'],
-  office: ['هر همکار روی دستگاه خودش، همه هماهنگ', 'نقش مدیر و مشاور برای همکاران', 'شمارهٔ مالک فقط برای کسی که مدیر بخواهد', 'همهٔ امکانات پلن تک‌نفره'],
-  pro: ['تا ۱۰ همکار؛ هر نفر بیشتر ماهی ۵۰۰ هزار تومان', 'دعوت همکار فقط با شمارهٔ موبایل', 'نقش‌ها و دسترسی‌های جدا', 'همهٔ امکانات پلن دفتر'],
-};
-const PLAN_ICON: Record<string, string> = { solo: 'user', office: 'users', pro: 'gem' };
-
-// خط افق شهر ته کارت پیشنهادی؛ همان شب صفحهٔ اول، کوچک
-const MINI_CITY = '<svg class="plan-city" viewBox="0 0 360 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0 70V44h18V30h16v14h10V20h22v24h8V36h14v34h6V26l12-8 12 8v44h8V40h20v30h6V14h4V4h4v10h4v56h8V34h18v36h6V46h14V28h20v42h8V38h12v32h6V22h20v48h8V42h16v28h8V32h18v38z"/><path class="lit" d="M22 36h4v4h-4zM48 26h4v4h-4zM56 34h4v4h-4zM100 26h4v4h-4zM108 40h4v4h-4zM134 46h4v4h-4zM166 22h4v4h-4zM166 34h4v4h-4zM194 40h4v4h-4zM232 34h4v4h-4zM258 44h4v4h-4zM282 28h4v4h-4zM290 40h4v4h-4zM318 48h4v4h-4zM342 38h4v4h-4z"/></svg>';
-
-/** نام کوتاه هر مدت در کلاس‌های CSS (per-m / per-h / per-y). */
-const PER: Record<Period, string> = { month: 'm', half: 'h', year: 'y' };
-const gift = (p: Period) => toFaDigits(termOf(p).gift);
-const accessMonths = (p: Period) => termOf(p).months + termOf(p).gift;
-
-/** کارت‌های قیمت؛ سالانه پیش‌فرض است و دوره فقط با CSS عوض می‌شود. */
-export function plans(): string {
-  return PLANS.map((p) => {
-    const hot = p.id === 'office';
-    const avatars = ['ر', 'م', 'س', 'ن', 'ک'].slice(0, Math.min(p.seats, 4));
-    const more = p.seats > 4 ? `<span class="av plus">+${toFaDigits(p.seats - 4)}</span>` : '';
-    const feats = PLAN_FEATS[p.id] ?? [];
-    const per = (t: Period) => perMonthOf(p, t);
-    const note = (t: Period) => `${termOf(t).name} ${mil(priceOf(p, t))} میلیون برای ${toFaDigits(accessMonths(t))} ماه · روزی ${kTooman(priceOf(p, t) / (accessMonths(t) * 30))}`;
-    return `<article class="plan${hot ? ' hot' : ''}">
-${hot ? `<span class="plan-badge">${icon('spark', 's')}محبوب‌ترین پلن دفترها</span>` : ''}
-<div class="plan-hd"><span class="plan-ic">${icon(PLAN_ICON[p.id] ?? 'user')}</span><span><h3 class="plan-name">${p.name}</h3><p class="plan-blurb">${p.blurb}</p></span></div>
-<div class="plan-price">
-<p class="pp">${(['year', 'half', 'month'] as const).map((t) => `<b class="num per-${PER[t]}">${mil(per(t))}</b>`).join('')}<span>میلیون تومان<br>در ماه</span></p>
-${(['year', 'half'] as const).map((t) => `<p class="pwas per-${PER[t]}"><s class="num">${mil(p.monthly)} میلیون</s><span class="save">${gift(t)} ماه هدیه</span></p>`).join('\n')}
-${(['year', 'half'] as const).map((t) => `<p class="pnote per-${PER[t]}">${note(t)}</p>`).join('\n')}
-<p class="pnote per-m">پرداخت ماهانه · روزی ${kTooman(p.monthly / 30)}</p>
-</div>
-<a class="btn btn-lg btn-w ${hot ? 'btn-gold' : 'btn-d'}" href="#download">شروع ${trialDays} روز رایگان${icon('chl', 's')}</a>
-<p class="plan-safe">${icon('check', 's')}بدون کارت بانکی · بدون تعهد</p>
-<div class="plan-seats"><span class="avs">${avatars.map((a) => `<span class="av">${a}</span>`).join('')}${more}</span><b>${p.seats === 1 ? 'برای یک نفر' : `تا ${toFaDigits(p.seats)} همکار`}</b></div>
-<ul class="plan-feats">${feats.map((f) => `<li>${icon('check', 's')}${f}</li>`).join('')}</ul>
-${hot ? MINI_CITY : ''}
-</article>`;
-  }).join('\n');
+/** بخش قیمت؛ مرورگر اگر فهرست سرور فرق داشت با src/live.ts از نو می‌سازدش. */
+export function pricing(c: Catalog, api: string): string {
+  return `<div id="pricing-live" class="pricing-live" data-v="${catalogStamp(c, TRIAL_DAYS)}"${api ? ` data-api="${api}"` : ''}>
+${pricingHtml(c, TRIAL_DAYS)}
+</div>`;
 }
 
 export const trialDays = toFaDigits(TRIAL_DAYS);
-export const yearGift = gift('year');
-export const halfGift = gift('half');
 
 export interface Faq {
   q: string;
@@ -195,8 +151,9 @@ export function faqHtml(): string {
 const AI_FILM_DURATION = 'PT22S';
 
 /** داده‌های ساخت‌یافته برای گوگل: سازمان، سایت، نرم‌افزار با قیمت‌ها، و پرسش‌ها. */
-export function jsonLd(c: SiteConfig): string {
-  const prices = PLANS.flatMap((p) => [perMonthOf(p, 'year') * 10, p.monthly * 10]); // درگاه و schema.org ریال می‌خواهند
+export function jsonLd(c: SiteConfig, cat: Catalog): string {
+  const best = bestTerm(cat.terms);
+  const prices = cat.plans.flatMap((p) => [(best ? perMonthOf(p, best) : p.monthly) * 10, p.monthly * 10]); // درگاه و schema.org ریال می‌خواهند
   const data = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -224,7 +181,7 @@ export function jsonLd(c: SiteConfig): string {
         downloadUrl: new URL(c.windows, `${c.site}/`).href,
         image: `${c.site}/og.png`,
         publisher: { '@id': `${c.site}/#org` },
-        offers: { '@type': 'AggregateOffer', priceCurrency: 'IRR', lowPrice: Math.min(...prices), highPrice: Math.max(...prices), offerCount: PLANS.length },
+        offers: { '@type': 'AggregateOffer', priceCurrency: 'IRR', lowPrice: Math.min(...prices), highPrice: Math.max(...prices), offerCount: cat.plans.length },
       },
       {
         '@type': 'VideoObject',

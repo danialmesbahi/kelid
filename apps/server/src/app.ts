@@ -4,6 +4,7 @@ import { syncRoutes } from './sync/routes';
 import { LiveHub } from './sync/live';
 import { pageCsp, securityHeaders } from './headers';
 import { billingRoutes, type BillingOptions } from './billing/routes';
+import { catalogRoutes } from './billing/catalog';
 import { adminRoutes } from './admin/routes';
 import { betaRoutes } from './beta/routes';
 import { supportRoutes } from './support/routes';
@@ -100,6 +101,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = false, auth, cors
     const hub = new LiveHub(auth.pool, app.log);
     app.addHook('preClose', async () => hub.close());
     void app.register(authRoutes, { ...auth, licenseKey: billing?.licenseKey });
+    void app.register(catalogRoutes, { pool: auth.pool });
     if (billing) void app.register(billingRoutes, { appOrigins: corsOrigins, ...billing, pool: auth.pool, jwtSecret: auth.jwtSecret });
     const supportFiles = new SupportFiles(s3 ? new S3(s3) : null);
     void app.register(adminRoutes, { pool: auth.pool, jwtSecret: auth.jwtSecret, hub, files: supportFiles });

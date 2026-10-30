@@ -1,10 +1,10 @@
 import { useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Icon, Skeleton } from '@kelid/ui';
-import { formatGrouped, termOf, toFaDigits } from '@kelid/core';
+import { formatGrouped, toFaDigits } from '@kelid/core';
 import type { PaymentStatus } from '../api';
 import { useFlash } from '../live';
-import { dateText, errorText, payTag, planName, toListTop, useEnter, useLoad, useSlow } from '../ui';
+import { dateText, errorText, payTag, toListTop, useEnter, useLoad, useNames, useSlow } from '../ui';
 
 const FILTERS: Array<{ value: PaymentStatus | ''; label: string }> = [
   { value: '', label: 'همه' },
@@ -23,6 +23,7 @@ export function Payments() {
   const enter = useEnter(`payments:${status}`);
   const slow = useSlow(!list.data && list.pending);
   const flash = useFlash();
+  const names = useNames();
   const paid = list.data?.filter((p) => p.status === 'paid') ?? [];
 
   return (
@@ -100,7 +101,7 @@ export function Payments() {
                 <Link key={p.id} to={`/offices/${p.office.id}`} viewTransition className={`ad-row ad-prow hov${flash.has(p.office.id) ? ' ad-flash' : ''}`}>
                   <span className="b ad-ell ad-cell-main">{p.office.name}</span>
                   <span className="sm">
-                    {planName(p.plan)}، {termOf(p.period).name}
+                    {names.plan(p.plan)}، {names.term(p.period)}
                   </span>
                   <span className="sm num b">
                     {formatGrouped(p.amount)} <span className="xs mute">تومان</span>

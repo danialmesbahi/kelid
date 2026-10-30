@@ -428,6 +428,63 @@ export const migrations: readonly string[] = [
     using (kelid_vendor())
     with check (kelid_vendor());
   `,
+  // 17: پلن‌ها و مدت‌های خرید از پنل فروشنده. همه می‌خوانند (برنامه، سایت معرفی، درگاه)، فقط فروشنده می‌نویسد.
+  // حذف نرم است (deleted_at): دفترها و پرداخت‌های قدیمی همچنان نام پلن و مدتشان را پیدا می‌کنند.
+  // payments.days طول همان خرید است که هنگام رفتن به درگاه ثابت می‌شود؛ عوض شدن مدت در پنل پرداخت در راه را عوض نمی‌کند.
+  `
+  create table plans (
+    id text primary key check (id ~ '^[a-z]{2,20}$'),
+    name text not null check (length(name) between 1 and 40),
+    blurb text not null default '' check (length(blurb) <= 120),
+    seats int not null check (seats between 1 and 500),
+    monthly bigint not null check (monthly between 0 and 10000000000),
+    extra_monthly bigint check (extra_monthly between 0 and 10000000000),
+    extra_max int check (extra_max between 2 and 500),
+    features text[] not null default '{}' check (cardinality(features) <= 10),
+    badge text check (length(badge) between 1 and 30),
+    hidden boolean not null default false,
+    sort int not null default 0,
+    created_at timestamptz not null default now(),
+    deleted_at timestamptz,
+    check ((extra_monthly is null) = (extra_max is null)),
+    check (extra_max is null or extra_max > seats)
+  );
+  create table terms (
+    id text primary key check (id ~ '^[a-z]{2,20}$'),
+    name text not null check (length(name) between 1 and 30),
+    months int not null check (months between 1 and 36),
+    gift int not null default 0 check (gift between 0 and 24),
+    off int not null default 0 check (off between 0 and 90),
+    hidden boolean not null default false,
+    sort int not null default 0,
+    created_at timestamptz not null default now(),
+    deleted_at timestamptz
+  );
+  insert into plans (id, name, blurb, seats, monthly, extra_monthly, extra_max, features, badge, sort) values
+    ('solo', 'تک‌نفره', 'برای مشاوری که تنها کار می‌کند', 1, 2000000, null, null,
+      array['فایل، مشتری، بازدید و قرارداد در یک‌جا', 'پیدا کردن خودکار فایل جور برای هر مشتری', 'کار کامل بدون اینترنت', 'روی ویندوز، مک و گوشی با هم'], null, 1),
+    ('office', 'دفتر', 'برای بیشتر دفترهای املاک', 5, 5000000, null, null,
+      array['هر همکار روی دستگاه خودش، همه هماهنگ', 'نقش مدیر و مشاور برای همکاران', 'شمارهٔ مالک فقط برای کسی که مدیر بخواهد', 'همهٔ امکانات پلن تک‌نفره'], 'محبوب‌ترین', 2),
+    ('pro', 'دفتر بزرگ', 'برای دفترهای پرهمکار', 10, 9900000, 500000, 50,
+      array['تا ۱۰ همکار؛ هر نفر بیشتر ماهی ۵۰۰ هزار تومان', 'دعوت همکار فقط با شمارهٔ موبایل', 'نقش‌ها و دسترسی‌های جدا', 'همهٔ امکانات پلن دفتر'], null, 3);
+  insert into terms (id, name, months, gift, off, sort) values
+    ('month', 'یک‌ماهه', 1, 0, 0, 1),
+    ('half', 'شش‌ماهه', 6, 1, 10, 2),
+    ('year', 'یک‌ساله', 12, 2, 15, 3);
+
+  alter table plans enable row level security;
+  alter table plans force row level security;
+  create policy catalog_read on plans for select using (true);
+  create policy vendor_write on plans using (kelid_vendor()) with check (kelid_vendor());
+  alter table terms enable row level security;
+  alter table terms force row level security;
+  create policy catalog_read on terms for select using (true);
+  create policy vendor_write on terms using (kelid_vendor()) with check (kelid_vendor());
+
+  alter table payments drop constraint payments_period_check;
+  alter table payments add constraint payments_period_check check (period ~ '^[a-z]{2,20}$');
+  alter table payments add column days int check (days between 1 and 1200);
+  `,
 ];
 
 /** migrationهای اجرانشده را در یک تراکنش اجرا می‌کند؛ قفل advisory دو نمونهٔ هم‌زمان سرور را پشت هم می‌گذارد. */

@@ -1,4 +1,4 @@
-import { cleanVoiceDraft, encodeLicense, nextExpiry, PLANS, planById, priceOf, seatsFor, TRIAL_DAYS, type Period, type Plan, type PlanId, type VoiceDraft, type VoiceForm } from '@kelid/core';
+import { cleanVoiceDraft, DEFAULT_CATALOG, encodeLicense, nextExpiry, priceOf, seatsFor, termDays, TRIAL_DAYS, type Period, type Plan, type PlanId, type Term, type VoiceDraft, type VoiceForm } from '@kelid/core';
 import { phoneDigits } from './phone';
 
 // ارتباط با سرور ورود (apps/server/src/auth/routes.ts). نشانی سرور در زمان ساخت: VITE_KELID_API_URL.
@@ -34,6 +34,9 @@ export interface Receipt {
   id: string;
   plan: PlanId;
   period: Period;
+  /** نام پلن و مدت همان خرید؛ سرور قدیمی ندارد. */
+  planName?: string;
+  termName?: string;
   /** نفرات خریده‌شده؛ سرور قدیمی ندارد. */
   seats?: number;
   /** تومان */
@@ -54,7 +57,10 @@ export interface Billing {
   seats: number;
   /** همکاران + دعوت‌های باز */
   used: number;
+  /** پلن‌های فروشی (و پلن خود دفتر با hidden اگر دیگر فروخته نمی‌شود)؛ از پنل کلید عوض می‌شوند. */
   plans: Plan[];
+  /** مدت‌های خرید؛ سرور قدیمی ندارد. */
+  terms?: Term[];
   /** درگاه پرداخت روی سرور روشن است. */
   canPay: boolean;
   payments: Receipt[];
@@ -489,6 +495,7 @@ export function demoApi(): AuthApi {
     const iat = Math.floor(Date.now() / 1000);
     return `${encodeLicense({ v: 1, off: office, plan: s.plan, seats: s.seats, trial: s.trial, exp: Math.floor(Date.parse(s.expiresAt) / 1000), iat, chk: iat + 14 * 86_400 })}.demo`;
   };
+  const demoPlan = (id: string) => DEFAULT_CATALOG.plans.find((x) => x.id === id) ?? DEFAULT_CATALOG.plans[1]!;
   const pending = new Map<string, { office: string; plan: PlanId; period: Period; seats: number; at: number; receipt?: Receipt }>();
   const userOf = (token: string) => {
     const phone = phoneOf(token);
@@ -644,14 +651,14 @@ export function demoApi(): AuthApi {
       const { phone, office } = userOf(token);
       const s = subOf(office);
       const t = teamOf(phone);
-      return { ...s, used: t.members.length + t.invites.length, plans: [...PLANS], canPay: true, payments: s.payments, license: demoLicense(office) };
+      return { ...s, used: t.members.length + t.invites.length, ...structuredClone(DEFAULT_CATALOG), canPay: true, payments: s.payments, license: demoLicense(office) };
     },
     async checkout(token, plan, period, seats) {
       await wait(500);
       const { phone, office, manager } = userOf(token);
       if (!manager) throw new ApiError('forbidden');
       const t = teamOf(phone);
-      const n = seatsFor(planById(plan)!, seats);
+      const n = seatsFor(demoPlan(plan), seats);
       if (n < t.members.length + t.invites.length) throw new ApiError('too_small');
       const id = `pay-${Date.now()}`;
       pending.set(id, { office, plan, period, seats: n, at: Date.now() });
@@ -662,16 +669,18 @@ export function demoApi(): AuthApi {
       const { office } = userOf(token);
       const p = pending.get(id);
       if (!p || p.office !== office) throw new ApiError('not_found');
-      const plan = planById(p.plan)!;
+      const plan = demoPlan(p.plan);
+      const term = DEFAULT_CATALOG.terms.find((x) => x.id === p.period)!;
+      const names = { planName: plan.name, termName: term.name };
       // پیش‌نمایش: «پرداخت» دو ثانیه و نیم بعد خودش انجام می‌شود.
       if (!p.receipt && Date.now() - p.at > 2500) {
         const s = subOf(office);
-        const until = new Date(nextExpiry(s, plan, p.period, Date.now(), p.seats)).toISOString();
-        p.receipt = { id, plan: plan.id, period: p.period, seats: p.seats, amount: priceOf(plan, p.period, p.seats), status: 'paid', refId: String(Math.floor(1e8 + Math.random() * 9e8)), card: '6037-99**-****-1234', createdAt: new Date(p.at).toISOString(), paidAt: new Date().toISOString(), expiresAt: until };
+        const until = new Date(nextExpiry(s, demoPlan(s.plan), plan, termDays(term), Date.now(), p.seats)).toISOString();
+        p.receipt = { id, plan: plan.id, period: p.period, ...names, seats: p.seats, amount: priceOf(plan, term, p.seats), status: 'paid', refId: String(Math.floor(1e8 + Math.random() * 9e8)), card: '6037-99**-****-1234', createdAt: new Date(p.at).toISOString(), paidAt: new Date().toISOString(), expiresAt: until };
         saveSub(office, { plan: plan.id, trial: false, expiresAt: until, seats: p.seats, payments: [p.receipt, ...s.payments] });
       }
       if (p.receipt) return { ...p.receipt, license: demoLicense(office) };
-      return { id, plan: plan.id, period: p.period, seats: p.seats, amount: priceOf(plan, p.period, p.seats), status: 'pending', refId: null, card: null, createdAt: new Date(p.at).toISOString(), paidAt: null, expiresAt: null, license: null };
+      return { id, plan: plan.id, period: p.period, ...names, seats: p.seats, amount: priceOf(plan, term, p.seats), status: 'pending', refId: null, card: null, createdAt: new Date(p.at).toISOString(), paidAt: null, expiresAt: null, license: null };
     },
     async updateProfile(token, p) {
       await wait(300);

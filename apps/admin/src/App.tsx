@@ -6,6 +6,7 @@ import { Shell } from './Shell';
 import { Offices } from './pages/Offices';
 import { OfficePage } from './pages/OfficePage';
 import { Payments } from './pages/Payments';
+import { Plans } from './pages/Plans';
 import { Beta } from './pages/Beta';
 import { TicketPage, Tickets } from './pages/Tickets';
 
@@ -22,6 +23,7 @@ const router = createHashRouter([
       { index: true, element: <Offices /> },
       { path: 'offices/:id', element: <OfficePage /> },
       { path: 'payments', element: <Payments /> },
+      { path: 'plans', element: <Plans /> },
       { path: 'tickets', element: <Tickets /> },
       { path: 'tickets/:office/:id', element: <TicketPage /> },
       { path: 'beta', element: <Beta /> },

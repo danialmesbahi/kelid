@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { PLANS, planById, type PlanId } from '@kelid/core/plans';
+import { CATALOG_ID, type PlanId } from '@kelid/core/plans';
 import { toFaDigits } from '@kelid/core/persian';
 import { withVendor, type Db, type Pool } from '../db';
 import { PASSWORD_MAX, verifyPassword } from '../auth/password';
@@ -11,6 +11,8 @@ import { securityHeaders } from '../headers';
 import type { LiveHub } from '../sync/live';
 import { FILES_BODY_LIMIT, filesSchema, parseFiles, type FileIn, type SupportFiles } from '../support/files';
 import { seatsUsed } from '../billing/routes';
+import { readCatalog } from '../billing/catalog';
+import { adminCatalogRoutes } from './catalog';
 import { checkTotp } from './totp';
 
 // پنل فروشنده: تیم کلید دفترها، اشتراک‌ها و پرداخت‌ها را می‌بیند، تمدید یا معلق می‌کند و یادداشت پشتیبانی می‌گذارد.
@@ -73,6 +75,8 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub, 
     if (!admin) return reply.status(401).send({ error: 'unauthorized' });
     req.vendor = admin;
   };
+
+  adminCatalogRoutes(app, pool, requireVendor);
 
   app.post(
     '/admin/login',
@@ -262,7 +266,7 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub, 
         body: body(
           {
             days: { type: 'integer', minimum: 1, maximum: 1095 },
-            plan: { type: 'string', enum: PLANS.map((p) => p.id) },
+            plan: { type: 'string', pattern: CATALOG_ID.source },
             trial: { type: 'boolean' },
             note: { type: 'string', minLength: 1, maxLength: 500 },
           },
@@ -275,8 +279,10 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub, 
       const b = req.body as { days: number; plan: PlanId; trial: boolean; note: string };
       const note = b.note.trim();
       if (!note) return reply.status(400).send({ error: 'bad_note' });
-      const plan = planById(b.plan)!;
       const r = await withVendor(pool, async (db) => {
+        // پلن پنهان هم دستی داده می‌شود (مثلاً پلن ویژهٔ یک دفتر)؛ حذف‌شده نه.
+        const plan = (await readCatalog(db)).plans.find((p) => p.id === b.plan && !p.deleted);
+        if (!plan) return 'no_plan' as const;
         const found = await db.query('select 1 from offices where id = $1 for update', [id]);
         if (!found.rowCount) return 'not_found' as const;
         if (plan.seats < (await seatsUsed(db, id))) return 'too_small' as const;
@@ -292,7 +298,7 @@ export async function adminRoutes(app: FastifyInstance, { pool, jwtSecret, hub, 
         return 'ok' as const;
       });
       if (r !== 'ok') return reply.status(r === 'not_found' ? 404 : 409).send({ error: r });
-      req.log.info({ admin: req.vendor!.id, office: id, days: b.days, plan: plan.id }, 'vendor extended office');
+      req.log.info({ admin: req.vendor!.id, office: id, days: b.days, plan: b.plan }, 'vendor extended office');
       return reply.send(await officeAfter(id));
     },
   );

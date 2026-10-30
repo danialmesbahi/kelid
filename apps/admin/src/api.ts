@@ -1,4 +1,4 @@
-import { PLANS, priceOf, type Period, type PlanId } from '@kelid/core/plans';
+import { DEFAULT_CATALOG, priceOf, type Period, type Plan, type PlanId, type Term } from '@kelid/core/plans';
 import { toEnDigits } from '@kelid/core/persian';
 
 // همهٔ تماس‌های پنل با سرور (apps/server/src/admin/routes.ts). VITE_ADMIN_API_URL=demo = دادهٔ نمایشی برای پیش‌نمایش.
@@ -159,9 +159,52 @@ export interface ClientError {
   recent: Array<{ id: string; name: string }>;
 }
 
+/** پلن‌ها و مدت‌های خرید از دید پنل: پنهان‌ها و حذف‌شده‌ها هم (حذف‌شده‌ها فقط برای نام پرداخت‌های قدیمی). */
+export interface AdminCatalog {
+  plans: Array<Plan & { deleted?: boolean }>;
+  terms: Array<Term & { deleted?: boolean }>;
+  /** چند دفتر الان روی هر پلن‌اند. */
+  offices: Record<string, number>;
+}
+
+export interface PlanInput {
+  name: string;
+  blurb: string;
+  seats: number;
+  monthly: number;
+  extra: { monthly: number; max: number } | null;
+  features: string[];
+  badge: string | null;
+  hidden: boolean;
+}
+
+export interface TermInput {
+  name: string;
+  months: number;
+  gift: number;
+  off: number;
+  hidden: boolean;
+}
+
+export type CatalogKind = 'plans' | 'terms';
+
 export type OfficeFilter = OfficeStatus | 'pilot';
 
-export type ErrorCode = 'offline' | 'unauthorized' | 'bad_login' | 'locked' | 'too_many' | 'too_small' | 'not_found' | 'already' | 'bad_file' | 'too_big' | 'server';
+export type ErrorCode =
+  | 'offline'
+  | 'unauthorized'
+  | 'bad_login'
+  | 'locked'
+  | 'too_many'
+  | 'too_small'
+  | 'not_found'
+  | 'already'
+  | 'bad_file'
+  | 'too_big'
+  | 'bad_extra'
+  | 'last'
+  | 'no_plan'
+  | 'server';
 
 export class ApiError extends Error {
   constructor(
@@ -194,6 +237,13 @@ export interface AdminApi {
   replyTicket(token: string, office: string, id: string, body: string, files?: NewTicketFile[]): Promise<TicketDetail>;
   ticketFile(token: string, office: string, id: string, file: string): Promise<Blob>;
   setTicketStatus(token: string, office: string, id: string, status: TicketStatus): Promise<TicketDetail>;
+  catalog(token: string): Promise<AdminCatalog>;
+  /** id خالی = پلن تازه. */
+  savePlan(token: string, id: string | null, b: PlanInput): Promise<AdminCatalog>;
+  saveTerm(token: string, id: string | null, b: TermInput): Promise<AdminCatalog>;
+  /** حذف نرم (deleted = true) یا برگرداندن. */
+  setDeleted(token: string, kind: CatalogKind, id: string, deleted: boolean): Promise<AdminCatalog>;
+  order(token: string, kind: CatalogKind, ids: string[]): Promise<AdminCatalog>;
   /**
    * اتصال زنده: changed با شناسهٔ دفترهایی که عوض شدند (فهرست خالی = همه‌چیز را تازه کن). تا بسته شدن اتصال
    * باز می‌ماند؛ قطع شدنش با ApiError می‌آید تا دوباره وصل شود.
@@ -224,7 +274,7 @@ function httpApi(base: string): AdminApi {
     if (res.status === 204) return undefined as T;
     if (res.ok) return (await res.json()) as T;
     const e = (await res.json().catch(() => ({}))) as { error?: string; retryAfter?: number };
-    const known: ErrorCode[] = ['unauthorized', 'bad_login', 'locked', 'too_many', 'too_small', 'not_found', 'already', 'bad_file', 'too_big'];
+    const known: ErrorCode[] = ['unauthorized', 'bad_login', 'locked', 'too_many', 'too_small', 'not_found', 'already', 'bad_file', 'too_big', 'bad_extra', 'last', 'no_plan'];
     throw new ApiError(known.includes(e.error as ErrorCode) ? (e.error as ErrorCode) : 'server', e.retryAfter ?? 0);
   }
   const qs = (o: Record<string, string | null>) => {
@@ -266,6 +316,11 @@ function httpApi(base: string): AdminApi {
       return res.blob();
     },
     setTicketStatus: (t, office, id, status) => call('POST', `/admin/tickets/${office}/${id}/status`, t, { status }),
+    catalog: (t) => call('GET', '/admin/catalog', t),
+    savePlan: (t, id, b) => call('POST', id ? `/admin/plans/${id}` : '/admin/plans', t, b),
+    saveTerm: (t, id, b) => call('POST', id ? `/admin/terms/${id}` : '/admin/terms', t, b),
+    setDeleted: (t, kind, id, deleted) => call('POST', `/admin/${kind}/${id}/${deleted ? 'delete' : 'restore'}`, t, {}),
+    order: (t, kind, ids) => call('POST', '/admin/catalog/order', t, { kind, ids }),
     listen: async (token, on, signal) => {
       // fetch به‌جای EventSource: توکن در هدر می‌رود، نه در آدرس (که در لاگ‌ها می‌ماند).
       const ctl = new AbortController();
@@ -378,7 +433,9 @@ function demoApi(): AdminApi {
     [60, false, 'solo', 1, false, -95],
     [13, true, 'office', 3, false, -1],
   ];
-  const plan = (id: string) => PLANS.find((p) => p.id === id)!;
+  const cat: Omit<AdminCatalog, 'offices'> = structuredClone(DEFAULT_CATALOG);
+  const plan = (id: string) => cat.plans.find((p) => p.id === id)!;
+  const term = (id: string) => cat.terms.find((t) => t.id === id)!;
   const offices: OfficeDetail[] = shapes.map(([left, trial, planId, members, suspended, made], i) => {
     const id = `o${i + 1}`;
     const p = plan(planId);
@@ -389,7 +446,7 @@ function demoApi(): AdminApi {
           id: `${id}p${k}`,
           plan: planId,
           period: k === 0 && left > 60 ? 'year' : 'month',
-          amount: priceOf(p, k === 0 && left > 60 ? 'year' : 'month'),
+          amount: priceOf(p, term(k === 0 && left > 60 ? 'year' : 'month')),
           gateway: 'zarinpal',
           status: 'paid',
           refId: String(80000000 + i * 1234 + k),
@@ -634,7 +691,8 @@ function demoApi(): AdminApi {
     extend: (_t, id, b) =>
       wait(() => {
         const d = find(id);
-        const p = plan(b.plan);
+        const p = cat.plans.find((x) => x.id === b.plan && !x.deleted);
+        if (!p) throw new ApiError('no_plan');
         if (p.seats < d.members.length + d.invites.length) throw new ApiError('too_small');
         Object.assign(d.office, {
           plan: p.id,
@@ -730,5 +788,66 @@ function demoApi(): AdminApi {
         x.ticket = { ...x.ticket, status: st, updatedAt: new Date().toISOString() };
         return structuredClone(x);
       }),
+    catalog: () => wait(catalogOut),
+    savePlan: (_t, id, b) =>
+      wait(() => {
+        if (b.extra && b.extra.max <= b.seats) throw new ApiError('bad_extra');
+        const p: Plan = {
+          id: id ?? `p${Date.now().toString(36)}`,
+          name: b.name.trim(),
+          blurb: b.blurb.trim(),
+          seats: b.seats,
+          monthly: b.monthly,
+          ...(b.extra ? { extra: b.extra } : {}),
+          features: b.features.map((f) => f.trim()).filter(Boolean),
+          ...(b.badge?.trim() ? { badge: b.badge.trim() } : {}),
+          ...(b.hidden ? { hidden: true } : {}),
+        };
+        const i = cat.plans.findIndex((x) => x.id === id);
+        if (id && i < 0) throw new ApiError('not_found');
+        const before = structuredClone(cat.plans);
+        if (i >= 0) cat.plans[i] = p;
+        else cat.plans.push(p);
+        return guarded(() => (cat.plans = before));
+      }, 350),
+    saveTerm: (_t, id, b) =>
+      wait(() => {
+        const t: Term = { id: id ?? `t${Date.now().toString(36)}`, name: b.name.trim(), months: b.months, gift: b.gift, off: b.off, ...(b.hidden ? { hidden: true } : {}) };
+        const i = cat.terms.findIndex((x) => x.id === id);
+        if (id && i < 0) throw new ApiError('not_found');
+        const before = structuredClone(cat.terms);
+        if (i >= 0) cat.terms[i] = t;
+        else cat.terms.push(t);
+        return guarded(() => (cat.terms = before));
+      }, 350),
+    setDeleted: (_t, kind, id, deleted) =>
+      wait(() => {
+        const x = (cat[kind] as Array<{ id: string; deleted?: boolean }>).find((y) => y.id === id && !!y.deleted !== deleted);
+        if (!x) throw new ApiError('not_found');
+        x.deleted = deleted || undefined;
+        return guarded(() => (x.deleted = !deleted || undefined));
+      }),
+    order: (_t, kind, ids) =>
+      wait(() => {
+        const list = cat[kind] as Array<{ id: string }>;
+        list.sort((a, b) => (ids.indexOf(a.id) + 1 || 999) - (ids.indexOf(b.id) + 1 || 999));
+        return catalogOut();
+      }),
   };
+
+  function catalogOut(): AdminCatalog {
+    const count: Record<string, number> = {};
+    for (const d of offices) count[d.office.plan] = (count[d.office.plan] ?? 0) + 1;
+    const gone = <T extends { deleted?: boolean }>(l: T[]) => [...l.filter((x) => !x.deleted), ...l.filter((x) => x.deleted)];
+    return structuredClone({ plans: gone(cat.plans), terms: gone(cat.terms), offices: count });
+  }
+  // مثل سرور: دست‌کم یک پلن و یک مدت فروشی می‌ماند، وگرنه تغییر برمی‌گردد.
+  function guarded(undo: () => void): AdminCatalog {
+    const on = <T extends { hidden?: boolean; deleted?: boolean }>(l: T[]) => l.some((x) => !x.hidden && !x.deleted);
+    if (!on(cat.plans) || !on(cat.terms)) {
+      undo();
+      throw new ApiError('last');
+    }
+    return catalogOut();
+  }
 }
