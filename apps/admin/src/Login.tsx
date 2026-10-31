@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Art, CITY_FA, Icon, Logo } from '@kelid/ui';
+import { Icon, Logo } from '@kelid/ui';
 import { toFaDigits } from '@kelid/core';
 import { api, ApiError, DEMO } from './api';
 import { useAuth } from './auth';
@@ -43,15 +43,8 @@ export function Login() {
     }
   };
 
-  // تصویر پیش‌فرض ورود ادمین تهران است (خواستهٔ مهدی)
-  const city = 'tehran' as const;
-
   return (
     <div className="ad-login">
-      <Art name={`city-${city}`} sizes="100vw" className="ad-login-art" />
-      <span className="ad-login-city" aria-hidden="true">
-        {CITY_FA[city]}
-      </span>
       <form className="card ad-login-card enter" onSubmit={submit} noValidate aria-labelledby="ad-login-title">
         <div className="rw" style={{ gap: 12 }}>
           <Logo size={44} />
