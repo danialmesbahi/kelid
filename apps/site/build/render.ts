@@ -191,6 +191,9 @@ export function faqHtml(): string {
   return faqs.map((x, i) => `<details class="qa" name="faq"${i === 0 ? ' open' : ''}><summary><h3>${x.q}</h3>${icon('down', 'qa-i')}</summary><p>${x.a}</p></details>`).join('\n');
 }
 
+/** مدت فیلم هوش مصنوعی (public/ai) به شکل ISO 8601؛ با هر رندر تازه به‌روز شود. */
+const AI_FILM_DURATION = 'PT17S';
+
 /** داده‌های ساخت‌یافته برای گوگل: سازمان، سایت، نرم‌افزار با قیمت‌ها، و پرسش‌ها. */
 export function jsonLd(c: SiteConfig): string {
   const prices = PLANS.flatMap((p) => [perMonthOf(p, 'year') * 10, p.monthly * 10]); // درگاه و schema.org ریال می‌خواهند
@@ -222,6 +225,17 @@ export function jsonLd(c: SiteConfig): string {
         image: `${c.site}/og.png`,
         publisher: { '@id': `${c.site}/#org` },
         offers: { '@type': 'AggregateOffer', priceCurrency: 'IRR', lowPrice: Math.min(...prices), highPrice: Math.max(...prices), offerCount: PLANS.length },
+      },
+      {
+        '@type': 'VideoObject',
+        name: 'هوش مصنوعی کلید: پر کردن فرم فایل با صدا و پیشنهاد هوشمند محله و خیابان',
+        description: 'مشاور املاک مشخصات فایل را می‌گوید و هوش مصنوعی کلید فرم را پر می‌کند؛ بعد محله و خیابان از نقشهٔ شهر پیشنهاد می‌شود. اولین نرم‌افزار املاک با هوش مصنوعی در ایران.',
+        thumbnailUrl: `${c.site}/ai/poster.jpg`,
+        contentUrl: `${c.site}/ai/kelid-ai.mp4`,
+        uploadDate: '2026-10-31',
+        duration: AI_FILM_DURATION,
+        inLanguage: 'fa-IR',
+        publisher: { '@id': `${c.site}/#org` },
       },
       {
         '@type': 'FAQPage',
