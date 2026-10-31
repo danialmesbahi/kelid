@@ -128,7 +128,8 @@
   </div>
   <figure class="ai-film">
     <video class="ai-video" muted loop playsinline preload="none" poster="/ai/poster.jpg" aria-label="نمایش پر کردن فرم فایل با صدا و هوش مصنوعی و پیشنهاد هوشمند محله و خیابان در کلید">
-      <source src="/ai/kelid-ai-720.mp4" type="video/mp4" media="(max-width: 900px)">
+      <source src="/ai/kelid-ai-m-av1.mp4" type='video/mp4; codecs="av01.0.08M.08"' media="(max-width: 760px)">
+      <source src="/ai/kelid-ai-m.mp4" type="video/mp4" media="(max-width: 760px)">
       <source src="/ai/kelid-ai-av1.mp4" type='video/mp4; codecs="av01.0.08M.08"'>
       <source src="/ai/kelid-ai.mp4" type="video/mp4">
     </video>
@@ -380,7 +381,7 @@
     </div>
   </div>
 </footer>
-<script>/* فیلم هوش مصنوعی فقط نزدیک دیده شدن بار و پخش می‌شود؛ کسی که حرکت کم خواسته خودش پخشش می‌کند. */(function(){var v=document.querySelector('.ai-video'),b=document.querySelector('.ai-pp');if(!v||!b)return;var user=false,loaded=false;function ui(){var p=v.paused;b.setAttribute('aria-pressed',p);b.setAttribute('aria-label',p?'پخش فیلم':'توقف فیلم')}function go(){if(!loaded){loaded=true;v.load()}v.play().catch(function(){})}if(matchMedia('(prefers-reduced-motion: reduce)').matches){user=true}v.addEventListener('play',ui);v.addEventListener('pause',ui);b.addEventListener('click',function(){user=!v.paused;v.paused?go():v.pause()});if('IntersectionObserver'in window)new IntersectionObserver(function(e){if(!e[0].isIntersecting)v.pause();else if(!user)go()},{rootMargin:'200px'}).observe(v);else if(!user)go();ui()})()</script>
+<script>/* فیلم هوش مصنوعی فقط نزدیک دیده شدن بار و پخش می‌شود؛ کسی که حرکت کم خواسته خودش پخشش می‌کند. */(function(){var v=document.querySelector('.ai-video'),b=document.querySelector('.ai-pp');if(!v||!b)return;if(matchMedia('(max-width: 760px)').matches)v.poster='/ai/poster-m.jpg';var user=false,loaded=false;function ui(){var p=v.paused;b.setAttribute('aria-pressed',p);b.setAttribute('aria-label',p?'پخش فیلم':'توقف فیلم')}function go(){if(!loaded){loaded=true;v.load()}v.play().catch(function(){})}if(matchMedia('(prefers-reduced-motion: reduce)').matches){user=true}v.addEventListener('play',ui);v.addEventListener('pause',ui);b.addEventListener('click',function(){user=!v.paused;v.paused?go():v.pause()});if('IntersectionObserver'in window)new IntersectionObserver(function(e){if(!e[0].isIntersecting)v.pause();else if(!user)go()},{rootMargin:'200px'}).observe(v);else if(!user)go();ui()})()</script>
 <script>/* منوی گوشی با رفتن به یک بخش بسته می‌شود. */document.querySelectorAll('#menu a').forEach(function(a){a.addEventListener('click',function(){var m=document.getElementById('menu');if(m&&m.hidePopover)m.hidePopover()})})</script>
 </body>
 </html>

@@ -266,9 +266,10 @@ h2 .mute { font-weight: 700; }
 @keyframes ai-sheen { to { background-position: 100% 0; } }
 .ai-intro .lead { color: var(--deep-mute); max-width: 680px; }
 
-/* فیلم از لبه تا لبه؛ روی صفحه‌های خیلی بلند بیش از یک صفحه نمی‌شود. */
+/* فیلم از لبه تا لبه */
 .ai-film { position: relative; margin: clamp(48px, 7vw, 88px) 0 0; }
-.ai-video { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: 100svh; object-fit: cover; background: #05120E; }
+/* دو قاب جدا: افقی برای کامپیوتر، ۴:۵ برای گوشی؛ هیچ‌جای فیلم بریده نمی‌شود. */
+.ai-video { display: block; width: 100%; max-width: calc(100svh * 16 / 9); height: auto; margin-inline: auto; aspect-ratio: 16 / 9; background: #05120E; }
 .ai-pp { position: absolute; left: max(16px, calc((100% - 1200px) / 2 + 24px)); bottom: 20px; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #FFFFFF; cursor: pointer; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); transition: background-color var(--t-fast); }
 .ai-pp:hover { background: rgba(255, 255, 255, .26); }
 .ai-pp:focus-visible { outline: 2px solid var(--lit); outline-offset: 3px; }
@@ -291,6 +292,7 @@ h2 .mute { font-weight: 700; }
 @media (max-width: 920px) { .ai-hl { grid-template-columns: 1fr; max-width: 560px; } }
 @media (max-width: 760px) {
   .ai h2 { font-size: clamp(32px, 9.4vw, 44px); }
+  .ai-video { max-width: calc(100svh * 4 / 5); aspect-ratio: 4 / 5; }
   .ai-pp { width: 38px; height: 38px; bottom: 12px; }
   .ai-stats b { font-size: 30px; }
   .ai-stats li { font-size: 13px; padding-top: 20px; }
