@@ -280,3 +280,144 @@ export function iphone(): string {
 </div></div>
 </div>`;
 }
+
+/** کد QR برای نشانی صفحه، هنگام ساخت؛ بی وابستگی. حالت بایت، تصحیح خطای M، نسخهٔ ۱ تا ۶ (تا ۱۰۶ بایت). */
+export function qr(text: string): string {
+  const data = [...new TextEncoder().encode(text)];
+  // [کل کدواژه‌ها، کدواژهٔ تصحیح در هر بلوک، تعداد بلوک] برای سطح M
+  const spec: [number, number, number][] = [[26, 10, 1], [44, 16, 1], [70, 26, 1], [100, 18, 2], [134, 24, 2], [172, 16, 4]];
+  const ver = spec.findIndex(([t, e, b]) => t - e * b >= data.length + 2) + 1;
+  const s = spec[ver - 1];
+  if (!s) throw new Error(`qr: text too long (${data.length} bytes)`);
+  const [total, ecLen, blocks] = s;
+  const cap = total - ecLen * blocks;
+
+  // رشتهٔ بیت‌ها: حالت بایت، طول، داده، پایان‌دهنده و پرکننده
+  const bits: number[] = [];
+  const put = (v: number, n: number) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+  put(4, 4); put(data.length, 8); data.forEach((b) => put(b, 8));
+  put(0, Math.min(4, cap * 8 - bits.length));
+  put(0, (8 - (bits.length % 8)) % 8);
+  const words: number[] = [];
+  for (let i = 0; i < bits.length; i += 8) words.push(bits.slice(i, i + 8).reduce((a, b) => (a << 1) | b, 0));
+  for (let p = 0; words.length < cap; p++) words.push(p % 2 ? 0x11 : 0xec);
+
+  // Reed–Solomon روی GF(256)
+  const mul = (x: number, y: number) => { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11d); z ^= ((y >>> i) & 1) * x; } return z; };
+  const div: number[] = Array<number>(ecLen - 1).fill(0).concat(1);
+  for (let i = 0, root = 1; i < ecLen; i++, root = mul(root, 2)) {
+    for (let j = 0; j < div.length; j++) div[j] = mul(div[j]!, root) ^ (div[j + 1] ?? 0);
+  }
+  const per = cap / blocks;
+  const dataBlocks = Array.from({ length: blocks }, (_, b) => words.slice(b * per, (b + 1) * per));
+  const ecBlocks = dataBlocks.map((blk) => {
+    const r = Array<number>(ecLen).fill(0);
+    for (const b of blk) { const f = b ^ r.shift()!; r.push(0); div.forEach((c, i) => { r[i]! ^= mul(c, f); }); }
+    return r;
+  });
+  const codewords: number[] = [];
+  for (let i = 0; i < per; i++) dataBlocks.forEach((blk) => codewords.push(blk[i]!));
+  for (let i = 0; i < ecLen; i++) ecBlocks.forEach((blk) => codewords.push(blk[i]!));
+
+  // ماتریس: الگوهای ثابت، سپس داده به‌صورت زیگزاگ
+  const size = ver * 4 + 17;
+  const dark = Array.from({ length: size }, () => Array<boolean>(size).fill(false));
+  const fixed = Array.from({ length: size }, () => Array<boolean>(size).fill(false));
+  const set = (x: number, y: number, on: boolean) => { dark[y]![x] = on; fixed[y]![x] = true; };
+  for (let i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  for (const [cx, cy] of [[3, 3], [size - 4, 3], [3, size - 4]] as const) {
+    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+      const x = cx + dx, y = cy + dy, d = Math.max(Math.abs(dx), Math.abs(dy));
+      if (x >= 0 && x < size && y >= 0 && y < size) set(x, y, d !== 2 && d !== 4);
+    }
+  }
+  if (ver > 1) for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(size - 7 + dx, size - 7 + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+  const format = (mask: number) => {
+    const d = mask; // بیت‌های سطح M صفر است
+    let rem = d;
+    for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+    const f = ((d << 10) | rem) ^ 0x5412, bit = (i: number) => ((f >>> i) & 1) === 1;
+    for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+    set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+    for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+    for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i));
+    for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i));
+    set(8, size - 8, true);
+  };
+  format(0);
+  for (let right = size - 1, i = 0; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (let v = 0; v < size; v++) for (let j = 0; j < 2; j++) {
+      const x = right - j, y = ((right + 1) & 2) === 0 ? size - 1 - v : v;
+      if (!fixed[y]![x] && i < codewords.length * 8) { dark[y]![x] = ((codewords[i >>> 3]! >>> (7 - (i & 7))) & 1) === 1; i++; }
+    }
+  }
+
+  // ماسکی که کم‌ترین جریمه را دارد (قاعده‌های ۱، ۲ و ۴ استاندارد)
+  const masks = [
+    (x: number, y: number) => (x + y) % 2 === 0, (_: number, y: number) => y % 2 === 0, (x: number) => x % 3 === 0,
+    (x: number, y: number) => (x + y) % 3 === 0, (x: number, y: number) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0,
+    (x: number, y: number) => ((x * y) % 2) + ((x * y) % 3) === 0, (x: number, y: number) => (((x * y) % 2) + ((x * y) % 3)) % 2 === 0,
+    (x: number, y: number) => (((x + y) % 2) + ((x * y) % 3)) % 2 === 0,
+  ];
+  const apply = (m: number) => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!fixed[y]![x] && masks[m]!(x, y)) dark[y]![x] = !dark[y]![x]; };
+  const at = (x: number, y: number) => dark[y]![x]!;
+  const penalty = () => {
+    let p = 0, n = 0;
+    for (let a = 0; a < size; a++) for (const get of [(b: number) => at(b, a), (b: number) => at(a, b)]) {
+      let run = 1;
+      for (let b = 1; b <= size; b++) {
+        if (b < size && get(b) === get(b - 1)) run++;
+        else { if (run >= 5) p += run - 2; run = 1; }
+      }
+    }
+    for (let y = 0; y < size - 1; y++) for (let x = 0; x < size - 1; x++) {
+      const c = at(x, y);
+      if (c === at(x + 1, y) && c === at(x, y + 1) && c === at(x + 1, y + 1)) p += 3;
+    }
+    for (const row of dark) for (const c of row) if (c) n++;
+    return p + Math.floor(Math.abs((n * 20) / (size * size) - 10)) * 10;
+  };
+  let best = 0, bestScore = Infinity;
+  for (let m = 0; m < 8; m++) { apply(m); format(m); const sc = penalty(); if (sc < bestScore) { best = m; bestScore = sc; } apply(m); }
+  apply(best); format(best);
+
+  let d = '';
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (dark[y]![x]) d += `M${x} ${y}h1v1h-1z`;
+  return `<svg class="qr" viewBox="-4 -4 ${size + 8} ${size + 8}" role="img" aria-label="کد QR صفحهٔ دانلود کلید" shape-rendering="crispEdges"><rect x="-4" y="-4" width="${size + 8}" height="${size + 8}" fill="#fff"/><path fill="#14171C" d="${d}"/></svg>`;
+}
+
+/** پنجرهٔ برنامهٔ رایانه (صفحهٔ فایل‌ها) برای سرصفحه و کارت دانلود؛ نشانه‌های {{…}} را خود قالب پر می‌کند. */
+export function desktop(): string {
+  return `<div class="win">
+  <div class="win-bar"><i></i><i></i><i></i><span>کلید · فایل‌ها</span></div>
+  <div class="win-body">
+    <div class="m-side">
+      <div class="m-brand"><span class="plq s">کلید</span><span><small>املاک</small><b>آرامش</b></span></div>
+      <span class="m-nav">{{icon:today s}}امروز</span>
+      <span class="m-nav on">{{icon:files s}}فایل‌ها<small>۱۲۸</small></span>
+      <span class="m-nav">{{icon:users s}}مشتری‌ها<small>۴۶</small></span>
+      <span class="m-nav">{{icon:cal s}}تقویم</span>
+      <span class="m-nav">{{icon:deal s}}قراردادها</span>
+      <span class="m-sync"><i></i>همگام · همین حالا</span>
+    </div>
+    <div class="m-main">
+      <div class="m-top"><span class="m-search">{{icon:search s}}جستجو در فایل‌ها، مشتری‌ها و کارها…<kbd>Ctrl K</kbd></span><span class="m-new">{{icon:plus s}}فایل جدید</span></div>
+      <div class="m-hd"><b>فایل‌ها</b><span class="m-seg"><span class="on">همه ۱۲۸</span><span><i class="sw-s"></i>فروش ۵۴</span><span><i class="sw-r"></i>رهن و اجاره ۵۱</span><span><i class="sw-f"></i>رهن کامل ۲۳</span></span></div>
+      <div class="m-grid">
+        <div class="m-card sel"><span class="ph ph-i m-ph">{{cover}}<span class="plq s">۰۵۲</span></span><small>فروش</small><b>آپارتمان ۱۰۵ متری</b><small>{{icon:pin s}}ونک، ملاصدرا</small><div class="m-price"><b>۲۴ میلیارد</b><small>۲ خواب · طبقهٔ ۸</small></div></div>
+        <div class="m-card"><span class="ph ph-f m-ph">{{cover}}<span class="plq s r">۰۵۰</span></span><small>رهن و اجاره</small><b>آپارتمان ۸۰ متری</b><small>{{icon:pin s}}پونک، اباذر</small><div class="m-price"><b>۹۰۰ میلیون</b><small>اجاره ۲۵ میلیون</small></div></div>
+        <div class="m-card"><span class="ph ph-j m-ph">{{cover}}<span class="plq s f">۰۴۷</span></span><small>رهن کامل</small><b>آپارتمان ۹۵ متری</b><small>{{icon:pin s}}یوسف‌آباد</small><div class="m-price"><b>۳٫۵ میلیارد</b><small>۲ خواب · طبقهٔ ۳</small></div></div>
+      </div>
+    </div>
+    <div class="m-panel">
+      <span class="ph ph-i m-ph tall">{{cover}}</span>
+      <div class="m-ttl"><span class="plq">۰۵۲</span><span><small>فروش · ونک</small><b>آپارتمان ۱۰۵ متری</b></span></div>
+      <b class="m-big">۲۴ میلیارد تومان</b>
+      <div class="m-stats"><span><small>متراژ</small>۱۰۵</span><span><small>خواب</small>۲</span><span><small>طبقه</small>۸ از ۱۲</span></div>
+      <span class="m-match">{{icon:users s}}۲ مشتری دنبال چنین فایلی‌اند</span>
+      <span class="m-show">{{icon:show s}}نمایش به مشتری</span>
+    </div>
+  </div>
+</div>`;
+}
