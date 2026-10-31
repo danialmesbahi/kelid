@@ -28,6 +28,7 @@ export function Shell() {
   const nav: { to: string; icon: IconName; label: string; short: string; count: number; badge?: string }[] = [
     { to: '/', icon: 'files', label: 'دفترها', short: 'دفترها', count: 0 },
     { to: '/payments', icon: 'receipt', label: 'پرداخت‌ها', short: 'پرداخت‌ها', count: 0 },
+    { to: '/plans', icon: 'gem', label: 'پلن‌ها و قیمت‌ها', short: 'پلن‌ها', count: 0 },
     { to: '/tickets', icon: 'msg', label: 'پشتیبانی', short: 'پشتیبانی', count: tickets, badge: `${toFaDigits(tickets)} تیکت منتظر پاسخ` },
     { to: '/beta', icon: 'warn', label: 'نظرها و خطاها', short: 'نظر و خطا', count: open, badge: `${toFaDigits(open)} مورد باز` },
   ];

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '@kelid/ui';
-import { formatDate, formatGrouped, planById, toFaDigits } from '@kelid/core';
+import { DEFAULT_CATALOG, formatDate, formatGrouped, toFaDigits } from '@kelid/core';
 import { ApiError, type OfficeStatus, type PaymentStatus } from './api';
 import { useAuth } from './auth';
 import { onLiveChange } from './live';
@@ -22,7 +22,6 @@ export const payTag: Record<PaymentStatus, { label: string; tone: '' | 'ok' | 'w
   canceled: { label: 'لغو شده', tone: '' },
 };
 
-export const planName = (id: string) => planById(id)?.name ?? id;
 export const dateText = (iso: string) => formatDate(new Date(iso));
 export const toman = (n: number) => `${formatGrouped(n)} تومان`;
 
@@ -75,6 +74,12 @@ export function errorText(e: unknown): string {
       return 'این نوع فایل پذیرفته نیست؛ فقط عکس، PDF، Word، Excel یا متن.';
     case 'too_big':
       return 'جمع پیوست‌های هر پیام حداکثر ۵ مگابایت است.';
+    case 'bad_extra':
+      return 'سقف نفرات باید بیشتر از نفرات پایهٔ پلن باشد.';
+    case 'last':
+      return 'دست‌کم یک پلن و یک مدت باید برای فروش بماند.';
+    case 'no_plan':
+      return 'این پلن دیگر در فهرست نیست؛ پلن دیگری انتخاب کنید.';
     default:
       return 'کار انجام نشد؛ دوباره امتحان کنید.';
   }
@@ -171,6 +176,20 @@ export function useLoad<T>(key: string, fn: (api: AdminApi, token: string) => Pr
   const data = own ?? (keep ? state.data : undefined);
   const reload = useCallback(() => void load(), [load]);
   return { data, stale: own === undefined && data !== undefined, error: state.error, pending: state.pending, reload, set };
+}
+
+/** پلن‌ها و مدت‌های خرید از سرور (حذف‌شده‌ها هم، برای نام پرداخت‌های قدیمی)؛ تا برسد، نام‌ها از فهرست پیش‌فرض. */
+export function useCatalog() {
+  return useLoad('catalog', (a, t) => a.catalog(t), 'catalog', true);
+}
+
+/** نام پلن و مدت برای فهرست‌ها و سابقه. */
+export function useNames() {
+  const cat = useCatalog().data ?? DEFAULT_CATALOG;
+  return {
+    plan: (id: string) => cat.plans.find((p) => p.id === id)?.name ?? id,
+    term: (id: string) => cat.terms.find((t) => t.id === id)?.name ?? id,
+  };
 }
 
 /** فیلتر یا جستجو عوض شد: اگر ابزارهای فهرست به بالای صفحه چسبیده‌اند (گوشی)، صفحه جایی می‌رود که

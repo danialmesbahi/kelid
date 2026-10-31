@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { KeyObject } from 'node:crypto';
-import { planById, TRIAL_PLAN, type PlanId } from '@kelid/core/plans';
+import type { PlanId } from '@kelid/core/plans';
 import { withOffice, type Db, type Pool } from '../db';
 import { signLicense } from './license';
 
@@ -24,9 +24,8 @@ export async function readSubscription(db: Db, officeId: string): Promise<Subscr
   );
   const r = rows[0];
   if (!r) return null;
-  // پلنی که از فهرست برداشته شده، تا خرید بعدی مثل پلن آزمایشی دیده می‌شود.
-  const plan = planById(r.plan)?.id ?? TRIAL_PLAN;
-  return { plan, trial: r.trial, expiresAt: r.expires_at, seats: r.seats, suspended: r.suspended, active: r.active };
+  // ردیف پلن هیچ‌وقت پاک نمی‌شود (حذف از پنل نرم است)، پس پلن دفتر تا خرید بعدی همان می‌ماند.
+  return { plan: r.plan, trial: r.trial, expiresAt: r.expires_at, seats: r.seats, suspended: r.suspended, active: r.active };
 }
 
 export function licenseOf(key: KeyObject, officeId: string, s: Subscription): string {

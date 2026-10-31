@@ -9,7 +9,7 @@ import { assertSafeRole, createPool, withOffice, type Pool, type Queryable } fro
 import { migrate, migrations } from './migrations';
 import { DEV_LICENSE_SEED, licenseKey, publicKeyOf, verifyLicense } from './billing/license';
 import { DevGateway } from './billing/gateway';
-import { decodeLicense, planById, priceOf, termDays } from '@kelid/core/plans';
+import { DEFAULT_CATALOG, decodeLicense, priceOf, termDays } from '@kelid/core/plans';
 import { hashPassword } from './auth/password';
 import { newTotpSecret, totpAt, totpStep } from './admin/totp';
 import { withVendor } from './db';
@@ -24,6 +24,9 @@ if (process.env.KELID_REQUIRE_TEST_DB && !(appUrl && ownerUrl)) {
 }
 
 // جدول‌هایی که عمداً مال هیچ دفتری نیستند؛ هر جدول دیگری بدون RLS اجباری خطاست.
+const planById = (id: string) => DEFAULT_CATALOG.plans.find((p) => p.id === id);
+const termOf = (id: string) => DEFAULT_CATALOG.terms.find((t) => t.id === id)!;
+
 const SHARED_TABLES = ['schema_migrations', 'users', 'devices', 'otp_codes', 'signup_tickets', 'invites', 'device_tickets'];
 
 describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
@@ -865,7 +868,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const c = await post(a, '/billing/checkout', { plan: 'pro', period: 'year', seats: 14 }, s.accessToken);
       expect(c.statusCode).toBe(200);
       const { id, payUrl } = c.json();
-      expect((await get(a, `/billing/payments/${id}`, s.accessToken)).json()).toMatchObject({ status: 'pending', amount: priceOf(planById('pro')!, 'year', 14), seats: 14, license: null });
+      expect((await get(a, `/billing/payments/${id}`, s.accessToken)).json()).toMatchObject({ status: 'pending', amount: priceOf(planById('pro')!, termOf('year'), 14), seats: 14, license: null });
 
       const gate = await get(a, local(payUrl));
       expect(gate.statusCode).toBe(200);
@@ -886,7 +889,7 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const lic = decodeLicense(r.license)!.payload;
       expect(lic).toMatchObject({ plan: 'pro', seats: 14, trial: false });
       // ۱۴ روز آزمایشی + ۱۲ ماه + ۲ ماه هدیه
-      expect(Math.abs(lic.exp * 1000 - (before + termDays('year') * DAY))).toBeLessThan(60_000);
+      expect(Math.abs(lic.exp * 1000 - (before + termDays(termOf('year')) * DAY))).toBeLessThan(60_000);
 
       // برگشت دوباره از درگاه دوباره تمدید نمی‌کند.
       expect((await get(a, local(ok))).body).toContain('پرداخت انجام شد');
@@ -958,13 +961,14 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       const agent = (await post(a, '/auth/join', { signupToken: v.signupToken, name: 'سارا', password: 'agent-1404', deviceName: 'گوشی' })).json();
       expect((await post(a, '/billing/checkout', { plan: 'office', period: 'month' }, agent.accessToken)).statusCode).toBe(403);
       expect((await get(a, '/billing', agent.accessToken)).statusCode).toBe(200);
-      expect((await post(a, '/billing/checkout', { plan: 'gold', period: 'month' }, m.accessToken)).statusCode).toBe(400);
+      expect((await post(a, '/billing/checkout', { plan: 'gold', period: 'month' }, m.accessToken)).json().error).toBe('not_for_sale');
+      expect((await post(a, '/billing/checkout', { plan: 'Gold!', period: 'month' }, m.accessToken)).statusCode).toBe(400);
       // مبلغ فقط از فهرست سرور است؛ عددی که برنامه بفرستد دور ریخته می‌شود.
       const cheap = (await post(a, '/billing/checkout', { plan: 'office', period: 'month', amount: 1 }, m.accessToken)).json();
       expect((await get(a, `/billing/payments/${cheap.id}`, m.accessToken)).json().amount).toBe(planById('office')!.monthly);
       // پلن بی‌نفر اضافه همان جای خودش را می‌فروشد، هرچه برنامه بخواهد.
       const half = (await post(a, '/billing/checkout', { plan: 'office', period: 'half', seats: 40 }, m.accessToken)).json();
-      expect((await get(a, `/billing/payments/${half.id}`, m.accessToken)).json()).toMatchObject({ amount: priceOf(planById('office')!, 'half'), seats: 5, period: 'half' });
+      expect((await get(a, `/billing/payments/${half.id}`, m.accessToken)).json()).toMatchObject({ amount: priceOf(planById('office')!, termOf('half')), seats: 5, period: 'half' });
       await a.close();
     });
 
@@ -1333,6 +1337,71 @@ describe.skipIf(!appUrl || !ownerUrl)('database (PostgreSQL)', () => {
       expect(late.json()).toEqual({ error: 'closed' });
       expect((await post(a, `/support/tickets/${tid}/messages`, { id: mid, body: 'یک سؤال دیگر' }, s1.accessToken)).json().ticket.status).toBe('closed');
       expect((await post(a, `/admin/tickets/${s1.office.id}/${tid}/status`, { status: 'closed' }, token)).json().ticket.status).toBe('closed');
+      await a.close();
+    });
+
+    it('lets the vendor manage plans and terms that the app, the site and the gateway then use', async () => {
+      const a = vApp();
+      const token = await login(a, await newAdmin());
+      // فهرست کاشته‌شده همان پیش‌فرض core است و برای همه (سایت kelid.ir) خواندنی است.
+      const pub = await get(a, '/plans');
+      expect(pub.headers['access-control-allow-origin']).toBe('*');
+      expect(pub.json()).toEqual({ ...DEFAULT_CATALOG, trialDays: 14 });
+
+      const s = await signUp(a, freshPhone());
+      // دفتر نه پلن می‌سازد و نه بدون پرچم فروشنده چیزی عوض می‌شود.
+      await expect(withOffice(app, s.office.id, (db) => db.query("update plans set monthly = 1 where id = 'solo'"))).resolves.toMatchObject({ rowCount: 0 });
+      const plan = { name: ' طلایی ', blurb: 'برای دفترهای زنجیره‌ای', seats: 20, monthly: 15_000_000, extra: { monthly: 400_000, max: 80 }, features: ['همه‌چیز', ' '], badge: 'جدید', hidden: false };
+      expect((await post(a, '/admin/plans', plan, s.accessToken)).statusCode).toBe(401);
+      const bad = await post(a, '/admin/plans', { ...plan, extra: { monthly: 1, max: 20 } }, token);
+      expect(bad.json()).toEqual({ error: 'bad_extra' });
+      const made = (await post(a, '/admin/plans', plan, token)).json();
+      const gold = made.plans.at(-1);
+      expect(gold).toMatchObject({ name: 'طلایی', seats: 20, monthly: 15_000_000, extra: { monthly: 400_000, max: 80 }, features: ['همه‌چیز'], badge: 'جدید' });
+      expect(gold.id).toMatch(/^[a-z]{10}$/);
+      const term = (await post(a, '/admin/terms', { name: 'سه‌ماهه', months: 3, gift: 0, off: 5, hidden: false }, token)).json().terms.at(-1);
+      expect((await get(a, '/admin/plans', token)).statusCode).toBe(404);
+
+      // خرید با پلن و مدت تازه؛ مدت همان لحظه روی پرداخت ثابت می‌شود.
+      const c = (await post(a, '/billing/checkout', { plan: gold.id, period: term.id, seats: 25 }, s.accessToken)).json();
+      const quarter = { id: term.id, name: 'سه‌ماهه', months: 3, gift: 0, off: 5 };
+      expect((await get(a, `/billing/payments/${c.id}`, s.accessToken)).json()).toMatchObject({
+        amount: priceOf({ ...gold }, quarter, 25),
+        planName: 'طلایی',
+        termName: 'سه‌ماهه',
+      });
+      await post(a, `/admin/terms/${term.id}`, { ...quarter, months: 12, hidden: false }, token);
+      const local = (url: string) => url.replace('http://kelid.test', '');
+      const ok = (await get(a, local(c.payUrl))).body.match(/href="([^"]+Status=OK)"/)![1]!.replace(/&#38;/g, '&');
+      const before = Date.now();
+      expect((await get(a, local(ok))).body).toContain('اشتراک پلن طلایی تا');
+      const b = (await get(a, '/billing', s.accessToken)).json();
+      expect(b).toMatchObject({ plan: gold.id, seats: 25, trial: false });
+      expect(Date.parse(b.expiresAt) - before).toBeGreaterThan((14 + 90) * 86_400_000 - 60_000);
+      expect(Date.parse(b.expiresAt) - before).toBeLessThan((14 + 92) * 86_400_000);
+
+      // پنهان: از سایت و صفحهٔ خرید می‌رود، ولی دفتری که دارد هنوز نامش را می‌بیند.
+      await post(a, `/admin/plans/${gold.id}`, { ...plan, hidden: true }, token);
+      expect((await get(a, '/plans')).json().plans.map((p: { id: string }) => p.id)).toEqual(['solo', 'office', 'pro']);
+      expect((await get(a, '/billing', s.accessToken)).json().plans.at(-1)).toMatchObject({ id: gold.id, hidden: true });
+      expect((await post(a, '/billing/checkout', { plan: gold.id, period: 'month' }, s.accessToken)).json().error).toBe('not_for_sale');
+
+      // حذف نرم و برگشت؛ دفترهای روی هر پلن شمرده می‌شوند.
+      const del = (await post(a, `/admin/plans/${gold.id}/delete`, {}, token)).json();
+      expect(del.plans.find((p: { id: string }) => p.id === gold.id)).toMatchObject({ deleted: true });
+      expect(del.offices[gold.id]).toBe(1);
+      expect((await post(a, `/admin/plans/${gold.id}/restore`, {}, token)).json().plans.find((p: { id: string }) => p.id === gold.id).deleted).toBeUndefined();
+      expect((await post(a, `/admin/plans/${gold.id}/delete`, {}, token)).statusCode).toBe(200);
+      expect((await post(a, `/admin/plans/${gold.id}/delete`, {}, token)).statusCode).toBe(404);
+
+      // ترتیب، و دست‌کم یک پلن و یک مدت فروشی همیشه می‌ماند.
+      expect((await post(a, '/admin/catalog/order', { kind: 'plans', ids: ['pro', 'office', 'solo'] }, token)).json().plans.slice(0, 3).map((p: { id: string }) => p.id)).toEqual(['pro', 'office', 'solo']);
+      await post(a, '/admin/catalog/order', { kind: 'plans', ids: ['solo', 'office', 'pro'] }, token);
+      await post(a, `/admin/terms/${term.id}/delete`, {}, token);
+      for (const id of ['month', 'half']) expect((await post(a, `/admin/terms/${id}/delete`, {}, token)).statusCode).toBe(200);
+      expect((await post(a, '/admin/terms/year/delete', {}, token)).json()).toEqual({ error: 'last' });
+      for (const id of ['month', 'half']) await post(a, `/admin/terms/${id}/restore`, {}, token);
+      expect((await get(a, '/admin/catalog', token)).json().terms.filter((t: { deleted?: boolean }) => !t.deleted).map((t: { id: string }) => t.id)).toEqual(['month', 'half', 'year']);
       await a.close();
     });
   });

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Icon } from '@kelid/ui';
-import { formatGrouped, monthlyOf, nextExpiry, perMonthOf, PLANS, priceOf, seatsFor, TERMS, termOf, toFaDigits, type Period, type Plan, type PlanId } from '@kelid/core';
+import { bestTerm, formatGrouped, forSale, monthlyOf, nextExpiry, perMonthOf, priceOf, seatsFor, termDays, toFaDigits, type Period, type Plan, type PlanId } from '@kelid/core';
 import { API_URL, type PaymentStatus, type Receipt } from '../auth/api';
 import { useAuth, useMember } from '../auth/AuthContext';
 import { useToast } from '../layout/Toasts';
 import { useFirstVisit } from '../layout/useFirstVisit';
+import { useCatalog } from './catalog';
 import { adoptLicense, useLicense } from './license';
 import { daysLeftText, payError, phaseTag, planName, untilText, useBilling } from './useBilling';
 import { FEATURES, MySubscription } from './MySubscription';
@@ -19,9 +20,6 @@ type Flow =
   | { step: 'paid'; receipt: Receipt }
   | { step: 'failed'; status: PaymentStatus };
 
-const TERM_LABEL: Record<Period, string> = { month: 'یک ماه', half: 'شش ماه', year: 'یک سال' };
-/** پلنی که برجسته نشان داده می‌شود. */
-const BEST: PlanId = 'office';
 const DEMO = API_URL === 'demo';
 // پرداختی که منتظرش هستیم با تازه‌شدن صفحه گم نمی‌شود.
 const PENDING = 'kelid.pay';
@@ -60,7 +58,8 @@ export function PlansPage() {
   const toast = useToast();
   const first = useFirstVisit('plans');
   const { billing, failed, reload } = useBilling();
-  const [period, setPeriod] = useState<Period>('year');
+  const catalog = useCatalog();
+  const [period, setPeriod] = useState<Period | null>(null);
   const [picked, setPicked] = useState<PlanId | null>(null);
   const [wantSeats, setWantSeats] = useState<number | null>(null);
   // تیک‌های پیش از خرید به همین انتخاب بسته‌اند؛ با عوض شدن پلن، نفرات یا مدت از نو زده می‌شوند.
@@ -117,7 +116,10 @@ export function PlansPage() {
     );
   }
 
-  const plans: readonly Plan[] = billing?.plans ?? PLANS;
+  // پلن‌ها و مدت‌ها از پنل کلید؛ پلن پنهانِ خود دفتر فقط برای صفحهٔ «اشتراک دفتر شما» می‌آید، نه برای خرید.
+  const all: readonly Plan[] = billing?.plans ?? catalog.plans;
+  const { plans, terms } = forSale({ plans: [...all], terms: billing?.terms ?? catalog.terms });
+  const best = bestTerm(terms);
   const current = billing
     ? { plan: billing.plan, trial: billing.trial, expiresAt: billing.expiresAt }
     : lic
@@ -128,13 +130,14 @@ export function PlansPage() {
   const fits = (p: Plan) => (p.extra?.max ?? p.seats) >= used;
   // پلن با نفر اضافه: کمتر از نفرات فعلی دفتر نمی‌شود؛ پیش‌فرض همان تعدادی که الان خریده.
   const seatsOf = (p: Plan) => seatsFor(p, Math.max(used, wantSeats ?? (current?.plan === p.id ? (curSeats ?? 0) : 0)));
-  const fallback = plans.find((p) => p.id === current?.plan && fits(p)) ?? plans.find((p) => p.id === BEST && fits(p)) ?? plans.find(fits);
+  const fallback = plans.find((p) => p.id === current?.plan && fits(p)) ?? plans.find((p) => !!p.badge && fits(p)) ?? plans.find(fits);
   const plan = plans.find((p) => p.id === picked && fits(p)) ?? fallback;
   const seats = plan ? seatsOf(plan) : 0;
-  const amount = plan ? priceOf(plan, period, seats) : 0;
-  const term = termOf(period);
-  const termMonths = term.months + term.gift;
-  const until = plan && current ? nextExpiry({ ...current, seats: curSeats }, plan, period, Date.now(), seats) : null;
+  const term = terms.find((t) => t.id === period) ?? best;
+  const amount = plan && term ? priceOf(plan, term, seats) : 0;
+  const termMonths = term ? term.months + term.gift : 1;
+  const until =
+    plan && term && current ? nextExpiry({ ...current, seats: curSeats }, all.find((p) => p.id === current.plan), plan, termDays(term), Date.now(), seats) : null;
   const left = current ? Date.parse(current.expiresAt) - Date.now() : 0;
   const carryNote =
     !current || left <= 0 || !plan
@@ -146,11 +149,11 @@ export function PlansPage() {
           : 'ارزش روزهای باقی‌ماندهٔ پلن فعلی به این پلن منتقل می‌شود.';
 
   const pay = async () => {
-    if (!plan || flow.step === 'opening' || flow.step === 'going') return;
+    if (!plan || !term || flow.step === 'opening' || flow.step === 'going') return;
     const web = !window.kelid;
     setFlow({ step: 'opening' });
     try {
-      const r = await withToken((t) => api.checkout(t, plan.id, period, plan.extra ? seats : undefined, web ? location.origin : undefined));
+      const r = await withToken((t) => api.checkout(t, plan.id, term.id, plan.extra ? seats : undefined, web ? location.origin : undefined));
       const waiting: Flow = { step: 'waiting', id: r.id, payUrl: r.payUrl, at: Date.now() };
       if (r.payUrl && web) {
         // رفتن به بانک بیرون از برنامه است، نه جابه‌جایی صفحه‌های کلید؛ پرداخت در انتظار در حافظهٔ برگه می‌ماند تا برگشت.
@@ -274,21 +277,22 @@ export function PlansPage() {
   }
 
   const tag = lic ? phaseTag[lic.phase] : null;
-  const sel = `${plan?.id}|${seats}|${period}`;
-  const terms = plan
-    ? [
+  const sel = `${plan?.id}|${seats}|${term?.id}`;
+  const rules =
+    plan && term
+      ? [
         `پلن ${plan.name}${plan.extra ? ` برای ${toFaDigits(seats)} نفر` : ''} و مدت ${term.name} را خودم انتخاب کرده‌ام و مبلغ ${formatGrouped(amount)} تومان را تأیید می‌کنم.`,
         `اعتبار اشتراک${until ? ` تا ${untilText(until)}` : ''} است؛ بعد از آن تا تمدید نشود برنامه فقط‌خواندنی می‌شود و اطلاعات پاک نمی‌شود.`,
-        'بعد از خرید، تمدید، ارتقا یا تغییر پلن در برنامه نیست و فقط با پیام به پشتیبانی کلید انجام می‌شود.',
-      ]
-    : [];
+          'بعد از خرید، تمدید، ارتقا یا تغییر پلن در برنامه نیست و فقط با پیام به پشتیبانی کلید انجام می‌شود.',
+        ]
+      : [];
   const ticked = (i: number) => agreed.sel === sel && agreed.ids.includes(i);
   const tick = (i: number, on: boolean) => {
     const ids = agreed.sel === sel ? agreed.ids.filter((x) => x !== i) : [];
     setAgreed({ sel, ids: on ? [...ids, i] : ids });
   };
-  const allTicked = terms.every((_, i) => ticked(i));
-  const canPay = manager && !!plan && allTicked && (billing ? billing.canPay : !failed);
+  const allTicked = rules.every((_, i) => ticked(i));
+  const canPay = manager && !!plan && !!term && allTicked && (billing ? billing.canPay : !failed);
   const payNote =
     failed && !billing ? (
       <>
@@ -307,7 +311,7 @@ export function PlansPage() {
     );
 
   // دفتری که اشتراک خریده فهرست پلن‌ها نمی‌بیند؛ فقط اشتراک خودش. تمدید و تغییر پلن از راه پشتیبانی است.
-  const mineOf = current && !current.trial ? plans.find((p) => p.id === current.plan) : undefined;
+  const mineOf = current && !current.trial ? all.find((p) => p.id === current.plan) : undefined;
   if (mineOf && current) {
     return (
       <MySubscription
@@ -343,11 +347,11 @@ export function PlansPage() {
       </header>
 
       <div className="pl-terms" role="radiogroup" aria-label="مدت اشتراک">
-        {TERMS.map((t) => (
-          <label key={t.id} className={`pl-term${t.id === period ? ' on' : ''}`}>
-            <input type="radio" name="term" className="visually-hidden" checked={t.id === period} onChange={() => setPeriod(t.id)} />
-            {t.id === 'year' && <span className="pl-flag">بیشترین تخفیف</span>}
-            <span className="pl-term-name">{TERM_LABEL[t.id]}</span>
+        {terms.map((t) => (
+          <label key={t.id} className={`pl-term${t === term ? ' on' : ''}`}>
+            <input type="radio" name="term" className="visually-hidden" checked={t === term} onChange={() => setPeriod(t.id)} />
+            {t === best && terms.length > 1 && (t.gift > 0 || t.off > 0) && <span className="pl-flag">بیشترین تخفیف</span>}
+            <span className="pl-term-name">{t.name}</span>
             <span className={t.gift ? 'pl-gift' : 'xs mute'}>{t.gift ? `${toFaDigits(t.gift)} ماه هدیه` : 'ماه به ماه'}</span>
           </label>
         ))}
@@ -359,18 +363,19 @@ export function PlansPage() {
           const on = p.id === plan?.id;
           const isCurrent = !!current && !current.trial && current.plan === p.id;
           const n = seatsOf(p);
-          const total = priceOf(p, period, n);
+          if (!term) return null;
+          const total = priceOf(p, term, n);
           const full = monthlyOf(p, n);
-          const perMonth = perMonthOf(p, period, n);
+          const perMonth = perMonthOf(p, term, n);
           const save = Math.round((1 - total / (full * termMonths)) * 100);
           const step = (d: number) => {
             setPicked(p.id);
             setWantSeats(seatsFor(p, Math.max(used, n + d)));
           };
           return (
-            <label key={p.id} className={`pl-card${on ? ' on' : ''}${ok ? '' : ' off'}${p.id === BEST ? ' best' : ''}`}>
+            <label key={p.id} className={`pl-card${on ? ' on' : ''}${ok ? '' : ' off'}${p.badge ? ' best' : ''}`}>
               <input type="radio" name="plan" className="visually-hidden" checked={on} disabled={!ok} onChange={() => setPicked(p.id)} />
-              {isCurrent ? <span className="pl-ribbon cur">پلن فعلی شما</span> : p.id === BEST ? <span className="pl-ribbon">محبوب‌ترین</span> : null}
+              {isCurrent ? <span className="pl-ribbon cur">پلن فعلی شما</span> : p.badge ? <span className="pl-ribbon">{p.badge}</span> : null}
               <span className="pl-top">
                 <span className="pl-ic" aria-hidden="true">
                   <Icon name={p.seats > 1 ? 'users' : 'user'} />
@@ -408,11 +413,11 @@ export function PlansPage() {
                       {toFaDigits(term.months)} ماه + {toFaDigits(term.gift)} ماه هدیه
                     </span>
                   </>
-                ) : (
+                ) : best && best !== term ? (
                   <span className="mute">
-                    با اشتراک یک‌ساله ماهی <b className="num">{formatGrouped(perMonthOf(p, 'year', n))}</b> تومان
+                    با اشتراک {best.name} ماهی <b className="num">{formatGrouped(perMonthOf(p, best, n))}</b> تومان
                   </span>
-                )}
+                ) : null}
               </span>
 
               {p.extra && (
@@ -463,7 +468,7 @@ export function PlansPage() {
           <h2 id="pl-agree" className="sm sb">
             پیش از پرداخت، این‌ها را بخوانید و تیک بزنید
           </h2>
-          {terms.map((t, i) => (
+          {rules.map((t, i) => (
             <label key={i} className={ticked(i) ? 'pl-tick on' : 'pl-tick'}>
               <input type="checkbox" className="visually-hidden" checked={ticked(i)} onChange={(e) => tick(i, e.target.checked)} />
               <span className="pl-box" aria-hidden="true">
@@ -480,7 +485,7 @@ export function PlansPage() {
           <>
             <div className="col pl-sum-text">
               <span className="sm mute">
-                {plan ? `پلن ${plan.name}${plan.extra ? ` برای ${toFaDigits(seats)} نفر` : ''}، ${term.name}` : 'پلنی انتخاب نشده'}
+                {plan && term ? `پلن ${plan.name}${plan.extra ? ` برای ${toFaDigits(seats)} نفر` : ''}، ${term.name}` : 'پلنی انتخاب نشده'}
               </span>
               <span className="pl-total">
                 <span className="num">{formatGrouped(amount)}</span> <span className="sm mute">تومان</span>

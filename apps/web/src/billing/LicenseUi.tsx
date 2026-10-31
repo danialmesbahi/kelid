@@ -7,6 +7,7 @@ import { useToast } from '../layout/Toasts';
 import { useLicense } from './license';
 import { onBlockedWrite } from './readOnly';
 import { useGoBack } from '../layout/useGoBack';
+import { useCatalog } from './catalog';
 import { daysLeftText, planName, untilText, useLicenseWatch, useLiveLicense } from './useBilling';
 import './billing.css';
 
@@ -94,6 +95,7 @@ export function LicenseBar() {
 /** کارت کوچک پلن در نوار کناری؛ بی حساب کلید چیزی نشان نمی‌دهد. */
 export function PlanLine() {
   const lic = useLicense();
+  useCatalog();
   if (!lic) return null;
   const tone = lic.readOnly ? 'bad' : lic.phase === 'ending' ? 'warn' : '';
   // نوار: سهم روزهای مانده از یک دورهٔ معمول (آزمایشی ۱۴ روز، بقیه یک ماه).

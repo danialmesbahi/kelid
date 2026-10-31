@@ -4,7 +4,7 @@ import { Icon, Skeleton } from '@kelid/ui';
 import { formatGrouped, toFaDigits } from '@kelid/core';
 import type { OfficeFilter, OfficeStatus, Stats } from '../api';
 import { useFlash } from '../live';
-import { ago, dateText, errorText, leftText, Phone, planName, statusTag, toListTop, useEnter, useLoad, useSlow } from '../ui';
+import { ago, dateText, errorText, leftText, Phone, statusTag, toListTop, useEnter, useLoad, useNames, useSlow } from '../ui';
 
 const FILTERS: Array<{ value: OfficeFilter | ''; label: string }> = [
   { value: '', label: 'همه' },
@@ -54,6 +54,7 @@ export function Offices() {
   const enter = useEnter(listKey);
   const slow = useSlow(!list.data && list.pending);
   const flash = useFlash();
+  const names = useNames();
   const setStatus = (s: OfficeFilter | '') => (
     toListTop(tools.current),
     setParams((p) => (s ? p.set('s', s) : p.delete('s'), p), { replace: true, preventScrollReset: true })
@@ -157,7 +158,7 @@ export function Offices() {
                         <span className={`tag ${tag.tone}`}>{tag.label}</span>
                       </span>
                       <span className="col">
-                        <span className="sm sb">{o.trial ? `آزمایشی (${planName(o.plan)})` : planName(o.plan)}</span>
+                        <span className="sm sb">{o.trial ? `آزمایشی (${names.plan(o.plan)})` : names.plan(o.plan)}</span>
                         <span className="xs mute">
                           {toFaDigits(o.members)} از {toFaDigits(o.seats)} نفر
                         </span>

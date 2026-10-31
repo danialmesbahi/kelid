@@ -1,7 +1,8 @@
 import { Link } from 'react-router';
 import { Icon } from '@kelid/ui';
-import { formatGrouped, planById, termOf, toFaDigits } from '@kelid/core';
+import { formatGrouped, toFaDigits } from '@kelid/core';
 import { useAuth, useMember } from '../auth/AuthContext';
+import { useCatalog } from './catalog';
 import { useLicense } from './license';
 import { daysLeftText, phaseTag, planName, untilText, useBilling } from './useBilling';
 import './billing.css';
@@ -12,6 +13,7 @@ export function SubscriptionSection() {
   const { manager } = useMember();
   const lic = useLicense();
   const { billing } = useBilling();
+  const catalog = useCatalog();
 
   if (status !== 'signedIn') {
     return (
@@ -31,7 +33,7 @@ export function SubscriptionSection() {
 
   const tag = lic ? phaseTag[lic.phase] : null;
   const seats = billing?.seats ?? lic?.seats;
-  const plan = planById(billing?.plan ?? lic?.plan ?? '');
+  const plan = catalog.plans.find((p) => p.id === (billing?.plan ?? lic?.plan));
   const expires = billing?.expiresAt ?? (lic ? new Date(lic.expiresAt).toISOString() : null);
   const trial = billing?.trial ?? lic?.trial;
 
@@ -80,7 +82,7 @@ export function SubscriptionSection() {
               <li key={p.id}>
                 <span className="col" style={{ minWidth: 0 }}>
                   <span className="sb">
-                    پلن {planName(p.plan)}، {termOf(p.period).name}
+                    پلن {p.planName ?? planName(p.plan)}، {p.termName ?? catalog.terms.find((t) => t.id === p.period)?.name ?? ''}
                   </span>
                   <span className="xs mute">
                     {p.paidAt ? untilText(p.paidAt) : ''}

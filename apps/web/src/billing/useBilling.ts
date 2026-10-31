@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { formatDate, planById, toFaDigits, type LicenseInfo, type LicensePhase } from '@kelid/core';
+import { formatDate, toFaDigits, type LicenseInfo, type LicensePhase } from '@kelid/core';
 import { ApiError, type Billing } from '../auth/api';
 import { useAuth } from '../auth/AuthContext';
 import { onLiveBilling } from '../sync/state';
+import { getCatalog, keepCatalog } from './catalog';
 import { adoptLicense } from './license';
 
 // اشتراک تازه‌ای که اتصال زنده آورد، به همهٔ صفحه‌های باز (اشتراک، پلن‌ها) هم می‌رسد؛ یک درخواست برای همه.
@@ -20,6 +21,7 @@ export function useBilling(): { billing: Billing | null; failed: boolean; reload
     setFailed(false);
     withToken((t) => api.billing(t)).then(
       (b) => {
+        keepCatalog(b);
         setBilling(b);
         void adoptLicense(b.license, office);
       },
@@ -51,6 +53,7 @@ export function useLiveLicense() {
       withToken((t) => api.billing(t))
         .then(async (b) => {
           await adoptLicense(b.license, office);
+          keepCatalog(b);
           fresh.forEach((f) => f(b));
         })
         .catch(() => {})
@@ -103,8 +106,9 @@ export const phaseTag: Record<LicensePhase, { label: string; tone: 'ok' | 'warn'
   suspended: { label: 'معلق', tone: 'bad' },
 };
 
+/** نام پلن از فهرست سرور که روی دستگاه مانده؛ کامپوننت با useCatalog از عوض شدنش باخبر می‌شود. */
 export function planName(id: string): string {
-  return planById(id)?.name ?? id;
+  return getCatalog().plans.find((p) => p.id === id)?.name ?? id;
 }
 
 /** «۱۲ روز مانده» یا «امروز تمام می‌شود». */
