@@ -149,6 +149,14 @@ export const faqs: Faq[] = [
     a: 'کلید نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک است: فایل‌های فروش، رهن و اجاره و رهن کامل، مشتری‌ها، بازدیدها، کارها و قراردادها را یک‌جا و مرتب نگه می‌دارد و برای هر مشتری فایل‌های جورش را پیدا می‌کند.',
   },
   {
+    q: 'کلید هوش مصنوعی دارد؟ پر کردن فرم با صدا چطور کار می‌کند؟',
+    a: 'بله. کلید اولین نرم‌افزار املاک ایران است که فرم‌ها را با هوش مصنوعی پر می‌کند. در فرم فایل یا مشتری دکمهٔ میکروفون را بزنید و مشخصات را به فارسی محاوره‌ای بگویید؛ هوش مصنوعی کلید معامله، نوع ملک، محله، خیابان، متراژ، خواب، طبقه، قیمت و شمارهٔ مالک را می‌فهمد و هر کدام را در جای خودش می‌نویسد. فقط چیزهایی که گفته‌اید عوض می‌شود و با یک دکمه برمی‌گردد. این بخش اینترنت لازم دارد.',
+  },
+  {
+    q: 'محله‌ها و خیابان‌های کدام شهرها در کلید هست؟',
+    a: 'محله‌ها و خیابان‌های ۱٬۰۱۰ شهر ایران، از تهران و مشهد و اصفهان تا شهرهای کوچک، همراه با منطقه‌بندی شهر در کلید هست. هنگام ثبت فایل، دو حرف از نام محله کافی است تا پیشنهاد شود و خیابان‌های همان محله جلو بیاید؛ این پیشنهادها بدون اینترنت هم کار می‌کنند.',
+  },
+  {
     q: 'بدون اینترنت هم کار می‌کند؟',
     a: 'بله. اطلاعات دفتر روی خود دستگاه ذخیره می‌شود و همهٔ کارها بدون اینترنت انجام می‌شوند. هر وقت وصل شدید، تغییرات خودکار با دستگاه‌های همکاران هماهنگ می‌شود.',
   },
@@ -183,6 +191,9 @@ export function faqHtml(): string {
   return faqs.map((x, i) => `<details class="qa" name="faq"${i === 0 ? ' open' : ''}><summary><h3>${x.q}</h3>${icon('down', 'qa-i')}</summary><p>${x.a}</p></details>`).join('\n');
 }
 
+/** مدت فیلم هوش مصنوعی (public/ai) به شکل ISO 8601؛ با هر رندر تازه به‌روز شود. */
+const AI_FILM_DURATION = 'PT22S';
+
 /** داده‌های ساخت‌یافته برای گوگل: سازمان، سایت، نرم‌افزار با قیمت‌ها، و پرسش‌ها. */
 export function jsonLd(c: SiteConfig): string {
   const prices = PLANS.flatMap((p) => [perMonthOf(p, 'year') * 10, p.monthly * 10]); // درگاه و schema.org ریال می‌خواهند
@@ -195,7 +206,16 @@ export function jsonLd(c: SiteConfig): string {
         '@type': 'SoftwareApplication',
         name: 'کلید',
         alternateName: 'نرم‌افزار املاک کلید',
-        description: 'نرم‌افزار مدیریت املاک برای مشاوران و دفترهای املاک: فایل‌ها، مشتری‌ها، بازدیدها و قراردادها؛ روی ویندوز، مک، وب و گوشی، حتی بدون اینترنت.',
+        description: 'اولین نرم‌افزار املاک با هوش مصنوعی در ایران، برای مشاوران و دفترهای املاک: پر کردن فرم فایل و مشتری با صدا، پیشنهاد هوشمند محله و خیابان، پیدا کردن مشتری جور، بازدیدها و قراردادها؛ روی ویندوز، مک، وب و گوشی، حتی بدون اینترنت.',
+        featureList: [
+          'پر کردن فرم فایل و مشتری با صدا و هوش مصنوعی',
+          'پیشنهاد هوشمند محله و خیابان در ۱٬۰۱۰ شهر ایران',
+          'پیدا کردن خودکار مشتری جور برای هر فایل',
+          'تقویم شمسی بازدید و یادآوری',
+          'ثبت قرارداد و کمیسیون',
+          'کار کامل بدون اینترنت با همگام‌سازی خودکار',
+        ],
+        keywords: 'نرم افزار املاک, نرم افزار املاک هوش مصنوعی, هوش مصنوعی املاک, هوش مصنوعی مشاور املاک, نرم افزار مشاور املاک, پر کردن فرم با صدا, نرم افزار فایلینگ املاک',
         applicationCategory: 'BusinessApplication',
         applicationSubCategory: 'نرم‌افزار املاک',
         operatingSystem: 'Windows 10, Windows 11, macOS, Android, iOS, Web',
@@ -205,6 +225,17 @@ export function jsonLd(c: SiteConfig): string {
         image: `${c.site}/og.png`,
         publisher: { '@id': `${c.site}/#org` },
         offers: { '@type': 'AggregateOffer', priceCurrency: 'IRR', lowPrice: Math.min(...prices), highPrice: Math.max(...prices), offerCount: PLANS.length },
+      },
+      {
+        '@type': 'VideoObject',
+        name: 'هوش مصنوعی کلید: پر کردن فرم فایل با صدا و پیشنهاد هوشمند محله و خیابان',
+        description: 'مشاور املاک مشخصات فایل را می‌گوید و هوش مصنوعی کلید فرم را پر می‌کند؛ بعد محله و خیابان از نقشهٔ شهر پیشنهاد می‌شود. اولین نرم‌افزار املاک با هوش مصنوعی در ایران.',
+        thumbnailUrl: `${c.site}/ai/poster.jpg`,
+        contentUrl: `${c.site}/ai/kelid-ai.mp4`,
+        uploadDate: '2026-10-31',
+        duration: AI_FILM_DURATION,
+        inLanguage: 'fa-IR',
+        publisher: { '@id': `${c.site}/#org` },
       },
       {
         '@type': 'FAQPage',
@@ -291,11 +322,6 @@ export function appShot(name: string): string {
   return `<img class="step-shot" src="/art/${name}-860.webp" width="860" height="1120" alt="" loading="lazy" decoding="async">`;
 }
 
-/** عکس فایل در پیش‌نمایش برنامه به جای تصویر جایگزین. */
-export function listingPhoto(name: string): string {
-  return art(`listing-${name}`, [320, 640], '(min-width: 1100px) 240px, 40vw', '', [640, 427]).replace('<img ', '<img class="photo" ');
-}
-
 const CITY_NAMES: Array<[string, string]> = [
   ['tehran', 'تهران'], ['isfahan', 'اصفهان'], ['shiraz', 'شیراز'], ['tabriz', 'تبریز'],
   ['yazd', 'یزد'], ['rasht', 'رشت'], ['mashhad', 'مشهد'], ['bushehr', 'بوشهر'],
@@ -321,4 +347,115 @@ export function finalArt(): string {
 /** در باز و استکان چای کنار پرسش‌ها: یعنی بپرسید، دفتر باز است. */
 export function faqArt(): string {
   return `<div class="faq-art">${art('welcome', [400, 800], '(min-width: 920px) 380px, 90vw', '', [800, 800])}</div>`;
+}
+
+/** کد QR برای نشانی صفحه، هنگام ساخت؛ بی وابستگی. حالت بایت، تصحیح خطای M، نسخهٔ ۱ تا ۶ (تا ۱۰۶ بایت). */
+export function qr(text: string): string {
+  const data = [...new TextEncoder().encode(text)];
+  // [کل کدواژه‌ها، کدواژهٔ تصحیح در هر بلوک، تعداد بلوک] برای سطح M
+  const spec: [number, number, number][] = [[26, 10, 1], [44, 16, 1], [70, 26, 1], [100, 18, 2], [134, 24, 2], [172, 16, 4]];
+  const ver = spec.findIndex(([t, e, b]) => t - e * b >= data.length + 2) + 1;
+  const s = spec[ver - 1];
+  if (!s) throw new Error(`qr: text too long (${data.length} bytes)`);
+  const [total, ecLen, blocks] = s;
+  const cap = total - ecLen * blocks;
+
+  // رشتهٔ بیت‌ها: حالت بایت، طول، داده، پایان‌دهنده و پرکننده
+  const bits: number[] = [];
+  const put = (v: number, n: number) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+  put(4, 4); put(data.length, 8); data.forEach((b) => put(b, 8));
+  put(0, Math.min(4, cap * 8 - bits.length));
+  put(0, (8 - (bits.length % 8)) % 8);
+  const words: number[] = [];
+  for (let i = 0; i < bits.length; i += 8) words.push(bits.slice(i, i + 8).reduce((a, b) => (a << 1) | b, 0));
+  for (let p = 0; words.length < cap; p++) words.push(p % 2 ? 0x11 : 0xec);
+
+  // Reed–Solomon روی GF(256)
+  const mul = (x: number, y: number) => { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11d); z ^= ((y >>> i) & 1) * x; } return z; };
+  const div: number[] = Array<number>(ecLen - 1).fill(0).concat(1);
+  for (let i = 0, root = 1; i < ecLen; i++, root = mul(root, 2)) {
+    for (let j = 0; j < div.length; j++) div[j] = mul(div[j]!, root) ^ (div[j + 1] ?? 0);
+  }
+  const per = cap / blocks;
+  const dataBlocks = Array.from({ length: blocks }, (_, b) => words.slice(b * per, (b + 1) * per));
+  const ecBlocks = dataBlocks.map((blk) => {
+    const r = Array<number>(ecLen).fill(0);
+    for (const b of blk) { const f = b ^ r.shift()!; r.push(0); div.forEach((c, i) => { r[i]! ^= mul(c, f); }); }
+    return r;
+  });
+  const codewords: number[] = [];
+  for (let i = 0; i < per; i++) dataBlocks.forEach((blk) => codewords.push(blk[i]!));
+  for (let i = 0; i < ecLen; i++) ecBlocks.forEach((blk) => codewords.push(blk[i]!));
+
+  // ماتریس: الگوهای ثابت، سپس داده به‌صورت زیگزاگ
+  const size = ver * 4 + 17;
+  const dark = Array.from({ length: size }, () => Array<boolean>(size).fill(false));
+  const fixed = Array.from({ length: size }, () => Array<boolean>(size).fill(false));
+  const set = (x: number, y: number, on: boolean) => { dark[y]![x] = on; fixed[y]![x] = true; };
+  for (let i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  for (const [cx, cy] of [[3, 3], [size - 4, 3], [3, size - 4]] as const) {
+    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+      const x = cx + dx, y = cy + dy, d = Math.max(Math.abs(dx), Math.abs(dy));
+      if (x >= 0 && x < size && y >= 0 && y < size) set(x, y, d !== 2 && d !== 4);
+    }
+  }
+  if (ver > 1) for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(size - 7 + dx, size - 7 + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+  const format = (mask: number) => {
+    const d = mask; // بیت‌های سطح M صفر است
+    let rem = d;
+    for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+    const f = ((d << 10) | rem) ^ 0x5412, bit = (i: number) => ((f >>> i) & 1) === 1;
+    for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+    set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+    for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+    for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i));
+    for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i));
+    set(8, size - 8, true);
+  };
+  format(0);
+  for (let right = size - 1, i = 0; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (let v = 0; v < size; v++) for (let j = 0; j < 2; j++) {
+      const x = right - j, y = ((right + 1) & 2) === 0 ? size - 1 - v : v;
+      if (!fixed[y]![x] && i < codewords.length * 8) { dark[y]![x] = ((codewords[i >>> 3]! >>> (7 - (i & 7))) & 1) === 1; i++; }
+    }
+  }
+
+  // ماسکی که کم‌ترین جریمه را دارد (قاعده‌های ۱، ۲ و ۴ استاندارد)
+  const masks = [
+    (x: number, y: number) => (x + y) % 2 === 0, (_: number, y: number) => y % 2 === 0, (x: number) => x % 3 === 0,
+    (x: number, y: number) => (x + y) % 3 === 0, (x: number, y: number) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0,
+    (x: number, y: number) => ((x * y) % 2) + ((x * y) % 3) === 0, (x: number, y: number) => (((x * y) % 2) + ((x * y) % 3)) % 2 === 0,
+    (x: number, y: number) => (((x + y) % 2) + ((x * y) % 3)) % 2 === 0,
+  ];
+  const apply = (m: number) => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!fixed[y]![x] && masks[m]!(x, y)) dark[y]![x] = !dark[y]![x]; };
+  const at = (x: number, y: number) => dark[y]![x]!;
+  const penalty = () => {
+    let p = 0, n = 0;
+    for (let a = 0; a < size; a++) for (const get of [(b: number) => at(b, a), (b: number) => at(a, b)]) {
+      let run = 1;
+      for (let b = 1; b <= size; b++) {
+        if (b < size && get(b) === get(b - 1)) run++;
+        else { if (run >= 5) p += run - 2; run = 1; }
+      }
+    }
+    for (let y = 0; y < size - 1; y++) for (let x = 0; x < size - 1; x++) {
+      const c = at(x, y);
+      if (c === at(x + 1, y) && c === at(x, y + 1) && c === at(x + 1, y + 1)) p += 3;
+    }
+    for (const row of dark) for (const c of row) if (c) n++;
+    return p + Math.floor(Math.abs((n * 20) / (size * size) - 10)) * 10;
+  };
+  let best = 0, bestScore = Infinity;
+  for (let m = 0; m < 8; m++) { apply(m); format(m); const sc = penalty(); if (sc < bestScore) { best = m; bestScore = sc; } apply(m); }
+  apply(best); format(best);
+
+  let d = '';
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (dark[y]![x]) d += `M${x} ${y}h1v1h-1z`;
+  return `<svg class="qr" viewBox="-4 -4 ${size + 8} ${size + 8}" role="img" aria-label="کد QR صفحهٔ دانلود کلید" shape-rendering="crispEdges"><rect x="-4" y="-4" width="${size + 8}" height="${size + 8}" fill="#fff"/><path fill="#14171C" d="${d}"/></svg>`;
+}
+
+/** پنجرهٔ برنامهٔ رایانه برای سرصفحه و کارت دانلود، با عکس واقعی صفحهٔ فایل‌ها (npm run shots). */
+export function desktop(): string {
+  return `<div class="win"><div class="win-bar"><i></i><i></i><i></i><span>کلید · فایل‌ها</span></div>${appDesktop()}</div>`;
 }
