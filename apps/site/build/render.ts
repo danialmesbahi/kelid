@@ -192,7 +192,7 @@ export function faqHtml(): string {
 }
 
 /** مدت فیلم هوش مصنوعی (public/ai) به شکل ISO 8601؛ با هر رندر تازه به‌روز شود. */
-const AI_FILM_DURATION = 'PT16S';
+const AI_FILM_DURATION = 'PT22S';
 
 /** داده‌های ساخت‌یافته برای گوگل: سازمان، سایت، نرم‌افزار با قیمت‌ها، و پرسش‌ها. */
 export function jsonLd(c: SiteConfig): string {
