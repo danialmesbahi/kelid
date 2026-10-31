@@ -40,7 +40,6 @@ pm2 را در حالت fork بگذارید، نه cluster؛ خود سرور پر
 VITE_KELID_API_URL=https://api.kelid.ir VITE_KELID_LICENSE_KEY=… npm run build -w @kelid/web     # خروجی: apps/web/dist
 VITE_ADMIN_API_URL=https://api.kelid.ir npm run build -w @kelid/admin                              # خروجی: apps/admin/dist
 npm run build -w @kelid/site                                                                       # سایت معرفی kelid.ir، خروجی: apps/site/dist
-
 ```
 سایت معرفی پیش‌فرض‌هایش را دارد (`VITE_SITE_*` در `.env.example`). پلن‌ها و قیمت‌ها را موقع ساخت و در مرورگر از `GET /plans` سرور (`VITE_SITE_API_URL`) می‌خواند و پنل فروشنده عوضشان می‌کند؛ نصب‌کنندهٔ ویندوز را کنار آن در `download/Kelid-Setup.exe` بگذارید.
 هر سه پوشه ایستا هستند و nginx همان‌ها را سرو می‌کند. برنامهٔ ویندوز هم با همین دو متغیر ساخته می‌شود (`npm run dist:win`).
