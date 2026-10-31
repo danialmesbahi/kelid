@@ -258,7 +258,7 @@ h2 .mute { font-weight: 700; }
 
 /* ── هوش مصنوعی: بخش اختصاصی با فیلم تمام‌عرض که خودش پخش می‌شود، مثل معرفی محصول. ── */
 .ai { position: relative; isolation: isolate; margin-top: clamp(72px, 10vw, 128px); padding-block: clamp(72px, 10vw, 128px); background: #05120E; color: var(--deep-ink); overflow: clip; }
-.ai::before { content: ""; position: absolute; inset: 0 0 auto; height: 70%; z-index: -1; pointer-events: none; background: radial-gradient(46% 60% at 50% 0%, color-mix(in srgb, var(--pri) 55%, transparent), transparent); }
+.ai::before { content: ""; position: absolute; inset: 0 0 auto; height: 38%; z-index: -1; pointer-events: none; background: radial-gradient(46% 60% at 50% 0%, color-mix(in srgb, var(--pri) 55%, transparent), transparent); }
 .ai-intro { display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
 .ai-eb { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 16px; border-radius: 99px; font-size: 14px; font-weight: 600; color: var(--lit); background: color-mix(in srgb, var(--lit) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lit) 32%, transparent); }
 .ai h2 { display: flex; flex-direction: column; font-size: clamp(38px, 6.6vw, 80px); line-height: 1.22; letter-spacing: -.02em; }
@@ -269,9 +269,10 @@ h2 .mute { font-weight: 700; }
 /* فیلم از لبه تا لبه */
 .ai-film { position: relative; margin: clamp(48px, 7vw, 88px) 0 0; }
 /* دو قاب جدا: افقی برای کامپیوتر، ۴:۵ برای گوشی؛ هیچ‌جای فیلم بریده نمی‌شود. */
-.ai-video { display: block; width: 100%; max-width: calc(100svh * 16 / 9); height: auto; margin-inline: auto; aspect-ratio: 16 / 9; background: #05120E; }
-.ai-pp { position: absolute; left: max(16px, calc((100% - 1200px) / 2 + 24px)); bottom: 20px; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #FFFFFF; cursor: pointer; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); transition: background-color var(--t-fast); }
-.ai-pp:hover { background: rgba(255, 255, 255, .26); }
+.ai-video { display: block; width: 100%; max-width: calc(100svh * 16 / 9); height: auto; margin-inline: auto; aspect-ratio: 16 / 9; background: #05120E; --edge: linear-gradient(to bottom, transparent, #000 6%, #000 94%, transparent), linear-gradient(to left, transparent, #000 4%, #000 96%, transparent); -webkit-mask-image: var(--edge); -webkit-mask-composite: source-in; mask-image: var(--edge); mask-composite: intersect; }
+.ai-pp { position: absolute; left: max(16px, calc((100% - 1200px) / 2 + 24px)); bottom: 20px; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .08); color: #FFFFFF; opacity: .55; cursor: pointer; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); transition: background-color var(--t-fast), opacity var(--t-fast); }
+.ai-film:hover .ai-pp, .ai-pp:focus-visible { opacity: 1; }
+.ai-pp:hover { background: rgba(255, 255, 255, .2); }
 .ai-pp:focus-visible { outline: 2px solid var(--lit); outline-offset: 3px; }
 .ai-pp::before { content: ""; box-sizing: border-box; width: 11px; height: 13px; border-left: 3.5px solid currentColor; border-right: 3.5px solid currentColor; }
 .ai-pp[aria-pressed="true"]::before { width: 0; height: 0; border-right: 0; border-left: 12px solid currentColor; border-block: 7.5px solid transparent; translate: 2px 0; }
