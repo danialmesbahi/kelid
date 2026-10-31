@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Icon } from '@kelid/ui';
-import { formatDate, formatGrouped, termDays, termOf, toFaDigits, type LicenseInfo, type Plan } from '@kelid/core';
+import { formatDate, formatGrouped, termDays, toFaDigits, type LicenseInfo, type Plan } from '@kelid/core';
 import type { Billing } from '../auth/api';
 import { NewTicketDialog } from '../support/NewTicketDialog';
+import { getCatalog } from './catalog';
 import { phaseTag } from './useBilling';
 
 const DAY = 86_400_000;
@@ -40,7 +41,8 @@ export function MySubscription(p: Props) {
   const now = Date.now();
   const end = Date.parse(p.expiresAt);
   const last = p.billing?.payments[0];
-  const start = last?.paidAt ? Date.parse(last.paidAt) : end - termDays(last?.period ?? 'year') * DAY;
+  const lastTerm = getCatalog().terms.find((t) => t.id === last?.period);
+  const start = last?.paidAt ? Date.parse(last.paidAt) : end - (lastTerm ? termDays(lastTerm) : 365) * DAY;
   const daysLeft = p.lic?.daysLeft ?? Math.max(0, Math.ceil((end - now) / DAY));
   const total = Math.max(DAY, end - start);
   const left = Math.min(1, Math.max(0, (end - now) / total));
@@ -79,7 +81,7 @@ export function MySubscription(p: Props) {
           </span>
           <span className="mute">
             {p.mineSeats > 1 ? `تا ${toFaDigits(p.mineSeats)} نفر` : 'یک نفر'}
-            {last ? `، اشتراک ${termOf(last.period).name}` : ''}
+            {last && (last.termName ?? lastTerm?.name) ? `، اشتراک ${last.termName ?? lastTerm?.name}` : ''}
           </span>
           {daysLeft > 0 && (
             <span className="xs mute">

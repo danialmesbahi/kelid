@@ -2,12 +2,13 @@ import { randomUUID, type KeyObject } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { formatDate, formatGrouped } from '@kelid/core/format';
 import { toFaDigits } from '@kelid/core/persian';
-import { nextExpiry, planById, PLANS, priceOf, seatsFor, termOf, TERMS, type Period, type PlanId } from '@kelid/core/plans';
+import { CATALOG_ID, forSale, nextExpiry, priceOf, seatsFor, termDays, type Period, type PlanId } from '@kelid/core/plans';
 import { authGuard } from '../auth/routes';
 import { RateLimiter } from '../auth/rateLimit';
 import { withOffice, type Db, type Pool } from '../db';
 import type { PaymentGateway } from './gateway';
 import { FONT_PATH, fontFile, page } from './pages';
+import { live, readCatalog, type FullCatalog } from './catalog';
 import { licenseOf, readSubscription } from './subscription';
 
 export interface BillingOptions {
@@ -28,6 +29,9 @@ export interface Receipt {
   id: string;
   plan: PlanId;
   period: Period;
+  /** نام پلن و مدت از فهرست سرور، حتی اگر بعداً از پنل حذف شده باشند. */
+  planName: string;
+  termName: string;
   /** نفرات خریده‌شده. */
   seats: number;
   /** تومان */
@@ -85,9 +89,13 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
     const r = await withOffice(pool, off, async (db) => {
       const sub = await readSubscription(db, off);
       const pays = await db.query<PaymentRow>(`select ${PAYMENT_COLS} from payments where status = 'paid' order by paid_at desc limit 24`);
-      return { sub, used: await seatsUsed(db, off), payments: pays.rows.map(receipt) };
+      const cat = await readCatalog(db);
+      return { sub, cat, used: await seatsUsed(db, off), payments: pays.rows.map((p) => receipt(p, cat)) };
     });
     if (!r.sub) throw new Error('office row missing');
+    // فهرست فروشی، و پلن خود دفتر حتی اگر دیگر فروخته نشود (صفحهٔ «اشتراک دفتر شما» نامش را می‌خواهد).
+    const sale = forSale(live(r.cat));
+    const mine = sale.plans.some((p) => p.id === r.sub!.plan) ? undefined : r.cat.plans.find((p) => p.id === r.sub!.plan);
     return {
       plan: r.sub.plan,
       trial: r.sub.trial,
@@ -95,7 +103,8 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       seats: r.sub.seats,
       suspended: r.sub.suspended,
       used: r.used,
-      plans: PLANS,
+      plans: mine ? [...sale.plans, { ...mine, deleted: undefined, hidden: true }] : sale.plans,
+      terms: sale.terms,
       canPay: !!gateway,
       payments: r.payments,
       license: licenseOf(licenseKey, off, r.sub),
@@ -112,8 +121,8 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
           additionalProperties: false,
           required: ['plan', 'period'],
           properties: {
-            plan: { type: 'string', enum: PLANS.map((p) => p.id) },
-            period: { type: 'string', enum: TERMS.map((t) => t.id) },
+            plan: { type: 'string', pattern: CATALOG_ID.source },
+            period: { type: 'string', pattern: CATALOG_ID.source },
             seats: { type: 'integer', minimum: 1, maximum: 500 },
             back: { type: 'string', maxLength: 200 },
           },
@@ -123,25 +132,31 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
     async (req, reply) => {
       if (!gateway) return reply.status(503).send({ error: 'no_gateway' });
       const body = req.body as { plan: PlanId; period: Period; seats?: number; back?: string };
-      const plan = planById(body.plan)!;
-      const seats = seatsFor(plan, body.seats);
       const { off, sub } = req.auth!;
       const wait = checkoutsByOffice.take(off);
       if (wait) return reply.status(429).header('retry-after', String(wait)).send({ error: 'too_many', retryAfter: wait });
+      // فقط پلن و مدتی که الان فروشی است؛ برنامه‌ای که فهرست کهنه دارد دوباره می‌خواند.
+      const sale = forSale(live(await readCatalog(pool)));
+      const plan = sale.plans.find((p) => p.id === body.plan);
+      const term = sale.terms.find((t) => t.id === body.period);
+      if (!plan || !term) return reply.status(409).send({ error: 'not_for_sale' });
+      const seats = seatsFor(plan, body.seats);
       // مبلغ فقط از فهرست سرور؛ برنامه هیچ عددی نمی‌فرستد. درگاه ریال می‌گیرد.
-      const amount = priceOf(plan, body.period, seats) * 10;
+      const amount = priceOf(plan, term, seats) * 10;
+      if (amount <= 0) return reply.status(409).send({ error: 'not_for_sale' });
       const id = randomUUID();
       const made = await withOffice(pool, off, async (db) => {
         // دفتر معلق تا تصمیم پشتیبانی پرداختی نمی‌کند.
         if ((await readSubscription(db, off))?.suspended) return 'suspended' as const;
         // پلنی که جای همکاران فعلی را ندارد خریدنی نیست؛ اول باید کسی برداشته شود.
         if (seats < (await seatsUsed(db, off))) return null;
-        await db.query('insert into payments (id, plan, period, seats, amount, gateway, created_by) values ($1, $2, $3, $4, $5, $6, $7)', [
+        await db.query('insert into payments (id, plan, period, seats, amount, days, gateway, created_by) values ($1, $2, $3, $4, $5, $6, $7, $8)', [
           id,
           plan.id,
-          body.period,
+          term.id,
           seats,
           amount,
+          termDays(term),
           gateway.name,
           sub,
         ]);
@@ -156,7 +171,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       try {
         started = await gateway.request({
           amount,
-          description: `اشتراک کلید، پلن ${plan.name}${seats > plan.seats ? ` برای ${seats} نفر` : ''} (${termOf(body.period).name})`,
+          description: `اشتراک کلید، پلن ${plan.name}${seats > plan.seats ? ` برای ${seats} نفر` : ''} (${term.name})`,
           callbackUrl: callbackUrl(off, id, backTo(body.back)),
           mobile: made.phone,
         });
@@ -177,7 +192,7 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
     const r = await withOffice(pool, off, async (db) => {
       const p = await db.query<PaymentRow>(`select ${PAYMENT_COLS} from payments where id = $1`, [id]);
       const row = p.rows[0];
-      return row ? { receipt: receipt(row), sub: row.status === 'paid' ? await readSubscription(db, off) : null } : null;
+      return row ? { receipt: receipt(row, await readCatalog(db)), sub: row.status === 'paid' ? await readSubscription(db, off) : null } : null;
     });
     if (!r) return reply.status(404).send({ error: 'not_found' });
     return { ...r.receipt, license: r.sub ? licenseOf(licenseKey, off, r.sub) : null };
@@ -234,16 +249,16 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       }
     }
 
-    const done = await withOffice(pool, q.o, async (db) => (await db.query<PaymentRow>(`select ${PAYMENT_COLS} from payments where id = $1`, [q.p])).rows[0]!);
-    const r = receipt(done);
-    const plan = planById(r.plan);
+    const r = await withOffice(pool, q.o, async (db) =>
+      receipt((await db.query<PaymentRow>(`select ${PAYMENT_COLS} from payments where id = $1`, [q.p])).rows[0]!, await readCatalog(db)),
+    );
     if (status === 'paid') {
       return html(
         200,
         page({
           tone: 'ok',
           title: 'پرداخت انجام شد',
-          lines: [`اشتراک ${plan ? `پلن ${plan.name} ` : ''}تا ${formatDate(new Date(r.expiresAt!))} فعال است.`],
+          lines: [`اشتراک پلن ${r.planName} تا ${formatDate(new Date(r.expiresAt!))} فعال است.`],
           rows: [
             ['مبلغ', `${formatGrouped(r.amount)} تومان`],
             ['کد پیگیری', toFaDigits(r.refId ?? '')],
@@ -279,14 +294,14 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
       const html = (status: number, body: string) => reply.status(status).header('content-type', 'text/html; charset=utf-8').send(body);
       if (!row || !row.authority || row.authority !== q.Authority || row.status !== 'pending')
         return html(404, page({ tone: 'bad', title: 'پرداخت پیدا نشد', lines: ['این پرداخت دیگر در انتظار نیست.'], dev: true }));
-      const plan = planById(row.plan);
+      const r = receipt(row, await readCatalog(pool));
       const back = `${callbackUrl(q.o, q.p, backTo(q.b))}&Authority=${encodeURIComponent(row.authority)}`;
       return html(
         200,
         page({
           tone: 'info',
           title: 'درگاه آزمایشی',
-          lines: [`پلن ${plan?.name ?? row.plan}، ${termOf(row.period).name}`, 'این صفحه فقط روی سرور توسعه است و پولی جابه‌جا نمی‌شود.'],
+          lines: [`پلن ${r.planName}، ${r.termName}`, 'این صفحه فقط روی سرور توسعه است و پولی جابه‌جا نمی‌شود.'],
           rows: [['مبلغ', `${formatGrouped(Number(row.amount) / 10)} تومان`]],
           actions: [
             { label: 'پرداخت موفق', href: `${back}&Status=OK`, primary: true },
@@ -300,8 +315,8 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
 
   async function applyPayment(office: string, id: string, refId: string, card: string | null): Promise<Status> {
     return withOffice(pool, office, async (db) => {
-      const p = await db.query<{ status: Status; plan: string; period: Period; seats: number | null }>(
-        'select status, plan, period, seats from payments where id = $1 for update',
+      const p = await db.query<{ status: Status; plan: string; period: Period; seats: number | null; days: number | null }>(
+        'select status, plan, period, seats, days from payments where id = $1 for update',
         [id],
       );
       const row = p.rows[0]!;
@@ -312,10 +327,14 @@ export async function billingRoutes(app: FastifyInstance, o: BillingOptions) {
         [office],
       );
       const c = cur.rows[0]!;
-      const plan = planById(row.plan)!;
+      // پلن و مدت همان لحظهٔ خرید؛ پنل حذفشان کند هم ردیفشان هست. پرداخت‌های پیش از days مدت را از فهرست می‌گیرند.
+      const cat = await readCatalog(db);
+      const plan = cat.plans.find((x) => x.id === row.plan)!;
+      const term = cat.terms.find((x) => x.id === row.period);
+      const days = row.days ?? (term ? termDays(term) : 30);
       const seats = seatsFor(plan, row.seats ?? undefined);
-      const was = { plan: c.plan as PlanId, trial: c.trial, expiresAt: c.expires_at.toISOString(), seats: c.seats };
-      const until = new Date(nextExpiry(was, plan, row.period, Date.now(), seats));
+      const was = { plan: c.plan, trial: c.trial, expiresAt: c.expires_at.toISOString(), seats: c.seats };
+      const until = new Date(nextExpiry(was, cat.plans.find((x) => x.id === c.plan), plan, days, Date.now(), seats));
       await db.query('update offices set plan = $2, trial = false, seats = $3, expires_at = $4 where id = $1', [office, plan.id, seats, until]);
       await db.query("update payments set status = 'paid', ref_id = $2, card = $3, paid_at = now(), expires_at = $4 where id = $1", [id, refId, card, until]);
       return 'paid';
@@ -356,14 +375,16 @@ interface PaymentRow {
 }
 const PAYMENT_COLS = 'id, plan, period, seats, amount, status, ref_id, card, created_at, paid_at, expires_at, gateway';
 
-function receipt(r: PaymentRow): Receipt {
+function receipt(r: PaymentRow, cat: FullCatalog): Receipt {
   // پرداختی که نیم ساعت در انتظار مانده یعنی کاربر درگاه را رها کرده است.
   const stale = r.status === 'pending' && Date.now() - r.created_at.getTime() > PENDING_MINUTES * 60_000;
-  const plan = planById(r.plan);
+  const plan = cat.plans.find((p) => p.id === r.plan);
   return {
     id: r.id,
-    plan: (plan?.id ?? r.plan) as PlanId,
+    plan: r.plan,
     period: r.period,
+    planName: plan?.name ?? r.plan,
+    termName: cat.terms.find((t) => t.id === r.period)?.name ?? r.period,
     seats: r.seats ?? plan?.seats ?? 1,
     amount: Number(r.amount) / 10,
     status: stale ? 'canceled' : r.status,

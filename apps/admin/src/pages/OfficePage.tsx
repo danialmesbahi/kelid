@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { Icon, Skeleton, Switch } from '@kelid/ui';
-import { formatGrouped, PLANS, termOf, toFaDigits, type PlanId } from '@kelid/core';
+import { formatGrouped, toFaDigits, type PlanId } from '@kelid/core';
 import type { Note, OfficeDetail } from '../api';
 import { useAuth } from '../auth';
-import { ago, dateText, Dialog, errorText, leftText, payTag, Phone, planName, statusTag, toman, useLoad, useSlow, useToast } from '../ui';
+import { ago, dateText, Dialog, errorText, leftText, payTag, Phone, statusTag, toman, useCatalog, useLoad, useNames, useSlow, useToast } from '../ui';
 
 const noteMark: Record<Note['kind'], { icon: 'msg' | 'cal' | 'lock' | 'check'; label: string }> = {
   note: { icon: 'msg', label: 'یادداشت' },
@@ -21,6 +21,7 @@ export function OfficePage() {
   const d = useLoad(`office:${id}`, (a, t) => a.office(t, id), id);
   const slow = useSlow(!d.data && d.pending);
   const [dialog, setDialog] = useState<'extend' | 'suspend' | null>(null);
+  const names = useNames();
   const [busy, setBusy] = useState(false);
 
   const resume = async () => {
@@ -148,7 +149,7 @@ export function OfficePage() {
         <div className="facts ad-facts">
           <div>
             <small>پلن</small>
-            <b>{planName(o.plan)}</b>
+            <b>{names.plan(o.plan)}</b>
             <span className="xs mute">{o.trial ? 'دورهٔ آزمایشی' : 'خریداری‌شده'}</span>
           </div>
           <div>
@@ -252,7 +253,7 @@ export function OfficePage() {
                     <li key={p.id}>
                       <span className="col sp" style={{ minWidth: 0 }}>
                         <span className="sm sb">
-                          پلن {planName(p.plan)}، {termOf(p.period).name}
+                          پلن {names.plan(p.plan)}، {names.term(p.period)}
                         </span>
                         <span className="xs mute">
                           {dateText(p.paidAt ?? p.createdAt)}
@@ -347,7 +348,11 @@ function ExtendDialog({ data, onClose, onDone }: { data: OfficeDetail; onClose: 
   const toast = useToast();
   const o = data.office;
   const used = data.members.length + data.invites.length;
-  const [plan, setPlan] = useState<PlanId>((PLANS.find((p) => p.id === o.plan)?.id ?? 'office') as PlanId);
+  // پلن‌های پنهان هم دستی داده می‌شوند (مثلاً پلن ویژهٔ یک دفتر)؛ حذف‌شده‌ها نه.
+  const plans = (useCatalog().data?.plans ?? []).filter((p) => !p.deleted);
+  const names = useNames();
+  const [picked, setPlan] = useState<PlanId>(o.plan);
+  const plan = plans.some((p) => p.id === picked) ? picked : (plans.find((p) => !p.hidden)?.id ?? picked);
   const [days, setDays] = useState(30);
   const [custom, setCustom] = useState('');
   const [trial, setTrial] = useState(o.trial);
@@ -383,7 +388,7 @@ function ExtendDialog({ data, onClose, onDone }: { data: OfficeDetail; onClose: 
         <fieldset className="ad-fs">
           <legend className="lbl">پلن</legend>
           <div className="ad-plans">
-            {PLANS.map((p) => {
+            {plans.map((p) => {
               const small = p.seats < used;
               return (
                 <label key={p.id} className={`ad-plan${plan === p.id ? ' on' : ''}${small ? ' off' : ''}`}>
@@ -397,7 +402,9 @@ function ExtendDialog({ data, onClose, onDone }: { data: OfficeDetail; onClose: 
                     className="visually-hidden"
                   />
                   <span className="b">{p.name}</span>
-                  <span className="xs mute">تا {toFaDigits(p.seats)} نفر</span>
+                  <span className="xs mute">
+                    تا {toFaDigits(p.seats)} نفر{p.hidden ? '، پنهان' : ''}
+                  </span>
                   {small && <span className="xs ad-warn">دفتر {toFaDigits(used)} نفر دارد</span>}
                 </label>
               );
@@ -468,7 +475,7 @@ function ExtendDialog({ data, onClose, onDone }: { data: OfficeDetail; onClose: 
           <span className="sm mute">اعتبار تازه</span>
           <span className="b">{until ? `تا ${dateText(until)}` : 'تعداد روز را درست وارد کنید'}</span>
           <span className="xs mute">
-            پلن {planName(plan)}، {o.status === 'expired' ? 'از امروز' : 'بعد از پایان اعتبار فعلی'}
+            پلن {names.plan(plan)}، {o.status === 'expired' ? 'از امروز' : 'بعد از پایان اعتبار فعلی'}
           </span>
         </div>
 

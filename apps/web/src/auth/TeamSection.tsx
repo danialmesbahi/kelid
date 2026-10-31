@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Icon, Segmented, Skeleton, Switch } from '@kelid/ui';
 import { Link } from 'react-router';
-import { PLANS, toFaDigits } from '@kelid/core';
+import { forSale, toFaDigits } from '@kelid/core';
+import { useCatalog } from '../billing/catalog';
 import { useSlow } from '../data';
 import { useToast } from '../layout/Toasts';
 import { useSyncStatus } from '../sync/state';
@@ -61,6 +62,7 @@ export function TeamSection() {
   const [sent, setSent] = useState<NewInvite | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const slow = useSlow(!team && !failed);
+  const catalog = useCatalog();
 
   const load = useCallback(() => {
     if (!api) return;
@@ -150,7 +152,7 @@ export function TeamSection() {
           <span style={{ width: `${Math.min(100, (used / team.seats) * 100)}%` }} className={full ? 'full' : ''} />
         </span>
       )}
-      {manager && full && team && PLANS.some((p) => (p.extra?.max ?? p.seats) > team.seats) && (
+      {manager && full && team && forSale(catalog).plans.some((p) => (p.extra?.max ?? p.seats) > team.seats) && (
         <span className="sm mute">
           همهٔ جاهای دفتر پر است. برای همکار بیشتر،{' '}
           <Link className="b" style={{ color: 'var(--pri-text)' }} to="/plans" viewTransition>پلن بزرگ‌تر</Link> بگیرید.
