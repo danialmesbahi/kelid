@@ -74,7 +74,7 @@
     <div class="cta">
       <a class="btn btn-lg btn-gold os-win" href="{{windows}}" download>{{brand:win}}دانلود رایگان برای ویندوز</a>
       <a class="btn btn-lg btn-gold os-mac" href="{{mac}}" download>{{brand:mac}}دانلود رایگان برای مک</a>
-      <a class="btn btn-lg btn-gold os-ios" href="#download">{{brand:mac}}نصب رایگان روی آیفون</a>
+      <a class="btn btn-lg btn-gold os-ios" href="#download" data-dev="ios">{{brand:mac}}نصب رایگان روی آیفون</a>
       <a class="btn btn-lg btn-gold os-and" href="{{app}}" rel="noopener">{{brand:and}}نصب رایگان روی اندروید</a>
       <a class="btn btn-lg btn-ghost" href="#how">{{icon:play}}ببینید چطور کار می‌کند</a>
     </div>
@@ -82,37 +82,7 @@
   </div>
 
   <div class="wrap stage" aria-hidden="true">
-    <div class="win">
-      <div class="win-bar"><i></i><i></i><i></i><span>کلید · فایل‌ها</span></div>
-      <div class="win-body">
-        <div class="m-side">
-          <div class="m-brand"><span class="plq s">کلید</span><span><small>املاک</small><b>آرامش</b></span></div>
-          <span class="m-nav">{{icon:today s}}امروز</span>
-          <span class="m-nav on">{{icon:files s}}فایل‌ها<small>۱۲۸</small></span>
-          <span class="m-nav">{{icon:users s}}مشتری‌ها<small>۴۶</small></span>
-          <span class="m-nav">{{icon:cal s}}تقویم</span>
-          <span class="m-nav">{{icon:deal s}}قراردادها</span>
-          <span class="m-sync"><i></i>همگام · همین حالا</span>
-        </div>
-        <div class="m-main">
-          <div class="m-top"><span class="m-search">{{icon:search s}}جستجو در فایل‌ها، مشتری‌ها و کارها…<kbd>Ctrl K</kbd></span><span class="m-new">{{icon:plus s}}فایل جدید</span></div>
-          <div class="m-hd"><b>فایل‌ها</b><span class="m-seg"><span class="on">همه ۱۲۸</span><span><i class="sw-s"></i>فروش ۵۴</span><span><i class="sw-r"></i>رهن و اجاره ۵۱</span><span><i class="sw-f"></i>رهن کامل ۲۳</span></span></div>
-          <div class="m-grid">
-            <div class="m-card sel"><span class="ph ph-i m-ph">{{cover}}<span class="plq s">۰۵۲</span></span><small>فروش</small><b>آپارتمان ۱۰۵ متری</b><small>{{icon:pin s}}ونک، ملاصدرا</small><div class="m-price"><b>۲۴ میلیارد</b><small>۲ خواب · طبقهٔ ۸</small></div></div>
-            <div class="m-card"><span class="ph ph-f m-ph">{{cover}}<span class="plq s r">۰۵۰</span></span><small>رهن و اجاره</small><b>آپارتمان ۸۰ متری</b><small>{{icon:pin s}}پونک، اباذر</small><div class="m-price"><b>۹۰۰ میلیون</b><small>اجاره ۲۵ میلیون</small></div></div>
-            <div class="m-card"><span class="ph ph-j m-ph">{{cover}}<span class="plq s f">۰۴۷</span></span><small>رهن کامل</small><b>آپارتمان ۹۵ متری</b><small>{{icon:pin s}}یوسف‌آباد</small><div class="m-price"><b>۳٫۵ میلیارد</b><small>۲ خواب · طبقهٔ ۳</small></div></div>
-          </div>
-        </div>
-        <div class="m-panel">
-          <span class="ph ph-i m-ph tall">{{cover}}</span>
-          <div class="m-ttl"><span class="plq">۰۵۲</span><span><small>فروش · ونک</small><b>آپارتمان ۱۰۵ متری</b></span></div>
-          <b class="m-big">۲۴ میلیارد تومان</b>
-          <div class="m-stats"><span><small>متراژ</small>۱۰۵</span><span><small>خواب</small>۲</span><span><small>طبقه</small>۸ از ۱۲</span></div>
-          <span class="m-match">{{icon:users s}}۲ مشتری دنبال چنین فایلی‌اند</span>
-          <span class="m-show">{{icon:show s}}نمایش به مشتری</span>
-        </div>
-      </div>
-    </div>
+    <!--@desktop-->
     <div class="hero-phone"><!--@iphone--></div>
     <span class="float f1"><span class="av">ک</span><b>آقای کریمی</b><small class="ok">۹۲٪ جور با فایل ۰۵۲</small></span>
     <span class="float f2">{{icon:cal}}<b>بازدید ساعت ۱۰:۳۰</b><small>فردا · پونک</small></span>
@@ -265,25 +235,56 @@
 </section>
 
 <section class="sec wrap dlx" id="download" aria-labelledby="dl-t">
-  <div class="dlx-art" aria-hidden="true">
-    <!--@iphone-->
-  </div>
-  <div class="dlx-main">
+  <div class="sec-hd center">
     <p class="eb">دانلود رایگان</p>
-    <h2 id="dl-t">کلید را روی دستگاه خودتان نصب کنید.</h2>
-    <p class="lead">{{trial}} روز همهٔ امکانات رایگان است و کارت بانکی نمی‌خواهد. روی هر دستگاهی نصب کنید؛ همه با هم هماهنگ می‌مانند.</p>
-    <div class="plat">
-      <a class="pc p-win" href="{{windows}}" download>{{brand:win}}<span><b>ویندوز</b><small>ویندوز ۱۰ و ۱۱ · فایل نصب</small></span><em>دستگاه شما</em><span class="pc-go">{{icon:download s}}دانلود</span></a>
-      <a class="pc p-mac" href="{{mac}}" download>{{brand:mac}}<span><b>مک</b><small>مک‌بوک و iMac · Apple Silicon و Intel</small></span><em>دستگاه شما</em><span class="pc-go">{{icon:download s}}دانلود</span></a>
-      <a class="pc p-ios" href="{{app}}" rel="noopener">{{brand:mac}}<span><b>آیفون و آیپد</b><small>در Safari باز کنید و به صفحهٔ اصلی اضافه کنید</small></span><em>دستگاه شما</em><span class="pc-go">{{icon:plus s}}نصب</span></a>
-      <a class="pc p-and" href="{{app}}" rel="noopener">{{brand:and}}<span><b>اندروید</b><small>در Chrome باز کنید و «نصب برنامه» را بزنید</small></span><em>دستگاه شما</em><span class="pc-go">{{icon:plus s}}نصب</span></a>
-    </div>
-    <a class="dl-web" href="{{app}}" rel="noopener">{{icon:show s}}نمی‌خواهید نصب کنید؟ نسخهٔ وب را در مرورگر باز کنید{{icon:chl s}}</a>
-    <ol class="ios-steps" aria-label="نصب روی آیفون">
-      <li><span>۱</span>نشانی برنامه را در Safari باز کنید</li>
-      <li><span>۲</span>دکمهٔ اشتراک‌گذاری {{icon:up s}} را بزنید</li>
-      <li><span>۳</span>«افزودن به صفحهٔ اصلی» را انتخاب کنید</li>
-    </ol>
+    <h2 id="dl-t">کلید را روی همهٔ دستگاه‌های دفتر نصب کنید.</h2>
+    <p class="lead">{{trial}} روز رایگان، بدون کارت بانکی. فایل‌ها روی رایانه و گوشی با هم هماهنگ می‌مانند.</p>
+  </div>
+  <!-- کارت و دکمهٔ دستگاه بیننده را اسکریپت سرصفحه (data-os) جلو می‌آورد؛ بی آن ویندوز. -->
+  <div class="dlx-grid">
+    <article class="dlc dlc-pc">
+      <div class="dlc-art" aria-hidden="true">
+        <!--@desktop-->
+      </div>
+      <div class="dlc-body">
+        <h3>برای رایانهٔ دفتر</h3>
+        <p>ویندوز ۱۰ و ۱۱ · همهٔ مک‌ها، Apple Silicon و Intel</p>
+        <ul class="dlc-pts"><li>{{icon:cloud s}}بدون اینترنت هم کار می‌کند</li><li>{{icon:lock s}}اطلاعات روی همان رایانه، رمزگذاری‌شده</li><li>{{icon:sync s}}به‌روزرسانی خودکار</li></ul>
+        <div class="dlc-acts">
+          <a class="btn btn-lg btn-s dl-win" href="{{windows}}" download>{{brand:win}}دانلود برای ویندوز</a>
+          <a class="btn btn-lg btn-s dl-mac" href="{{mac}}" download>{{brand:mac}}دانلود برای مک</a>
+        </div>
+      </div>
+    </article>
+    <article class="dlc dlc-ph">
+      <div class="dlc-art" aria-hidden="true"><!--@iphone--></div>
+      <div class="dlc-body">
+        <h3>برای گوشی</h3>
+        <p>آیفون و اندروید، مستقیم از مرورگر؛ بدون فروشگاه برنامه.</p>
+        <div class="dlc-qr"><!--@qr--><span><b>با دوربین گوشی اسکن کنید</b><small>همین صفحه روی گوشی باز می‌شود و دکمهٔ نصب را نشان می‌دهد.</small></span></div>
+        <div class="dlc-acts">
+          <button class="btn btn-lg btn-s dl-ios" type="button" popovertarget="ios-guide">{{brand:mac}}نصب روی آیفون</button>
+          <a class="btn btn-lg btn-s dl-and" href="{{app}}" rel="noopener">{{brand:and}}نصب روی اندروید</a>
+        </div>
+      </div>
+    </article>
+  </div>
+  <a class="dl-web" href="{{app}}" rel="noopener">{{icon:show s}}نمی‌خواهید نصب کنید؟ نسخهٔ وب را باز کنید{{icon:chl s}}</a>
+  <div class="iosg" id="ios-guide" popover aria-labelledby="iosg-t">
+    <button class="iosg-x" type="button" popovertarget="ios-guide" popovertargetaction="hide" aria-label="بستن">{{icon:x}}</button>
+    <h3 id="iosg-t">{{brand:mac}}نصب کلید روی آیفون</h3>
+    <p class="iosg-sub">آیفون برنامه را از خود Safari نصب می‌کند؛ چهار قدم ساده.</p>
+      <ol class="hw">
+        <li><span class="hw-n">۱</span><span class="hw-t"><b>کلید را در Safari باز کنید</b><small>با دکمهٔ پایین، یا نوشتن نشانی در Safari.</small></span>
+          <span class="hw-v"><span class="hw-url">{{icon:lock s}}{{appHost}}</span></span></li>
+        <li><span class="hw-n">۲</span><span class="hw-t"><b>دکمهٔ اشتراک‌گذاری را بزنید</b><small>اگر پیدا نیست، اول «⋯» پایین صفحه را بزنید.</small></span>
+          <span class="hw-v"><span class="hw-btn">⋯</span><span class="hw-btn on"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 9.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7.5a2 2 0 0 0-2-2h-1.5M12 14V3M8.5 6.5 12 3l3.5 3.5"/></svg></span></span></li>
+        <li><span class="hw-n">۳</span><span class="hw-t"><b>Add to Home Screen</b><small>«افزودن به صفحهٔ اصلی». کمی پایین بروید تا پیدایش کنید.</small></span>
+          <span class="hw-v"><span class="hw-row"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg>Add to Home Screen</span></span></li>
+        <li><span class="hw-n">۴</span><span class="hw-t"><b>Add را بزنید</b><small>نشان کلید کنار برنامه‌های دیگر می‌نشیند؛ از همان باز کنید.</small></span>
+          <span class="hw-v"><span class="hw-app">{{mark:hw}}<small>کلید</small></span></span></li>
+      </ol>
+    <a class="btn btn-lg btn-p iosg-go" href="{{app}}" rel="noopener">باز کردن کلید در Safari{{icon:chl}}</a>
   </div>
 </section>
 
@@ -327,7 +328,7 @@
     <div class="cta">
       <a class="btn btn-lg btn-gold os-win" href="{{windows}}" download>{{brand:win}}دانلود رایگان برای ویندوز</a>
       <a class="btn btn-lg btn-gold os-mac" href="{{mac}}" download>{{brand:mac}}دانلود رایگان برای مک</a>
-      <a class="btn btn-lg btn-gold os-ios" href="#download">{{brand:mac}}نصب رایگان روی آیفون</a>
+      <a class="btn btn-lg btn-gold os-ios" href="#download" data-dev="ios">{{brand:mac}}نصب رایگان روی آیفون</a>
       <a class="btn btn-lg btn-gold os-and" href="{{app}}" rel="noopener">{{brand:and}}نصب رایگان روی اندروید</a>
       <a class="btn btn-lg btn-ghost" href="#pricing">دیدن قیمت‌ها</a>
     </div>
@@ -352,7 +353,7 @@
       <nav class="ftr-col" aria-labelledby="fc2"><h3 id="fc2">دانلود</h3>
         <a href="{{windows}}" download>کلید برای ویندوز</a>
         <a href="{{mac}}" download>کلید برای مک</a>
-        <a href="#download">آیفون و اندروید</a>
+        <a href="#download" data-dev="ios">آیفون و اندروید</a>
         <a href="{{app}}" rel="noopener">نسخهٔ وب</a>
       </nav>
       <nav class="ftr-col" aria-labelledby="fc3"><h3 id="fc3">راهنما</h3>
@@ -365,7 +366,7 @@
       <div class="ftr-dl">
         <a href="{{windows}}" download>{{brand:win}}ویندوز</a>
         <a href="{{mac}}" download>{{brand:mac}}مک</a>
-        <a href="#download">{{brand:mac}}آیفون</a>
+        <a href="#download" data-dev="ios">{{brand:mac}}آیفون</a>
         <a href="{{app}}" rel="noopener">{{brand:and}}اندروید</a>
       </div>
       <!-- جای نمادهای رسمی: کد هر نماد بعد از صدور، به جای همین کارت گذاشته می‌شود -->
@@ -381,6 +382,7 @@
     </div>
   </div>
 </footer>
+<script>/* پیوندهای «آیفون» بالا و پایین صفحه، راهنمای نصب را باز می‌کنند. */document.querySelectorAll('[data-dev="ios"]').forEach(function(a){a.addEventListener('click',function(e){var g=document.getElementById('ios-guide');if(g&&g.showPopover){e.preventDefault();g.showPopover()}})})</script>
 <script>/* فیلم هوش مصنوعی فقط نزدیک دیده شدن بار و پخش می‌شود و دور از دید هیچ کاری نمی‌کند؛ کسی که حرکت کم خواسته خودش پخشش می‌کند. */(function(){var v=document.querySelector('.ai-video'),b=document.querySelector('.ai-pp');if(!v||!b)return;var mq=matchMedia('(max-width: 760px)'),user=false,loaded=false;function pick(){v.poster=mq.matches?'/ai/poster-m.jpg':'/ai/poster.jpg'}pick();/* با تغییر اندازهٔ پنجره قاب درست (افقی یا ۴:۵) دوباره انتخاب می‌شود، وگرنه فیلم افقی در قاب گوشی بریده می‌شود. */mq.addEventListener('change',function(){pick();if(!loaded)return;var on=!v.paused;v.load();if(on)v.play().catch(function(){})});function ui(){var p=v.paused;b.setAttribute('aria-pressed',p);b.setAttribute('aria-label',p?'پخش فیلم':'توقف فیلم')}function go(){warm();v.play().catch(function(){})}if(matchMedia('(prefers-reduced-motion: reduce)').matches){user=true}v.addEventListener('play',ui);v.addEventListener('pause',ui);b.addEventListener('click',function(){user=!v.paused;v.paused?go():v.pause()});/* یک صفحه مانده به فیلم بار می‌شود تا فریم اولش آماده باشد؛ ۳۰٪ دیده شد پخش، کمتر از ۱۰٪ یا تب پنهان شد توقف؛ بین این دو همان حال قبلی می‌ماند. */function warm(){if(!loaded){loaded=true;v.preload='auto';v.load()}}var seen=0;function fit(){if(document.hidden||seen<.1)v.pause();else if(seen>=.3&&!user)go()}document.addEventListener('visibilitychange',fit);if('IntersectionObserver'in window){new IntersectionObserver(function(e,o){if(e[0].isIntersecting){warm();o.disconnect()}},{rootMargin:'0px 0px 100% 0px'}).observe(v);new IntersectionObserver(function(e){seen=e[0].isIntersecting?e[0].intersectionRatio:0;fit()},{threshold:[0,.1,.3]}).observe(v)}else if(!user)go();ui()})()</script>
 <script>/* بخش هوش مصنوعی: نوشته‌ها وقتی به آن رسیدید جان می‌گیرند و عددها می‌شمارند. بی جاوااسکریپت یا با کاهش حرکت همه‌چیز ثابت و کامل است. */(function(){var s=document.querySelector('.ai');if(!s||!('IntersectionObserver'in window))return;var calm=matchMedia('(prefers-reduced-motion: reduce)').matches;s.classList.add('ai-js');var fa=function(n){return n.toLocaleString('fa-IR')};new IntersectionObserver(function(es,o){es.forEach(function(e){if(!e.isIntersecting)return;e.target.classList.add('in');o.unobserve(e.target)})},{threshold:.35}).observe(s.querySelector('.ai-intro'));['.ai-hl','.ai-stats'].forEach(function(q){var el=s.querySelector(q);if(el)new IntersectionObserver(function(es,o){es.forEach(function(e){if(!e.isIntersecting)return;e.target.classList.add('in');o.unobserve(e.target);if(q==='.ai-stats'&&!calm)count(e.target)})},{threshold:.3}).observe(el)});function count(ul){ul.querySelectorAll('b[data-n]').forEach(function(b){var n=+b.dataset.n,sf=b.dataset.s||'',t0=performance.now(),d=1600;(function f(t){var k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,4);b.textContent=fa(Math.round(n*e))+sf;if(k<1)requestAnimationFrame(f)})(t0)})}})()</script>
 <script>/* منوی گوشی با رفتن به یک بخش بسته می‌شود. */document.querySelectorAll('#menu a').forEach(function(a){a.addEventListener('click',function(){var m=document.getElementById('menu');if(m&&m.hidePopover)m.hidePopover()})})</script>
