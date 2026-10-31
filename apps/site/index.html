@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--@heropreload-->
 <title>نرم‌افزار املاک کلید | اولین نرم‌افزار املاک با هوش مصنوعی در ایران</title>
 <meta name="description" content="کلید، نرم‌افزار املاک هوشمند با هوش مصنوعی برای مشاوران املاک: مشخصات فایل و مشتری را بگویید تا فرم خودش پر شود، محله و خیابان هر شهر هوشمند پیشنهاد شود و مشتری جور خودکار پیدا شود. ویندوز، مک، وب و گوشی، حتی بدون اینترنت. {{trial}} روز رایگان.">
 <link rel="canonical" href="{{site}}/">
@@ -52,23 +53,28 @@
   </div>
 </header>
 <div class="menu" id="menu" popover>
+  <div class="menu-top">
+    <a class="logo" href="#top" aria-label="کلید، صفحهٔ اول">{{mark:m}}<b>کلید</b></a>
+    <button class="menu-x" type="button" popovertarget="menu" popovertargetaction="hide" aria-label="بستن منو">{{icon:x}}</button>
+  </div>
   <nav aria-label="منوی گوشی">
-    <a href="#ai">هوش مصنوعی</a>
-    <a href="#how">چطور کار می‌کند</a>
-    <a href="#features">امکانات</a>
-    <a href="#download">دانلود</a>
-    <a href="#pricing">قیمت</a>
-    <a href="#faq">پرسش‌ها</a>
+    <a href="#ai"><span>هوش مصنوعی</span>{{icon:chl}}</a>
+    <a href="#how"><span>چطور کار می‌کند</span>{{icon:chl}}</a>
+    <a href="#features"><span>امکانات</span>{{icon:chl}}</a>
+    <a href="#download"><span>دانلود</span>{{icon:chl}}</a>
+    <a href="#pricing"><span>قیمت</span>{{icon:chl}}</a>
+    <a href="#faq"><span>پرسش‌ها</span>{{icon:chl}}</a>
   </nav>
-  <a class="btn btn-lg btn-gold btn-w" href="#download">{{icon:download}}دانلود رایگان</a>
-  <button class="menu-x" type="button" popovertarget="menu" popovertargetaction="hide" aria-label="بستن منو">{{icon:x}}</button>
+  <div class="menu-ft">
+    <a class="btn btn-lg btn-w menu-cta" href="#download">{{icon:download}}دانلود رایگان</a>
+    <p>{{trial}} روز رایگان · بدون کارت بانکی</p>
+  </div>
 </div>
 
 <main id="main">
 <section class="hero" id="top" aria-labelledby="hero-t">
-  <!--@skyline-->
+  <!--@heroart-->
   <div class="wrap hero-in">
-    <p class="chip">{{icon:spark s}}{{trial}} روز رایگان · بدون کارت بانکی</p>
     <h1 id="hero-t"><span class="h1-k">نرم‌افزار املاک کلید</span><span class="h1-d">دفتر املاکتان، مرتب و <em>همیشه دم دست</em></span></h1>
     <p class="lead">فایل‌ها، مشتری‌ها، بازدیدها و قراردادهای دفتر را یک‌جا نگه دارید. مشخصات را بگویید تا هوش مصنوعی کلید فرم را پر کند؛ کلید برای هر مشتری فایل جورش را پیدا می‌کند و بدون اینترنت هم کار می‌کند.</p>
     <div class="cta">
@@ -78,15 +84,12 @@
       <a class="btn btn-lg btn-gold os-and" href="{{app}}" rel="noopener">{{brand:and}}نصب رایگان روی اندروید</a>
       <a class="btn btn-lg btn-ghost" href="#how">{{icon:play}}ببینید چطور کار می‌کند</a>
     </div>
-    <p class="plats">برای {{brand:win}} ویندوز {{brand:mac}} مک {{brand:mac}} آیفون {{brand:and}} اندروید و وب</p>
+    <p class="plats">{{trial}} روز رایگان · بدون کارت بانکی · ویندوز، مک، گوشی و وب</p>
   </div>
 
   <div class="wrap stage" aria-hidden="true">
     <!--@desktop-->
     <div class="hero-phone"><!--@iphone--></div>
-    <span class="float f1"><span class="av">ک</span><b>آقای کریمی</b><small class="ok">۹۲٪ جور با فایل ۰۵۲</small></span>
-    <span class="float f2">{{icon:cal}}<b>بازدید ساعت ۱۰:۳۰</b><small>فردا · پونک</small></span>
-    <span class="float f3">{{icon:cloud}}<b>اینترنت قطع است</b><small>همه‌چیز ذخیره شد</small></span>
   </div>
 </section>
 
@@ -144,16 +147,7 @@
         <p>نوع معامله، متراژ، محله و قیمت را بنویسید و عکس‌ها را بگذارید. هر فایل یک پلاک رنگی می‌گیرد: سبز فروش، خردلی رهن و اجاره، آبی رهن کامل.</p>
         <ul class="ticks"><li>{{icon:check s}}کمتر از یک دقیقه</li><li>{{icon:check s}}شمارهٔ مالک محفوظ</li><li>{{icon:check s}}عکس از گوشی</li></ul>
       </div>
-      <div class="step-v v-form" aria-hidden="true">
-        <div class="vf-hd"><b>فایل جدید</b><span class="m-seg"><span class="on"><i class="sw-s"></i>فروش</span><span><i class="sw-r"></i>رهن و اجاره</span><span><i class="sw-f"></i>رهن کامل</span></span></div>
-        <div class="vf-grid">
-          <span><small>نوع ملک</small>آپارتمان</span>
-          <span><small>متراژ</small>۱۰۵ متر</span>
-          <span><small>محله</small>ونک، ملاصدرا</span>
-          <span><small>قیمت کل</small>۲۴ میلیارد تومان</span>
-        </div>
-        <div class="vf-ft"><span class="vf-ok">{{icon:check s}}ذخیره شد</span><span class="plq l">۰۵۲</span></div>
-      </div>
+      <div class="step-v v-form" aria-hidden="true">{{shot:step-add}}</div>
     </li>
     <li class="step">
       <div class="step-tx">
@@ -162,12 +156,7 @@
         <p>نیاز هر مشتری را یک بار بنویسید. هر فایل تازه با همهٔ مشتری‌ها مقایسه می‌شود و جورترین‌ها جلوی چشمتان می‌آیند.</p>
         <ul class="ticks"><li>{{icon:check s}}درصد جور بودن</li><li>{{icon:check s}}بودجه، محله، متراژ</li></ul>
       </div>
-      <div class="step-v v-clients" aria-hidden="true">
-        <p class="vc-hd">{{icon:spark s}}۳ مشتری با فایل ۰۵۲ جورند</p>
-        <div class="vc-row"><span class="ring" style="--p:92"><b>۹۲٪</b></span><span><b>آقای کریمی</b><small>۲ خوابه تا ۲۵ میلیارد، ونک و جردن</small></span>{{icon:phone s}}</div>
-        <div class="vc-row"><span class="ring" style="--p:78"><b>۷۸٪</b></span><span><b>خانم رضایی</b><small>۱۰۰ متر به بالا، شمال تهران</small></span>{{icon:phone s}}</div>
-        <div class="vc-row"><span class="ring" style="--p:64"><b>۶۴٪</b></span><span><b>آقای محمدی</b><small>تا ۲۲ میلیارد، با پارکینگ</small></span>{{icon:phone s}}</div>
-      </div>
+      <div class="step-v v-clients" aria-hidden="true">{{shot:step-clients}}</div>
     </li>
     <li class="step">
       <div class="step-tx">
@@ -176,13 +165,7 @@
         <p>بازدید، تماس و کارهای فردا در تقویم شمسی دفتر می‌نشیند و پیش از هر قرار یادآوری می‌گیرید.</p>
         <ul class="ticks"><li>{{icon:check s}}تقویم شمسی</li><li>{{icon:check s}}یادآوری به وقت تهران</li></ul>
       </div>
-      <div class="step-v v-day" aria-hidden="true">
-        <p class="vd-hd"><b>فردا</b><small>سه بازدید و یک قرارداد</small></p>
-        <span class="ev"><small>۱۰:۳۰</small><b>بازدید فایل ۰۵۲ با آقای کریمی</b></span>
-        <span class="ev am"><small>۱۲:۰۰</small><b>تماس با مالک فایل ۰۵۰</b></span>
-        <span class="ev bl"><small>۱۷:۰۰</small><b>امضای قرارداد فایل ۰۴۷</b></span>
-        <span class="toast">{{icon:bell s}}۳۰ دقیقه تا بازدید فایل ۰۵۲</span>
-      </div>
+      <div class="step-v v-day" aria-hidden="true">{{shot:step-calendar}}</div>
     </li>
     <li class="step">
       <div class="step-tx">
@@ -191,15 +174,7 @@
         <p>هر معامله از مذاکره تا امضا دنبال می‌شود و کمیسیون دفتر و سهم هر همکار جایی ثبت می‌شود که گم نشود.</p>
         <ul class="ticks"><li>{{icon:check s}}مرحلهٔ هر معامله</li><li>{{icon:check s}}کمیسیون و سهم همکار</li></ul>
       </div>
-      <div class="step-v v-deal" aria-hidden="true">
-        <span class="stamp">امضا شد</span>
-        <p class="vdl-t"><span class="plq">۰۵۲</span><span><b>فروش آپارتمان ۱۰۵ متری</b><small>ونک، ملاصدرا</small></span></p>
-        <dl>
-          <div><dt>مبلغ معامله</dt><dd>۲۴ میلیارد تومان</dd></div>
-          <div><dt>کمیسیون دفتر</dt><dd class="ok">۲۴۰ میلیون تومان</dd></div>
-          <div><dt>سهم مشاور</dt><dd>۹۶ میلیون تومان</dd></div>
-        </dl>
-      </div>
+      <div class="step-v v-deal" aria-hidden="true">{{shot:step-deals}}</div>
     </li>
   </ol>
 </section>
@@ -219,18 +194,27 @@
   </ul>
 </section>
 
+<section class="sec wrap" id="cities" aria-labelledby="city-t">
+  <div class="sec-hd">
+    <p class="eb">از تبریز تا بوشهر</p>
+    <h2 id="city-t">دفترتان هر شهری که باشد، <span class="mute">کلید همان‌جا کنارتان است.</span></h2>
+  </div>
+  <!--@cities-->
+</section>
+
 <section class="night" id="offline" aria-labelledby="off-t">
   <div class="wrap night-in">
     <div>
       <p class="eb">بدون اینترنت و امن</p>
       <h2 id="off-t">اینترنت قطع شد؟<br><span>کار دفتر قطع نمی‌شود.</span></h2>
       <p class="lead">کلید روی خود دستگاه کار می‌کند، نه روی سروری دوردست. فایل ثبت می‌کنید، مشتری می‌گردید و بازدید می‌گذارید؛ وقتی اینترنت برگشت، همه‌چیز خودش با همکاران هماهنگ می‌شود.</p>
-    </div>
-    <ul class="pts">
+      <ul class="pts">
       <li>{{icon:lock l}}<span><b>رمزگذاری روی دستگاه</b>اطلاعات دفتر رمزگذاری‌شده ذخیره می‌شود؛ حتی اگر کسی فایل را کپی کند، چیزی نمی‌خواند.</span></li>
       <li>{{icon:sync l}}<span><b>هماهنگی خودکار</b>تغییر هر همکار، بی دکمه و بی دردسر به دستگاه بقیه می‌رسد.</span></li>
       <li>{{icon:shield l}}<span><b>شمارهٔ مالک، فقط برای کسی که باید</b>دسترسی هر همکار را مدیر دفتر تعیین می‌کند.</span></li>
-    </ul>
+      </ul>
+    </div>
+    <!--@offline-->
   </div>
 </section>
 
@@ -310,6 +294,7 @@
       <p class="eb">پرسش‌ها</p>
       <h2 id="faq-t">پرسش‌های پرتکرار</h2>
       <p class="lead">جوابتان این‌جا نیست؟ از داخل برنامه، بخش «نظر و پیشنهاد»، بپرسید.</p>
+      <!--@faqart-->
     </div>
     <div class="qas"><!--@faq--></div>
   </div>
@@ -317,6 +302,7 @@
 
 <section class="final" aria-labelledby="final-t">
   <!--@skyline-->
+  <!--@final-->
   <div class="wrap final-in">
     {{mark:x}}
     <h2 id="final-t">امشب که چراغ دفتر را خاموش می‌کنید،<br>همه‌چیز سر جایش است.</h2>

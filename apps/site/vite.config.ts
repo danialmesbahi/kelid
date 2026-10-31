@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { DEFAULT_CATALOG, type Catalog } from '../../packages/core/src/plans';
-import { brand, desktop, faYear, faqHtml, icon, iphone, jsonLd, mark, menuIcon, pricing, qr, skyline, trialDays, type SiteConfig } from './build/render';
+import { appDesktop, appShot, brand, cities, desktop, faYear, faqArt, faqHtml, finalArt, heroArt, heroPreload, icon, iphone, jsonLd, mark, menuIcon, offlineArt, pricing, qr, skyline, trialDays, type SiteConfig } from './build/render';
 
 // همان تصویر جایگزین عکس فایل در برنامه (Cover در packages/ui)
 const COVER = '<i class="y t2"></i><i class="y t1"></i><i class="y gd"></i><i class="x fl"></i><i class="x w"></i><i class="x lt"></i><i class="x so"></i>';
@@ -42,7 +42,7 @@ async function catalogFor(api: string): Promise<Catalog> {
 }
 
 function site(cfg: SiteConfig, catalog: Catalog): Plugin {
-  const parts: Record<string, () => string> = { skyline, iphone, desktop, qr: () => qr(`${cfg.site}/#download`), pricing: () => pricing(catalog, cfg.api), faq: faqHtml, jsonld: () => jsonLd(cfg, catalog) };
+  const parts: Record<string, () => string> = { skyline, appdesk: appDesktop, heroart: heroArt, heropreload: heroPreload, iphone, desktop, qr: () => qr(`${cfg.site}/#download`), cities, offline: offlineArt, final: finalArt, faqart: faqArt, pricing: () => pricing(catalog, cfg.api), faq: faqHtml, jsonld: () => jsonLd(cfg, catalog) };
   const vars: Record<string, string> = { cover: COVER, site: cfg.site, app: cfg.app, appHost: new URL(cfg.app).host, windows: cfg.windows, mac: cfg.mac, menu: menuIcon, trial: trialDays, year: faYear() };
   return {
     name: 'kelid-site',
@@ -64,6 +64,7 @@ function site(cfg: SiteConfig, catalog: Catalog): Plugin {
         })
         .replace(/\{\{icon:(\w+)(?: ([\w ]+))?\}\}/g, (_, n: string, c?: string) => icon(n, c))
         .replace(/\{\{brand:(\w+)\}\}/g, (_, n: string) => brand(n))
+        .replace(/\{\{shot:([\w-]+)\}\}/g, (_, n: string) => appShot(n))
         .replace(/\{\{mark:(\w+)\}\}/g, (_, id: string) => mark(id))
         .replace(/\{\{(\w+)\}\}/g, (_, k: string) => {
           const v = vars[k];

@@ -76,6 +76,7 @@ body{margin:0}
 .ic.s{width:16px;height:16px}
 .ic.l{width:24px;height:24px}
 .ic.th{stroke-width:2.2}
+.ic.th>g{stroke-width:1.9}
 
 /* دکمه */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:12px;border:1px solid transparent;font-weight:600;font-size:15px;white-space:nowrap;transition:background .15s,border-color .15s,filter .15s}
@@ -195,6 +196,11 @@ textarea.fld{height:auto;padding:12px 14px;resize:vertical}
 .app.dark .ph{filter:brightness(.8) saturate(.92)}
 .ph img.photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .app.dark .ph:has(img.photo){filter:none}
+/* تصویرهای اختصاصی (Art): قاب گرد؛ در حالت تیره کمی کم‌نورتر تا چشم را نزند */
+.art{display:block;overflow:hidden;background:var(--sunk)}
+.art img{display:block;width:100%;height:100%;object-fit:cover}
+.app.dark .art img{filter:brightness(.8) saturate(.92)}
+.empty-art{width:min(200px,60vw);aspect-ratio:1;border-radius:18px;margin-bottom:12px}
 .ph .tagon{position:absolute;top:10px;right:10px}
 .ph .cnt{position:absolute;bottom:10px;left:10px;background:rgba(18,20,18,.72);color:#FFFFFF;border-radius:8px;padding:1px 9px;font-size:12.5px}
 

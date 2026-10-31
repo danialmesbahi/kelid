@@ -47,6 +47,7 @@ docs/           TECH_STACK.md, ARCHITECTURE.md, ONBOARDING.md, DEPLOY.md (produc
 | Windows installer → `apps/desktop/release/` | `npm run dist:win` |
 | vendor panel dev (http://localhost:5174; `VITE_ADMIN_API_URL=demo` for sample data) | `npm run dev:admin` |
 | marketing site dev (http://localhost:5175); build → `apps/site/dist` | `npm run dev:site` · `npm run build -w @kelid/site` |
+| refresh the site's real app screenshots (web app running offline, e.g. `npx vite` in apps/web) | `KELID_APP_URL=http://localhost:5173 npm run shots -w @kelid/site` |
 | create / reset / disable a vendor admin | `npm run admin -w @kelid/server -- add --phone 09xxxxxxxxx --name "…"` |
 | regenerate app icons / installer images | `npm run icons` |
 

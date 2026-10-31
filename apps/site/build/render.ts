@@ -225,22 +225,11 @@ export function mark(id: string): string {
   return `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kg-${id}" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#17654F"/><stop offset=".55" stop-color="#0E4D3F"/><stop offset="1" stop-color="#0A3A30"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#kg-${id})"/><path fill="#fff" fill-rule="evenodd" d="M32 8.42L35.98 12.4L41.6 12.4L41.6 18.02L45.58 22L41.6 25.98L41.6 31.6L35.98 31.6L32 35.58L28.02 31.6L22.4 31.6L22.4 25.98L18.42 22L22.4 18.02L22.4 12.4L28.02 12.4ZM26.4 22a5.6 5.6 0 1 0 11.2 0a5.6 5.6 0 1 0-11.2 0Z"/><circle cx="32" cy="22" r="2.9" fill="#C9A86F"/><path fill="#fff" d="M29 31.5H35V43.4H41.6V47.6H35V49.2H39.8V53.4H31.6A2.6 2.6 0 0 1 29 50.8Z"/></svg>`;
 }
 
-export const menuIcon = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>';
+/** دو خط نامساوی به‌جای همبرگر سه‌خطی معمول؛ آرام‌تر و خاص‌تر. */
+export const menuIcon = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h14M9 15h10"></path></svg>';
 
 /** آیفون ۱۷/۱۸ پرومکس با iOS 27: نوار وضعیت دو طرف Dynamic Island، نوار زبانه‌ی شیشه‌ای شناور، فهرست گروه‌بندی‌شده. رنگ بدنه سخت‌افزار است و با پوسته عوض نمی‌شود. */
 export function iphone(): string {
-  const rows: [string, string, string, string, string, string][] = [
-    ['', '۰۵۲', 'آپارتمان ۱۰۵ متری', 'ونک، ملاصدرا', '۲۴ میلیارد', 'متری ۲۲۸ میلیون'],
-    ['', '۰۵۱', 'آپارتمان ۹۵ متری', 'یوسف‌آباد', '۱۹ میلیارد', 'متری ۲۰۰ میلیون'],
-    ['r', '۰۵۰', 'آپارتمان ۸۰ متری', 'پونک، حصارک', 'ودیعه ۹۰۰ م', 'اجاره ۲۰ میلیون'],
-    ['', '۰۲۷', 'آپارتمان ۱۲۰ متری', 'سعادت‌آباد', '۲۸ میلیارد', 'متری ۲۳۳ میلیون'],
-    ['f', '۰۴۲', 'آپارتمان ۷۰ متری', 'تهرانپارس', 'رهن ۲٫۲ میلیارد', 'بدون اجاره'],
-    ['r', '۰۳۱', 'آپارتمان ۸۵ متری', 'پونک', 'ودیعه ۸۰۰ م', 'اجاره ۲۲ میلیون'],
-    ['', '۰۲۹', 'ویلایی ۲۴۰ متری', 'شهران', '۳۱ میلیارد', 'متری ۱۲۹ میلیون'],
-    ['r', '۰۲۲', 'آپارتمان ۶۵ متری', 'جنت‌آباد', 'ودیعه ۵۰۰ م', 'اجاره ۱۸ میلیون'],
-    ['', '۰۱۸', 'آپارتمان ۱۴۰ متری', 'زعفرانیه', '۵۲ میلیارد', 'متری ۳۷۱ میلیون'],
-    ['f', '۰۱۵', 'آپارتمان ۹۰ متری', 'نارمک', 'رهن ۳ میلیارد', 'بدون اجاره'],
-  ];
   // آنتن، وای‌فای و باتری با همان اندازه‌های نوار وضعیت iOS (نقطه)
   const signal = `<svg viewBox="0 0 17 11">${[3.6, 5.8, 8.2, 11].map((h, i) => `<rect x="${i * 4.6}" y="${11 - h}" width="3" height="${h}" rx="1"/>`).join('')}</svg>`;
   const sector = (r0: number, r1: number): string => {
@@ -256,17 +245,65 @@ export function iphone(): string {
 <div class="iph-scr"><div class="ios">
 <div class="ios-bar" dir="ltr"><b>9:41</b><i></i><span>${signal}${wifi}${battery}</span></div>
 <span class="ios-island"></span>
-<div class="ka">
-<div class="ka-nav"><span class="plq s">کلید</span><span class="glass ka-btns">${icon('set')}${icon('more')}</span></div>
-<div class="ka-hd"><b>فایل‌ها</b><small>۱۲۸ فایل · ۳ تای تازه امروز</small></div>
-<div class="ka-search">${icon('search')}<span>جستجو در فایل‌ها، مشتری‌ها</span>${icon('mic')}</div>
-<div class="ka-seg"><span class="on">همه</span><span><i class="sw-s"></i>فروش</span><span><i class="sw-r"></i>رهن و اجاره</span></div>
-<div class="ka-list">${rows.map(([c, n, t, pl, pr, sub]) => `<div class="ka-row"><span class="plq s${c ? ` ${c}` : ''}">${n}</span><span class="ka-t"><b>${t}</b><small>${pl}</small></span><span class="ka-p"><b>${pr}</b><small>${sub}</small></span>${icon('chl', 'chev')}</div>`).join('')}</div>
-</div>
-<div class="ka-tabs"><div class="glass ka-tab"><span>${icon('today')}امروز</span><span class="on">${icon('files')}فایل‌ها</span><span>${icon('users')}مشتری‌ها</span><span>${icon('set')}تنظیمات</span></div><span class="glass ka-add">${icon('plus')}</span></div>
+<picture class="ios-shot"><img src="/art/app-phone-780.webp" width="780" height="1594" alt="" loading="lazy" decoding="async"></picture>
 <span class="ios-home"></span>
 </div></div>
 </div>`;
+}
+
+/** تصویر واکنش‌گرا: AVIF و WebP در سه پهنا، تنبل، با اندازهٔ ثابت تا صفحه موقع بار شدن نپرد. */
+function art(name: string, widths: number[], sizes: string, alt = '', size: [number, number] = [1200, 800], extra = 'loading="lazy"'): string {
+  const set = (ext: string) => widths.map((w) => `/art/${name}-${w}.${ext} ${w}w`).join(', ');
+  return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><img src="/art/${name}-${widths[0]}.webp" srcset="${set('webp')}" sizes="${sizes}" width="${size[0]}" height="${size[1]}" alt="${alt}" ${extra} decoding="async"></picture>`;
+}
+
+const HERO_WIDTHS = [768, 1152, 1536];
+
+/** میزی تنها روی تپه‌ای بالای تهرانِ مه‌گرفته در سپیده‌دم: «دفترتان هر جا باشید همراهتان است». نیمهٔ بالایش آسمان خالی است تا نوشته‌ها خوانا بمانند. */
+export function heroArt(): string {
+  return `<div class="hero-art" aria-hidden="true">${art('hero', HERO_WIDTHS, '100vw', '', [1536, 1024], 'fetchpriority="high"')}</div>`;
+}
+
+/** پیش‌بارگذاری تصویر سرصفحه در head تا مرورگر پیش از خواندن CSS سراغش برود. */
+export function heroPreload(): string {
+  return `<link rel="preload" as="image" type="image/avif" imagesrcset="${HERO_WIDTHS.map((w) => `/art/hero-${w}.avif ${w}w`).join(', ')}" imagesizes="100vw" fetchpriority="high">`;
+}
+
+/** عکس واقعی برنامه (npm run shots) در قاب پنجرهٔ دسکتاپ؛ پیش‌نمایش همیشه همان طراحی امروز برنامه است. */
+export function appDesktop(): string {
+  return `<picture class="win-shot"><img src="/art/app-desktop-1280.webp" srcset="/art/app-desktop-1280.webp 1280w, /art/app-desktop-2560.webp 2560w" sizes="(min-width: 1280px) 1200px, 94vw" width="1280" height="800" alt="" decoding="async"></picture>`;
+}
+
+/** عکس واقعی یک صفحهٔ برنامه در اندازهٔ گوشی، برای کارت‌های «چهار قدم». */
+export function appShot(name: string): string {
+  return `<img class="step-shot" src="/art/${name}-860.webp" width="860" height="1120" alt="" loading="lazy" decoding="async">`;
+}
+
+const CITY_NAMES: Array<[string, string]> = [
+  ['tehran', 'تهران'], ['isfahan', 'اصفهان'], ['shiraz', 'شیراز'], ['tabriz', 'تبریز'],
+  ['yazd', 'یزد'], ['rasht', 'رشت'], ['mashhad', 'مشهد'], ['bushehr', 'بوشهر'],
+];
+
+/** شهرها به شکل موزاییک: تهران بزرگ، بوشهر پهن، بقیه کوچک؛ روی گوشی موزاییک فشردهٔ ۴×۲. */
+export function cities(): string {
+  const big = '(min-width: 1100px) 600px, (min-width: 701px) 92vw, 25vw';
+  const small = '(min-width: 1100px) 300px, (min-width: 701px) 46vw, 25vw';
+  return `<ul class="cities">${CITY_NAMES.map(([k, fa], i) => `<li class="c-${k}">${art(`city-${k}`, [480, 800, 1200], i === 0 || k === 'bushehr' ? big : small, `شهر ${fa}`)}<span>${fa}</span></li>`).join('')}</ul>`;
+}
+
+/** خیابان بارانی رشت با پنجره‌های روشن، در قاب کنار متن بخش «اینترنت قطع شد؟»؛ متن روی تصویر نمی‌رود تا خوانا بماند. */
+export function offlineArt(): string {
+  return `<figure class="off-art" aria-hidden="true">${art('city-rasht', [480, 800, 1200], '(min-width: 920px) 560px, 92vw')}<span class="off-badge">${icon('cloud')}<span><b>اینترنت قطع است</b><small>همه‌چیز روی همین دستگاه ذخیره شد</small></span></span></figure>`;
+}
+
+/** دفتری که شب چراغش روشن است، زیر جملهٔ «امشب که چراغ دفتر را خاموش می‌کنید». */
+export function finalArt(): string {
+  return `<div class="final-art" aria-hidden="true">${art('night', [800, 1200, 1600], '100vw')}</div>`;
+}
+
+/** در باز و استکان چای کنار پرسش‌ها: یعنی بپرسید، دفتر باز است. */
+export function faqArt(): string {
+  return `<div class="faq-art">${art('welcome', [400, 800], '(min-width: 920px) 380px, 90vw', '', [800, 800])}</div>`;
 }
 
 /** کد QR برای نشانی صفحه، هنگام ساخت؛ بی وابستگی. حالت بایت، تصحیح خطای M، نسخهٔ ۱ تا ۶ (تا ۱۰۶ بایت). */
@@ -375,37 +412,7 @@ export function qr(text: string): string {
   return `<svg class="qr" viewBox="-4 -4 ${size + 8} ${size + 8}" role="img" aria-label="کد QR صفحهٔ دانلود کلید" shape-rendering="crispEdges"><rect x="-4" y="-4" width="${size + 8}" height="${size + 8}" fill="#fff"/><path fill="#14171C" d="${d}"/></svg>`;
 }
 
-/** پنجرهٔ برنامهٔ رایانه (صفحهٔ فایل‌ها) برای سرصفحه و کارت دانلود؛ نشانه‌های {{…}} را خود قالب پر می‌کند. */
+/** پنجرهٔ برنامهٔ رایانه برای سرصفحه و کارت دانلود، با عکس واقعی صفحهٔ فایل‌ها (npm run shots). */
 export function desktop(): string {
-  return `<div class="win">
-  <div class="win-bar"><i></i><i></i><i></i><span>کلید · فایل‌ها</span></div>
-  <div class="win-body">
-    <div class="m-side">
-      <div class="m-brand"><span class="plq s">کلید</span><span><small>املاک</small><b>آرامش</b></span></div>
-      <span class="m-nav">{{icon:today s}}امروز</span>
-      <span class="m-nav on">{{icon:files s}}فایل‌ها<small>۱۲۸</small></span>
-      <span class="m-nav">{{icon:users s}}مشتری‌ها<small>۴۶</small></span>
-      <span class="m-nav">{{icon:cal s}}تقویم</span>
-      <span class="m-nav">{{icon:deal s}}قراردادها</span>
-      <span class="m-sync"><i></i>همگام · همین حالا</span>
-    </div>
-    <div class="m-main">
-      <div class="m-top"><span class="m-search">{{icon:search s}}جستجو در فایل‌ها، مشتری‌ها و کارها…<kbd>Ctrl K</kbd></span><span class="m-new">{{icon:plus s}}فایل جدید</span></div>
-      <div class="m-hd"><b>فایل‌ها</b><span class="m-seg"><span class="on">همه ۱۲۸</span><span><i class="sw-s"></i>فروش ۵۴</span><span><i class="sw-r"></i>رهن و اجاره ۵۱</span><span><i class="sw-f"></i>رهن کامل ۲۳</span></span></div>
-      <div class="m-grid">
-        <div class="m-card sel"><span class="ph ph-i m-ph">{{cover}}<span class="plq s">۰۵۲</span></span><small>فروش</small><b>آپارتمان ۱۰۵ متری</b><small>{{icon:pin s}}ونک، ملاصدرا</small><div class="m-price"><b>۲۴ میلیارد</b><small>۲ خواب · طبقهٔ ۸</small></div></div>
-        <div class="m-card"><span class="ph ph-f m-ph">{{cover}}<span class="plq s r">۰۵۰</span></span><small>رهن و اجاره</small><b>آپارتمان ۸۰ متری</b><small>{{icon:pin s}}پونک، اباذر</small><div class="m-price"><b>۹۰۰ میلیون</b><small>اجاره ۲۵ میلیون</small></div></div>
-        <div class="m-card"><span class="ph ph-j m-ph">{{cover}}<span class="plq s f">۰۴۷</span></span><small>رهن کامل</small><b>آپارتمان ۹۵ متری</b><small>{{icon:pin s}}یوسف‌آباد</small><div class="m-price"><b>۳٫۵ میلیارد</b><small>۲ خواب · طبقهٔ ۳</small></div></div>
-      </div>
-    </div>
-    <div class="m-panel">
-      <span class="ph ph-i m-ph tall">{{cover}}</span>
-      <div class="m-ttl"><span class="plq">۰۵۲</span><span><small>فروش · ونک</small><b>آپارتمان ۱۰۵ متری</b></span></div>
-      <b class="m-big">۲۴ میلیارد تومان</b>
-      <div class="m-stats"><span><small>متراژ</small>۱۰۵</span><span><small>خواب</small>۲</span><span><small>طبقه</small>۸ از ۱۲</span></div>
-      <span class="m-match">{{icon:users s}}۲ مشتری دنبال چنین فایلی‌اند</span>
-      <span class="m-show">{{icon:show s}}نمایش به مشتری</span>
-    </div>
-  </div>
-</div>`;
+  return `<div class="win"><div class="win-bar"><i></i><i></i><i></i><span>کلید · فایل‌ها</span></div>${appDesktop()}</div>`;
 }
