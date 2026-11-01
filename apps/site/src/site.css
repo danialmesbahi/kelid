@@ -132,7 +132,8 @@ h2 .mute { font-weight: 700; }
 @keyframes kl-hero { from { transform: scale(1.05); } }
 .hero-in { min-height: var(--hero-h); padding-top: calc(var(--hdr) + clamp(24px, 6vh, 72px)); }
 /* گوشی: تصویر بلندتر و از پایین چیده می‌شود تا میز زیر دکمه‌ها دیده شود */
-@media (max-width: 760px) { .hero { --hero-h: 960px; } .hero-art img { object-position: 55% 100%; } }
+/* گوشی: برج میلاد (حدود ۷۴٪ عرض عکس) باید در همهٔ پهناها دیده شود، پس عکس کمی به راست کشیده می‌شود */
+@media (max-width: 760px) { .hero { --hero-h: 960px; } .hero-art img { object-position: 70% 100%; } }
 .hero-in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .hero-art { animation: none; } }
 .hero h1 { display: flex; flex-direction: column; gap: 14px; font-weight: 800; animation: kl-up 1s var(--ease-expo) .1s both; }
@@ -598,7 +599,8 @@ h2 .mute { font-weight: 700; }
   .wrap { padding-inline: 16px; }
   .hdr-in { gap: 10px; padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); }
   .hdr-cta { height: 42px; padding: 0 14px; font-size: 14px; }
-  .hero { padding-top: calc(var(--hdr) + 40px); }
+  /* فاصلهٔ بالا را فقط .hero-in می‌دهد؛ قبلاً دو فاصله روی هم جمع می‌شد */
+  .hero-in { padding-top: calc(var(--hdr) + 28px); }
   .moon { top: calc(var(--hdr) + 34px); left: 14px; width: 34px; height: 34px; }
   .cta { flex-direction: column; align-self: stretch; }
   .cta .btn { width: 100%; }
