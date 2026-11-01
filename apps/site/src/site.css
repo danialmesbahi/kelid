@@ -2,7 +2,7 @@
 @import 'vazirmatn/Vazirmatn-Variable-font-face.css';
 @import '@kelid/ui/kelid.css';
 @import '@kelid/ui/motion.css';
-/*@dark*/
+/* لندینگ همیشه روشن است (خواست مهدی)؛ عکس هیرو روشن است و متن‌ها برای پوستهٔ روشن تنظیم شده‌اند */
 
 /* شب شهر در هر دو پوسته شب است؛ مثل صحنهٔ آشنایی برنامه (welcome.css) چند رنگ صحنه ثابت نوشته شده‌اند. */
 .app { --lit: #F6CF7C; --night-ink: #FFFFFF; --night-mute: rgba(255, 255, 255, .74); --hdr: 64px; scroll-behavior: smooth; scroll-padding-top: calc(var(--hdr) + 20px); }
