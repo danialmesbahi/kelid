@@ -146,8 +146,9 @@ function clean(s: Spec, v: unknown): unknown {
     case 'text':
       return text(v, s.max) || undefined;
     case 'phone': {
-      const p = typeof v === 'string' || typeof v === 'number' ? normalizePhone(String(v)) : '';
-      return p.length >= 5 && p.length <= 15 ? p : undefined;
+      // ثابت بی صفر اول («۲۱۲۲۳۳۴۴۵۵») هم درست می‌شود؛ شمارهٔ ناقص یا بلند غلط است و در فرم نمی‌نشیند.
+      const p = typeof v === 'string' || typeof v === 'number' ? normalizePhone(String(v)).replace(/^(?=[1-8]\d{9}$)/, '0') : '';
+      return /^0[1-9]\d{9}$|^[2-8]\d{7}$/.test(p) ? p : undefined;
     }
     case 'int': {
       const n = Math.round(typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN);

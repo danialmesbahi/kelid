@@ -69,7 +69,8 @@ export function voicePrompt(form: VoiceForm, hints: string[], year = thisYear())
     '- «متری N» / «هر متر N» is a price per square meter: total = N × area.',
     '- If the unit is left out, use it only when context makes it certain (sale prices are billions, monthly rents are millions); otherwise null.',
     '- Deal type can come from the prices: only a total price → sale; deposit and monthly rent → rent; deposit only → full.',
-    '- Spoken numbers become digits. Phone numbers: write every digit in order (صفر نهصد و دوازده ... → 0912...). Keep the leading 0.',
+    '- Spoken numbers become digits.',
+    '- Phone numbers: digits only. An Iranian mobile is exactly 11 digits starting 09; a landline is 0 + area code + 8 digits (or just 8 digits). People say a number in groups and each group is written out on its own, in order, never added together and never money: «صفر نهصد و دوازده، سیصد و چهل و پنج، شصت و هفت، هشتاد و نه» → 09123456789; «صفر نود و یک، بیست و سه، چهل و پنج، شصت و هفت، هشتاد و نه» → 09123456789; «سه تا هفت» → 777; «دو تا صفر» → 00; «شش هزار و هفتصد و هشتاد و نه» → 6789. Keep the leading 0 (add it if the speaker left it out). If the speaker corrects part of it («ببخشید …») use the corrected digits. If you cannot get a complete number, null.',
     '- «رهن» alone with no rent means full mortgage (full); «رهن و اجاره» / «ودیعه و اجاره» means rent; «فروش» / «فروشی» / «خرید» means sale.',
     '- «همکف» is floor 0. «n طبقه» about the building means floorsTotal. «n خوابه» means bedrooms.',
     '- Text values are Persian script, short and clean; fix obvious speech-recognition misspellings. Do not repeat in notes/description what already has its own field.',
@@ -81,7 +82,8 @@ export function voicePrompt(form: VoiceForm, hints: string[], year = thisYear())
 
 /** واژه‌های این کار به مدل گفتار کمک می‌کند نام محله و اصطلاح‌ها را درست بنویسد. */
 function transcribeHint(hints: string[]): string {
-  return `مشاور املاک مشخصات ملک یا مشتری را می‌گوید: متراژ، خواب، طبقه، رهن، اجاره، ودیعه، میلیون، میلیارد تومان، پارکینگ، آسانسور، انباری. ${hints.join('، ')}`.slice(0, 900);
+  // نمونهٔ شماره با رقم کمک می‌کند شماره رقمی و گروه‌به‌گروه نوشته شود، نه با حروف و درهم.
+  return `مشاور املاک مشخصات ملک یا مشتری را می‌گوید: متراژ، خواب، طبقه، رهن، اجاره، ودیعه، میلیون، میلیارد تومان، پارکینگ، آسانسور، انباری، شماره موبایل ۰۹۱۲ ۳۴۵ ۶۷ ۸۹. ${hints.join('، ')}`.slice(0, 900);
 }
 
 /** درخواست به سرویس؛ متن خطای سرویس فقط به لاگ سرور می‌رود، نه به کاربر. */

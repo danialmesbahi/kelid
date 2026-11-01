@@ -36,6 +36,18 @@ describe('voice draft', () => {
     expect(cleanVoiceDraft('client', 'nonsense')).toEqual({});
   });
 
+  it('keeps only complete phone numbers from the model', () => {
+    const phone = (v: unknown) => cleanVoiceDraft('client', { phone: v }).phone;
+    expect(phone('۰۹۱۲ ۳۴۵ ۶۷ ۸۹')).toBe('09123456789');
+    expect(phone('9123456789')).toBe('09123456789');
+    expect(phone('+98 912 345 6789')).toBe('09123456789');
+    expect(phone('2122334455')).toBe('02122334455');
+    expect(phone('22334455')).toBe('22334455');
+    expect(phone('0912345678')).toBeUndefined();
+    expect(phone('091234567890')).toBeUndefined();
+    expect(phone('12345')).toBeUndefined();
+  });
+
   it('cleans a client draft', () => {
     const d = cleanVoiceDraft('client', {
       name: 'خانم احمدی',

@@ -13,14 +13,15 @@ function norm(t: string): string {
   return toEnDigits(t)
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک')
-    .replace(/[ً-ْ]/g, '')
+    .replace(/[ً-ْٔ]/g, '')
     .replace(/‌/g, ' ')
     .replace(/خیابون/g, 'خیابان')
     .replace(/میدون/g, 'میدان')
     .replace(/خونه/g, 'خانه')
     // «هشت ممیز پنج میلیارد» همان «هشت و نیم» است.
     .replace(/ (ممیز|مُمَیز|اعشار) (پنج|5)(?=\s|$|[،,.])/g, ' و نیم')
-    .replace(/(^|\s)(یک|دو|سه|سی|چهار|پنج|پان|پون|شش|شیش|هفت|هشت|نه) صد(?=\s|$|[،,.])/g, (_, s: string, w: string) => `${s}${HUNDREDS[w]}`)
+    // «هشتاد و نه صد متر» یعنی ۸۹ و بعد صد متر، نه «نهصد»: بعد از دهگان و «و» صدگان نمی‌آید.
+    .replace(/(^|\s)(?<!(?:بیست|سی|چهل|چل|پنجاه|پنجا|شصت|هفتاد|هشتاد|نود) و )(یک|دو|سه|سی|چهار|پنج|پان|پون|شش|شیش|هفت|هشت|نه) صد(?=\s|$|[،,.])/g, (_, s: string, w: string) => `${s}${HUNDREDS[w]}`)
     .replace(/\s+/g, ' ')
     .trim()
     .split(' ')
@@ -40,14 +41,36 @@ const HUNDREDS: Record<string, string> = {
   شش: 'ششصد', شیش: 'ششصد', هفت: 'هفتصد', هشت: 'هشتصد', نه: 'نهصد',
 };
 
-/** «نهصدوسی»، «وپنج»، «یکصدو»، «صفرنهصد»: عددهای سرهم جدا می‌شوند تا شماره و مبلغ درست خوانده شوند. */
+/** «نهصدوسی»، «وپنج»، «یکصدو»، «صفرنهصد»، «نهصدودوازده»: عددهای سرهم جدا می‌شوند تا شماره و مبلغ درست خوانده شوند. */
 function unglue(w: string): string {
   if (NUMBER_WORDS.has(w)) return w;
   const zero = /^صفر(?=\S)/.exec(w);
   if (zero && (NUMBER_WORDS.has(w.slice(3)) || unglue(w.slice(3)) !== w.slice(3))) return `صفر ${unglue(w.slice(3))}`;
-  const parts = w.split('و');
-  if (parts.length < 2 || !parts.some(Boolean) || !parts.every((p) => !p || NUMBER_WORDS.has(p))) return w;
-  return parts.flatMap((p, i) => [...(p ? [p] : []), ...(i < parts.length - 1 ? ['و'] : [])]).join(' ');
+  return splitAnd(w)?.join(' ') ?? w;
+}
+
+const NUM_BY_LENGTH = [...NUMBER_WORDS].sort((a, b) => b.length - a.length);
+
+/**
+ * واژهٔ سرهم به «عدد و عدد و …»؛ «و» داخل خود عدد («دوازده»، «نود») را با «و»ی جداکننده اشتباه نمی‌گیرد.
+ * دو عدد بی «و» میانشان پذیرفته نیست تا واژهٔ معمولی عدد خوانده نشود.
+ */
+function splitAnd(w: string, needNum = false): string[] | undefined {
+  if (!w) return needNum ? undefined : [];
+  if (w.startsWith('و')) {
+    const rest = splitAnd(w.slice(1), true);
+    if (rest) return ['و', ...rest];
+  }
+  if (!needNum && w === 'و') return ['و'];
+  for (const n of NUM_BY_LENGTH) {
+    if (!w.startsWith(n)) continue;
+    const tail = w.slice(n.length);
+    if (!tail) return [n];
+    if (!tail.startsWith('و')) continue;
+    const rest = splitAnd(tail);
+    if (rest && rest.length) return [n, ...rest];
+  }
+  return undefined;
 }
 
 const KIND_WORDS: Array<[PropertyKind, RegExp]> = [
@@ -240,8 +263,10 @@ function extrasOf(t: string): string[] {
 
 /** رتبهٔ جایگاه هر عدد در خواندن فارسی: هزار ۴، صدگان ۳، دهگان ۲، یکان و ده‌تا‌نوزده ۱. */
 const rankOf = (v: number) => (v >= 1000 ? 4 : v >= 100 ? 3 : v >= 20 ? 2 : 1);
-const PHONE_KEY = /^(شماره|شمارش|شمارشون|تلفن|تلفنش|موبایل|موبایلش|همراه|همراهش|تماس|تماسش)$/;
-const PHONE_SKIP = /^(شماره|شمارش|شمارشون|تلفن|تلفنش|موبایل|موبایلش|همراه|همراهش|تماس|تماسش|ثابت|منزل|خانه|دفتر|مثبت|ما|من|مالک|صاحب|صاحبش|مالکش|مشتری|ایشون|ایشان|اش|ش|شون|هم|هست|است|اینه|این|اینو|اینجوریه|رو|را|بنویس|بنویسید|یادداشت|کن|کنید|خط|:)$/;
+const PHONE_KEY = /^(شماره|شمارش|شمارشو|شمارشون|تلفن|تلفنش|تلفنشو|تلفنشون|موبایل|موبایلش|موبایلشو|موبایلشون|همراه|همراهش|همراهشون|تماس|تماسش)$/;
+const PHONE_SKIP = /^(شماره|شمارش|شمارشو|شمارشون|تلفن|تلفنش|تلفنشو|تلفنشون|موبایل|موبایلش|موبایلشو|موبایلشون|همراه|همراهش|همراهشون|تماس|تماسش|ثابت|منزل|خانه|دفتر|مثبت|ما|من|مالک|صاحب|صاحبش|مالکش|مشتری|ایشون|ایشان|خودش|خودشون|شخصی|اش|ش|شون|ی|هم|هست|هستش|است|اینه|این|اینو|اینجوریه|میشه|رو|را|بنویس|بنویسید|یادداشت|کن|کنید|خط|:)$/;
+// «… هشتاد و هشت، ببخشید، هشتاد و نه»: بعد از این واژه‌ها گوینده شماره یا تکهٔ آخرش را درست می‌گوید.
+const PHONE_FIX = /^(ببخشید|ببخشین|اشتباه|اشتباهی|اشتباهه|یعنی|نخیر|اصلاح|عذر|درستش|درستشو|درست|ش|شد|گفتم|کردم|میخوام|می|خوام|میشه|بنویس|اینه|رو)$/;
 
 type Tok = { w: string; start: number; end: number };
 const BREAK = /^[،,؛.]$/;
@@ -253,19 +278,29 @@ function wordNum(w: string): number | undefined {
   return v && v.start === 0 && v.end === w.length && !v.money && Number.isInteger(v.value) ? v.value : undefined;
 }
 
+/** جایی که شماره می‌تواند تمام شود: رقم‌های تا آنجا و توکن بعدش. */
+type Cut = { digits: string; next: number; end: number };
+type Run = Cut & { cuts: Cut[] };
+
 /**
  * رقم‌های پشت هم از توکن i. دو عدد وقتی یک عددند که با «و» آمده باشند و جایگاه دومی کوچک‌تر باشد («نهصد و سی»)،
  * وگرنه دو تکه‌اند («سی و سی» = ۳۰۳۰). glue یعنی «سیصد چهل» بی «و» هم یک عدد است، چون آوانگار گاهی «و» را نمی‌نویسد.
+ * rep یعنی «دو صفر» بی «تا» هم «۰۰» است، نه «۲۰».
  */
-function phoneRun(toks: Tok[], i: number, glue: boolean): { digits: string; next: number; end: number } {
+function phoneRun(toks: Tok[], i: number, glue: boolean, rep: boolean): Run {
   let digits = '';
   let cur = 0;
   let has = false;
   let rank = 9;
   let and = false;
   let end = toks[i]?.start ?? 0;
+  let next = i;
+  const cuts: Cut[] = [];
   const flush = () => {
-    if (has) digits += String(cur);
+    if (has) {
+      digits += String(cur);
+      cuts.push({ digits, next, end });
+    }
     cur = 0;
     has = false;
     rank = 9;
@@ -282,13 +317,10 @@ function phoneRun(toks: Tok[], i: number, glue: boolean): { digits: string; next
       and = true;
       continue;
     }
-    if (/^\d+$/.test(w)) {
-      flush();
-      digits += w;
-    } else if (/^(صفر)+$/.test(w)) {
-      flush();
-      digits += '0'.repeat(w.length / 3);
-    } else if (w === 'هزار') {
+    let add = '';
+    if (/^\d+(?:٬\d{3})*$/.test(w)) add = w.replace(/٬/g, '');
+    else if (/^(صفر)+$/.test(w)) add = '0'.repeat(w.length / 3);
+    else if (w === 'هزار') {
       // «شش هزار و هفتصد» = ۶۷۰۰، «هزار و دویست» = ۱۲۰۰
       if (has && rank < 4) cur *= 1000;
       else {
@@ -298,16 +330,16 @@ function phoneRun(toks: Tok[], i: number, glue: boolean): { digits: string; next
       }
       rank = 4;
     } else {
-      // «سه تا هفت» یا «دوتا یک»: یک رقم چند بار.
-      const glued = /^(دو|سه|چهار|پنج)تا$/.exec(w);
+      // «سه تا هفت»، «دوتا یک»، «دوصفر»: یک رقم چند بار.
+      const glued = /^(دو|سه|چهار|پنج)(تا|صفر)$/.exec(w);
       const n = wordNum(glued ? glued[1]! : w);
       if (n === undefined) break;
-      const dTok = glued ? toks[j + 1] : toks[j + 1]?.w === 'تا' ? toks[j + 2] : undefined;
+      const skip = glued ? (glued[2] === 'صفر' ? 0 : 1) : toks[j + 1]?.w === 'تا' ? 2 : rep && toks[j + 1]?.w === 'صفر' ? 1 : 0;
+      const dTok = glued?.[2] === 'صفر' ? { w: 'صفر' } : skip ? toks[j + skip] : undefined;
       const d = dTok ? (dTok.w === 'صفر' ? 0 : wordNum(dTok.w)) : undefined;
       if (n >= 2 && n <= 5 && d !== undefined && d <= 9) {
-        flush();
-        digits += String(d).repeat(n);
-        j += glued ? 1 : 2;
+        add = String(d).repeat(n);
+        j += skip;
       } else if (glued) break;
       else if (has && rankOf(n) < rank && (and || (glue && (rank > 2 || n < 10)))) {
         cur += n;
@@ -320,10 +352,14 @@ function phoneRun(toks: Tok[], i: number, glue: boolean): { digits: string; next
       }
     }
     and = false;
+    if (add) flush();
+    digits += add;
     end = toks[j]!.end;
+    next = j + 1;
+    if (add) cuts.push({ digits, next, end });
   }
   flush();
-  return { digits, next: j, end };
+  return { digits, next: j, end, cuts };
 }
 
 /** «مثبت نود و هشت…»، بی «صفر» اول، یا ثابت بی صفر («هفتاد و هفت…» = ۰۷۷…). */
@@ -332,15 +368,52 @@ const isMobile = (d: string) => /^09\d{9}$/.test(d);
 // موبایل، ثابت با پیش‌شماره (۰۷۷ بوشهر)، یا ثابت هشت‌رقمی همان شهر
 const isPhone = (d: string) => isMobile(d) || /^0[1-8]\d{9}$/.test(d) || /^[2-8]\d{7}$/.test(d);
 
-/** هر دو خوانش (با «و» و بی «و») امتحان می‌شود و آنکه شمارهٔ درست می‌دهد برنده است. */
-function bestRun(toks: Tok[], i: number, ok: (d: string) => boolean) {
-  const strict = phoneRun(toks, i, false);
-  const loose = phoneRun(toks, i, true);
-  const s = fixDigits(strict.digits);
-  const l = fixDigits(loose.digits);
-  if (ok(s)) return { ...strict, digits: s, valid: true };
-  if (ok(l)) return { ...loose, digits: l, valid: true };
-  return { ...strict, digits: s, valid: false };
+type Read = Cut & { valid: boolean };
+const MODES: Array<[boolean, boolean]> = [[false, false], [true, false], [false, true], [true, true]];
+
+/** همهٔ خوانش‌ها (با «و» و بی «و»، «دو صفر») امتحان می‌شود و آنکه شمارهٔ درست می‌دهد برنده است. */
+function bestRun(toks: Tok[], i: number, ok: (d: string) => boolean, prefix = true): Read & { runs: Run[] } {
+  const runs = MODES.map(([g, r]) => phoneRun(toks, i, g, r));
+  for (const r of runs) {
+    const d = fixDigits(r.digits);
+    if (ok(d)) return { ...r, digits: d, valid: true, runs };
+  }
+  // شمارهٔ درست و پشتش عدد دیگری («… هشتاد و نه صد متر»، «… هشتاد و نه دو خوابه»): فقط تکهٔ آخر اضافه است
+  // و بعدش واژهٔ دیگری آمده؛ شماره‌ای که در پایان جمله بلندتر شده احتمالاً غلط شنیده شده و پر نمی‌شود.
+  for (const r of prefix ? runs : []) {
+    const last = r.cuts.length - 1;
+    const c = r.cuts[last - 1];
+    const after = toks[r.cuts[last]?.next ?? toks.length];
+    if (!c || !after || BREAK.test(after.w)) continue;
+    const d = fixDigits(c.digits);
+    if (ok(d)) return { ...c, digits: d, valid: true, runs };
+  }
+  const s = runs[0]!;
+  return { ...s, digits: fixDigits(s.digits), valid: false, runs };
+}
+
+/** شماره از توکن i، با اصلاح گوینده: «… هشتاد و هشت، ببخشید، هشتاد و نه» تکهٔ آخر را عوض می‌کند. */
+function readPhone(toks: Tok[], i: number, ok: (d: string) => boolean): Read {
+  // اصلاح بعد از خود رشتهٔ عدد می‌آید؛ آن‌وقت تکهٔ اضافهٔ آخر همان اشتباه است و سرِ شماره برداشته نمی‌شود.
+  let k = Math.max(...MODES.map(([g, r]) => phoneRun(toks, i, g, r).next));
+  while (k < toks.length && BREAK.test(toks[k]!.w)) k++;
+  const corrected = k < toks.length && /^(ببخشید|ببخشین|اشتباه|اشتباهی|اشتباهه|یعنی|نخیر|اصلاح|عذر)$/.test(toks[k]!.w);
+  const first = bestRun(toks, i, ok, !corrected);
+  if (!corrected) return first;
+  while (k < toks.length && (BREAK.test(toks[k]!.w) || PHONE_FIX.test(toks[k]!.w))) k++;
+  if (k >= toks.length) return first;
+  const fix = bestRun(toks, k, ok);
+  if (fix.valid) return fix;
+  // شمارهٔ درست را فقط شمارهٔ کامل دیگری عوض می‌کند؛ «… هشتاد و نه، یعنی دو خوابه» شماره را خراب نمی‌کند.
+  if (first.valid || !fix.digits || fix.digits.length > 4) return first;
+  // تکهٔ اصلاح‌شده جای همان تعداد رقم آخر می‌نشیند.
+  for (const r of first.runs) {
+    for (const c of [...r.cuts].reverse()) {
+      const d = fixDigits(c.digits + fix.runs[0]!.digits);
+      if (ok(d)) return { digits: d, next: fix.next, end: fix.end, valid: true };
+    }
+  }
+  return first;
 }
 
 type PhoneHit = { phone?: string; raw?: string; start: number; end: number };
@@ -355,7 +428,7 @@ function findPhone(t: string): PhoneHit | undefined {
     let j = i + 1;
     while (j < toks.length && j - i <= 4 && PHONE_SKIP.test(toks[j]!.w)) j++;
     if (j >= toks.length) continue;
-    const r = bestRun(toks, j, isPhone);
+    const r = readPhone(toks, j, isPhone);
     if (r.valid) return { phone: r.digits, start: toks[i]!.start, end: r.end };
     if (!raw && r.digits.length >= 5) raw = { raw: r.digits, start: toks[i]!.start, end: r.end };
     i = Math.max(i, r.next - 1);
@@ -370,7 +443,7 @@ function findPhone(t: string): PhoneHit | undefined {
       i++;
       continue;
     }
-    const r = bestRun(toks, i, isMobile);
+    const r = readPhone(toks, i, isMobile);
     if (r.valid) return { phone: r.digits, start: toks[i]!.start, end: r.end };
     i = Math.max(r.next, i + 1);
   }
@@ -786,9 +859,12 @@ export function ruleDraft<F extends VoiceForm>(form: F, transcript: string, hint
   return withSpokenPrices(form, t, cleanVoiceDraft(form, raw));
 }
 
-/** پیش‌نویس مدل جلوتر است؛ قاعده‌ها فقط جاهای خالی را پر می‌کنند. */
+/**
+ * پیش‌نویس مدل جلوتر است؛ قاعده‌ها فقط جاهای خالی را پر می‌کنند.
+ * جز شماره تلفن: قاعده‌ها فقط شمارهٔ کامل و درست برمی‌گردانند و رقم‌ها را جابه‌جا یا جمع نمی‌کنند، ولی مدل گاهی می‌کند.
+ */
 export function mergeDrafts<F extends VoiceForm>(form: F, primary: VoiceDraft<F>, backup: VoiceDraft<F>): VoiceDraft<F> {
   const out = { ...primary } as Record<string, unknown>;
-  for (const [k, v] of Object.entries(backup)) if (out[k] === undefined) out[k] = v;
+  for (const [k, v] of Object.entries(backup)) if (out[k] === undefined || k === 'phone' || k === 'ownerPhone') out[k] = v;
   return cleanVoiceDraft(form, out);
 }
