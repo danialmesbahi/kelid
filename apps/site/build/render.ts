@@ -258,15 +258,23 @@ function art(name: string, widths: number[], sizes: string, alt = '', size: [num
 }
 
 const HERO_WIDTHS = [768, 1152, 1536];
+const HERO_PHONE_WIDTHS = [640, 960, 1024];
+// صفحه‌های عمودی (گوشی، تبلت ایستاده) نسخهٔ عمودی همین صحنه را می‌گیرند تا صندلی وسط و برج میلاد در کادر بماند
+const HERO_PORTRAIT = '(max-width: 760px), (orientation: portrait)';
+// روی گوشی ارتفاع هیرو ثابت است و عکس از روی ارتفاع پر می‌شود، پس پهنای نمایشش حداقل ۶۴۰ است
+const HERO_PHONE_SIZES = '(max-width: 760px) 640px, 100vw';
+const heroSet = (name: string, widths: number[], ext: string) => widths.map((w) => `/art/${name}-${w}.${ext} ${w}w`).join(', ');
 
 /** میزی تنها روی تپه‌ای بالای تهرانِ مه‌گرفته در سپیده‌دم: «دفترتان هر جا باشید همراهتان است». نیمهٔ بالایش آسمان خالی است تا نوشته‌ها خوانا بمانند. */
 export function heroArt(): string {
-  return `<div class="hero-art" aria-hidden="true">${art('hero', HERO_WIDTHS, '100vw', '', [1536, 1024], 'fetchpriority="high"')}</div>`;
+  const phone = (ext: string) => `<source media="${HERO_PORTRAIT}" type="image/${ext}" srcset="${heroSet('hero-phone', HERO_PHONE_WIDTHS, ext)}" sizes="${HERO_PHONE_SIZES}">`;
+  return `<div class="hero-art" aria-hidden="true"><picture>${phone('avif')}${phone('webp')}<source type="image/avif" srcset="${heroSet('hero', HERO_WIDTHS, 'avif')}" sizes="100vw"><img src="/art/hero-${HERO_WIDTHS[0]}.webp" srcset="${heroSet('hero', HERO_WIDTHS, 'webp')}" sizes="100vw" width="1536" height="1024" alt="" fetchpriority="high" decoding="async"></picture></div>`;
 }
 
-/** پیش‌بارگذاری تصویر سرصفحه در head تا مرورگر پیش از خواندن CSS سراغش برود. */
+/** پیش‌بارگذاری تصویر سرصفحه در head تا مرورگر پیش از خواندن CSS سراغش برود؛ هر صفحه فقط نسخهٔ خودش را. */
 export function heroPreload(): string {
-  return `<link rel="preload" as="image" type="image/avif" imagesrcset="${HERO_WIDTHS.map((w) => `/art/hero-${w}.avif ${w}w`).join(', ')}" imagesizes="100vw" fetchpriority="high">`;
+  return `<link rel="preload" as="image" type="image/avif" media="${HERO_PORTRAIT}" imagesrcset="${heroSet('hero-phone', HERO_PHONE_WIDTHS, 'avif')}" imagesizes="${HERO_PHONE_SIZES}" fetchpriority="high">`
+    + `<link rel="preload" as="image" type="image/avif" media="(min-width: 761px) and (orientation: landscape)" imagesrcset="${heroSet('hero', HERO_WIDTHS, 'avif')}" imagesizes="100vw" fetchpriority="high">`;
 }
 
 /** عکس واقعی برنامه (npm run shots) در قاب پنجرهٔ دسکتاپ؛ پیش‌نمایش همیشه همان طراحی امروز برنامه است. */
