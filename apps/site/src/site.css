@@ -274,13 +274,12 @@ h2 .mute { font-weight: 700; }
 @media (max-width: 920px) { .ai-hl { grid-template-columns: 1fr; max-width: 560px; } }
 @media (max-width: 760px) {
   .ai h2 { font-size: clamp(40px, 12vw, 56px); }
-  /* روی گوشی فقط ۶٪ از بالا و پایین قاب ۴:۵ بریده می‌شود؛ رابط روشن فیلم همیشه بین ۱۴٪ تا ۸۷٪ ارتفاع و ۹٪ تا ۹۱٪ پهناست،
-     پس دست‌کم ۸٪ حاشیه می‌ماند. لبه‌ها فقط بالا و پایین محو می‌شوند، نه کنارها که کارت سفید به آن نزدیک است. */
+  /* روی گوشی قاب ۴:۵ کامل و لبه‌به‌لبه دیده می‌شود (بی بریدن)؛ تکه‌های برنامه در خود فیلم گوشی درشت‌ترند. لبه‌ها فقط بالا و پایین محو می‌شوند. */
   .ai { margin-top: 56px; padding-block: 56px; }
   .ai-intro { gap: 16px; }
   .ai-intro .ai-h { margin-block: 2px 0; }
   .ai-film { margin-top: 12px; }
-  .ai-video { max-width: calc((100svh - var(--hdr)) * 4 / 4.4); aspect-ratio: 4 / 4.4; object-fit: cover; object-position: 50% 50%; --edge: linear-gradient(to bottom, transparent, #000 4%, #000 96%, transparent); -webkit-mask-image: var(--edge); mask-image: var(--edge); }
+  .ai-video { max-width: calc((100svh - var(--hdr)) * 4 / 5); aspect-ratio: 4 / 5; object-fit: cover; --edge: linear-gradient(to bottom, transparent, #000 3%, #000 97%, transparent); -webkit-mask-image: var(--edge); mask-image: var(--edge); }
   .ai-hl { margin-top: 28px; }
   .ai-cap { gap: 10px; }
   .ai-stats { margin-top: 32px; }

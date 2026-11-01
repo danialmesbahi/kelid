@@ -188,7 +188,7 @@ export function jsonLd(c: SiteConfig, cat: Catalog): string {
         name: 'هوش مصنوعی کلید: پر کردن فرم فایل با صدا و پیشنهاد هوشمند محله و خیابان',
         description: 'مشاور املاک مشخصات فایل را می‌گوید و هوش مصنوعی کلید فرم را پر می‌کند؛ بعد محله و خیابان از نقشهٔ شهر پیشنهاد می‌شود. اولین نرم‌افزار املاک با هوش مصنوعی در ایران.',
         thumbnailUrl: `${c.site}/ai/poster.jpg`,
-        contentUrl: `${c.site}/ai/kelid-ai.mp4`,
+        contentUrl: `${c.site}/ai/film.mp4`,
         uploadDate: '2026-10-31',
         duration: AI_FILM_DURATION,
         inLanguage: 'fa-IR',
